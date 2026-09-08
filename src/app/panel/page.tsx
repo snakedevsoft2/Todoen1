@@ -106,7 +106,7 @@ export default async function PanelHomePage() {
       </div>
 
       {closure && (
-        <div className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+        <div className="mt-4 rounded-xl border border-good-line bg-good-soft px-4 py-3 text-sm text-good">
           La caja de hoy ya esta cerrada. Neto guardado: {money(closure.netTotal, user.currency)}.{" "}
           <Link href="/panel/caja" className="link">
             Ver el cierre
@@ -135,15 +135,15 @@ export default async function PanelHomePage() {
                 {appointments.map((a) => (
                   <li
                     key={a.id}
-                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-ink/50 px-3 py-2.5"
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface px-3 py-2.5"
                   >
                     <div className="min-w-0">
-                      <p className="flex items-center gap-2 text-sm font-semibold text-white">
-                        <Icon name="clock" className="h-4 w-4 text-brand-300" />
+                      <p className="flex items-center gap-2 text-sm font-semibold text-strong">
+                        <Icon name="clock" className="h-4 w-4 text-brand-600" />
                         {pretty12h(a.startTime)}
-                        <span className="truncate font-normal text-slate-300">{a.clientName}</span>
+                        <span className="truncate font-normal text-body">{a.clientName}</span>
                       </p>
-                      <p className="mt-0.5 truncate text-xs text-slate-400">
+                      <p className="mt-0.5 truncate text-xs text-muted">
                         {a.serviceName} - {money(a.price, user.currency)}
                       </p>
                     </div>
@@ -173,15 +173,15 @@ export default async function PanelHomePage() {
                     <li key={o.id}>
                       <Link
                         href={"/panel/cuentas/" + o.id}
-                        className="flex items-center justify-between gap-3 rounded-xl border border-line bg-ink/50 px-3 py-2.5 transition hover:bg-white/5"
+                        className="flex items-center justify-between gap-3 rounded-xl border border-line bg-surface px-3 py-2.5 transition hover:bg-surface"
                       >
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-white">{o.label}</p>
-                          <p className="text-xs text-slate-400">
+                          <p className="truncate text-sm font-semibold text-strong">{o.label}</p>
+                          <p className="text-xs text-muted">
                             {o.items.reduce((s, i) => s + i.qty, 0)} items
                           </p>
                         </div>
-                        <span className="text-sm font-bold text-brand-300">
+                        <span className="text-sm font-bold text-brand-600">
                           {money(total, user.currency)}
                         </span>
                       </Link>
@@ -209,17 +209,17 @@ export default async function PanelHomePage() {
               {recentSales.map((s) => (
                 <li
                   key={s.id}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-line bg-ink/50 px-3 py-2.5"
+                  className="flex items-center justify-between gap-3 rounded-xl border border-line bg-surface px-3 py-2.5"
                 >
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-white">
+                    <p className="truncate text-sm font-medium text-strong">
                       {s.items.map((i) => i.qty + "x " + i.name).join(", ") || "Venta"}
                     </p>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-muted">
                       {s.clientName ?? "Mostrador"} - {s.paymentMethod.toLowerCase()}
                     </p>
                   </div>
-                  <span className="text-sm font-bold text-emerald-300">
+                  <span className="text-sm font-bold text-good">
                     {money(s.total, user.currency)}
                   </span>
                 </li>
@@ -241,14 +241,14 @@ export default async function PanelHomePage() {
           {expenses.length === 0 ? (
             <Empty title="Sin gastos anotados hoy" hint="Anota insumos, domicilios o compras del dia." />
           ) : (
-            <ul className="divide-y divide-line/60">
+            <ul className="divide-y divide-line">
               {expenses.map((e) => (
                 <li key={e.id} className="flex items-center justify-between gap-3 py-2.5">
                   <div className="min-w-0">
-                    <p className="truncate text-sm text-slate-200">{e.description}</p>
-                    <p className="text-xs text-slate-500">{e.category}</p>
+                    <p className="truncate text-sm text-body">{e.description}</p>
+                    <p className="text-xs text-subtle">{e.category}</p>
                   </div>
-                  <span className="text-sm font-semibold text-rose-300">
+                  <span className="text-sm font-semibold text-bad">
                     -{money(e.amount, user.currency)}
                   </span>
                 </li>

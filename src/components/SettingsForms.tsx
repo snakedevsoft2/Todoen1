@@ -78,8 +78,8 @@ export function BusinessSettingsForm({
         </Field>
       </div>
 
-      <div className="rounded-xl border border-line bg-ink/50 p-3">
-        <p className="mb-3 text-sm font-semibold text-white">Horario de atencion</p>
+      <div className="rounded-xl border border-line bg-surface p-3">
+        <p className="mb-3 text-sm font-semibold text-strong">Horario de atencion</p>
         <div className="grid gap-3 sm:grid-cols-3">
           <Field label="Abre a las">
             <select className="input" name="openHour" defaultValue={settings.openHour}>
@@ -118,14 +118,14 @@ export function BusinessSettingsForm({
             {WEEKDAYS.map((d) => (
               <label
                 key={d.value}
-                className="flex cursor-pointer items-center gap-2 rounded-xl border border-line bg-ink/60 px-3 py-2 text-sm text-slate-200 hover:bg-white/5"
+                className="flex cursor-pointer items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2 text-sm text-body hover:bg-surface"
               >
                 <input
                   type="checkbox"
                   name="workDays"
                   value={d.value}
                   defaultChecked={selectedDays.includes(d.value)}
-                  className="h-4 w-4 rounded border-line bg-ink accent-brand-500"
+                  className="h-4 w-4 rounded border-line bg-panel accent-brand-600"
                 />
                 {d.short}
               </label>
@@ -135,23 +135,23 @@ export function BusinessSettingsForm({
       </div>
 
       {isBarber && (
-        <div className="rounded-xl border border-line bg-ink/50 p-3">
-          <p className="mb-3 text-sm font-semibold text-white">Reservas en linea</p>
+        <div className="rounded-xl border border-line bg-surface p-3">
+          <p className="mb-3 text-sm font-semibold text-strong">Reservas en linea</p>
           <Field
             label="Enlace de tu pagina de reservas"
             hint="Solo letras, numeros y guiones. Si lo cambias, el enlace anterior deja de servir."
           >
             <div className="flex items-center gap-2">
-              <span className="shrink-0 text-xs text-slate-500">/reservar/</span>
+              <span className="shrink-0 text-xs text-subtle">/reservar/</span>
               <input className="input" name="slug" defaultValue={settings.slug} />
             </div>
           </Field>
-          <label className="mt-3 flex items-center gap-2 text-sm text-slate-300">
+          <label className="mt-3 flex items-center gap-2 text-sm text-body">
             <input
               type="checkbox"
               name="bookingOpen"
               defaultChecked={settings.bookingOpen}
-              className="h-4 w-4 rounded border-line bg-ink accent-brand-500"
+              className="h-4 w-4 rounded border-line bg-panel accent-brand-600"
             />
             Recibir reservas de clientes
           </label>

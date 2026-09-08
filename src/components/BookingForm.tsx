@@ -5,6 +5,7 @@ import { bookAppointmentAction } from "@/actions/appointments";
 import { SubmitButton } from "./SubmitButton";
 import { Alert, Field } from "./ui";
 import { money, pretty12h } from "@/lib/format";
+import { Icon } from "./Icon";
 
 export type BookableService = {
   id: string;
@@ -47,6 +48,22 @@ export function BookingForm({
         <Alert kind="ok">
           Tu turno quedo separado. Codigo {state.ref}. Te esperamos puntual.
         </Alert>
+        {state.waLink && (
+          <>
+            <a
+              href={state.waLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-success w-full"
+            >
+              <Icon name="whatsapp" className="h-5 w-5" />
+              Avisar al negocio por WhatsApp
+            </a>
+            <p className="text-center text-xs text-subtle">
+              Toca el boton y envia el mensaje para que te confirmen mas rapido.
+            </p>
+          </>
+        )}
         <button type="button" onClick={() => window.location.reload()} className="btn-ghost w-full">
           Separar otro turno
         </button>
@@ -88,10 +105,10 @@ export function BookingForm({
                   className={
                     "rounded-xl border px-2 py-2.5 text-xs font-semibold transition " +
                     (isTaken
-                      ? "cursor-not-allowed border-line bg-ink/30 text-slate-600 line-through"
+                      ? "cursor-not-allowed border-line bg-surface text-subtle line-through"
                       : selected
-                        ? "border-brand-400 bg-brand-500 text-white"
-                        : "border-line bg-ink/60 text-slate-200 hover:border-brand-400/60 hover:bg-white/5")
+                        ? "border-brand-600 bg-brand-600 text-on-brand"
+                        : "border-line bg-surface text-body hover:border-brand-500 hover:bg-surface")
                   }
                 >
                   {pretty12h(s)}
@@ -111,8 +128,8 @@ export function BookingForm({
               className={
                 "flex cursor-pointer items-center justify-between gap-3 rounded-xl border px-3 py-2.5 transition " +
                 (serviceId === s.id
-                  ? "border-brand-400 bg-brand-500/15"
-                  : "border-line bg-ink/60 hover:bg-white/5")
+                  ? "border-brand-500 bg-brand-50"
+                  : "border-line bg-surface hover:bg-surface")
               }
             >
               <span className="min-w-0">
@@ -124,12 +141,12 @@ export function BookingForm({
                   onChange={() => setServiceId(s.id)}
                   className="sr-only"
                 />
-                <span className="block truncate text-sm font-semibold text-white">{s.name}</span>
-                <span className="block text-[11px] text-slate-400">
+                <span className="block truncate text-sm font-semibold text-strong">{s.name}</span>
+                <span className="block text-[11px] text-muted">
                   {s.durationMin} min{s.description ? " - " + s.description : ""}
                 </span>
               </span>
-              <span className="shrink-0 text-sm font-bold text-brand-300">
+              <span className="shrink-0 text-sm font-bold text-brand-600">
                 {money(s.price, currency)}
               </span>
             </label>

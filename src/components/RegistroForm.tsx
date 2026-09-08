@@ -29,8 +29,8 @@ export function RegistroForm() {
               className={
                 "cursor-pointer rounded-xl border p-3 text-center transition " +
                 (type === t.value
-                  ? "border-brand-400 bg-brand-500/15"
-                  : "border-line bg-ink/60 hover:bg-white/5")
+                  ? "border-brand-500 bg-brand-50"
+                  : "border-line bg-surface hover:bg-surface")
               }
             >
               <input
@@ -41,8 +41,8 @@ export function RegistroForm() {
                 onChange={() => setType(t.value)}
                 className="sr-only"
               />
-              <span className="block text-sm font-semibold text-white">{t.label}</span>
-              <span className="mt-0.5 block text-[11px] text-slate-400">{t.hint}</span>
+              <span className="block text-sm font-semibold text-strong">{t.label}</span>
+              <span className="mt-0.5 block text-[11px] text-muted">{t.hint}</span>
             </label>
           ))}
         </div>
@@ -87,7 +87,7 @@ export function RegistroForm() {
         Crear cuenta
       </SubmitButton>
 
-      <p className="text-center text-sm text-slate-400">
+      <p className="text-center text-sm text-muted">
         Ya tienes cuenta{" "}
         <Link href="/login" className="link">
           entra aqui

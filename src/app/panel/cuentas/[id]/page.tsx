@@ -73,7 +73,7 @@ export default async function CuentaDetallePage({
                 <div className="space-y-4">
                   {Object.entries(grouped).map(([category, list]) => (
                     <div key={category}>
-                      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted">
                         {category}
                       </p>
                       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -86,10 +86,10 @@ export default async function CuentaDetallePage({
                               className="btn-ghost w-full flex-col items-start gap-0 px-3 py-2.5 text-left"
                               pendingText="Agregando..."
                             >
-                              <span className="w-full truncate text-xs font-semibold text-white">
+                              <span className="w-full truncate text-xs font-semibold text-strong">
                                 {s.name}
                               </span>
-                              <span className="text-[11px] text-brand-300">
+                              <span className="text-[11px] text-brand-600">
                                 {money(s.price, user.currency)}
                               </span>
                             </SubmitButton>
@@ -102,7 +102,7 @@ export default async function CuentaDetallePage({
               )}
 
               <details className="mt-4">
-                <summary className="cursor-pointer text-sm font-medium text-brand-300">
+                <summary className="cursor-pointer text-sm font-medium text-brand-600">
                   Agregar algo que no esta en el catalogo
                 </summary>
                 <form action={addOrderItemAction} className="mt-3 grid gap-2 sm:grid-cols-[1fr_120px_90px_auto]">
@@ -130,12 +130,12 @@ export default async function CuentaDetallePage({
             {order.items.length === 0 ? (
               <Empty title="La cuenta esta vacia" hint="Agrega productos del catalogo para cobrarla." />
             ) : (
-              <ul className="divide-y divide-line/60">
+              <ul className="divide-y divide-line">
                 {order.items.map((item) => (
                   <li key={item.id} className="flex items-center justify-between gap-3 py-3">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-white">{item.name}</p>
-                      <p className="text-xs text-slate-400">
+                      <p className="truncate text-sm font-medium text-strong">{item.name}</p>
+                      <p className="text-xs text-muted">
                         {money(item.unitPrice, user.currency)} por unidad
                       </p>
                     </div>
@@ -149,7 +149,7 @@ export default async function CuentaDetallePage({
                           </SubmitButton>
                         </form>
                       )}
-                      <span className="w-8 text-center text-sm font-bold text-white">{item.qty}</span>
+                      <span className="w-8 text-center text-sm font-bold text-strong">{item.qty}</span>
                       {isOpen && (
                         <form action={changeOrderItemQtyAction}>
                           <input type="hidden" name="itemId" value={item.id} />
@@ -159,13 +159,13 @@ export default async function CuentaDetallePage({
                           </SubmitButton>
                         </form>
                       )}
-                      <span className="w-24 text-right text-sm font-bold text-brand-300">
+                      <span className="w-24 text-right text-sm font-bold text-brand-600">
                         {money(item.unitPrice * item.qty, user.currency)}
                       </span>
                       {isOpen && (
                         <form action={removeOrderItemAction}>
                           <input type="hidden" name="itemId" value={item.id} />
-                          <SubmitButton className="btn-ghost btn-sm px-2 text-rose-300" pendingText="...">
+                          <SubmitButton className="btn-ghost btn-sm px-2 text-bad" pendingText="...">
                             <Icon name="trash" className="h-4 w-4" />
                           </SubmitButton>
                         </form>
@@ -180,11 +180,11 @@ export default async function CuentaDetallePage({
 
         <div className="space-y-4">
           <Card title="Total a cobrar">
-            <p className="text-3xl font-bold text-white">{money(total, user.currency)}</p>
-            <p className="mt-1 text-xs text-slate-400">{units} items en la cuenta</p>
+            <p className="text-3xl font-bold text-strong">{money(total, user.currency)}</p>
+            <p className="mt-1 text-xs text-muted">{units} items en la cuenta</p>
 
             {order.sale ? (
-              <div className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">
+              <div className="mt-4 rounded-xl border border-good-line bg-good-soft p-3 text-sm text-good">
                 Cuenta cobrada por {money(order.sale.total, user.currency)} en{" "}
                 {order.sale.paymentMethod.toLowerCase()}. Ya quedo en las ventas del dia.
               </div>
@@ -213,19 +213,19 @@ export default async function CuentaDetallePage({
                   Cerrar cuenta y cobrar
                 </SubmitButton>
                 {order.items.length === 0 && (
-                  <p className="text-xs text-amber-300">
+                  <p className="text-xs text-warn">
                     Agrega al menos un item antes de cerrar la cuenta.
                   </p>
                 )}
               </form>
             ) : (
-              <p className="mt-4 text-sm text-slate-400">Esta cuenta esta {order.status.toLowerCase()}.</p>
+              <p className="mt-4 text-sm text-muted">Esta cuenta esta {order.status.toLowerCase()}.</p>
             )}
           </Card>
 
           {order.notes && (
             <Card title="Nota">
-              <p className="text-sm text-slate-300">{order.notes}</p>
+              <p className="text-sm text-body">{order.notes}</p>
             </Card>
           )}
         </div>

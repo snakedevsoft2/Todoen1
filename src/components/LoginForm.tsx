@@ -40,7 +40,7 @@ export function LoginForm() {
         Entrar
       </SubmitButton>
 
-      <p className="text-center text-sm text-slate-400">
+      <p className="text-center text-sm text-muted">
         No tienes cuenta{" "}
         <Link href="/registro" className="link">
           crea una aqui

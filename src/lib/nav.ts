@@ -8,6 +8,8 @@ const COMMON_TAIL: NavItem[] = [
   { href: "/panel/caja", label: "Cierre de caja", icon: "lock" },
   { href: "/panel/catalogo", label: "Productos y servicios", icon: "tag" },
   { href: "/panel/reportes", label: "Reportes", icon: "chart" },
+  { href: "/panel/personalizar", label: "Personalizar", icon: "palette" },
+  { href: "/panel/avisos", label: "Avisos", icon: "bell" },
   { href: "/panel/ajustes", label: "Ajustes", icon: "cog" },
 ];
 
@@ -38,3 +40,13 @@ export const ITEM_NOUN: Record<BusinessType, { singular: string; plural: string 
   RESTAURANTE: { singular: "plato / producto", plural: "platos y productos" },
   COMIDAS_RAPIDAS: { singular: "producto", plural: "productos" },
 };
+
+/** Direccion publica del logo. Lleva version para poder cachearlo fuerte. */
+export function logoUrl(
+  slug: string,
+  logo: string | null | undefined,
+  updatedAt: Date
+): string | null {
+  if (!logo) return null;
+  return "/logo/" + slug + "?v=" + updatedAt.getTime();
+}

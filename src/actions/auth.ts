@@ -10,6 +10,13 @@ export type AuthState = { error?: string } | undefined;
 
 const VALID_TYPES: BusinessType[] = ["BARBERIA", "RESTAURANTE", "COMIDAS_RAPIDAS"];
 
+/** Cada tipo de negocio arranca con un color distinto. Se cambia en Personalizar. */
+const DEFAULT_BRAND: Record<BusinessType, string> = {
+  BARBERIA: "#4f46e5",
+  RESTAURANTE: "#b91c1c",
+  COMIDAS_RAPIDAS: "#ea580c",
+};
+
 const DEFAULT_CATALOG: Record<BusinessType, { name: string; price: number; durationMin: number; category: string }[]> = {
   BARBERIA: [
     { name: "Corte clasico", price: 20000, durationMin: 30, category: "Cortes" },
@@ -60,6 +67,7 @@ export async function registerAction(_prev: AuthState, formData: FormData): Prom
       businessType,
       phone: phone || null,
       slug,
+      brandColor: DEFAULT_BRAND[businessType],
       services: {
         create: DEFAULT_CATALOG[businessType].map((s) => ({
           name: s.name,

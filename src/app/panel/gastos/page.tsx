@@ -85,21 +85,21 @@ export default async function GastosPage({
             {expenses.length === 0 ? (
               <Empty title="No hay gastos en este dia" hint="Anota insumos, compras o pagos." />
             ) : (
-              <ul className="divide-y divide-line/60">
+              <ul className="divide-y divide-line">
                 {expenses.map((e) => (
                   <li key={e.id} className="flex items-center justify-between gap-3 py-3">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-white">{e.description}</p>
-                      <p className="text-xs text-slate-500">{e.category}</p>
+                      <p className="truncate text-sm font-medium text-strong">{e.description}</p>
+                      <p className="text-xs text-subtle">{e.category}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-rose-300">
+                      <span className="text-sm font-bold text-bad">
                         -{money(e.amount, user.currency)}
                       </span>
                       <form action={deleteExpenseAction}>
                         <input type="hidden" name="id" value={e.id} />
                         <SubmitButton
-                          className="btn-ghost btn-sm px-2 text-rose-300"
+                          className="btn-ghost btn-sm px-2 text-bad"
                           pendingText="..."
                           confirm="Borrar este gasto"
                         >
@@ -125,13 +125,13 @@ export default async function GastosPage({
                     return (
                       <li key={category}>
                         <div className="mb-1 flex items-center justify-between text-xs">
-                          <span className="text-slate-300">{category}</span>
-                          <span className="font-semibold text-slate-200">
+                          <span className="text-body">{category}</span>
+                          <span className="font-semibold text-body">
                             {money(amount, user.currency)} ({pct}%)
                           </span>
                         </div>
-                        <div className="h-2 overflow-hidden rounded-full bg-ink">
-                          <div className="h-full rounded-full bg-rose-400/70" style={{ width: pct + "%" }} />
+                        <div className="h-2 overflow-hidden rounded-full bg-panel">
+                          <div className="h-full rounded-full bg-bad" style={{ width: pct + "%" }} />
                         </div>
                       </li>
                     );

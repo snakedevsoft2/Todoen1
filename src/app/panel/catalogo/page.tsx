@@ -64,26 +64,26 @@ export default async function CatalogoPage() {
             <div className="space-y-5">
               {Object.entries(grouped).map(([category, list]) => (
                 <div key={category}>
-                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted">
                     {category}
                   </p>
                   <ul className="space-y-2">
                     {list.map((s) => (
-                      <li key={s.id} className="rounded-xl border border-line bg-ink/50 p-3">
+                      <li key={s.id} className="rounded-xl border border-line bg-surface p-3">
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-white">
+                            <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-strong">
                               {s.name}
                               {!s.active && <Badge tone="red">Inactivo</Badge>}
                               {isBarber && s.bookable && s.active && <Badge tone="blue">Reservable</Badge>}
                             </p>
-                            <p className="mt-0.5 text-xs text-slate-400">
+                            <p className="mt-0.5 text-xs text-muted">
                               {money(s.price, user.currency)}
                               {isBarber ? " - " + s.durationMin + " min" : ""}
                               {s.cost > 0 ? " - costo " + money(s.cost, user.currency) : ""}
                             </p>
                             {s.description && (
-                              <p className="mt-0.5 text-xs italic text-slate-500">{s.description}</p>
+                              <p className="mt-0.5 text-xs italic text-subtle">{s.description}</p>
                             )}
                           </div>
                           <div className="flex flex-wrap gap-2">
@@ -96,7 +96,7 @@ export default async function CatalogoPage() {
                             <form action={deleteServiceAction}>
                               <input type="hidden" name="id" value={s.id} />
                               <SubmitButton
-                                className="btn-ghost btn-sm px-2 text-rose-300"
+                                className="btn-ghost btn-sm px-2 text-bad"
                                 pendingText="..."
                                 confirm={"Borrar " + s.name + " del catalogo"}
                               >
@@ -107,10 +107,10 @@ export default async function CatalogoPage() {
                         </div>
 
                         <details className="mt-3">
-                          <summary className="cursor-pointer text-xs font-semibold text-brand-300">
+                          <summary className="cursor-pointer text-xs font-semibold text-brand-600">
                             Editar
                           </summary>
-                          <div className="mt-3 rounded-xl border border-line bg-panel/70 p-3">
+                          <div className="mt-3 rounded-xl border border-line bg-panel p-3">
                             <ServiceForm
                               service={{
                                 id: s.id,

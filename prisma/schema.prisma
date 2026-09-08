@@ -55,6 +55,19 @@ model User {
   phone        String?
   address      String?
 
+  // Personalizacion de marca
+  logo       String? // imagen del logo guardada como data URL
+  brandColor String  @default("#2563eb")
+  theme      String  @default("claro") // "claro" u "oscuro"
+  tagline    String? // frase corta para la pagina publica
+
+  // Avisos por WhatsApp cuando un cliente separa turno
+  whatsappNumber   String? // numero que recibe los avisos, solo digitos con indicativo
+  whatsappProvider String  @default("enlace") // "enlace", "callmebot" o "meta"
+  whatsappApiKey   String? // clave de CallMeBot o token de Meta
+  whatsappPhoneId  String? // identificador del numero en Meta
+  notifyOnBooking  Boolean @default(true)
+
   // Configuracion de agenda / caja
   currency     String  @default("COP")
   timezone     String  @default("America/Bogota")
@@ -73,6 +86,7 @@ model User {
   expenses     Expense[]
   orders       Order[]
   cashClosures CashClosure[]
+  notifications Notification[]
 
   @@index([slug])
 }
@@ -229,4 +243,27 @@ model CashClosure {
 
   @@unique([userId, day])
   @@index([userId, day])
+}
+
+enum NotificationStatus {
+  ENVIADO
+  FALLIDO
+  SIN_CONFIGURAR
+}
+
+/// Historial de avisos por WhatsApp, para que el dueno sepa si llegaron.
+model Notification {
+  id            String             @id @default(cuid())
+  userId        String
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel       String             @default("whatsapp")
+  provider      String             @default("enlace")
+  toNumber      String
+  message       String
+  status        NotificationStatus
+  detail        String?
+  appointmentId String?
+  createdAt     DateTime           @default(now())
+
+  @@index([userId, createdAt])
 }

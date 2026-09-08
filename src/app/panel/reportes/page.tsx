@@ -50,7 +50,7 @@ export default async function ReportesPage({
             href={"/panel/reportes?from=" + p.from + "&to=" + p.to}
             className={
               "btn-ghost btn-sm " +
-              (p.from === safeFrom && p.to === to ? "border-brand-400 text-brand-200" : "")
+              (p.from === safeFrom && p.to === to ? "border-brand-500 text-brand-700" : "")
             }
           >
             {p.label}
@@ -102,26 +102,26 @@ export default async function ReportesPage({
               {totals.rows.map((row) => (
                 <div key={row.day}>
                   <div className="mb-1 flex items-center justify-between text-xs">
-                    <span className="font-medium text-slate-300">{shortDay(row.day)}</span>
-                    <span className="text-slate-400">
+                    <span className="font-medium text-body">{shortDay(row.day)}</span>
+                    <span className="text-muted">
                       {money(row.sales, user.currency)} vendido - {money(row.expenses, user.currency)} gasto
                       {" = "}
                       <span
                         className={
-                          row.sales - row.expenses >= 0 ? "text-emerald-300" : "text-rose-300"
+                          row.sales - row.expenses >= 0 ? "text-good" : "text-bad"
                         }
                       >
                         {money(row.sales - row.expenses, user.currency)}
                       </span>
                     </span>
                   </div>
-                  <div className="flex h-2.5 gap-0.5 overflow-hidden rounded-full bg-ink">
+                  <div className="flex h-2.5 gap-0.5 overflow-hidden rounded-full bg-panel">
                     <div
                       className="h-full bg-brand-400"
                       style={{ width: (row.sales / maxSales) * 100 + "%" }}
                     />
                     <div
-                      className="h-full bg-rose-400/70"
+                      className="h-full bg-bad"
                       style={{ width: (row.expenses / maxSales) * 100 + "%" }}
                     />
                   </div>
@@ -147,9 +147,9 @@ export default async function ReportesPage({
                 <tbody>
                   {topItems.map((item) => (
                     <tr key={item.name}>
-                      <td className="font-medium text-white">{item.name}</td>
+                      <td className="font-medium text-strong">{item.name}</td>
                       <td className="text-right">{item.qty}</td>
-                      <td className="text-right font-semibold text-brand-300">
+                      <td className="text-right font-semibold text-brand-600">
                         {money(item.total, user.currency)}
                       </td>
                     </tr>

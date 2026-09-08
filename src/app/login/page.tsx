@@ -12,16 +12,16 @@ export default async function LoginPage() {
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-4 py-10">
       <div className="mb-6 text-center">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-brand-300">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-brand-600">
           Todo en uno
         </p>
-        <h1 className="mt-1 text-2xl font-bold text-white">Entrar a tu negocio</h1>
-        <p className="mt-1 text-sm text-slate-400">Solo veras los datos de tu propio negocio.</p>
+        <h1 className="mt-1 text-2xl font-bold text-strong">Entrar a tu negocio</h1>
+        <p className="mt-1 text-sm text-muted">Solo veras los datos de tu propio negocio.</p>
       </div>
 
       <LoginForm />
 
-      <Link href="/" className="mt-6 text-center text-xs text-slate-500 hover:text-slate-300">
+      <Link href="/" className="mt-6 text-center text-xs text-subtle hover:text-body">
         Volver al inicio
       </Link>
     </div>

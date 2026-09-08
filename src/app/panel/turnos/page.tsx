@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { addDays, isValidDay, todayIn } from "@/lib/dates";
 import { buildSlots, isWorkDay, workDaysArray } from "@/lib/slots";
 import { money, pretty12h, prettyDay } from "@/lib/format";
+import { confirmMessage, toInternational, waLink } from "@/lib/whatsapp";
 import { WEEKDAYS } from "@/lib/timezones";
 import { Card, Empty, PageHeader, Stat, StatusBadge } from "@/components/ui";
 import { Icon } from "@/components/Icon";
@@ -104,7 +105,7 @@ export default async function TurnosPage({
       </div>
 
       {!openDay && (
-        <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+        <div className="mt-4 rounded-xl border border-warn-line bg-warn-soft px-4 py-3 text-sm text-warn">
           Este dia esta fuera de tu horario de atencion ({workDayNames}). Puedes agregar turnos a mano,
           pero los clientes no lo veran disponible.
         </div>
@@ -133,22 +134,22 @@ export default async function TurnosPage({
                     className={
                       "rounded-xl border px-3 py-2.5 text-left " +
                       (appointment
-                        ? "border-brand-500/40 bg-brand-500/10"
-                        : "border-dashed border-line bg-ink/40")
+                        ? "border-brand-200 bg-brand-50"
+                        : "border-dashed border-line bg-surface")
                     }
                   >
-                    <p className="text-sm font-bold text-white">{pretty12h(slot)}</p>
+                    <p className="text-sm font-bold text-strong">{pretty12h(slot)}</p>
                     {appointment ? (
                       <>
-                        <p className="truncate text-xs font-medium text-brand-200">
+                        <p className="truncate text-xs font-medium text-brand-700">
                           {appointment.clientName}
                         </p>
-                        <p className="truncate text-[11px] text-slate-400">
+                        <p className="truncate text-[11px] text-muted">
                           {appointment.serviceName}
                         </p>
                       </>
                     ) : (
-                      <p className="text-[11px] text-slate-500">Libre</p>
+                      <p className="text-[11px] text-subtle">Libre</p>
                     )}
                   </div>
                 );
@@ -165,34 +166,60 @@ export default async function TurnosPage({
             ) : (
               <ul className="space-y-3">
                 {appointments.map((a) => (
-                  <li key={a.id} className="rounded-xl border border-line bg-ink/50 p-3">
+                  <li key={a.id} className="rounded-xl border border-line bg-surface p-3">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="flex items-center gap-2 text-sm font-bold text-white">
-                          <Icon name="clock" className="h-4 w-4 text-brand-300" />
+                        <p className="flex items-center gap-2 text-sm font-bold text-strong">
+                          <Icon name="clock" className="h-4 w-4 text-brand-600" />
                           {pretty12h(a.startTime)} a {pretty12h(a.endTime)}
                         </p>
-                        <p className="mt-1 text-sm text-slate-200">{a.clientName}</p>
-                        <p className="text-xs text-slate-400">
+                        <p className="mt-1 text-sm text-body">{a.clientName}</p>
+                        <p className="text-xs text-muted">
                           <Icon name="phone" className="mr-1 inline h-3 w-3" />
                           {a.clientPhone}
                         </p>
-                        <p className="mt-1 text-sm text-brand-200">
+                        <p className="mt-1 text-sm text-brand-700">
                           {a.serviceName} - {money(a.price, user.currency)}
                         </p>
-                        {a.notes && <p className="mt-1 text-xs italic text-slate-400">{a.notes}</p>}
+                        {a.notes && <p className="mt-1 text-xs italic text-muted">{a.notes}</p>}
                       </div>
                       <div className="flex flex-col items-end gap-2">
                         <StatusBadge status={a.status} />
                         {a.sale && (
-                          <span className="text-xs font-semibold text-emerald-300">
+                          <span className="text-xs font-semibold text-good">
                             Cobrado {money(a.sale.total, user.currency)}
                           </span>
                         )}
                       </div>
                     </div>
 
-                    <div className="mt-3 flex flex-wrap gap-2 border-t border-line/60 pt-3">
+                    <div className="mt-3 flex flex-wrap gap-2 border-t border-line pt-3">
+                      {(() => {
+                        const link = waLink(
+                          toInternational(a.clientPhone, user.whatsappNumber),
+                          confirmMessage({
+                            businessName: user.businessName,
+                            clientName: a.clientName,
+                            prettyDay: prettyDay(a.day),
+                            time: pretty12h(a.startTime),
+                            serviceName: a.serviceName,
+                          })
+                        );
+                        if (!link) return null;
+                        return (
+                          <a
+                            href={link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn-ghost btn-sm"
+                            title="Escribirle al cliente por WhatsApp"
+                          >
+                            <Icon name="whatsapp" className="h-4 w-4" />
+                            WhatsApp
+                          </a>
+                        );
+                      })()}
+
                       {a.status === "PENDIENTE" && (
                         <form action={setAppointmentStatusAction}>
                           <input type="hidden" name="id" value={a.id} />
@@ -210,7 +237,7 @@ export default async function TurnosPage({
                           </summary>
                           <form
                             action={closeAppointmentSaleAction}
-                            className="mt-2 flex flex-wrap items-end gap-2 rounded-xl border border-line bg-panel/80 p-3"
+                            className="mt-2 flex flex-wrap items-end gap-2 rounded-xl border border-line bg-panel p-3"
                           >
                             <input type="hidden" name="id" value={a.id} />
                             <label className="block">
@@ -264,7 +291,7 @@ export default async function TurnosPage({
                       <form action={deleteAppointmentAction} className="ml-auto">
                         <input type="hidden" name="id" value={a.id} />
                         <SubmitButton
-                          className="btn-ghost btn-sm text-rose-300"
+                          className="btn-ghost btn-sm text-bad"
                           pendingText="..."
                           confirm="Borrar este turno de la agenda"
                         >
@@ -285,10 +312,10 @@ export default async function TurnosPage({
           </Card>
 
           <Card title="Tu enlace de reservas">
-            <p className="break-all rounded-xl border border-line bg-ink/60 px-3 py-2.5 text-xs text-slate-300">
+            <p className="break-all rounded-xl border border-line bg-surface px-3 py-2.5 text-xs text-body">
               /reservar/{user.slug}
             </p>
-            <p className="mt-2 text-xs text-slate-400">
+            <p className="mt-2 text-xs text-muted">
               Mandalo por WhatsApp. El cliente elige el dia, la hora libre y el corte que quiere.
               {user.bookingOpen ? "" : " Ahora mismo tienes las reservas cerradas en Ajustes."}
             </p>

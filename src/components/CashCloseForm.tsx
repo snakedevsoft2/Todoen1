@@ -58,27 +58,27 @@ export function CashCloseForm({
         </Field>
       </div>
 
-      <div className="rounded-xl border border-line bg-ink/60 p-3 text-sm">
+      <div className="rounded-xl border border-line bg-surface p-3 text-sm">
         <div className="flex justify-between py-1">
-          <span className="text-slate-400">Base inicial</span>
-          <span className="text-slate-200">{money(openingNum, currency)}</span>
+          <span className="text-muted">Base inicial</span>
+          <span className="text-body">{money(openingNum, currency)}</span>
         </div>
         <div className="flex justify-between py-1">
-          <span className="text-slate-400">Ventas en efectivo</span>
-          <span className="text-emerald-300">+{money(cashSales, currency)}</span>
+          <span className="text-muted">Ventas en efectivo</span>
+          <span className="text-good">+{money(cashSales, currency)}</span>
         </div>
         <div className="flex justify-between py-1">
-          <span className="text-slate-400">Gastos del dia</span>
-          <span className="text-rose-300">-{money(expenses, currency)}</span>
+          <span className="text-muted">Gastos del dia</span>
+          <span className="text-bad">-{money(expenses, currency)}</span>
         </div>
         <div className="mt-1 flex justify-between border-t border-line pt-2 font-semibold">
-          <span className="text-slate-300">Deberia haber en caja</span>
-          <span className="text-white">{money(expected, currency)}</span>
+          <span className="text-body">Deberia haber en caja</span>
+          <span className="text-strong">{money(expected, currency)}</span>
         </div>
         {counted.trim() !== "" && (
           <div className="mt-1 flex justify-between border-t border-line pt-2 font-semibold">
-            <span className="text-slate-300">Diferencia</span>
-            <span className={diff === 0 ? "text-slate-200" : diff > 0 ? "text-emerald-300" : "text-rose-300"}>
+            <span className="text-body">Diferencia</span>
+            <span className={diff === 0 ? "text-body" : diff > 0 ? "text-good" : "text-bad"}>
               {diff > 0 ? "+" : ""}
               {money(diff, currency)}
             </span>

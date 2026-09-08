@@ -82,33 +82,33 @@ export default async function CajaPage({
           }
         >
           {closure && (
-            <div className="mb-4 space-y-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm">
+            <div className="mb-4 space-y-2 rounded-xl border border-good-line bg-good-soft p-3 text-sm">
               <div className="flex justify-between">
-                <span className="text-emerald-200/80">Cerrado el</span>
-                <span className="text-emerald-100">
+                <span className="text-good/80">Cerrado el</span>
+                <span className="text-good">
                   {closure.closedAt.toLocaleString("es-CO", { timeZone: user.timezone })}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-emerald-200/80">Neto guardado</span>
-                <span className="font-bold text-emerald-100">
+                <span className="text-good/80">Neto guardado</span>
+                <span className="font-bold text-good">
                   {money(closure.netTotal, user.currency)}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-emerald-200/80">Efectivo esperado</span>
-                <span className="text-emerald-100">{money(expectedCash, user.currency)}</span>
+                <span className="text-good/80">Efectivo esperado</span>
+                <span className="text-good">{money(expectedCash, user.currency)}</span>
               </div>
               {closure.countedCash > 0 && (
                 <div className="flex justify-between">
-                  <span className="text-emerald-200/80">Diferencia registrada</span>
+                  <span className="text-good/80">Diferencia registrada</span>
                   <span
                     className={
                       closure.difference === 0
-                        ? "text-emerald-100"
+                        ? "text-good"
                         : closure.difference > 0
-                          ? "text-emerald-300"
-                          : "text-rose-300"
+                          ? "text-good"
+                          : "text-bad"
                     }
                   >
                     {closure.difference > 0 ? "+" : ""}
@@ -116,7 +116,7 @@ export default async function CajaPage({
                   </span>
                 </div>
               )}
-              {closure.notes && <p className="text-xs italic text-emerald-200/70">{closure.notes}</p>}
+              {closure.notes && <p className="text-xs italic text-good/70">{closure.notes}</p>}
               <form action={reopenCashAction} className="pt-1">
                 <input type="hidden" name="day" value={day} />
                 <SubmitButton
@@ -140,7 +140,7 @@ export default async function CajaPage({
           />
 
           {lastClosure && !closure && (
-            <p className="mt-3 text-xs text-slate-500">
+            <p className="mt-3 text-xs text-subtle">
               El ultimo cierre fue el {shortDay(lastClosure.day)} con un neto de{" "}
               {money(lastClosure.netTotal, user.currency)}.
             </p>
@@ -174,18 +174,18 @@ export default async function CajaPage({
                         </Link>
                       </td>
                       <td className="text-right">{money(h.totalSales, user.currency)}</td>
-                      <td className="text-right text-rose-300">{money(h.totalExpenses, user.currency)}</td>
-                      <td className="text-right font-semibold text-emerald-300">
+                      <td className="text-right text-bad">{money(h.totalExpenses, user.currency)}</td>
+                      <td className="text-right font-semibold text-good">
                         {money(h.netTotal, user.currency)}
                       </td>
                       <td
                         className={
                           "text-right " +
                           (h.difference === 0
-                            ? "text-slate-400"
+                            ? "text-muted"
                             : h.difference > 0
-                              ? "text-emerald-300"
-                              : "text-rose-300")
+                              ? "text-good"
+                              : "text-bad")
                         }
                       >
                         {h.difference === 0 ? "-" : money(h.difference, user.currency)}

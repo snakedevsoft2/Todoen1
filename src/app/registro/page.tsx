@@ -10,11 +10,11 @@ export default async function RegistroPage() {
   return (
     <div className="mx-auto w-full max-w-lg px-4 py-10">
       <div className="mb-6 text-center">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-brand-300">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-brand-600">
           Todo en uno
         </p>
-        <h1 className="mt-1 text-2xl font-bold text-white">Crear tu cuenta</h1>
-        <p className="mt-1 text-sm text-slate-400">
+        <h1 className="mt-1 text-2xl font-bold text-strong">Crear tu cuenta</h1>
+        <p className="mt-1 text-sm text-muted">
           Tu negocio queda separado del de los demas usuarios.
         </p>
       </div>

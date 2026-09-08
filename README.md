@@ -43,6 +43,34 @@ totalmente responsive (celular, tablet y computador).
 - **Ajustes**: nombre, teléfono, dirección, moneda, zona horaria, horario de atención, días que
   atiende y cambio de contraseña.
 
+### Personalizar (apartado propio de cada negocio)
+
+Cada dueño le pone la cara de su marca a **su** aplicación, sin tocar la de los demás:
+
+- **Color de marca**: doce colores listos o el que quiera con el selector. Ese color repinta
+  botones, enlaces, resaltados y gráficas de todo su panel y de su página pública.
+- **Tema claro u oscuro**.
+- **Logo propio**: sube PNG, JPG, WEBP o SVG. La imagen se achica sola en el navegador y se sirve
+  como archivo cacheado, no incrustada en cada página. Si no sube ninguno se usan las iniciales.
+- **Frase de la página pública**, debajo del nombre del negocio.
+- **Vista previa en vivo** que usa exactamente los mismos colores que la aplicación real.
+
+### Avisos por WhatsApp
+
+Cuando un cliente separa un turno, al dueño le llega el aviso con la hora, el nombre, el teléfono,
+el servicio y la nota. El número que recibe los mensajes se configura en Personalizar. Hay tres
+formas de enviarlo:
+
+| Modo | Qué necesita | Cómo funciona |
+| --- | --- | --- |
+| Solo enlace | Nada | Al terminar la reserva, el cliente ve un botón que abre WhatsApp con el mensaje ya escrito para el negocio. |
+| Automático gratis | Una clave de CallMeBot, se pide una sola vez | La aplicación manda el aviso sola. |
+| WhatsApp Business oficial | Token y número de Meta | Envío por la API oficial. |
+
+Todo queda registrado en la sección **Avisos**, con el estado de cada mensaje y un botón para
+reenviarlo a mano si algo falló. Desde la agenda también hay un botón para escribirle al cliente
+por WhatsApp con la confirmación ya redactada.
+
 ---
 
 ## Cómo se garantiza que un usuario no vea ni edite lo de otro
@@ -130,14 +158,16 @@ prisma/
   migrations/          Migración inicial de PostgreSQL
   seed.ts              Datos de ejemplo
 src/
-  actions/             Server Actions: auth, catálogo, turnos, cuentas, ventas, gastos, caja, ajustes
+  actions/             Server Actions: auth, catálogo, turnos, cuentas, ventas, gastos, caja,
+                       ajustes, marca y avisos
   app/
     page.tsx           Presentación
     login, registro    Acceso
-    panel/             Panel privado de cada negocio
+    panel/             Panel privado de cada negocio (incluye personalizar y avisos)
     reservar/[slug]/   Página pública de reservas
+    logo/[slug]/       Sirve el logo del negocio como imagen cacheada
   components/          Interfaz reutilizable
-  lib/                 Sesión, fechas, dinero, horarios, consultas
+  lib/                 Sesión, fechas, dinero, horarios, consultas, temas y WhatsApp
   middleware.ts        Protección de rutas
 ```
 
@@ -145,11 +175,12 @@ src/
 
 La aplicación se probó de punta a punta en un navegador real (Microsoft Edge, en vista de
 escritorio y de celular) contra la compilación de producción y una base PostgreSQL real.
-Las 54 comprobaciones pasan: ingreso y registro, reserva de turno por el cliente, bloqueo de la
-hora ya tomada, rechazo de horas fuera del horario y del domingo, cierre de venta del turno,
-venta directa, gastos, cierre de caja con su diferencia, cuenta por mesa con descuento, edición
-del catálogo, reportes, navegación en celular, cierre de sesión y, sobre todo, que un negocio no
-alcance los datos de otro.
+Las 71 comprobaciones pasan, más 8 de la subida de logo: ingreso y registro, reserva de turno por
+el cliente, bloqueo de la hora ya tomada, rechazo de horas fuera del horario y del domingo,
+cierre de venta del turno, venta directa, gastos, cierre de caja con su diferencia, cuenta por
+mesa con descuento, edición del catálogo, reportes, aviso de WhatsApp al reservar, cambio de
+color y tema, subida y borrado del logo, navegación en celular, cierre de sesión y, sobre todo,
+que un negocio no alcance los datos ni la marca de otro.
 
 ## Notas técnicas
 
@@ -158,5 +189,10 @@ alcance los datos de otro.
 - Las fechas del negocio se guardan como texto `YYYY-MM-DD` calculado en la zona horaria del
   negocio, así el corte del día nunca se corre por UTC.
 - Los formularios también funcionan con JavaScript desactivado (mejora progresiva).
+- El tema se genera a partir de un solo color: `src/lib/theme.ts` deriva toda la paleta y la
+  escribe como variables CSS, así que cambiar el color de marca repinta la aplicación entera sin
+  recompilar nada.
+- El aviso de WhatsApp nunca puede tumbar una reserva: se envía con tiempo límite y, si falla,
+  el turno queda guardado igual y el error se anota en el historial.
 - Un turno tiene índice único por negocio, día y hora, de modo que dos clientes no pueden quedarse
   con el mismo cupo aunque envíen al mismo tiempo.

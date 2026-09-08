@@ -51,7 +51,7 @@ export default async function CuentasPage() {
       </div>
 
       {catalogCount === 0 && (
-        <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+        <div className="mt-4 rounded-xl border border-warn-line bg-warn-soft px-4 py-3 text-sm text-warn">
           Todavia no tienes productos en tu catalogo.{" "}
           <Link href="/panel/catalogo" className="link">
             Agregalos aqui
@@ -74,17 +74,17 @@ export default async function CuentasPage() {
                 const total = o.items.reduce((s, i) => s + i.unitPrice * i.qty, 0);
                 const units = o.items.reduce((s, i) => s + i.qty, 0);
                 return (
-                  <li key={o.id} className="rounded-xl border border-line bg-ink/50 p-3">
+                  <li key={o.id} className="rounded-xl border border-line bg-surface p-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate text-base font-bold text-white">{o.label}</p>
-                        <p className="text-xs text-slate-400">
+                        <p className="truncate text-base font-bold text-strong">{o.label}</p>
+                        <p className="text-xs text-muted">
                           {units} items{o.notes ? " - " + o.notes : ""}
                         </p>
                       </div>
                       <StatusBadge status={o.status} />
                     </div>
-                    <p className="mt-2 text-xl font-bold text-brand-300">
+                    <p className="mt-2 text-xl font-bold text-brand-600">
                       {money(total, user.currency)}
                     </p>
                     <div className="mt-3 flex flex-wrap gap-2">
@@ -141,10 +141,10 @@ export default async function CuentasPage() {
                 <tbody>
                   {closedToday.map((o) => (
                     <tr key={o.id}>
-                      <td className="font-medium text-white">{o.label}</td>
+                      <td className="font-medium text-strong">{o.label}</td>
                       <td>{o.items.reduce((s, i) => s + i.qty, 0)}</td>
                       <td className="capitalize">{o.sale?.paymentMethod.toLowerCase() ?? "-"}</td>
-                      <td className="text-right font-semibold text-emerald-300">
+                      <td className="text-right font-semibold text-good">
                         {o.sale ? money(o.sale.total, user.currency) : "-"}
                       </td>
                       <td>

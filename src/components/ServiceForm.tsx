@@ -112,22 +112,22 @@ export function ServiceForm({
 
       <div className="flex flex-wrap gap-4">
         {showDuration && (
-          <label className="flex items-center gap-2 text-sm text-slate-300">
+          <label className="flex items-center gap-2 text-sm text-body">
             <input
               type="checkbox"
               name="bookable"
               defaultChecked={service ? service.bookable : true}
-              className="h-4 w-4 rounded border-line bg-ink accent-brand-500"
+              className="h-4 w-4 rounded border-line bg-panel accent-brand-600"
             />
             Se puede reservar en linea
           </label>
         )}
-        <label className="flex items-center gap-2 text-sm text-slate-300">
+        <label className="flex items-center gap-2 text-sm text-body">
           <input
             type="checkbox"
             name="active"
             defaultChecked={service ? service.active : true}
-            className="h-4 w-4 rounded border-line bg-ink accent-brand-500"
+            className="h-4 w-4 rounded border-line bg-panel accent-brand-600"
           />
           Activo
         </label>

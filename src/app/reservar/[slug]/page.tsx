@@ -5,10 +5,13 @@ import { addDays, isValidDay, timeIn, todayIn } from "@/lib/dates";
 import { buildSlots, isWorkDay, workDaysArray } from "@/lib/slots";
 import { pretty12h, prettyDay } from "@/lib/format";
 import { WEEKDAYS } from "@/lib/timezones";
+import { logoUrl } from "@/lib/nav";
 import { BookingForm } from "@/components/BookingForm";
 import { DayPicker } from "@/components/DayPicker";
 import { Alert } from "@/components/ui";
 import { Icon } from "@/components/Icon";
+import { ThemeStyle } from "@/components/ThemeStyle";
+import { BrandMark } from "@/components/BrandMark";
 
 export const dynamic = "force-dynamic";
 
@@ -80,15 +83,24 @@ export default async function ReservarPage({
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
+      <ThemeStyle brandColor={shop.brandColor} theme={shop.theme} />
+
       <header className="text-center">
-        <div className="mx-auto mb-3 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-500/15 text-brand-300">
-          <Icon name="scissors" className="h-6 w-6" />
+        <div className="mx-auto mb-3 flex justify-center">
+          <BrandMark
+            name={shop.businessName}
+            logo={logoUrl(shop.slug, shop.logo, shop.updatedAt)}
+            size="xl"
+          />
         </div>
-        <h1 className="text-2xl font-bold text-white sm:text-3xl">{shop.businessName}</h1>
-        <p className="mt-1 text-sm text-slate-400">{horario}</p>
-        {shop.address && <p className="mt-1 text-xs text-slate-500">{shop.address}</p>}
+        <h1 className="text-2xl font-bold text-strong sm:text-3xl">{shop.businessName}</h1>
+        {shop.tagline && (
+          <p className="mx-auto mt-1 max-w-md text-sm text-brand-600">{shop.tagline}</p>
+        )}
+        <p className="mt-2 text-sm text-muted">{horario}</p>
+        {shop.address && <p className="mt-1 text-xs text-subtle">{shop.address}</p>}
         {shop.phone && (
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-subtle">
             <Icon name="phone" className="mr-1 inline h-3 w-3" />
             {shop.phone}
           </p>
@@ -96,7 +108,7 @@ export default async function ReservarPage({
       </header>
 
       <div className="card mt-6">
-        <h2 className="text-base font-semibold text-white">1. Elige el dia</h2>
+        <h2 className="text-base font-semibold text-strong">1. Elige el dia</h2>
         <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
           {quickDays.map((d) => {
             const [, m, dd] = d.split("-");
@@ -112,10 +124,10 @@ export default async function ReservarPage({
                 className={
                   "shrink-0 rounded-xl border px-3 py-2 text-center transition " +
                   (selected
-                    ? "border-brand-400 bg-brand-500 text-white"
+                    ? "border-brand-600 bg-brand-600 text-on-brand"
                     : open
-                      ? "border-line bg-ink/60 text-slate-200 hover:bg-white/5"
-                      : "border-line/60 bg-ink/30 text-slate-500")
+                      ? "border-line bg-surface text-body hover:bg-surface"
+                      : "border-line bg-surface text-subtle")
                 }
               >
                 <span className="block text-[10px] uppercase tracking-wide">{label}</span>
@@ -129,12 +141,12 @@ export default async function ReservarPage({
         <div className="mt-3">
           <DayPicker basePath={"/reservar/" + slug} day={day} min={today} />
         </div>
-        <p className="mt-2 text-xs text-slate-500">{prettyDay(day)}</p>
+        <p className="mt-2 text-xs text-subtle">{prettyDay(day)}</p>
       </div>
 
       <div className="card mt-4">
-        <h2 className="text-base font-semibold text-white">2. Separa tu cupo</h2>
-        <p className="mb-4 mt-1 text-sm text-slate-400">
+        <h2 className="text-base font-semibold text-strong">2. Separa tu cupo</h2>
+        <p className="mb-4 mt-1 text-sm text-muted">
           Elige la hora libre y el servicio. El cupo queda guardado a tu nombre.
         </p>
 
@@ -157,7 +169,7 @@ export default async function ReservarPage({
         />
       </div>
 
-      <p className="mt-6 text-center text-xs text-slate-500">
+      <p className="mt-6 text-center text-xs text-subtle">
         Si necesitas cambiar o cancelar tu turno, llama al negocio.
       </p>
     </div>

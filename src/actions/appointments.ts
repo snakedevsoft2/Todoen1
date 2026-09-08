@@ -6,9 +6,18 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { isValidDay, timeIn, todayIn } from "@/lib/dates";
 import { buildSlots, endTimeFor, isWorkDay } from "@/lib/slots";
-import { parseIntSafe, str } from "@/lib/format";
+import { money, parseIntSafe, prettyDay, pretty12h, str } from "@/lib/format";
+import {
+  bookingMessage,
+  isProvider,
+  normalizePhone,
+  sendWhatsapp,
+  waLink,
+} from "@/lib/whatsapp";
 
-export type BookingState = { error?: string; ok?: string; ref?: string } | undefined;
+export type BookingState =
+  | { error?: string; ok?: string; ref?: string; waLink?: string | null }
+  | undefined;
 
 const VALID_STATUS: AppointmentStatus[] = [
   "PENDIENTE",
@@ -82,10 +91,59 @@ export async function bookAppointmentAction(
         status: "PENDIENTE",
       },
     });
+    const aviso = bookingMessage({
+      businessName: shop.businessName,
+      clientName,
+      clientPhone,
+      serviceName: created.serviceName,
+      price: money(created.price, shop.currency),
+      prettyDay: prettyDay(day),
+      time: pretty12h(startTime),
+      notes: notes || null,
+    });
+
+    // El aviso nunca puede tumbar la reserva: si falla, lo dejamos anotado.
+    const destino = normalizePhone(shop.whatsappNumber);
+    if (shop.notifyOnBooking && destino) {
+      const provider = isProvider(shop.whatsappProvider) ? shop.whatsappProvider : "enlace";
+      let resultado;
+      try {
+        resultado = await sendWhatsapp({
+          provider,
+          to: destino,
+          message: aviso,
+          apiKey: shop.whatsappApiKey,
+          phoneId: shop.whatsappPhoneId,
+        });
+      } catch {
+        resultado = { status: "FALLIDO" as const, detail: "Error inesperado al enviar el aviso." };
+      }
+      try {
+        await db.notification.create({
+          data: {
+            userId: shop.id,
+            provider,
+            toNumber: destino,
+            message: aviso,
+            status: resultado.status,
+            detail: resultado.detail,
+            appointmentId: created.id,
+          },
+        });
+      } catch {
+        // Si ni siquiera se puede guardar el historial, seguimos: el turno ya quedo.
+      }
+      revalidatePath("/panel/avisos");
+    }
+
     revalidatePath("/reservar/" + slug);
     revalidatePath("/panel/turnos");
     revalidatePath("/panel");
-    return { ok: "Turno separado", ref: created.id.slice(-6).toUpperCase() };
+    return {
+      ok: "Turno separado",
+      ref: created.id.slice(-6).toUpperCase(),
+      waLink: destino ? waLink(destino, aviso) : null,
+    };
   } catch {
     return { error: "Esa hora ya fue tomada. Elige otra." };
   }

@@ -82,7 +82,7 @@ export default async function VentasPage({
           }
         >
           {services.length === 0 && (
-            <p className="mb-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+            <p className="mb-3 rounded-xl border border-warn-line bg-warn-soft px-3 py-2 text-xs text-warn">
               Aun no tienes {ITEM_NOUN[user.businessType].plural}.{" "}
               <Link href="/panel/catalogo" className="link">
                 Crealos aqui
@@ -104,19 +104,19 @@ export default async function VentasPage({
           ) : (
             <ul className="space-y-2">
               {sales.map((s) => (
-                <li key={s.id} className="rounded-xl border border-line bg-ink/50 p-3">
+                <li key={s.id} className="rounded-xl border border-line bg-surface p-3">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-white">
+                      <p className="text-sm font-semibold text-strong">
                         {money(s.total, user.currency)}
-                        <span className="ml-2 rounded-full border border-line px-2 py-0.5 text-[10px] uppercase tracking-wide text-slate-400">
+                        <span className="ml-2 rounded-full border border-line px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted">
                           {ORIGIN_LABEL[s.origin]}
                         </span>
                       </p>
-                      <p className="mt-1 text-xs text-slate-300">
+                      <p className="mt-1 text-xs text-body">
                         {s.items.map((i) => i.qty + "x " + i.name).join(", ") || "Venta"}
                       </p>
-                      <p className="mt-0.5 text-xs text-slate-500">
+                      <p className="mt-0.5 text-xs text-subtle">
                         {s.clientName ?? "Mostrador"} - {shortDay(s.day)}
                         {s.notes ? " - " + s.notes : ""}
                       </p>
@@ -141,7 +141,7 @@ export default async function VentasPage({
                       <form action={deleteSaleAction}>
                         <input type="hidden" name="id" value={s.id} />
                         <SubmitButton
-                          className="btn-ghost btn-sm px-2 text-rose-300"
+                          className="btn-ghost btn-sm px-2 text-bad"
                           pendingText="..."
                           confirm="Borrar esta venta del dia"
                         >

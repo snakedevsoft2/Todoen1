@@ -44,7 +44,7 @@ export default async function AjustesPage() {
 
         {isBarber && (
           <Card title="Tu pagina de reservas" subtitle="El enlace que le mandas a los clientes">
-            <p className="break-all rounded-xl border border-line bg-ink/60 px-3 py-2.5 text-sm text-slate-300">
+            <p className="break-all rounded-xl border border-line bg-surface px-3 py-2.5 text-sm text-body">
               /reservar/{user.slug}
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
@@ -54,7 +54,7 @@ export default async function AjustesPage() {
                 Abrir
               </Link>
             </div>
-            <p className="mt-3 text-xs text-slate-500">
+            <p className="mt-3 text-xs text-subtle">
               El cliente solo ve tus servicios marcados como reservables y las horas libres.
             </p>
           </Card>
@@ -63,7 +63,7 @@ export default async function AjustesPage() {
         <Card title="Seguridad" subtitle="Cambia tu contrasena">
           <PasswordForm />
           <div className="mt-4 border-t border-line pt-4">
-            <p className="mb-2 text-xs text-slate-500">
+            <p className="mb-2 text-xs text-subtle">
               Tu correo de acceso es {user.email}. Cada cuenta ve unicamente sus propios datos.
             </p>
             <form action={logoutAction}>

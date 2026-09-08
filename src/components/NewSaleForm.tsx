@@ -99,12 +99,12 @@ export function NewSaleForm({
 
       {services.length > 0 && (
         <div className="space-y-3">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
             Toca para agregar {itemLabel}
           </p>
           {Object.entries(grouped).map(([category, list]) => (
             <div key={category}>
-              <p className="mb-1.5 text-[11px] text-slate-500">{category}</p>
+              <p className="mb-1.5 text-[11px] text-subtle">{category}</p>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {list.map((s) => (
                   <button
@@ -113,8 +113,8 @@ export function NewSaleForm({
                     onClick={() => addService(s)}
                     className="btn-ghost w-full flex-col items-start gap-0 px-3 py-2.5 text-left"
                   >
-                    <span className="w-full truncate text-xs font-semibold text-white">{s.name}</span>
-                    <span className="text-[11px] text-brand-300">{money(s.price, currency)}</span>
+                    <span className="w-full truncate text-xs font-semibold text-strong">{s.name}</span>
+                    <span className="text-[11px] text-brand-600">{money(s.price, currency)}</span>
                   </button>
                 ))}
               </div>
@@ -143,18 +143,18 @@ export function NewSaleForm({
         </button>
       </div>
 
-      <div className="rounded-xl border border-line bg-ink/50 p-3">
+      <div className="rounded-xl border border-line bg-surface p-3">
         {cart.length === 0 ? (
-          <p className="py-3 text-center text-sm text-slate-500">
+          <p className="py-3 text-center text-sm text-subtle">
             Todavia no agregas nada a esta venta.
           </p>
         ) : (
-          <ul className="divide-y divide-line/60">
+          <ul className="divide-y divide-line">
             {cart.map((r) => (
               <li key={r.key} className="flex items-center justify-between gap-2 py-2">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-white">{r.name}</p>
-                  <p className="text-xs text-slate-400">{money(r.unitPrice, currency)} c/u</p>
+                  <p className="truncate text-sm font-medium text-strong">{r.name}</p>
+                  <p className="text-xs text-muted">{money(r.unitPrice, currency)} c/u</p>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <button type="button" onClick={() => bump(r.key, -1)} className="btn-ghost btn-sm px-2.5">
@@ -164,13 +164,13 @@ export function NewSaleForm({
                   <button type="button" onClick={() => bump(r.key, 1)} className="btn-ghost btn-sm px-2.5">
                     +
                   </button>
-                  <span className="w-24 text-right text-sm font-bold text-brand-300">
+                  <span className="w-24 text-right text-sm font-bold text-brand-600">
                     {money(r.unitPrice * r.qty, currency)}
                   </span>
                   <button
                     type="button"
                     onClick={() => remove(r.key)}
-                    className="btn-ghost btn-sm px-2 text-rose-300"
+                    className="btn-ghost btn-sm px-2 text-bad"
                     aria-label="Quitar"
                   >
                     <Icon name="x" className="h-4 w-4" />
@@ -181,8 +181,8 @@ export function NewSaleForm({
           </ul>
         )}
         <div className="mt-3 flex items-center justify-between border-t border-line pt-3">
-          <span className="text-sm text-slate-400">Total de la venta</span>
-          <span className="text-xl font-bold text-white">{money(total, currency)}</span>
+          <span className="text-sm text-muted">Total de la venta</span>
+          <span className="text-xl font-bold text-strong">{money(total, currency)}</span>
         </div>
       </div>
 

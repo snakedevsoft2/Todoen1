@@ -2,8 +2,51 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+  Paleta de respaldo. La aplicacion inyecta encima las variables del negocio
+  (color de marca y tema) desde el servidor, asi que esto solo se usa en las
+  pantallas publicas sin dueno, como el inicio y el ingreso.
+*/
 :root {
-  color-scheme: dark;
+  color-scheme: light;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+
+  --brand-50: 239 246 255;
+  --brand-100: 219 234 254;
+  --brand-200: 191 219 254;
+  --brand-300: 147 197 253;
+  --brand-400: 96 165 250;
+  --brand-500: 37 99 235;
+  --brand-600: 29 78 216;
+  --brand-700: 30 64 175;
+  --brand-800: 30 58 138;
+  --brand-900: 23 37 84;
+  --on-brand: 255 255 255;
+
+  --ink: 248 250 252;
+  --panel: 255 255 255;
+  --surface-2: 241 245 249;
+  --surface-3: 226 232 240;
+  --line: 226 232 240;
+  --line-strong: 203 213 225;
+  --text-strong: 15 23 42;
+  --text-body: 51 65 85;
+  --text-muted: 100 116 139;
+  --text-subtle: 148 163 184;
+
+  --good: 4 120 87;
+  --good-soft: 236 253 245;
+  --good-line: 167 243 208;
+  --good-solid: 16 185 129;
+  --on-good: 255 255 255;
+  --bad: 190 24 60;
+  --bad-soft: 255 241 242;
+  --bad-line: 254 205 211;
+  --warn: 146 64 14;
+  --warn-soft: 255 251 235;
+  --warn-line: 253 230 138;
+
+  --shadow: 215 25% 27%;
 }
 
 html,
@@ -12,69 +55,90 @@ body {
 }
 
 body {
-  @apply bg-ink text-slate-100 antialiased;
-  background-image: radial-gradient(1000px 600px at 15% -10%, rgba(31, 122, 255, 0.16), transparent 60%),
-    radial-gradient(800px 500px at 100% 0%, rgba(16, 185, 129, 0.1), transparent 55%);
-  background-attachment: fixed;
+  @apply bg-ink text-body antialiased;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
 }
 
 * {
   -webkit-tap-highlight-color: transparent;
 }
 
+::selection {
+  background: rgb(var(--brand-500) / 0.22);
+}
+
+/* Enfoque visible y consistente en todo el sistema. */
+:where(a, button, input, select, textarea, summary):focus-visible {
+  outline: 2px solid rgb(var(--brand-500) / 0.65);
+  outline-offset: 2px;
+  border-radius: 0.6rem;
+}
+
 @layer components {
   .card {
-    @apply rounded-2xl border border-line bg-panel/80 p-4 shadow-lg shadow-black/20 backdrop-blur sm:p-5;
+    @apply rounded-2xl border border-line bg-panel p-4 shadow-soft sm:p-5;
   }
 
   .card-tight {
-    @apply rounded-xl border border-line bg-panel/70 p-3;
+    @apply rounded-xl border border-line bg-panel p-3.5 shadow-soft;
+  }
+
+  .surface-box {
+    @apply rounded-xl border border-line bg-surface;
   }
 
   .label {
-    @apply mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400;
+    @apply mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.06em] text-muted;
   }
 
   .input {
-    @apply w-full rounded-xl border border-line bg-ink/70 px-3 py-2.5 text-[15px] text-slate-100
-      placeholder:text-slate-500 outline-none transition
-      focus:border-brand-400 focus:ring-2 focus:ring-brand-500/25;
+    @apply w-full rounded-xl border border-line bg-panel px-3 py-2.5 text-[15px] text-strong
+      shadow-sm outline-none transition
+      placeholder:text-subtle
+      hover:border-line-strong
+      focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10;
   }
 
   select.input {
-    @apply appearance-none bg-ink/70 pr-9;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%2394a3b8' stroke-width='2'><path d='M4 6l4 4 4-4'/></svg>");
+    @apply appearance-none pr-9;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23888f9c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 6l4 4 4-4'/></svg>");
     background-repeat: no-repeat;
     background-position: right 0.75rem center;
   }
 
   .btn {
     @apply inline-flex select-none items-center justify-center gap-2 rounded-xl px-4 py-2.5
-      text-sm font-semibold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+      text-sm font-semibold leading-none transition
+      active:scale-[0.985] disabled:pointer-events-none disabled:opacity-45;
   }
 
   .btn-primary {
-    @apply btn bg-brand-500 text-white shadow-lg shadow-brand-500/20 hover:bg-brand-400;
+    @apply btn bg-brand-600 text-on-brand shadow-soft hover:bg-brand-700;
   }
 
   .btn-ghost {
-    @apply btn border border-line bg-white/5 text-slate-200 hover:bg-white/10;
+    @apply btn border border-line bg-panel text-body shadow-sm hover:border-line-strong hover:bg-surface hover:text-strong;
+  }
+
+  .btn-soft {
+    @apply btn bg-brand-50 text-brand-700 hover:bg-brand-100;
   }
 
   .btn-danger {
-    @apply btn border border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20;
+    @apply btn border border-bad-line bg-bad-soft text-bad hover:brightness-95;
   }
 
   .btn-success {
-    @apply btn bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:bg-emerald-400;
+    @apply btn bg-good-solid text-on-good shadow-soft hover:brightness-110;
   }
 
   .btn-sm {
-    @apply px-3 py-1.5 text-xs;
+    @apply px-3 py-2 text-xs;
   }
 
   .badge {
-    @apply inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide;
+    @apply inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.04em];
   }
 
   .table-wrap {
@@ -86,19 +150,27 @@ body {
   }
 
   .tbl th {
-    @apply border-b border-line px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-400;
+    @apply border-b border-line px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted;
   }
 
   .tbl td {
-    @apply border-b border-line/60 px-3 py-3 align-middle text-slate-200;
+    @apply border-b border-line px-3 py-3 align-middle text-body;
+  }
+
+  .tbl tbody tr:last-child td {
+    @apply border-b-0;
   }
 
   .link {
-    @apply text-brand-300 underline decoration-brand-500/40 underline-offset-2 hover:text-brand-200;
+    @apply font-medium text-brand-600 underline decoration-brand-500/35 underline-offset-2 hover:text-brand-700;
+  }
+
+  .divider {
+    @apply border-t border-line;
   }
 }
 
-/* Oculta las flechas de los inputs numericos: en movil estorban. */
+/* En movil las flechas del campo numerico estorban. */
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;
@@ -108,10 +180,18 @@ input[type="number"] {
   -moz-appearance: textfield;
 }
 
+/* El calendario nativo se ve muy oscuro en tema oscuro. */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0.55;
+  cursor: pointer;
+}
+input[type="date"]:hover::-webkit-calendar-picker-indicator {
+  opacity: 0.9;
+}
+
 @media print {
   body {
     background: #fff;
-    color: #000;
   }
   .no-print {
     display: none !important;
