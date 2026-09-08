@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import type { BusinessType } from "@prisma/client";
 import { db } from "@/lib/db";
-import { checkPassword, hashPassword, uniqueSlug } from "@/lib/auth";
+import { checkPassword, ensureOwnerStaff, hashPassword, uniqueSlug } from "@/lib/auth";
 import { clearSessionCookie, cookieJar, signSession, writeSessionCookie } from "@/lib/session";
 
 export type AuthState = { error?: string } | undefined;
@@ -68,6 +68,15 @@ export async function registerAction(_prev: AuthState, formData: FormData): Prom
       phone: phone || null,
       slug,
       brandColor: DEFAULT_BRAND[businessType],
+      // El dueno queda registrado como la primera persona que atiende.
+      staff: {
+        create: {
+          name: ownerName,
+          role: "DUENO",
+          color: DEFAULT_BRAND[businessType],
+          phone: phone || null,
+        },
+      },
       services: {
         create: DEFAULT_CATALOG[businessType].map((s) => ({
           name: s.name,
@@ -78,11 +87,18 @@ export async function registerAction(_prev: AuthState, formData: FormData): Prom
         })),
       },
     },
+    include: { staff: true },
   });
 
   writeSessionCookie(
     jar,
-    await signSession({ uid: user.id, email: user.email, type: user.businessType })
+    await signSession({
+      uid: user.id,
+      email: user.email,
+      type: user.businessType,
+      sid: user.staff[0]?.id,
+      role: "DUENO",
+    })
   );
   redirect("/panel");
 }
@@ -94,13 +110,44 @@ export async function loginAction(_prev: AuthState, formData: FormData): Promise
   if (!email || !password) return { error: "Escribe tu correo y contrasena." };
 
   const user = await db.user.findUnique({ where: { email } });
-  if (!user || !checkPassword(password, user.passwordHash)) {
+
+  // 1. El dueno del negocio.
+  if (user) {
+    if (!checkPassword(password, user.passwordHash)) {
+      return { error: "Correo o contrasena incorrectos." };
+    }
+    const owner = await ensureOwnerStaff(user);
+    writeSessionCookie(
+      jar,
+      await signSession({
+        uid: user.id,
+        email: user.email,
+        type: user.businessType,
+        sid: owner.id,
+        role: owner.role,
+      })
+    );
+    redirect("/panel");
+  }
+
+  // 2. Un barbero con usuario propio dentro de un negocio.
+  const staff = await db.staff.findUnique({ where: { email }, include: { user: true } });
+  if (!staff || !staff.passwordHash || !checkPassword(password, staff.passwordHash)) {
     return { error: "Correo o contrasena incorrectos." };
+  }
+  if (!staff.active) {
+    return { error: "Tu usuario esta desactivado. Pidele al dueno que lo active." };
   }
 
   writeSessionCookie(
     jar,
-    await signSession({ uid: user.id, email: user.email, type: user.businessType })
+    await signSession({
+      uid: staff.userId,
+      email,
+      type: staff.user.businessType,
+      sid: staff.id,
+      role: staff.role,
+    })
   );
   redirect("/panel");
 }

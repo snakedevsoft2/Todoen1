@@ -117,3 +117,101 @@ export async function getTopItems(userId: string, from: string, to: string, limi
 
   return [...map.values()].sort((a, b) => b.qty - a.qty).slice(0, limit);
 }
+
+export type StaffTotals = {
+  staffId: string;
+  name: string;
+  color: string;
+  role: string;
+  active: boolean;
+  commissionPct: number;
+  /** Plata que entro por lo que atendio esta persona. */
+  totalSales: number;
+  salesCount: number;
+  /** Turnos que efectivamente atendio. */
+  attended: number;
+  /** Turnos que le separaron (sin contar los cancelados). */
+  booked: number;
+  noShow: number;
+  ticketAverage: number;
+  commission: number;
+};
+
+/**
+ * Medicion por barbero dentro de un rango de dias.
+ *
+ * Cuenta la plata por la venta (Sale.staffId), no por el turno, porque hay
+ * ventas sin turno: el cliente que llega sin reservar tambien suma.
+ */
+export async function getStaffTotals(
+  userId: string,
+  from: string,
+  to: string
+): Promise<{ rows: StaffTotals[]; unassigned: { totalSales: number; salesCount: number } }> {
+  const [team, sales, appointments] = await Promise.all([
+    db.staff.findMany({
+      where: { userId },
+      orderBy: [{ role: "asc" }, { createdAt: "asc" }],
+    }),
+    db.sale.findMany({
+      where: { userId, day: { gte: from, lte: to } },
+      select: { staffId: true, total: true },
+    }),
+    db.appointment.findMany({
+      where: { userId, day: { gte: from, lte: to } },
+      select: { staffId: true, status: true },
+    }),
+  ]);
+
+  const rows = new Map<string, StaffTotals>();
+  for (const person of team) {
+    rows.set(person.id, {
+      staffId: person.id,
+      name: person.name,
+      color: person.color,
+      role: person.role,
+      active: person.active,
+      commissionPct: person.commissionPct,
+      totalSales: 0,
+      salesCount: 0,
+      attended: 0,
+      booked: 0,
+      noShow: 0,
+      ticketAverage: 0,
+      commission: 0,
+    });
+  }
+
+  const unassigned = { totalSales: 0, salesCount: 0 };
+
+  for (const sale of sales) {
+    const row = sale.staffId ? rows.get(sale.staffId) : undefined;
+    if (!row) {
+      unassigned.totalSales += sale.total;
+      unassigned.salesCount += 1;
+      continue;
+    }
+    row.totalSales += sale.total;
+    row.salesCount += 1;
+  }
+
+  for (const appointment of appointments) {
+    const row = appointment.staffId ? rows.get(appointment.staffId) : undefined;
+    if (!row) continue;
+    if (appointment.status === "CANCELADO") continue;
+    row.booked += 1;
+    if (appointment.status === "ATENDIDO") row.attended += 1;
+    if (appointment.status === "NO_ASISTIO") row.noShow += 1;
+  }
+
+  const out = [...rows.values()].map((row) => ({
+    ...row,
+    ticketAverage: row.salesCount ? Math.round(row.totalSales / row.salesCount) : 0,
+    commission: Math.round((row.totalSales * row.commissionPct) / 100),
+  }));
+
+  // Primero quien mas vendio; los inactivos sin movimiento quedan al final.
+  out.sort((a, b) => b.totalSales - a.totalSales || a.name.localeCompare(b.name));
+
+  return { rows: out, unassigned };
+}

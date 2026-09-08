@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireUser } from "@/lib/auth";
+import { requireSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { addDays, isValidDay, todayIn } from "@/lib/dates";
 import { money, prettyDay, shortDay } from "@/lib/format";
@@ -24,16 +24,16 @@ export default async function VentasPage({
 }: {
   searchParams: Promise<{ d?: string }>;
 }) {
-  const user = await requireUser();
+  const { user, staff: me } = await requireSession();
   const params = await searchParams;
   const today = todayIn(user.timezone);
   const day = params.d && isValidDay(params.d) ? params.d : today;
 
-  const [sales, services, summary] = await Promise.all([
+  const [sales, services, summary, team] = await Promise.all([
     db.sale.findMany({
       where: { userId: user.id, day },
       orderBy: { createdAt: "desc" },
-      include: { items: true },
+      include: { items: true, staff: { select: { name: true, color: true } } },
     }),
     db.service.findMany({
       where: { userId: user.id, active: true },
@@ -41,7 +41,23 @@ export default async function VentasPage({
       select: { id: true, name: true, price: true, category: true },
     }),
     getDaySummary(user.id, day),
+    user.businessType === "BARBERIA"
+      ? db.staff.findMany({
+          where: { userId: user.id, active: true },
+          orderBy: [{ role: "asc" }, { createdAt: "asc" }],
+          select: { id: true, name: true, color: true },
+        })
+      : Promise.resolve([]),
   ]);
+
+  // Cuanto hizo cada barbero en el dia.
+  const porBarbero = team
+    .map((person) => ({
+      ...person,
+      total: sales.filter((s) => s.staffId === person.id).reduce((sum, s) => sum + s.total, 0),
+      count: sales.filter((s) => s.staffId === person.id).length,
+    }))
+    .filter((row) => row.count > 0);
 
   return (
     <>
@@ -72,6 +88,26 @@ export default async function VentasPage({
         <Stat label="Ticket promedio" value={money(summary.ticketAverage, user.currency)} />
       </div>
 
+      {porBarbero.length > 1 && (
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {porBarbero.map((person) => (
+            <div key={person.id} className="card-tight flex items-center gap-2.5">
+              <span
+                className="h-2.5 w-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: person.color }}
+              />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-semibold text-strong">{person.name}</p>
+                <p className="text-[11px] text-subtle">{person.count} ventas</p>
+              </div>
+              <p className="text-sm font-bold text-brand-600">
+                {money(person.total, user.currency)}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="mt-5 grid gap-4 lg:grid-cols-[420px_1fr]">
         <Card
           title="Registrar una venta"
@@ -95,6 +131,8 @@ export default async function VentasPage({
             currency={user.currency}
             today={day}
             itemLabel={ITEM_NOUN[user.businessType].plural}
+            team={team}
+            defaultStaffId={me.id}
           />
         </Card>
 
@@ -120,6 +158,15 @@ export default async function VentasPage({
                         {s.clientName ?? "Mostrador"} - {shortDay(s.day)}
                         {s.notes ? " - " + s.notes : ""}
                       </p>
+                      {s.staff && (
+                        <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted">
+                          <span
+                            className="h-2 w-2 rounded-full"
+                            style={{ backgroundColor: s.staff.color }}
+                          />
+                          Atendio {s.staff.name}
+                        </p>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       <form action={updateSalePaymentAction} className="flex items-center gap-1">

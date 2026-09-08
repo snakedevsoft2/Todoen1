@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import type { AppointmentStatus, PaymentMethod } from "@prisma/client";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { requireSession, requireUser } from "@/lib/auth";
 import { isValidDay, timeIn, todayIn } from "@/lib/dates";
 import { buildSlots, endTimeFor, isWorkDay } from "@/lib/slots";
 import { money, parseIntSafe, prettyDay, pretty12h, str } from "@/lib/format";
@@ -16,7 +16,14 @@ import {
 } from "@/lib/whatsapp";
 
 export type BookingState =
-  | { error?: string; ok?: string; ref?: string; waLink?: string | null }
+  | {
+      error?: string;
+      ok?: string;
+      ref?: string;
+      waLink?: string | null;
+      /** Barbero que quedo atendiendo, para confirmarselo al cliente. */
+      staffName?: string | null;
+    }
   | undefined;
 
 const VALID_STATUS: AppointmentStatus[] = [
@@ -32,6 +39,37 @@ const VALID_PAYMENTS: PaymentMethod[] = ["EFECTIVO", "TARJETA", "TRANSFERENCIA",
 function readPayment(value: FormDataEntryValue | null): PaymentMethod {
   const v = String(value ?? "EFECTIVO") as PaymentMethod;
   return VALID_PAYMENTS.includes(v) ? v : "EFECTIVO";
+}
+
+/**
+ * Decide que barbero atiende un turno.
+ * Primero el que se pidio, si no el que esta usando la aplicacion, y si no el
+ * primero del equipo. Siempre se comprueba que sea de ESTE negocio.
+ */
+async function pickStaff(userId: string, requested: string, fallbackId?: string | null) {
+  if (requested) {
+    return db.staff.findFirst({ where: { id: requested, userId, active: true } });
+  }
+  if (fallbackId) {
+    const mine = await db.staff.findFirst({ where: { id: fallbackId, userId, active: true } });
+    if (mine) return mine;
+  }
+  return db.staff.findFirst({ where: { userId, active: true }, orderBy: { createdAt: "asc" } });
+}
+
+/** Turno ya ocupado para ese barbero, a esa hora, ese dia. */
+async function slotTaken(userId: string, staffId: string | null, day: string, startTime: string, exceptId?: string) {
+  return db.appointment.findFirst({
+    where: {
+      userId,
+      staffId,
+      day,
+      startTime,
+      status: { not: "CANCELADO" },
+      ...(exceptId ? { id: { not: exceptId } } : {}),
+    },
+    select: { id: true },
+  });
 }
 
 /** Reserva publica: la hace el cliente desde /reservar/[slug], sin necesidad de cuenta. */
@@ -69,11 +107,34 @@ export async function bookAppointmentAction(
     : null;
   if (serviceId && !service) return { error: "Elige un servicio de la lista." };
 
-  const taken = await db.appointment.findFirst({
-    where: { userId: shop.id, day, startTime, status: { not: "CANCELADO" } },
-    select: { id: true },
+  // Quien atiende. El cliente puede elegir barbero o dejar "el que este libre".
+  const team = await db.staff.findMany({
+    where: { userId: shop.id, active: true, bookable: true },
+    orderBy: { createdAt: "asc" },
   });
-  if (taken) return { error: "Alguien acaba de tomar esa hora. Elige otra." };
+  const requestedStaffId = str(formData.get("staffId"));
+
+  const ocupados = await db.appointment.findMany({
+    where: { userId: shop.id, day, startTime, status: { not: "CANCELADO" } },
+    select: { staffId: true },
+  });
+  const ocupadosIds = new Set(ocupados.map((a) => a.staffId));
+
+  let staff = null as (typeof team)[number] | null;
+  if (team.length > 0) {
+    if (requestedStaffId) {
+      staff = team.find((t) => t.id === requestedStaffId) ?? null;
+      if (!staff) return { error: "Elige un barbero de la lista." };
+      if (ocupadosIds.has(staff.id)) {
+        return { error: "Ese barbero ya tiene turno a esa hora. Elige otra hora u otro barbero." };
+      }
+    } else {
+      staff = team.find((t) => !ocupadosIds.has(t.id)) ?? null;
+      if (!staff) return { error: "Alguien acaba de tomar esa hora. Elige otra." };
+    }
+  } else if (ocupados.length > 0) {
+    return { error: "Alguien acaba de tomar esa hora. Elige otra." };
+  }
 
   try {
     const created = await db.appointment.create({
@@ -81,6 +142,8 @@ export async function bookAppointmentAction(
         userId: shop.id,
         serviceId: service?.id ?? null,
         serviceName: service?.name ?? "Servicio por definir",
+        staffId: staff?.id ?? null,
+        staffName: staff?.name ?? null,
         price: service?.price ?? 0,
         clientName,
         clientPhone,
@@ -99,6 +162,7 @@ export async function bookAppointmentAction(
       price: money(created.price, shop.currency),
       prettyDay: prettyDay(day),
       time: pretty12h(startTime),
+      staffName: created.staffName,
       notes: notes || null,
     });
 
@@ -143,6 +207,7 @@ export async function bookAppointmentAction(
       ok: "Turno separado",
       ref: created.id.slice(-6).toUpperCase(),
       waLink: destino ? waLink(destino, aviso) : null,
+      staffName: created.staffName,
     };
   } catch {
     return { error: "Esa hora ya fue tomada. Elige otra." };
@@ -154,7 +219,7 @@ export async function createAppointmentAction(
   _prev: BookingState,
   formData: FormData
 ): Promise<BookingState> {
-  const user = await requireUser();
+  const { user, staff: me } = await requireSession();
   const day = str(formData.get("day"));
   const startTime = str(formData.get("startTime"));
   const serviceId = str(formData.get("serviceId"));
@@ -170,11 +235,16 @@ export async function createAppointmentAction(
     ? await db.service.findFirst({ where: { id: serviceId, userId: user.id } })
     : null;
 
-  const taken = await db.appointment.findFirst({
-    where: { userId: user.id, day, startTime, status: { not: "CANCELADO" } },
-    select: { id: true },
-  });
-  if (taken) return { error: "Ya tienes un turno a las " + startTime + "." };
+  // Por defecto el turno queda a nombre de quien esta usando la aplicacion.
+  const staff = await pickStaff(user.id, str(formData.get("staffId")), me.id);
+
+  const taken = await slotTaken(user.id, staff?.id ?? null, day, startTime);
+  if (taken) {
+    return {
+      error:
+        (staff ? staff.name + " ya tiene" : "Ya tienes") + " un turno a las " + startTime + ".",
+    };
+  }
 
   try {
     await db.appointment.create({
@@ -182,6 +252,8 @@ export async function createAppointmentAction(
         userId: user.id,
         serviceId: service?.id ?? null,
         serviceName: service?.name ?? "Servicio por definir",
+        staffId: staff?.id ?? null,
+        staffName: staff?.name ?? null,
         price: service?.price ?? 0,
         clientName,
         clientPhone,
@@ -198,7 +270,7 @@ export async function createAppointmentAction(
 
   revalidatePath("/panel/turnos");
   revalidatePath("/panel");
-  return { ok: "Turno agregado." };
+  return { ok: staff ? "Turno agregado para " + staff.name + "." : "Turno agregado." };
 }
 
 export async function setAppointmentStatusAction(formData: FormData) {
@@ -223,18 +295,11 @@ export async function updateAppointmentAction(formData: FormData) {
     : null;
   const startTime = str(formData.get("startTime"), appointment.startTime);
   const day = str(formData.get("day"), appointment.day);
+  const staff = await pickStaff(user.id, str(formData.get("staffId")), appointment.staffId);
+  const staffId = staff?.id ?? null;
 
-  if (day !== appointment.day || startTime !== appointment.startTime) {
-    const clash = await db.appointment.findFirst({
-      where: {
-        userId: user.id,
-        day,
-        startTime,
-        status: { not: "CANCELADO" },
-        id: { not: appointment.id },
-      },
-      select: { id: true },
-    });
+  if (day !== appointment.day || startTime !== appointment.startTime || staffId !== appointment.staffId) {
+    const clash = await slotTaken(user.id, staffId, day, startTime, appointment.id);
     if (clash) return;
   }
 
@@ -245,6 +310,8 @@ export async function updateAppointmentAction(formData: FormData) {
       clientPhone: str(formData.get("clientPhone"), appointment.clientPhone),
       day,
       startTime,
+      staffId,
+      staffName: staff?.name ?? appointment.staffName,
       endTime: endTimeFor(startTime, service?.durationMin ?? user.slotMinutes),
       serviceId: service?.id ?? appointment.serviceId,
       serviceName: service?.name ?? appointment.serviceName,
@@ -253,6 +320,46 @@ export async function updateAppointmentAction(formData: FormData) {
     },
   });
   revalidatePath("/panel/turnos");
+}
+
+/** Le pasa el turno a otro barbero desde la agenda. */
+export async function setAppointmentStaffAction(formData: FormData) {
+  const user = await requireUser();
+  const id = str(formData.get("id"));
+  const appointment = await db.appointment.findFirst({ where: { id, userId: user.id } });
+  if (!appointment) return;
+
+  const staff = await db.staff.findFirst({
+    where: { id: str(formData.get("staffId")), userId: user.id, active: true },
+  });
+  if (!staff || staff.id === appointment.staffId) return;
+
+  // Si el otro barbero ya tiene esa hora ocupada, no se mueve.
+  const clash = await slotTaken(
+    user.id,
+    staff.id,
+    appointment.day,
+    appointment.startTime,
+    appointment.id
+  );
+  if (clash) return;
+
+  await db.$transaction([
+    db.appointment.update({
+      where: { id: appointment.id },
+      data: { staffId: staff.id, staffName: staff.name },
+    }),
+    // La venta de ese turno tambien cambia de dueno, para que la medicion cuadre.
+    db.sale.updateMany({
+      where: { appointmentId: appointment.id, userId: user.id },
+      data: { staffId: staff.id },
+    }),
+  ]);
+
+  revalidatePath("/panel/turnos");
+  revalidatePath("/panel/ventas");
+  revalidatePath("/panel/reportes");
+  revalidatePath("/panel");
 }
 
 export async function deleteAppointmentAction(formData: FormData) {
@@ -288,6 +395,7 @@ export async function closeAppointmentSaleAction(formData: FormData) {
         paymentMethod,
         origin: "TURNO",
         clientName: appointment.clientName,
+        staffId: appointment.staffId,
         appointmentId: appointment.id,
         items: {
           create: [

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { checkPassword, hashPassword, requireUser, slugify } from "@/lib/auth";
+import { checkPassword, hashPassword, requireOwner, slugify } from "@/lib/auth";
 import { parseIntSafe, str } from "@/lib/format";
 import { TIMEZONES } from "@/lib/timezones";
 
@@ -12,7 +12,7 @@ export async function updateBusinessAction(
   _prev: SettingsState,
   formData: FormData
 ): Promise<SettingsState> {
-  const user = await requireUser();
+  const { user } = await requireOwner();
 
   const businessName = str(formData.get("businessName"), user.businessName);
   const ownerName = str(formData.get("ownerName"), user.ownerName);
@@ -60,7 +60,7 @@ export async function changePasswordAction(
   _prev: SettingsState,
   formData: FormData
 ): Promise<SettingsState> {
-  const user = await requireUser();
+  const { user } = await requireOwner();
   const current = String(formData.get("currentPassword") ?? "");
   const next = String(formData.get("newPassword") ?? "");
   const confirm = String(formData.get("confirmPassword") ?? "");

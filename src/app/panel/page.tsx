@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireUser } from "@/lib/auth";
+import { requireSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { todayIn } from "@/lib/dates";
 import { getDaySummary } from "@/lib/queries";
@@ -11,7 +11,7 @@ import { Icon } from "@/components/Icon";
 export const dynamic = "force-dynamic";
 
 export default async function PanelHomePage() {
-  const user = await requireUser();
+  const { user, staff: me } = await requireSession();
   const today = todayIn(user.timezone);
   const isBarber = user.businessType === "BARBERIA";
 
@@ -21,7 +21,10 @@ export default async function PanelHomePage() {
       ? db.appointment.findMany({
           where: { userId: user.id, day: today },
           orderBy: { startTime: "asc" },
-          include: { sale: { select: { id: true } } },
+          include: {
+            sale: { select: { id: true, total: true } },
+            staff: { select: { id: true, name: true, color: true } },
+          },
         })
       : Promise.resolve([]),
     isBarber
@@ -43,6 +46,26 @@ export default async function PanelHomePage() {
 
   const pending = appointments.filter((a) => a.status === "PENDIENTE" || a.status === "CONFIRMADO");
   const attended = appointments.filter((a) => a.status === "ATENDIDO");
+
+  // Como va cada barbero hoy.
+  const team = isBarber
+    ? await db.staff.findMany({
+        where: { userId: user.id, active: true },
+        orderBy: [{ role: "asc" }, { createdAt: "asc" }],
+        select: { id: true, name: true, color: true },
+      })
+    : [];
+  const porBarbero = team.map((person) => {
+    const suyos = appointments.filter((a) => a.staffId === person.id && a.status !== "CANCELADO");
+    return {
+      ...person,
+      total: suyos.length,
+      attended: suyos.filter((a) => a.status === "ATENDIDO").length,
+      collected: suyos
+        .filter((a) => a.status === "ATENDIDO")
+        .reduce((sum, a) => sum + (a.sale?.total ?? 0), 0),
+    };
+  });
   const openTotal = openOrders.reduce(
     (sum, o) => sum + o.items.reduce((s, i) => s + i.unitPrice * i.qty, 0),
     0
@@ -105,6 +128,33 @@ export default async function PanelHomePage() {
         />
       </div>
 
+      {porBarbero.length > 1 && (
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {porBarbero.map((person) => (
+            <div key={person.id} className="card-tight flex items-center gap-3">
+              <span
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
+                style={{ backgroundColor: person.color }}
+              >
+                {person.name.slice(0, 2).toUpperCase()}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-bold text-strong">
+                  {person.name}
+                  {person.id === me.id && (
+                    <span className="ml-1 text-[11px] font-normal text-brand-600">(tu)</span>
+                  )}
+                </p>
+                <p className="text-[11px] text-subtle">
+                  {person.total} turnos hoy - {person.attended} atendidos
+                </p>
+              </div>
+              <p className="text-sm font-bold text-good">{money(person.collected, user.currency)}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
       {closure && (
         <div className="mt-4 rounded-xl border border-good-line bg-good-soft px-4 py-3 text-sm text-good">
           La caja de hoy ya esta cerrada. Neto guardado: {money(closure.netTotal, user.currency)}.{" "}
@@ -146,6 +196,15 @@ export default async function PanelHomePage() {
                       <p className="mt-0.5 truncate text-xs text-muted">
                         {a.serviceName} - {money(a.price, user.currency)}
                       </p>
+                      {a.staffName && (
+                        <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-subtle">
+                          <span
+                            className="h-2 w-2 rounded-full"
+                            style={{ backgroundColor: a.staff?.color ?? "#94a3b8" }}
+                          />
+                          Atiende {a.staffName}
+                        </p>
+                      )}
                     </div>
                     <StatusBadge status={a.status} />
                   </li>

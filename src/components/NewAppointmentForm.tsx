@@ -6,17 +6,24 @@ import { SubmitButton } from "./SubmitButton";
 import { Alert, Field } from "./ui";
 
 export type ServiceOption = { id: string; name: string; price: number; durationMin: number };
+export type StaffOption = { id: string; name: string; color: string };
 
 export function NewAppointmentForm({
   day,
   slots,
   services,
+  team,
+  defaultStaffId,
 }: {
   day: string;
   slots: string[];
   services: ServiceOption[];
+  team: StaffOption[];
+  /** Quien queda atendiendo por defecto: el filtro activo o quien esta usando la app. */
+  defaultStaffId?: string;
 }) {
   const [state, formAction] = useActionState(createAppointmentAction, undefined);
+  const fallback = team.some((t) => t.id === defaultStaffId) ? defaultStaffId : team[0]?.id ?? "";
 
   return (
     <form action={formAction} className="space-y-3">
@@ -42,6 +49,18 @@ export function NewAppointmentForm({
             ))}
           </select>
         </Field>
+        {team.length > 1 && (
+          <Field label="Quien atiende" className="sm:col-span-2">
+            <select className="input" name="staffId" defaultValue={fallback}>
+              {team.map((person) => (
+                <option key={person.id} value={person.id}>
+                  {person.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
+        {team.length === 1 && <input type="hidden" name="staffId" value={team[0].id} />}
         <Field label="Servicio" className="sm:col-span-2">
           <select className="input" name="serviceId" defaultValue="">
             <option value="">Sin definir</option>

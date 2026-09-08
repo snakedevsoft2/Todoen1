@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { requireOwner } from "@/lib/auth";
 import { str } from "@/lib/format";
 import { isTheme, normalizeHex } from "@/lib/theme";
 import {
@@ -23,7 +23,7 @@ export async function updateBrandingAction(
   _prev: BrandingState,
   formData: FormData
 ): Promise<BrandingState> {
-  const user = await requireUser();
+  const { user } = await requireOwner();
 
   const brandColor = normalizeHex(str(formData.get("brandColor")));
   const themeInput = str(formData.get("theme"), user.theme);
@@ -65,7 +65,7 @@ export async function updateWhatsappAction(
   _prev: BrandingState,
   formData: FormData
 ): Promise<BrandingState> {
-  const user = await requireUser();
+  const { user } = await requireOwner();
 
   const rawNumber = str(formData.get("whatsappNumber"));
   const number = rawNumber ? normalizePhone(rawNumber) : null;
@@ -106,7 +106,7 @@ export async function testWhatsappAction(
   _prev: BrandingState,
   _formData: FormData
 ): Promise<BrandingState> {
-  const user = await requireUser();
+  const { user } = await requireOwner();
   const destino = normalizePhone(user.whatsappNumber);
   if (!destino) return { error: "Primero guarda el numero que va a recibir los avisos." };
 
@@ -159,7 +159,7 @@ export async function testWhatsappAction(
 }
 
 export async function clearNotificationsAction() {
-  const user = await requireUser();
+  const { user } = await requireOwner();
   await db.notification.deleteMany({ where: { userId: user.id } });
   revalidatePath("/panel/avisos");
 }

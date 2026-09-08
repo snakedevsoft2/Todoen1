@@ -1,9 +1,10 @@
 import { requireUser } from "@/lib/auth";
 import { addDays, isValidDay, startOfMonth, todayIn } from "@/lib/dates";
 import { money, shortDay } from "@/lib/format";
-import { getRangeTotals, getTopItems } from "@/lib/queries";
+import { getRangeTotals, getStaffTotals, getTopItems } from "@/lib/queries";
 import { ITEM_NOUN } from "@/lib/nav";
 import { Card, Empty, PageHeader, Stat } from "@/components/ui";
+import { StaffDot } from "@/components/StaffForms";
 
 export const dynamic = "force-dynamic";
 
@@ -21,10 +22,18 @@ export default async function ReportesPage({
     params.from && isValidDay(params.from) ? params.from : startOfMonth(to) <= to ? startOfMonth(to) : to;
   const safeFrom = from <= to ? from : to;
 
-  const [totals, topItems] = await Promise.all([
+  const isBarber = user.businessType === "BARBERIA";
+
+  const [totals, topItems, staffTotals] = await Promise.all([
     getRangeTotals(user.id, safeFrom, to),
     getTopItems(user.id, safeFrom, to, 10),
+    getStaffTotals(user.id, safeFrom, to),
   ]);
+
+  // Solo tiene sentido comparar cuando hay mas de una persona atendiendo.
+  const staffRows = staffTotals.rows.filter((r) => r.active || r.totalSales > 0 || r.booked > 0);
+  const showStaff = isBarber && staffRows.length > 1;
+  const maxStaffSales = Math.max(1, ...staffRows.map((r) => r.totalSales));
 
   const maxSales = Math.max(1, ...totals.rows.map((r) => r.sales));
   const days = totals.rows.length || 1;
@@ -92,6 +101,96 @@ export default async function ReportesPage({
         <Stat label="Transferencia" value={money(totals.byMethod.TRANSFERENCIA, user.currency)} />
         <Stat label="Otros" value={money(totals.byMethod.OTRO, user.currency)} />
       </div>
+
+      {showStaff && (
+        <div className="mt-5">
+          <Card
+            title="Medicion por barbero"
+            subtitle="Cuanto atendio y cuanto entro por cada uno en este periodo"
+          >
+            <div className="table-wrap">
+              <table className="tbl">
+                <thead>
+                  <tr>
+                    <th>Barbero</th>
+                    <th className="text-right">Turnos</th>
+                    <th className="text-right">Atendidos</th>
+                    <th className="text-right">No asistio</th>
+                    <th className="text-right">Ventas</th>
+                    <th className="text-right">Vendido</th>
+                    <th className="text-right">Ticket promedio</th>
+                    <th className="text-right">Comision</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {staffRows.map((row) => (
+                    <tr key={row.staffId}>
+                      <td>
+                        <span className="flex items-center gap-2">
+                          <StaffDot name={row.name} color={row.color} size="sm" />
+                          <span className="min-w-0">
+                            <span className="block truncate font-medium text-strong">
+                              {row.name}
+                            </span>
+                            <span className="block text-[11px] text-subtle">
+                              {row.role === "DUENO" ? "Dueno" : "Barbero"}
+                              {row.active ? "" : " - inactivo"}
+                            </span>
+                          </span>
+                        </span>
+                      </td>
+                      <td className="text-right">{row.booked}</td>
+                      <td className="text-right">{row.attended}</td>
+                      <td className="text-right">{row.noShow}</td>
+                      <td className="text-right">{row.salesCount}</td>
+                      <td className="text-right font-semibold text-brand-600">
+                        {money(row.totalSales, user.currency)}
+                      </td>
+                      <td className="text-right">{money(row.ticketAverage, user.currency)}</td>
+                      <td className="text-right">
+                        {row.commissionPct > 0 ? money(row.commission, user.currency) : "-"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              {staffRows.map((row) => (
+                <div key={row.staffId}>
+                  <div className="mb-1 flex items-center justify-between text-xs">
+                    <span className="font-medium text-body">{row.name}</span>
+                    <span className="text-muted">
+                      {money(row.totalSales, user.currency)}
+                      {totals.totalSales > 0
+                        ? " - " + Math.round((row.totalSales / totals.totalSales) * 100) + "% del total"
+                        : ""}
+                    </span>
+                  </div>
+                  <div className="h-2.5 overflow-hidden rounded-full bg-panel">
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: (row.totalSales / maxStaffSales) * 100 + "%",
+                        backgroundColor: row.color,
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {staffTotals.unassigned.salesCount > 0 && (
+              <p className="mt-4 rounded-xl border border-warn-line bg-warn-soft px-3 py-2 text-xs text-warn">
+                {money(staffTotals.unassigned.totalSales, user.currency)} en{" "}
+                {staffTotals.unassigned.salesCount} ventas quedaron sin barbero asignado. Al
+                registrar una venta, elige quien la atendio para que la medicion cuadre.
+              </p>
+            )}
+          </Card>
+        </div>
+      )}
 
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
         <Card title="Dia por dia" subtitle="Ventas, gastos y lo que quedo limpio">

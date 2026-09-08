@@ -131,11 +131,41 @@ async function main() {
 
     const [first, second, third] = user.services;
 
+    // El dueno siempre queda como la primera persona que atiende.
+    const owner = await db.staff.create({
+      data: {
+        userId: user.id,
+        name: demo.ownerName,
+        role: "DUENO",
+        color: demo.brandColor,
+        phone: "300 000 0000",
+      },
+    });
+
+    // La barberia de la demo trae un segundo barbero con su propio usuario.
+    const segundo =
+      demo.type === "BARBERIA"
+        ? await db.staff.create({
+            data: {
+              userId: user.id,
+              name: "Andres Lopez",
+              email: "barbero@demo.com",
+              passwordHash,
+              role: "BARBERO",
+              color: "#16a34a",
+              commissionPct: 40,
+              phone: "301 222 3344",
+            },
+          })
+        : null;
+
     if (demo.type === "BARBERIA") {
       const turns = [
-        { time: "09:00", end: "09:30", client: "Carlos Perez", service: first },
-        { time: "10:30", end: "11:10", client: "Jhon Cardona", service: second },
-        { time: "14:00", end: "14:50", client: "Miguel Ruiz", service: third },
+        { time: "09:00", end: "09:30", client: "Carlos Perez", service: first, staff: owner },
+        { time: "09:00", end: "09:40", client: "Duvan Rios", service: second, staff: segundo },
+        { time: "10:30", end: "11:10", client: "Jhon Cardona", service: second, staff: owner },
+        { time: "11:00", end: "11:20", client: "Steven Mora", service: third, staff: segundo },
+        { time: "14:00", end: "14:50", client: "Miguel Ruiz", service: third, staff: owner },
       ];
 
       for (const turn of turns) {
@@ -144,6 +174,8 @@ async function main() {
             userId: user.id,
             serviceId: turn.service.id,
             serviceName: turn.service.name,
+            staffId: (turn.staff ?? owner).id,
+            staffName: (turn.staff ?? owner).name,
             price: turn.service.price,
             clientName: turn.client,
             clientPhone: "310 555 1234",
@@ -155,10 +187,10 @@ async function main() {
         });
       }
 
-      const attended = await db.appointment.findFirst({
+      const atendidos = await db.appointment.findMany({
         where: { userId: user.id, day, status: "ATENDIDO" },
       });
-      if (attended) {
+      for (const attended of atendidos) {
         await db.sale.create({
           data: {
             userId: user.id,
@@ -167,6 +199,7 @@ async function main() {
             paymentMethod: "EFECTIVO",
             origin: "TURNO",
             clientName: attended.clientName,
+            staffId: attended.staffId,
             appointmentId: attended.id,
             items: {
               create: [{ serviceId: attended.serviceId, name: attended.serviceName, unitPrice: attended.price, qty: 1 }],
@@ -210,6 +243,7 @@ async function main() {
           paymentMethod: "TARJETA",
           origin: "ORDEN",
           clientName: paid.label,
+          staffId: owner.id,
           orderId: paid.id,
           items: {
             create: paid.items.map((i) => ({
@@ -231,6 +265,7 @@ async function main() {
     });
 
     console.log("Cuenta lista: " + demo.email + " / demo1234");
+    if (segundo) console.log("  Segundo barbero: " + segundo.email + " / demo1234");
   }
 }
 

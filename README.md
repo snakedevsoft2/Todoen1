@@ -24,6 +24,23 @@ totalmente responsive (celular, tablet y computador).
   método de pago.
 - También puede agregar turnos a mano para el cliente que llega sin reservar.
 
+### Barbería con varios barberos
+
+- El dueño agrega barberos desde **Barberos** y le da a cada uno su propio correo y contraseña.
+  Entran por la misma pantalla de ingreso, al mismo negocio.
+- Cada barbero tiene su color, su porcentaje de comisión y se puede activar o desactivar.
+- La agenda del día se ve en columnas, una por barbero: dos pueden atender a la misma hora sin
+  chocar, y se puede filtrar la agenda por barbero.
+- En el enlace público el cliente elige **con quién** se quiere atender, o deja "el que esté
+  libre" y la aplicación le asigna uno que tenga ese cupo libre.
+- Cada turno y cada venta queda a nombre de quien atendió. Un turno se puede pasar a otro barbero
+  y su venta se mueve con él.
+- **Reportes** trae una tabla por barbero: turnos separados, atendidos, no asistió, ventas,
+  vendido, ticket promedio y comisión.
+- Qué ve el barbero: la agenda completa, las ventas, los gastos, la caja, el catálogo y los
+  reportes de la barbería. Qué no ve: Personalizar, Avisos y la página de Barberos. En Ajustes
+  solo cambia su propia contraseña.
+
 ### Restaurante y comidas rápidas
 
 - Cuentas abiertas por mesa, domicilio o mostrador.
@@ -82,6 +99,11 @@ por WhatsApp con la confirmación ya redactada.
    coincide y no se toca nada.
 4. Las páginas de detalle usan `findFirst({ where: { id, userId } })` y devuelven 404 si el
    registro es de otro negocio.
+5. Los barberos con usuario propio pertenecen a un solo negocio: su sesión guarda el negocio y la
+   persona, y todas las consultas siguen filtrando por el `userId` del negocio. Si al barbero le
+   quitan el acceso o lo desactivan, su sesión deja de valer en la siguiente petición.
+6. Lo que es configuración (Ajustes del negocio, Personalizar, Avisos y Barberos) está protegido
+   en la página **y** en la acción del servidor, así que no basta con adivinar la dirección.
 
 ---
 
@@ -120,6 +142,7 @@ Abre http://localhost:3000 y crea tu cuenta en **Crear cuenta**.
 | barberia@demo.com | Barbería El Estilo |
 | restaurante@demo.com | Restaurante Doña Rosa |
 | rapidas@demo.com | Comidas Rápidas El Punto |
+| barbero@demo.com | Segundo barbero de Barbería El Estilo (Andrés López) |
 
 La página pública de reservas de la barbería de ejemplo queda en
 `/reservar/barberia-el-estilo`.
@@ -196,7 +219,7 @@ datos tambien se aplican solas.
 ```
 prisma/
   schema.prisma        Modelo de datos
-  migrations/          Migración inicial de PostgreSQL
+  migrations/          Migraciones de PostgreSQL
   seed.ts              Datos de ejemplo
 src/
   actions/             Server Actions: auth, catálogo, turnos, cuentas, ventas, gastos, caja,
@@ -208,7 +231,7 @@ src/
     reservar/[slug]/   Página pública de reservas
     logo/[slug]/       Sirve el logo del negocio como imagen cacheada
   components/          Interfaz reutilizable
-  lib/                 Sesión, fechas, dinero, horarios, consultas, temas y WhatsApp
+  lib/                 Sesión, fechas, dinero, horarios, consultas, equipo, temas y WhatsApp
   middleware.ts        Protección de rutas
 ```
 
@@ -222,6 +245,12 @@ cierre de venta del turno, venta directa, gastos, cierre de caja con su diferenc
 mesa con descuento, edición del catálogo, reportes, aviso de WhatsApp al reservar, cambio de
 color y tema, subida y borrado del logo, navegación en celular, cierre de sesión y, sobre todo,
 que un negocio no alcance los datos ni la marca de otro.
+
+El equipo de barberos se probó igual, en Edge contra la compilación de producción: alta de un
+barbero con su usuario, ingreso del barbero, menú recortado y redirección al resumen cuando
+intenta entrar a Barberos, Personalizar o Avisos, agenda en columnas con los dos barberos,
+reserva del cliente eligiendo barbero, cierre de venta a nombre del barbero, paso de un turno a
+otro barbero con su venta incluida, y la tabla de medición por barbero en Reportes.
 
 ## Notas técnicas
 

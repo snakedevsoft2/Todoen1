@@ -180,6 +180,7 @@ export function bookingMessage(input: {
   price: string;
   prettyDay: string;
   time: string;
+  staffName?: string | null;
   notes?: string | null;
 }): string {
   const lines = [
@@ -191,6 +192,7 @@ export function bookingMessage(input: {
     "Hora: " + input.time,
     "Servicio: " + input.serviceName + " (" + input.price + ")",
   ];
+  if (input.staffName) lines.push("Atiende: " + input.staffName);
   if (input.notes) lines.push("Nota: " + input.notes);
   return lines.join("\n");
 }
@@ -202,6 +204,7 @@ export function confirmMessage(input: {
   prettyDay: string;
   time: string;
   serviceName: string;
+  staffName?: string | null;
 }): string {
   return [
     "Hola " + input.clientName + ", te confirmamos tu turno en " + input.businessName + ".",
@@ -209,6 +212,7 @@ export function confirmMessage(input: {
     "Dia: " + input.prettyDay,
     "Hora: " + input.time,
     "Servicio: " + input.serviceName,
+    ...(input.staffName ? ["Te atiende: " + input.staffName] : []),
     "",
     "Te esperamos puntual.",
   ].join("\n");

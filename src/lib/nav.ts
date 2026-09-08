@@ -2,30 +2,45 @@ import type { BusinessType } from "@prisma/client";
 
 export type NavItem = { href: string; label: string; icon: string };
 
+/** Lo que ve todo el mundo, dueno o barbero. */
 const COMMON_TAIL: NavItem[] = [
   { href: "/panel/ventas", label: "Ventas", icon: "receipt" },
   { href: "/panel/gastos", label: "Gastos", icon: "wallet" },
   { href: "/panel/caja", label: "Cierre de caja", icon: "lock" },
   { href: "/panel/catalogo", label: "Productos y servicios", icon: "tag" },
   { href: "/panel/reportes", label: "Reportes", icon: "chart" },
-  { href: "/panel/personalizar", label: "Personalizar", icon: "palette" },
-  { href: "/panel/avisos", label: "Avisos", icon: "bell" },
-  { href: "/panel/ajustes", label: "Ajustes", icon: "cog" },
 ];
 
-export function navFor(type: BusinessType): NavItem[] {
+/** Configuracion del negocio: solo el dueno. */
+const OWNER_TAIL: NavItem[] = [
+  { href: "/panel/personalizar", label: "Personalizar", icon: "palette" },
+  { href: "/panel/avisos", label: "Avisos", icon: "bell" },
+];
+
+/**
+ * Menu segun el tipo de negocio y quien entro.
+ *
+ * El barbero ve el movimiento del negocio (turnos, ventas, gastos, reportes)
+ * pero no la configuracion: ni marca, ni avisos, ni el equipo.
+ */
+export function navFor(type: BusinessType, role: string = "DUENO"): NavItem[] {
+  const owner = role === "DUENO";
   const head: NavItem[] = [{ href: "/panel", label: "Resumen del dia", icon: "home" }];
-  if (type === "BARBERIA") {
-    return [
-      ...head,
-      { href: "/panel/turnos", label: "Turnos", icon: "calendar" },
-      ...COMMON_TAIL,
-    ];
-  }
+
+  const middle: NavItem[] =
+    type === "BARBERIA"
+      ? [
+          { href: "/panel/turnos", label: "Turnos", icon: "calendar" },
+          ...(owner ? [{ href: "/panel/equipo", label: "Barberos", icon: "users" }] : []),
+        ]
+      : [{ href: "/panel/cuentas", label: "Cuentas abiertas", icon: "table" }];
+
   return [
     ...head,
-    { href: "/panel/cuentas", label: "Cuentas abiertas", icon: "table" },
+    ...middle,
     ...COMMON_TAIL,
+    ...(owner ? OWNER_TAIL : []),
+    { href: "/panel/ajustes", label: "Ajustes", icon: "cog" },
   ];
 }
 

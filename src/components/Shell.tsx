@@ -12,6 +12,8 @@ export function Shell({
   businessName,
   businessLabel,
   ownerName,
+  roleLabel,
+  staffColor,
   logo,
   bookingUrl,
   logout,
@@ -20,7 +22,10 @@ export function Shell({
   nav: NavItem[];
   businessName: string;
   businessLabel: string;
+  /** Nombre de quien entro (el dueno o el barbero). */
   ownerName: string;
+  roleLabel?: string;
+  staffColor?: string;
   logo?: string | null;
   bookingUrl?: string;
   logout: ReactNode;
@@ -89,7 +94,16 @@ export function Shell({
         </Link>
       )}
       {logout}
-      <p className="px-1 pt-1 text-[11px] text-subtle">{ownerName}</p>
+      <div className="flex items-center gap-2 px-1 pt-1">
+        <span
+          className="h-2.5 w-2.5 shrink-0 rounded-full"
+          style={{ backgroundColor: staffColor ?? "currentColor" }}
+        />
+        <p className="min-w-0 truncate text-[11px] text-subtle">
+          {ownerName}
+          {roleLabel ? " - " + roleLabel : ""}
+        </p>
+      </div>
     </div>
   );
 

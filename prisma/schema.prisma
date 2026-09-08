@@ -16,6 +16,11 @@ enum BusinessType {
   COMIDAS_RAPIDAS
 }
 
+enum StaffRole {
+  DUENO
+  BARBERO
+}
+
 enum AppointmentStatus {
   PENDIENTE
   CONFIRMADO
@@ -80,6 +85,7 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  staff        Staff[]
   services     Service[]
   appointments Appointment[]
   sales        Sale[]
@@ -89,6 +95,34 @@ model User {
   notifications Notification[]
 
   @@index([slug])
+}
+
+/// Persona que atiende en el negocio (barberos). Puede tener su propio usuario
+/// para entrar a la aplicacion, pero siempre trabaja dentro del mismo negocio.
+model Staff {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  /// Correo con el que entra a la aplicacion. Si esta vacio, no tiene acceso.
+  email        String?   @unique
+  passwordHash String?
+  phone        String?
+  role         StaffRole @default(BARBERO)
+  /// Color para reconocerlo de un vistazo en la agenda.
+  color        String    @default("#0ea5e9")
+  /// Porcentaje que se lleva de lo que cobra. Solo para el reporte.
+  commissionPct Int      @default(0)
+  /// Aparece en la pagina publica para que el cliente lo elija.
+  bookable     Boolean   @default(true)
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  appointments Appointment[]
+  sales        Sale[]
+
+  @@index([userId, active])
 }
 
 /// Servicios (cortes) o productos (platos, bebidas...) que el negocio vende.
@@ -122,6 +156,9 @@ model Appointment {
   serviceId   String?
   service     Service?          @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   serviceName String // copia del nombre por si el servicio se borra
+  staffId     String?
+  staff       Staff?            @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  staffName   String? // copia del nombre del barbero por si se borra
   price       Int               @default(0)
   clientName  String
   clientPhone String
@@ -135,8 +172,9 @@ model Appointment {
 
   sale Sale?
 
-  @@unique([userId, day, startTime])
+  @@unique([userId, staffId, day, startTime])
   @@index([userId, day])
+  @@index([userId, staffId, day])
 }
 
 /// Cuenta abierta / mesa / pedido (restaurante y comidas rapidas).
@@ -183,6 +221,8 @@ model Sale {
   origin        SaleOrigin    @default(MANUAL)
   clientName    String?
   notes         String?
+  staffId       String?
+  staff         Staff?        @relation(fields: [staffId], references: [id], onDelete: SetNull)
   appointmentId String?       @unique
   appointment   Appointment?  @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
   orderId       String?       @unique
@@ -192,6 +232,7 @@ model Sale {
   items SaleItem[]
 
   @@index([userId, day])
+  @@index([userId, staffId, day])
 }
 
 model SaleItem {

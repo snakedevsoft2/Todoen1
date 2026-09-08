@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireUser } from "@/lib/auth";
+import { requireOwner } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { Badge, Card, Empty, PageHeader, Stat } from "@/components/ui";
 import { Icon } from "@/components/Icon";
@@ -16,7 +16,7 @@ const ESTADO: Record<string, { label: string; tone: "green" | "red" | "amber" }>
 };
 
 export default async function AvisosPage() {
-  const user = await requireUser();
+  const { user } = await requireOwner();
 
   const avisos = await db.notification.findMany({
     where: { userId: user.id },

@@ -44,7 +44,7 @@ export default async function ReservarPage({
   const requested = query.d && isValidDay(query.d) ? query.d : today;
   const day = requested < today ? today : requested;
 
-  const [services, appointments] = await Promise.all([
+  const [services, appointments, team] = await Promise.all([
     db.service.findMany({
       where: { userId: shop.id, active: true, bookable: true },
       orderBy: [{ category: "asc" }, { price: "asc" }],
@@ -52,12 +52,20 @@ export default async function ReservarPage({
     }),
     db.appointment.findMany({
       where: { userId: shop.id, day, status: { not: "CANCELADO" } },
-      select: { startTime: true },
+      select: { startTime: true, staffId: true },
+    }),
+    db.staff.findMany({
+      where: { userId: shop.id, active: true, bookable: true },
+      orderBy: [{ role: "asc" }, { createdAt: "asc" }],
+      select: { id: true, name: true, color: true },
     }),
   ]);
 
   const slots = buildSlots(shop);
-  const taken = appointments.map((a) => a.startTime);
+  const taken = appointments.map((a) => ({ staffId: a.staffId, startTime: a.startTime }));
+
+  // Con varios barberos hay mas cupos: cada uno atiende su propia agenda.
+  const cuposDelDia = slots.length * Math.max(1, team.length);
   const dayOpen = isWorkDay(day, shop.workDays);
   const workDayNames = workDaysArray(shop.workDays)
     .map((d) => WEEKDAYS.find((w) => w.value === d)?.label ?? "")
@@ -80,6 +88,9 @@ export default async function ReservarPage({
   if (!shop.bookingOpen) disabledReason = "Las reservas estan cerradas por ahora. Escribenos directamente.";
   else if (services.length === 0) disabledReason = "El negocio todavia no publico sus servicios.";
   else if (!dayOpen) disabledReason = "Este dia no atendemos. Elige otro dia del horario.";
+  else if (appointments.length >= cuposDelDia) {
+    disabledReason = "Este dia ya se lleno. Elige otro dia.";
+  }
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12">
@@ -147,7 +158,9 @@ export default async function ReservarPage({
       <div className="card mt-4">
         <h2 className="text-base font-semibold text-strong">2. Separa tu cupo</h2>
         <p className="mb-4 mt-1 text-sm text-muted">
-          Elige la hora libre y el servicio. El cupo queda guardado a tu nombre.
+          {team.length > 1
+            ? "Elige con quien te quieres atender, la hora libre y el servicio. El cupo queda guardado a tu nombre."
+            : "Elige la hora libre y el servicio. El cupo queda guardado a tu nombre."}
         </p>
 
         {shop.businessType !== "BARBERIA" && !disabledReason && (
@@ -161,6 +174,7 @@ export default async function ReservarPage({
           day={day}
           slots={slots}
           taken={taken}
+          team={team}
           services={services}
           currency={shop.currency}
           minTime={day === today ? timeIn(new Date(), shop.timezone) : null}

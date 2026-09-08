@@ -1,12 +1,13 @@
-import { requireUser } from "@/lib/auth";
+import { requireSession } from "@/lib/auth";
 import { BUSINESS_LABEL, logoUrl, navFor } from "@/lib/nav";
+import { ROLE_LABEL } from "@/lib/staff";
 import { Shell } from "@/components/Shell";
 import { Icon } from "@/components/Icon";
 import { logoutAction } from "@/actions/auth";
 import { ThemeStyle } from "@/components/ThemeStyle";
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
-  const user = await requireUser();
+  const { user, staff } = await requireSession();
 
   const logout = (
     <form action={logoutAction}>
@@ -21,10 +22,12 @@ export default async function PanelLayout({ children }: { children: React.ReactN
     <>
       <ThemeStyle brandColor={user.brandColor} theme={user.theme} />
       <Shell
-        nav={navFor(user.businessType)}
+        nav={navFor(user.businessType, staff.role)}
         businessName={user.businessName}
         businessLabel={BUSINESS_LABEL[user.businessType]}
-        ownerName={user.ownerName}
+        ownerName={staff.name}
+        roleLabel={ROLE_LABEL[staff.role] ?? "Barbero"}
+        staffColor={staff.color}
         logo={logoUrl(user.slug, user.logo, user.updatedAt)}
         bookingUrl={user.businessType === "BARBERIA" ? "/reservar/" + user.slug : undefined}
         logout={logout}

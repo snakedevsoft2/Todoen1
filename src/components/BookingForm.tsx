@@ -1,10 +1,11 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useMemo, useState } from "react";
 import { bookAppointmentAction } from "@/actions/appointments";
 import { SubmitButton } from "./SubmitButton";
 import { Alert, Field } from "./ui";
 import { money, pretty12h } from "@/lib/format";
+import { initials } from "@/lib/staff";
 import { Icon } from "./Icon";
 
 export type BookableService = {
@@ -15,11 +16,17 @@ export type BookableService = {
   description: string | null;
 };
 
+export type BookableStaff = { id: string; name: string; color: string };
+
+/** Turno ya tomado: de que barbero y a que hora. */
+export type TakenSlot = { staffId: string | null; startTime: string };
+
 export function BookingForm({
   slug,
   day,
   slots,
   taken,
+  team,
   services,
   currency,
   minTime,
@@ -29,7 +36,8 @@ export function BookingForm({
   slug: string;
   day: string;
   slots: string[];
-  taken: string[];
+  taken: TakenSlot[];
+  team: BookableStaff[];
   services: BookableService[];
   currency: string;
   /** Si el dia elegido es hoy, la hora actual. Las horas anteriores se bloquean. */
@@ -39,14 +47,32 @@ export function BookingForm({
 }) {
   const [state, formAction] = useActionState(bookAppointmentAction, undefined);
   const [slot, setSlot] = useState("");
+  const [staffId, setStaffId] = useState("");
   const [serviceId, setServiceId] = useState(services[0]?.id ?? "");
-  const takenSet = new Set(taken);
+
+  // Cada barbero tiene su propia agenda: dos pueden atender a la misma hora.
+  const { busyByStaff, busyAll } = useMemo(() => {
+    const byStaff = new Map<string, Set<string>>();
+    const all = new Set<string>();
+    for (const t of taken) {
+      if (t.staffId) {
+        const set = byStaff.get(t.staffId) ?? new Set<string>();
+        set.add(t.startTime);
+        byStaff.set(t.staffId, set);
+      } else {
+        all.add(t.startTime);
+      }
+    }
+    return { busyByStaff: byStaff, busyAll: all };
+  }, [taken]);
 
   if (state?.ok) {
     return (
       <div className="space-y-4">
         <Alert kind="ok">
-          Tu turno quedo separado. Codigo {state.ref}. Te esperamos puntual.
+          Tu turno quedo separado
+          {state.staffName ? " con " + state.staffName : ""}. Codigo {state.ref}. Te esperamos
+          puntual.
         </Alert>
         {state.waLink && (
           <>
@@ -75,27 +101,108 @@ export function BookingForm({
     return <Alert kind="info">{disabledReason ?? "No hay horarios disponibles este dia."}</Alert>;
   }
 
-  const isPast = (slot: string) => Boolean(minTime) && slot <= (minTime as string);
-  const isBlocked = (slot: string) => takenSet.has(slot) || isPast(slot);
+  const isPast = (s: string) => Boolean(minTime) && s <= (minTime as string);
+
+  /** Con barbero elegido miramos su agenda; con "el que este libre", la de todos. */
+  const isBlocked = (s: string) => {
+    if (isPast(s)) return true;
+    if (team.length === 0) return busyAll.has(s);
+    if (staffId) return busyByStaff.get(staffId)?.has(s) ?? false;
+    return team.every((person) => busyByStaff.get(person.id)?.has(s) ?? false);
+  };
+
   const free = slots.filter((s) => !isBlocked(s));
+
+  /** Cuantos barberos quedan libres a esa hora, para avisarlo en el boton. */
+  const freeCountAt = (s: string) =>
+    team.filter((person) => !(busyByStaff.get(person.id)?.has(s) ?? false)).length;
+
+  function chooseStaff(id: string) {
+    setStaffId(id);
+    // Si la hora elegida ya no le sirve a ese barbero, se limpia.
+    if (slot) {
+      const blocked = id
+        ? busyByStaff.get(id)?.has(slot) ?? false
+        : team.every((person) => busyByStaff.get(person.id)?.has(slot) ?? false);
+      if (blocked) setSlot("");
+    }
+  }
 
   return (
     <form action={formAction} className="space-y-4">
       <input type="hidden" name="slug" value={slug} />
       <input type="hidden" name="day" value={day} />
       <input type="hidden" name="startTime" value={slot} />
+      <input type="hidden" name="staffId" value={staffId} />
 
       {state?.error && <Alert kind="error">{state.error}</Alert>}
+
+      {team.length > 1 && (
+        <div>
+          <span className="label">Con quien te quieres atender</span>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <button
+              type="button"
+              onClick={() => chooseStaff("")}
+              className={
+                "rounded-xl border px-3 py-2.5 text-left transition " +
+                (staffId === ""
+                  ? "border-brand-600 bg-brand-50"
+                  : "border-line bg-surface hover:border-brand-500")
+              }
+            >
+              <span className="block text-sm font-semibold text-strong">El que este libre</span>
+              <span className="block text-[11px] text-muted">Mas horarios disponibles</span>
+            </button>
+            {team.map((person) => (
+              <button
+                key={person.id}
+                type="button"
+                onClick={() => chooseStaff(person.id)}
+                className={
+                  "flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left transition " +
+                  (staffId === person.id
+                    ? "border-brand-600 bg-brand-50"
+                    : "border-line bg-surface hover:border-brand-500")
+                }
+              >
+                <span
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
+                  style={{ backgroundColor: person.color }}
+                >
+                  {initials(person.name)}
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-semibold text-strong">
+                    {person.name}
+                  </span>
+                  <span className="block text-[11px] text-muted">
+                    {slots.filter(
+                      (s) => !isPast(s) && !(busyByStaff.get(person.id)?.has(s) ?? false)
+                    ).length}{" "}
+                    horas libres
+                  </span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div>
         <span className="label">Elige la hora ({free.length} libres)</span>
         {free.length === 0 ? (
-          <Alert kind="info">Ya no quedan horas libres este dia. Prueba con otra fecha.</Alert>
+          <Alert kind="info">
+            {staffId
+              ? "Ese barbero no tiene horas libres este dia. Prueba con otro barbero u otra fecha."
+              : "Ya no quedan horas libres este dia. Prueba con otra fecha."}
+          </Alert>
         ) : (
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
             {slots.map((s) => {
               const isTaken = isBlocked(s);
               const selected = slot === s;
+              const libres = freeCountAt(s);
               return (
                 <button
                   key={s}
@@ -112,6 +219,16 @@ export function BookingForm({
                   }
                 >
                   {pretty12h(s)}
+                  {!isTaken && !staffId && team.length > 1 && (
+                    <span
+                      className={
+                        "mt-0.5 block text-[10px] font-normal " +
+                        (selected ? "text-on-brand" : "text-subtle")
+                      }
+                    >
+                      {libres} libre{libres === 1 ? "" : "s"}
+                    </span>
+                  )}
                 </button>
               );
             })}

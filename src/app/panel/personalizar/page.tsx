@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireUser } from "@/lib/auth";
+import { requireOwner } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { Card, PageHeader } from "@/components/ui";
 import { BrandingForm } from "@/components/BrandingForm";
@@ -10,7 +10,7 @@ import { prettyPhone } from "@/lib/whatsapp";
 export const dynamic = "force-dynamic";
 
 export default async function PersonalizarPage() {
-  const user = await requireUser();
+  const { user } = await requireOwner();
   const isBarber = user.businessType === "BARBERIA";
 
   const ultimos = await db.notification.findMany({

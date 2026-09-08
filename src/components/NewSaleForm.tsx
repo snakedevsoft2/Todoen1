@@ -8,6 +8,7 @@ import { money } from "@/lib/format";
 import { Icon } from "./Icon";
 
 type ServiceRow = { id: string; name: string; price: number; category: string };
+type StaffRow = { id: string; name: string; color: string };
 type CartRow = { key: string; serviceId: string | null; name: string; unitPrice: number; qty: number };
 
 export function NewSaleForm({
@@ -15,11 +16,16 @@ export function NewSaleForm({
   currency,
   today,
   itemLabel,
+  team = [],
+  defaultStaffId,
 }: {
   services: ServiceRow[];
   currency: string;
   today: string;
   itemLabel: string;
+  /** Barberos entre los que se reparte la venta. Vacio en los otros negocios. */
+  team?: StaffRow[];
+  defaultStaffId?: string;
 }) {
   const [state, formAction] = useActionState(createSaleAction, undefined);
   const [cart, setCart] = useState<CartRow[]>([]);
@@ -188,6 +194,24 @@ export function NewSaleForm({
 
       <form action={formAction} className="space-y-3">
         <input type="hidden" name="itemsJson" value={itemsJson} />
+
+        {team.length > 1 && (
+          <Field label="Quien atendio" hint="La venta se suma a la medicion de esta persona.">
+            <select
+              className="input"
+              name="staffId"
+              defaultValue={
+                team.some((t) => t.id === defaultStaffId) ? defaultStaffId : team[0]?.id ?? ""
+              }
+            >
+              {team.map((person) => (
+                <option key={person.id} value={person.id}>
+                  {person.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
 
         <div className="grid gap-3 sm:grid-cols-3">
           <Field label="Dia de la venta">

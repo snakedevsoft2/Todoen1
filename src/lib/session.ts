@@ -5,9 +5,14 @@ export const SESSION_COOKIE = "ten_session";
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 30; // 30 dias
 
 export type SessionPayload = {
+  /** Negocio al que pertenece la sesion. Todos los datos se filtran por aqui. */
   uid: string;
   email: string;
   type: string;
+  /** Persona que entro (fila de Staff). Vacio en sesiones viejas: era el dueno. */
+  sid?: string;
+  /** "DUENO" o "BARBERO". Decide que puede tocar en el panel. */
+  role?: string;
 };
 
 function secretKey() {
@@ -36,6 +41,8 @@ export async function verifySession(token: string): Promise<SessionPayload | nul
       uid: payload.uid,
       email: String(payload.email ?? ""),
       type: String(payload.type ?? ""),
+      sid: typeof payload.sid === "string" ? payload.sid : undefined,
+      role: typeof payload.role === "string" ? payload.role : undefined,
     };
   } catch {
     return null;

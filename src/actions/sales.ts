@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import type { PaymentMethod } from "@prisma/client";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { requireSession, requireUser } from "@/lib/auth";
 import { isValidDay, todayIn } from "@/lib/dates";
 import { parseMoney, str } from "@/lib/format";
 
@@ -42,7 +42,7 @@ function parseCart(raw: string): CartItem[] {
  * y para el restaurante o comidas rapidas cuando venden sin abrir cuenta.
  */
 export async function createSaleAction(_prev: SaleState, formData: FormData): Promise<SaleState> {
-  const user = await requireUser();
+  const { user, staff: me } = await requireSession();
   const items = parseCart(str(formData.get("itemsJson")));
   const manualTotal = parseMoney(formData.get("manualTotal"));
 
@@ -65,11 +65,18 @@ export async function createSaleAction(_prev: SaleState, formData: FormData): Pr
       )
     : new Set<string>();
 
+  // La venta queda a nombre del barbero elegido, o de quien la esta registrando.
+  const staffId = str(formData.get("staffId"));
+  const staff = staffId
+    ? await db.staff.findFirst({ where: { id: staffId, userId: user.id }, select: { id: true } })
+    : null;
+
   await db.sale.create({
     data: {
       userId: user.id,
       day,
       total,
+      staffId: staff?.id ?? me.id,
       paymentMethod: readPayment(formData.get("paymentMethod")),
       origin: "MANUAL",
       clientName: str(formData.get("clientName")) || null,
