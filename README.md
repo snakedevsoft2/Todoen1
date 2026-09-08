@@ -128,25 +128,66 @@ Para apagar la base de datos local: `npm run db:down`.
 
 ## Desplegar en Vercel
 
-1. Consigue una base de datos PostgreSQL. Sirve el plan gratuito de **Neon**, **Supabase** o
-   **Vercel Postgres**. Copia la cadena de conexión.
-2. Sube este proyecto a GitHub e impórtalo en Vercel.
-3. En Vercel, en **Settings → Environment Variables**, agrega:
-   - `DATABASE_URL` con la cadena de conexión.
-   - `AUTH_SECRET` con una cadena larga y aleatoria.
-4. Despliega. El comando de build ya corre `prisma generate`, aplica las migraciones y compila:
+### 1. Crear la base de datos
 
-   ```
-   prisma generate && prisma migrate deploy && next build
-   ```
+Entra a [neon.com](https://neon.com), crea una cuenta gratis y un proyecto. Copia la cadena de
+conexion.
 
-   No hay que ejecutar migraciones a mano: la primera vez que despliegues, Vercel crea las tablas.
+> **Importante:** usa la cadena **directa**, la que **no** lleva `-pooler` en el servidor. Con la
+> agrupada las migraciones pueden fallar durante el despliegue.
 
-5. Entra a tu dominio y crea la cuenta de cada negocio. Cada uno entra con su propio correo.
+Se ve asi:
 
-> El enlace público de reservas de la barbería queda en
-> `https://tu-dominio.vercel.app/reservar/tu-negocio`. Ese enlace se comparte por WhatsApp y no
-> necesita que el cliente cree cuenta.
+```
+postgresql://usuario:clave@ep-algo-123456.us-east-2.aws.neon.tech/neondb?sslmode=require
+```
+
+### 2. Generar la clave de sesion
+
+En tu computador:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+```
+
+Guarda esa cadena larga. Firma las sesiones, asi que no la compartas con nadie.
+
+### 3. Importar el proyecto
+
+1. Entra a [vercel.com](https://vercel.com) y crea la cuenta con tu GitHub.
+2. Toca **Add New** y luego **Project**.
+3. Elige el repositorio de esta aplicacion y toca **Import**.
+4. Antes de desplegar, abre **Environment Variables** y agrega estas dos:
+
+   | Nombre | Valor |
+   | --- | --- |
+   | `DATABASE_URL` | La cadena directa de Neon del paso 1 |
+   | `AUTH_SECRET` | La cadena larga del paso 2 |
+
+5. Toca **Deploy** y espera unos minutos.
+
+No hay que tocar nada mas. El comando de compilacion ya crea las tablas solo:
+
+```
+prisma generate && prisma migrate deploy && next build
+```
+
+### 4. Crear las cuentas
+
+Entra a tu dominio, por ejemplo `https://tu-proyecto.vercel.app`, y toca **Crear cuenta**. Crea
+una cuenta por cada negocio con su propio correo. Cada uno entra solo a lo suyo.
+
+Despues, en **Personalizar**, cada dueno pone su color, su logo y el numero de WhatsApp que
+recibe los avisos.
+
+> El enlace publico de reservas de la barberia queda en
+> `https://tu-proyecto.vercel.app/reservar/tu-negocio`. Ese enlace se comparte por WhatsApp y el
+> cliente no necesita crear cuenta.
+
+### Actualizaciones
+
+Cada vez que subas cambios a GitHub, Vercel despliega solo. Las migraciones nuevas de la base de
+datos tambien se aplican solas.
 
 ---
 
