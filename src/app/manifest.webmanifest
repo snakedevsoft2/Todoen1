@@ -1,0 +1,10 @@
+{
+  "name": "TODO EN UNO",
+  "short_name": "Todo en uno",
+  "description": "Ventas, turnos y caja para barberia, restaurante y comidas rapidas",
+  "start_url": "/panel",
+  "display": "standalone",
+  "background_color": "#0b1120",
+  "theme_color": "#0b1120",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}

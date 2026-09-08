@@ -1,0 +1,18 @@
+# Base de datos PostgreSQL para trabajar en tu computador.
+# Levantala con:  npm run db:up
+# Apagala con:    npm run db:down
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: ten-pg
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: devpass
+      POSTGRES_DB: todoenuno
+    ports:
+      - "55432:5432"
+    volumes:
+      - ten-pg-data:/var/lib/postgresql/data
+
+volumes:
+  ten-pg-data:

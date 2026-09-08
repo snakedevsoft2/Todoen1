@@ -1,0 +1,47 @@
+const PATHS: Record<string, string> = {
+  home: "M3 10.5 12 3l9 7.5M5 9.8V20h14V9.8",
+  calendar: "M7 3v3m10-3v3M3.5 8.5h17M5 6h14a1.5 1.5 0 0 1 1.5 1.5v12A1.5 1.5 0 0 1 19 21H5a1.5 1.5 0 0 1-1.5-1.5v-12A1.5 1.5 0 0 1 5 6Z",
+  table: "M4 10h16M4 6h16v12H4zM10 10v8",
+  receipt: "M6 3h12v18l-3-2-3 2-3-2-3 2V3Zm3 5h6M9 12h6",
+  wallet: "M3 8.5h18v10a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5v-10Zm0 0L5 4h12l2 4.5M16 14h2",
+  lock: "M7 10V8a5 5 0 0 1 10 0v2M5.5 10h13v10h-13zM12 14v3",
+  tag: "M3 12.5 12.5 3H21v8.5L11.5 21 3 12.5Zm13.5-5.5h.01",
+  chart: "M4 20V4m0 16h16M8 16v-5m4 5V8m4 8v-3",
+  cog: "M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm8-3.5-1.8-.6.5-1.9-1.7-1-1.4 1.3-1.6-1.1.2-1.9-1.9-.6-.9 1.7-1.9-.2-.6-1.8-1.9.6.2 1.9-1.6 1.1L4.2 8.5l-1.7 1 .5 1.9L1.2 12l1.8.6-.5 1.9 1.7 1 1.4-1.3 1.6 1.1-.2 1.9 1.9.6.9-1.7 1.9.2.6 1.8 1.9-.6-.2-1.9 1.6-1.1 1.4 1.3 1.7-1-.5-1.9L20 12Z",
+  logout: "M15 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2v-2M11 12h10m0 0-3-3m3 3-3 3",
+  plus: "M12 5v14M5 12h14",
+  scissors: "M6.5 6.5 17 17M17 7 6.5 17.5M7 8a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Zm0 13a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z",
+  clock: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-13v5l3.5 2",
+  user: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-8 8c1.5-3.5 4.5-5 8-5s6.5 1.5 8 5",
+  check: "M4.5 12.5 9.5 17.5 19.5 7",
+  x: "M6 6l12 12M18 6 6 18",
+  trash: "M4 7h16M9 7V5h6v2m-8 0 1 13h8l1-13",
+  phone: "M6 3h3l1.5 4.5-2 1.5a11 11 0 0 0 6.5 6.5l1.5-2L21 15v3a3 3 0 0 1-3 3A15 15 0 0 1 3 6a3 3 0 0 1 3-3Z",
+  link: "M10 14a4 4 0 0 1 0-5.7l2.3-2.3a4 4 0 0 1 5.7 5.7L16.5 13M14 10a4 4 0 0 1 0 5.7l-2.3 2.3a4 4 0 0 1-5.7-5.7L7.5 11",
+  print: "M7 8V3h10v5M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2M7 13h10v8H7z",
+  menu: "M4 7h16M4 12h16M4 17h16",
+};
+
+export function Icon({
+  name,
+  className = "h-5 w-5",
+}: {
+  name: keyof typeof PATHS | string;
+  className?: string;
+}) {
+  const path = PATHS[name] ?? PATHS.home;
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d={path} />
+    </svg>
+  );
+}

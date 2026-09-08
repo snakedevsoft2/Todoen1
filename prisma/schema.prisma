@@ -1,0 +1,232 @@
+// Prisma schema - TODO EN UNO
+// Multi-negocio: cada usuario tiene su propio negocio y sus datos estan aislados.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum BusinessType {
+  BARBERIA
+  RESTAURANTE
+  COMIDAS_RAPIDAS
+}
+
+enum AppointmentStatus {
+  PENDIENTE
+  CONFIRMADO
+  ATENDIDO
+  CANCELADO
+  NO_ASISTIO
+}
+
+enum OrderStatus {
+  ABIERTA
+  PAGADA
+  CANCELADA
+}
+
+enum PaymentMethod {
+  EFECTIVO
+  TARJETA
+  TRANSFERENCIA
+  OTRO
+}
+
+enum SaleOrigin {
+  MANUAL
+  TURNO
+  ORDEN
+}
+
+/// Un usuario = un negocio = un espacio de trabajo aislado.
+model User {
+  id           String       @id @default(cuid())
+  email        String       @unique
+  passwordHash String
+  ownerName    String
+  businessName String
+  businessType BusinessType
+  slug         String       @unique
+  phone        String?
+  address      String?
+
+  // Configuracion de agenda / caja
+  currency     String  @default("COP")
+  timezone     String  @default("America/Bogota")
+  openHour     Int     @default(9) // 9 = 9:00 am
+  closeHour    Int     @default(20) // 20 = 8:00 pm
+  slotMinutes  Int     @default(30)
+  workDays     String  @default("1,2,3,4,5,6") // 1=lunes ... 7=domingo
+  bookingOpen  Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  services     Service[]
+  appointments Appointment[]
+  sales        Sale[]
+  expenses     Expense[]
+  orders       Order[]
+  cashClosures CashClosure[]
+
+  @@index([slug])
+}
+
+/// Servicios (cortes) o productos (platos, bebidas...) que el negocio vende.
+model Service {
+  id          String  @id @default(cuid())
+  userId      String
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  price       Int // en unidades enteras de la moneda (ej: pesos)
+  cost        Int     @default(0) // costo interno opcional
+  durationMin Int     @default(30) // usado por la agenda de barberia
+  category    String  @default("General")
+  bookable    Boolean @default(true) // aparece en la reserva publica
+  active      Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  appointments Appointment[]
+  saleItems    SaleItem[]
+  orderItems   OrderItem[]
+
+  @@index([userId, active])
+}
+
+/// Turno reservado por el cliente (barberia).
+model Appointment {
+  id          String            @id @default(cuid())
+  userId      String
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serviceId   String?
+  service     Service?          @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  serviceName String // copia del nombre por si el servicio se borra
+  price       Int               @default(0)
+  clientName  String
+  clientPhone String
+  day         String // "YYYY-MM-DD"
+  startTime   String // "HH:mm"
+  endTime     String // "HH:mm"
+  status      AppointmentStatus @default(PENDIENTE)
+  notes       String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  sale Sale?
+
+  @@unique([userId, day, startTime])
+  @@index([userId, day])
+}
+
+/// Cuenta abierta / mesa / pedido (restaurante y comidas rapidas).
+model Order {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label     String // "Mesa 4", "Domicilio 12", "Mostrador"
+  day       String // "YYYY-MM-DD"
+  status    OrderStatus @default(ABIERTA)
+  notes     String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  items OrderItem[]
+  sale  Sale?
+
+  @@index([userId, status])
+  @@index([userId, day])
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  serviceId String?
+  service   Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  name      String
+  unitPrice Int
+  qty       Int      @default(1)
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+}
+
+/// Venta cerrada. Es la fuente de verdad del dinero del dia.
+model Sale {
+  id            String        @id @default(cuid())
+  userId        String
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  day           String // "YYYY-MM-DD" en la zona del negocio
+  total         Int
+  paymentMethod PaymentMethod @default(EFECTIVO)
+  origin        SaleOrigin    @default(MANUAL)
+  clientName    String?
+  notes         String?
+  appointmentId String?       @unique
+  appointment   Appointment?  @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  orderId       String?       @unique
+  order         Order?        @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  createdAt     DateTime      @default(now())
+
+  items SaleItem[]
+
+  @@index([userId, day])
+}
+
+model SaleItem {
+  id        String   @id @default(cuid())
+  saleId    String
+  sale      Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  serviceId String?
+  service   Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  name      String
+  unitPrice Int
+  qty       Int      @default(1)
+
+  @@index([saleId])
+}
+
+/// Gastos del dia (insumos, arriendo, domicilios...).
+model Expense {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  day         String // "YYYY-MM-DD"
+  description String
+  amount      Int
+  category    String   @default("General")
+  createdAt   DateTime @default(now())
+
+  @@index([userId, day])
+}
+
+/// Cierre de caja del dia.
+model CashClosure {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  day            String // "YYYY-MM-DD"
+  openingAmount  Int      @default(0)
+  totalSales     Int
+  totalCash      Int
+  totalCard      Int
+  totalTransfer  Int
+  totalOther     Int      @default(0)
+  totalExpenses  Int
+  netTotal       Int
+  salesCount     Int
+  countedCash    Int      @default(0)
+  difference     Int      @default(0)
+  notes          String?
+  closedAt       DateTime @default(now())
+
+  @@unique([userId, day])
+  @@index([userId, day])
+}
