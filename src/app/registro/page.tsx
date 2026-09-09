@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { APP_NAME } from "@/lib/brand";
+import { Logo } from "@/components/Logo";
 import { RegistroForm } from "@/components/RegistroForm";
 import { AnimatedBackdrop } from "@/components/AnimatedBackdrop";
 
@@ -15,7 +16,8 @@ export default async function RegistroPage() {
 
       <div className="mx-auto w-full max-w-lg px-4 py-10">
         <div className="animate-entrar mb-6 text-center">
-          <p className="font-display text-[32px] leading-none tracking-tight text-strong">
+          <Logo className="mx-auto h-16 w-16" />
+          <p className="mt-3 font-display text-[30px] leading-none tracking-tight text-strong">
             {APP_NAME.slice(0, -1)}
             <span className="text-brand-600">{APP_NAME.slice(-1)}</span>
           </p>

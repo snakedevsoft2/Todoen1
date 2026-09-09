@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireOwner } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { ITEM_NOUN } from "@/lib/nav";
+import { ITEM_NOUN, logoUrl, photoUrl } from "@/lib/nav";
 import { Card, Empty, PageHeader, Stat } from "@/components/ui";
 import { CopyLink } from "@/components/CopyLink";
 import { Icon } from "@/components/Icon";
@@ -14,10 +14,17 @@ export default async function PortafolioPage() {
   const noun = ITEM_NOUN[user.businessType];
   const ruta = "/catalogo/" + user.slug;
 
-  const [publicados, sinFoto, total] = await Promise.all([
+  const [publicados, sinFoto, total, muestra] = await Promise.all([
     db.service.count({ where: { userId: user.id, active: true, showcase: true } }),
     db.service.count({ where: { userId: user.id, active: true, showcase: true, image: null } }),
     db.service.count({ where: { userId: user.id, active: true } }),
+    // Los primeros items, solo para la vista previa.
+    db.service.findMany({
+      where: { userId: user.id, active: true, showcase: true },
+      orderBy: [{ image: "desc" }, { category: "asc" }, { name: "asc" }],
+      take: 4,
+      select: { id: true, name: true, price: true, image: true, updatedAt: true },
+    }),
   ]);
 
   return (
@@ -71,8 +78,11 @@ export default async function PortafolioPage() {
         </div>
       )}
 
-      <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_380px]">
-        <Card title="Como se ve" subtitle="Portada, titular y presentacion">
+      <div className="mt-5">
+        <Card
+          title="Arma tu pagina"
+          subtitle="Lo que escribas se ve al instante en el celular de al lado"
+        >
           <PortfolioForm
             initial={{
               publicOpen: user.publicOpen,
@@ -84,11 +94,27 @@ export default async function PortafolioPage() {
             }}
             businessName={user.businessName}
             itemPlural={noun.plural}
+            preview={{
+              tagline: user.tagline,
+              logo: logoUrl(user.slug, user.logo, user.updatedAt),
+              brandColor: user.brandColor,
+              phone: user.phone,
+              address: user.address,
+              showBooking: user.businessType === "BARBERIA" && user.bookingOpen,
+              currency: user.currency,
+              items: muestra.map((m) => ({
+                id: m.id,
+                name: m.name,
+                price: m.price,
+                photo: photoUrl(m.id, m.image, m.updatedAt),
+              })),
+            }}
           />
         </Card>
+      </div>
 
-        <div className="space-y-4">
-          <Card title="Tu enlace" subtitle="El que mandas por WhatsApp o pones en tu perfil">
+      <div className="mt-4 grid gap-4 lg:grid-cols-3">
+        <Card title="Tu enlace" subtitle="El que mandas por WhatsApp o pones en tu perfil">
             <p className="break-all rounded-xl border-2 border-edge bg-surface px-3 py-2.5 text-sm text-body">
               {ruta}
             </p>
@@ -102,9 +128,9 @@ export default async function PortafolioPage() {
             <p className="mt-3 text-xs text-subtle">
               El nombre del enlace se cambia en Ajustes.
             </p>
-          </Card>
+        </Card>
 
-          <Card title="Tu codigo QR" subtitle="Para la vitrina, el mostrador o una tarjeta">
+        <Card title="Tu codigo QR" subtitle="Para la vitrina, el mostrador o una tarjeta">
             <div className="flex justify-center rounded-xl border-2 border-edge bg-white p-4">
               {/* El QR se arma en el servidor y sale como vector: se puede
                   imprimir del tamano que sea sin que se pixele. */}
@@ -128,9 +154,9 @@ export default async function PortafolioPage() {
             <p className="mt-3 text-xs text-subtle">
               Quien lo escanee llega directo a tu portafolio.
             </p>
-          </Card>
+        </Card>
 
-          <Card title="Para que se vea bien">
+        <Card title="Para que se vea bien">
             {publicados > 0 && sinFoto === 0 ? (
               <Empty
                 title="Tu portafolio esta completo"
@@ -153,8 +179,7 @@ export default async function PortafolioPage() {
                 </li>
               </ul>
             )}
-          </Card>
-        </div>
+        </Card>
       </div>
     </>
   );

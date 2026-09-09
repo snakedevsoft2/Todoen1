@@ -67,26 +67,6 @@ export default function LandingPage() {
       </header>
 
       <section className="mt-10 grid gap-4 sm:mt-14">
-        <div className="card">
-          <h2 className="text-lg font-semibold text-strong sm:text-xl">
-            Un negocio, un usuario, datos separados
-          </h2>
-          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-body">
-            Cada persona crea su cuenta y trabaja solo dentro de su negocio. La barberia no ve las
-            ventas del restaurante, y el restaurante no ve las del puesto de comidas rapidas. Cada
-            dueno edita su propio catalogo, su horario y su caja.
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <span className="badge border-brand-200 bg-brand-50 text-brand-600">Barberia</span>
-            <span className="badge border-good-line bg-good-soft text-good">
-              Restaurante
-            </span>
-            <span className="badge border-warn-line bg-warn-soft text-warn">
-              Comidas rapidas
-            </span>
-            <span className="badge border-line bg-surface text-body">Tienda de ropa</span>
-          </div>
-        </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((f) => (

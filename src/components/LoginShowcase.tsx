@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { APP_NAME, APP_TAGLINE, NEGOCIOS } from "@/lib/brand";
+import { Logo } from "./Logo";
 import { Icon } from "./Icon";
 
 /**
@@ -38,13 +39,12 @@ export function LoginShowcase({ compact = false }: { compact?: boolean }) {
     <div className={"flex h-full flex-col justify-center gap-7 " + (compact ? "" : "p-8 xl:p-10")}>
       {!compact && (
         <div className="animate-entrar">
-          <p className="font-display text-[38px] leading-none tracking-tight text-strong xl:text-[46px]">
+          <Logo className="h-24 w-24" />
+          <p className="mt-4 font-display text-[38px] leading-none tracking-tight text-strong xl:text-[46px]">
             {APP_NAME.slice(0, -1)}
             <span className="text-brand-600">{APP_NAME.slice(-1)}</span>
           </p>
-          <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted">
-            {APP_TAGLINE}. Un negocio, un usuario, datos separados: lo tuyo no lo ve nadie mas.
-          </p>
+          <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted">{APP_TAGLINE}.</p>
         </div>
       )}
 

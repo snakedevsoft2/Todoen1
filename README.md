@@ -317,6 +317,9 @@ QR**. Es lo mismo para la barbería que para la tienda de ropa: cambia lo que se
   y cobra como siempre lo ha hecho.
 - **Editable** desde `/panel/portafolio`: portada, titular, presentación, nota del pedido, mostrar u
   ocultar los precios, y un interruptor para publicarlo o apagarlo.
+- **Vista previa en vivo**, dentro de un marco de celular al lado del formulario. Lo que se escribe
+  se ve al instante, sin guardar ni recargar — incluida la portada apenas se sube. En celular se
+  alterna con un botón, porque no caben las dos cosas al tiempo.
 - **Código QR** generado en el servidor como SVG (`/qr/<tu-negocio>`), para pegar en la vitrina o el
   mostrador. Se imprime del tamaño que sea sin pixelarse. Sale de la misma librería que ya lee los
   códigos de barras, así que no agrega peso.

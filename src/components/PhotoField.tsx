@@ -15,10 +15,13 @@ export function PhotoField({
   currentUrl,
   label = "Foto de la prenda",
   hint = "Se ve en el catalogo, en el inventario y al vender.",
+  onChange,
 }: {
   name?: string;
   /** Direccion de la foto que ya esta guardada, si hay. */
   currentUrl?: string | null;
+  /** Avisa la foto elegida (o null si la quitaron), para la vista previa. */
+  onChange?: (value: string | null) => void;
   label?: string;
   hint?: string;
 }) {
@@ -35,8 +38,10 @@ export function PhotoField({
     setError("");
     setBusy(true);
     try {
-      setPreview(await fileToDataUrl(file));
+      const dataUrl = await fileToDataUrl(file);
+      setPreview(dataUrl);
       setRemoved(false);
+      onChange?.(dataUrl);
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo leer la imagen.");
     } finally {
@@ -48,6 +53,7 @@ export function PhotoField({
     setPreview(null);
     setRemoved(true);
     setError("");
+    onChange?.(null);
     if (fileRef.current) fileRef.current.value = "";
   }
 
