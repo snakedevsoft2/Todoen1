@@ -7,7 +7,9 @@ import { money, pretty12h, prettyDay } from "@/lib/format";
 import { BUSINESS_LABEL, ITEM_NOUN } from "@/lib/nav";
 import { getInventorySummary, getLowStock } from "@/lib/inventory";
 import { variantLabel } from "@/lib/variants";
+import { tourSteps } from "@/lib/tour";
 import { Badge, Card, Empty, PageHeader, Stat, StatusBadge } from "@/components/ui";
+import { GuiaInicial } from "@/components/GuiaInicial";
 import { Icon } from "@/components/Icon";
 
 export const dynamic = "force-dynamic";
@@ -79,6 +81,15 @@ export default async function PanelHomePage() {
 
   return (
     <>
+      {/* La primera vez que entra cada persona, o cuando lo pide otra vez. */}
+      {!me.tourDoneAt && (
+        <GuiaInicial
+          steps={tourSteps(user.businessType)}
+          businessName={user.businessName}
+          personName={me.name}
+        />
+      )}
+
       <PageHeader
         title="Resumen del dia"
         subtitle={prettyDay(today) + " - " + BUSINESS_LABEL[user.businessType]}
@@ -211,7 +222,7 @@ export default async function PanelHomePage() {
                 {appointments.map((a) => (
                   <li
                     key={a.id}
-                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface px-3 py-2.5"
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl border-2 border-edge bg-surface px-3 py-2.5"
                   >
                     <div className="min-w-0">
                       <p className="flex items-center gap-2 text-sm font-semibold text-strong">
@@ -258,7 +269,7 @@ export default async function PanelHomePage() {
                 {lowStock.map((v) => (
                   <li
                     key={v.id}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-line bg-surface px-3 py-2.5"
+                    className="flex items-center justify-between gap-3 rounded-xl border-2 border-edge bg-surface px-3 py-2.5"
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-strong">
@@ -296,7 +307,7 @@ export default async function PanelHomePage() {
                     <li key={o.id}>
                       <Link
                         href={"/panel/cuentas/" + o.id}
-                        className="flex items-center justify-between gap-3 rounded-xl border border-line bg-surface px-3 py-2.5 transition hover:bg-surface"
+                        className="flex items-center justify-between gap-3 rounded-xl border-2 border-edge bg-surface px-3 py-2.5 transition hover:bg-surface"
                       >
                         <div className="min-w-0">
                           <p className="truncate text-sm font-semibold text-strong">{o.label}</p>
@@ -332,7 +343,7 @@ export default async function PanelHomePage() {
               {recentSales.map((s) => (
                 <li
                   key={s.id}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-line bg-surface px-3 py-2.5"
+                  className="flex items-center justify-between gap-3 rounded-xl border-2 border-edge bg-surface px-3 py-2.5"
                 >
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-strong">

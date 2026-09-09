@@ -1,5 +1,6 @@
 import type { PaymentMethod } from "@prisma/client";
 import { db } from "./db";
+import { addDays, dayRange } from "./dates";
 import { variantLabel } from "./variants";
 
 export type DaySummary = {
@@ -117,6 +118,100 @@ export async function getTopItems(userId: string, from: string, to: string, limi
   }
 
   return [...map.values()].sort((a, b) => b.qty - a.qty).slice(0, limit);
+}
+
+export type Comparison = {
+  /** Cuantos dias tiene el periodo, para poder decir con que se compara. */
+  days: number;
+  from: string;
+  to: string;
+  /** El periodo anterior, del mismo largo y pegado al actual. */
+  prevFrom: string;
+  prevTo: string;
+  rows: {
+    key: "ventas" | "gastos" | "neto" | "cuentas";
+    label: string;
+    now: number;
+    before: number;
+    /** Cambio en porcentaje. null cuando antes no hubo nada con que comparar. */
+    pct: number | null;
+    /** Si subir es bueno. En gastos, subir es malo. */
+    upIsGood: boolean;
+    money: boolean;
+  }[];
+};
+
+/**
+ * Compara el periodo elegido con el anterior del mismo largo.
+ *
+ * "Vendiste $850.000" no dice nada solo; "vendiste 15% mas que la semana
+ * pasada" si. El periodo anterior va pegado al actual: si miras los ultimos 7
+ * dias, se compara con los 7 anteriores.
+ */
+export async function getComparison(
+  userId: string,
+  from: string,
+  to: string
+): Promise<Comparison> {
+  const days = Math.max(1, dayRange(from, to).length);
+  const prevTo = addDays(from, -1);
+  const prevFrom = addDays(prevTo, -(days - 1));
+
+  const [ahora, antes] = await Promise.all([
+    getRangeTotals(userId, from, to),
+    getRangeTotals(userId, prevFrom, prevTo),
+  ]);
+
+  const cambio = (now: number, before: number): number | null => {
+    if (before === 0) return null;
+    return Math.round(((now - before) / Math.abs(before)) * 100);
+  };
+
+  return {
+    days,
+    from,
+    to,
+    prevFrom,
+    prevTo,
+    rows: [
+      {
+        key: "ventas",
+        label: "Vendido",
+        now: ahora.totalSales,
+        before: antes.totalSales,
+        pct: cambio(ahora.totalSales, antes.totalSales),
+        upIsGood: true,
+        money: true,
+      },
+      {
+        key: "gastos",
+        label: "Gastado",
+        now: ahora.totalExpenses,
+        before: antes.totalExpenses,
+        pct: cambio(ahora.totalExpenses, antes.totalExpenses),
+        upIsGood: false,
+        money: true,
+      },
+      {
+        key: "neto",
+        label: "Ganancia",
+        now: ahora.netTotal,
+        before: antes.netTotal,
+        pct: cambio(ahora.netTotal, antes.netTotal),
+        upIsGood: true,
+        money: true,
+      },
+      {
+        key: "cuentas",
+        label: "Ventas cerradas",
+        now: ahora.salesCount,
+        before: antes.salesCount,
+        pct: cambio(ahora.salesCount, antes.salesCount),
+        upIsGood: true,
+        money: false,
+      },
+    ],
+  };
 }
 
 export type ClothingStats = {

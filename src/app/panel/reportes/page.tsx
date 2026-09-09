@@ -1,7 +1,15 @@
 import { requireUser } from "@/lib/auth";
 import { addDays, isValidDay, startOfMonth, todayIn } from "@/lib/dates";
 import { money, shortDay } from "@/lib/format";
-import { getClothingStats, getRangeTotals, getStaffTotals, getTopItems } from "@/lib/queries";
+import {
+  getClothingStats,
+  getComparison,
+  getRangeTotals,
+  getStaffTotals,
+  getTopItems,
+  type Comparison,
+} from "@/lib/queries";
+import { Icon } from "@/components/Icon";
 import { ITEM_NOUN } from "@/lib/nav";
 import { ROLE_LABEL } from "@/lib/staff";
 import { Card, Empty, PageHeader, Stat } from "@/components/ui";
@@ -26,12 +34,15 @@ export default async function ReportesPage({
   const isBarber = user.businessType === "BARBERIA";
   const isClothing = user.businessType === "ROPA";
 
-  const [totals, topItems, staffTotals, clothing] = await Promise.all([
+  const [totals, topItems, staffTotals, clothing, comparison] = await Promise.all([
     getRangeTotals(user.id, safeFrom, to),
     getTopItems(user.id, safeFrom, to, 10),
     getStaffTotals(user.id, safeFrom, to),
     isClothing ? getClothingStats(user.id, safeFrom, to) : Promise.resolve(null),
+    getComparison(user.id, safeFrom, to),
   ]);
+
+  const exportar = "?from=" + safeFrom + "&to=" + to;
 
   // Solo tiene sentido comparar cuando hay mas de una persona vendiendo.
   const staffRows = staffTotals.rows.filter((r) => r.active || r.totalSales > 0 || r.booked > 0);
@@ -50,10 +61,31 @@ export default async function ReportesPage({
 
   return (
     <>
-      <PageHeader
-        title="Reportes"
-        subtitle={"Del " + shortDay(safeFrom) + " al " + shortDay(to)}
-      />
+      <PageHeader title="Reportes" subtitle={"Del " + shortDay(safeFrom) + " al " + shortDay(to)}>
+        {/* Descargas para el contador, con el mismo rango que estas mirando. */}
+        <div className="flex flex-wrap gap-2">
+          <a href={"/panel/exportar/ventas" + exportar} className="btn-ghost btn-sm">
+            <Icon name="download" className="h-4 w-4" />
+            Ventas
+          </a>
+          <a href={"/panel/exportar/gastos" + exportar} className="btn-ghost btn-sm">
+            <Icon name="download" className="h-4 w-4" />
+            Gastos
+          </a>
+          {isClothing && (
+            <>
+              <a href="/panel/exportar/inventario" className="btn-ghost btn-sm">
+                <Icon name="download" className="h-4 w-4" />
+                Inventario
+              </a>
+              <a href={"/panel/exportar/movimientos" + exportar} className="btn-ghost btn-sm">
+                <Icon name="download" className="h-4 w-4" />
+                Movimientos
+              </a>
+            </>
+          )}
+        </div>
+      </PageHeader>
 
       <div className="mb-4 flex flex-wrap items-end gap-2">
         {presets.map((p) => (
@@ -103,6 +135,10 @@ export default async function ReportesPage({
         <Stat label="Tarjeta" value={money(totals.byMethod.TARJETA, user.currency)} />
         <Stat label="Transferencia" value={money(totals.byMethod.TRANSFERENCIA, user.currency)} />
         <Stat label="Otros" value={money(totals.byMethod.OTRO, user.currency)} />
+      </div>
+
+      <div className="mt-5">
+        <Comparativa comparison={comparison} currency={user.currency} />
       </div>
 
       {showStaff && (
@@ -364,5 +400,78 @@ export default async function ReportesPage({
         </Card>
       </div>
     </>
+  );
+}
+
+/**
+ * Como vas contra el periodo anterior.
+ *
+ * Un total solo no dice nada. Lo que la persona quiere saber es si va mejor o
+ * peor que la semana pasada, y eso se responde con una flecha y un porcentaje.
+ */
+function Comparativa({
+  comparison,
+  currency,
+}: {
+  comparison: Comparison;
+  currency: string;
+}) {
+  const valor = (n: number, esPlata: boolean) => (esPlata ? money(n, currency) : String(n));
+  const dias = comparison.days;
+
+  return (
+    <Card
+      title="Como vas"
+      subtitle={
+        "Comparado con los " +
+        dias +
+        (dias === 1 ? " dia anterior" : " dias anteriores") +
+        " (del " +
+        shortDay(comparison.prevFrom) +
+        " al " +
+        shortDay(comparison.prevTo) +
+        ")"
+      }
+    >
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {comparison.rows.map((row) => {
+          const sinDatos = row.pct === null;
+          const subio = (row.pct ?? 0) > 0;
+          const igual = (row.pct ?? 0) === 0;
+          const bien = igual ? null : subio === row.upIsGood;
+
+          return (
+            <div key={row.key} className="rounded-xl border-2 border-edge bg-surface p-3.5">
+              <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted">
+                {row.label}
+              </p>
+              <p className="mt-2 font-display text-[22px] leading-none text-strong num">
+                {valor(row.now, row.money)}
+              </p>
+
+              {sinDatos ? (
+                <p className="mt-2 text-xs text-subtle">Sin datos del periodo anterior</p>
+              ) : (
+                <p
+                  className={
+                    "mt-2 flex items-center gap-1 text-xs font-bold " +
+                    (bien === null ? "text-muted" : bien ? "text-good" : "text-bad")
+                  }
+                >
+                  <span className={igual ? "" : subio ? "" : "inline-block rotate-90"}>
+                    {igual ? "=" : subio ? "▲" : "▼"}
+                  </span>
+                  {igual ? "Igual que antes" : Math.abs(row.pct!) + "%"}
+                </p>
+              )}
+
+              <p className="mt-1 text-[11px] text-subtle">
+                Antes: {valor(row.before, row.money)}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
   );
 }

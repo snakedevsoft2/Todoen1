@@ -67,7 +67,7 @@ export function WhatsappForm({
                 className={
                   "flex cursor-pointer gap-3 rounded-xl border p-3 transition " +
                   (provider === option.value
-                    ? "border-brand-500 bg-brand-50"
+                    ? "border-edge bg-brand-600 text-on-brand shadow-block"
                     : "border-line hover:border-line-strong")
                 }
               >
@@ -80,8 +80,8 @@ export function WhatsappForm({
                   className="mt-0.5 h-4 w-4 accent-brand-600"
                 />
                 <span className="min-w-0">
-                  <span className="block text-sm font-semibold text-strong">{option.label}</span>
-                  <span className="mt-0.5 block text-xs text-muted">{option.hint}</span>
+                  <span className="block text-sm font-bold">{option.label}</span>
+                  <span className="mt-0.5 block text-xs opacity-75">{option.hint}</span>
                 </span>
               </label>
             ))}

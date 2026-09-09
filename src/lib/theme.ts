@@ -153,6 +153,9 @@ export function themeVars(brandHex: string, theme: ThemeName): Record<string, st
     vars["--surface-3"] = hslTriplet(h, 14, 21);
     vars["--line"] = hslTriplet(h, 14, 20);
     vars["--line-strong"] = hslTriplet(h, 13, 28);
+    // Borde marcado y sombra dura: en oscuro tiene que ser mas claro que el
+    // panel para que se vea el bloque.
+    vars["--edge"] = hslTriplet(h, 14, 40);
     vars["--text-strong"] = hslTriplet(h, 25, 97);
     vars["--text-body"] = hslTriplet(h, 12, 84);
     vars["--text-muted"] = hslTriplet(h, 9, 63);
@@ -177,6 +180,9 @@ export function themeVars(brandHex: string, theme: ThemeName): Record<string, st
     vars["--surface-3"] = hslTriplet(h, 26, 92);
     vars["--line"] = hslTriplet(h, 20, 89);
     vars["--line-strong"] = hslTriplet(h, 18, 80);
+    // En claro el borde marcado va casi al nivel de la tinta: es lo que hace
+    // que las tarjetas se lean como bloques y no como cajas flotando.
+    vars["--edge"] = hslTriplet(h, 30, 17);
     vars["--text-strong"] = hslTriplet(h, 32, 13);
     vars["--text-body"] = hslTriplet(h, 20, 27);
     vars["--text-muted"] = hslTriplet(h, 14, 45);

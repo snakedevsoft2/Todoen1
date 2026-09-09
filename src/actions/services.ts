@@ -34,6 +34,22 @@ export async function saveServiceAction(_prev: ActionState, formData: FormData):
     image = photoInput;
   }
 
+  // El proveedor solo viaja desde el formulario de la tienda de ropa, y se
+  // comprueba que sea de este negocio antes de guardarlo.
+  let supplierId: string | null | undefined;
+  if (formData.has("supplierId")) {
+    const pedido = str(formData.get("supplierId"));
+    if (!pedido) {
+      supplierId = null;
+    } else {
+      const supplier = await db.supplier.findFirst({
+        where: { id: pedido, userId: user.id },
+        select: { id: true },
+      });
+      supplierId = supplier?.id ?? null;
+    }
+  }
+
   const data = {
     name,
     description: str(formData.get("description")) || null,
@@ -47,6 +63,7 @@ export async function saveServiceAction(_prev: ActionState, formData: FormData):
     ...(formData.has("trackStock") ? { trackStock: formData.get("trackStock") === "on" } : {}),
     ...(formData.has("showcase") ? { showcase: formData.get("showcase") === "on" } : {}),
     ...(image !== undefined ? { image } : {}),
+    ...(supplierId !== undefined ? { supplierId } : {}),
   };
 
   if (id) {

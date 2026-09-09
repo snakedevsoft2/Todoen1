@@ -186,7 +186,7 @@ export default async function CatalogoPublicoPage({
                         {available.map((v) => (
                           <span
                             key={v.id}
-                            className="rounded-lg border border-line bg-surface px-2 py-1 text-[11px] font-semibold text-body"
+                            className="rounded-lg border-2 border-edge bg-surface px-2 py-1 text-[11px] font-semibold text-body"
                           >
                             {variantLabel(v)}
                           </span>

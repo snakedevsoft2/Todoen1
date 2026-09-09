@@ -44,8 +44,12 @@ export function Shell({
   const isActive = (href: string) =>
     href === "/panel" ? pathname === "/panel" : pathname.startsWith(href);
 
+  /*
+    La pagina donde estas es un bloque solido con su borde y su sombra, no un
+    fondo suave: se ve de un vistazo desde el otro lado del mostrador.
+  */
   const navList = (
-    <nav className="space-y-0.5">
+    <nav className="space-y-1.5">
       {nav.map((item) => {
         const active = isActive(item.href);
         return (
@@ -53,22 +57,13 @@ export function Shell({
             key={item.href}
             href={item.href}
             className={
-              "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition " +
+              "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition-[transform,box-shadow] duration-75 " +
               (active
-                ? "bg-brand-50 text-brand-700"
-                : "text-muted hover:bg-surface hover:text-strong")
+                ? "border-2 border-edge bg-brand-600 text-on-brand shadow-block"
+                : "border-2 border-transparent text-muted hover:border-edge hover:bg-surface hover:text-strong")
             }
           >
-            <span
-              className={
-                "absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-brand-600 transition-opacity " +
-                (active ? "opacity-100" : "opacity-0")
-              }
-            />
-            <Icon
-              name={item.icon}
-              className={"h-[18px] w-[18px] shrink-0 " + (active ? "text-brand-600" : "")}
-            />
+            <Icon name={item.icon} className="h-[18px] w-[18px] shrink-0" />
             <span className="truncate">{item.label}</span>
           </Link>
         );
@@ -80,8 +75,10 @@ export function Shell({
     <div className="flex items-center gap-3">
       <BrandMark name={businessName} logo={logo} size="md" />
       <div className="min-w-0">
-        <p className="truncate text-sm font-bold leading-tight text-strong">{businessName}</p>
-        <p className="truncate text-[11px] font-medium uppercase tracking-[0.08em] text-brand-600">
+        <p className="truncate font-display text-[15px] leading-tight text-strong">
+          {businessName}
+        </p>
+        <p className="truncate text-[10px] font-bold uppercase tracking-[0.12em] text-brand-600">
           {businessLabel}
         </p>
       </div>
@@ -113,7 +110,7 @@ export function Shell({
   return (
     <div className="min-h-dvh lg:flex">
       {/* Barra superior, solo en celular */}
-      <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-line bg-panel/95 px-4 py-2.5 backdrop-blur lg:hidden">
+      <header className="sticky top-0 z-30 flex items-center gap-3 border-b-2 border-edge bg-panel px-4 py-2.5 lg:hidden">
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -125,8 +122,8 @@ export function Shell({
         <div className="flex min-w-0 flex-1 items-center gap-2.5">
           <BrandMark name={businessName} logo={logo} size="sm" />
           <div className="min-w-0">
-            <p className="truncate text-sm font-bold leading-tight text-strong">{businessName}</p>
-            <p className="truncate text-[10px] font-medium uppercase tracking-[0.08em] text-brand-600">
+            <p className="truncate font-display text-sm leading-tight text-strong">{businessName}</p>
+            <p className="truncate text-[10px] font-bold uppercase tracking-[0.12em] text-brand-600">
               {businessLabel}
             </p>
           </div>
@@ -134,10 +131,10 @@ export function Shell({
       </header>
 
       {/* Menu lateral en pantallas grandes */}
-      <aside className="hidden w-[264px] shrink-0 border-r border-line bg-panel lg:sticky lg:top-0 lg:flex lg:h-dvh lg:flex-col">
-        <div className="border-b border-line px-4 py-4">{brand}</div>
+      <aside className="hidden w-[264px] shrink-0 border-r-2 border-edge bg-panel lg:sticky lg:top-0 lg:flex lg:h-dvh lg:flex-col">
+        <div className="border-b-2 border-edge px-4 py-4">{brand}</div>
         <div className="flex-1 overflow-y-auto px-3 py-4">{navList}</div>
-        <div className="border-t border-line px-3 py-3">{footerLinks}</div>
+        <div className="border-t-2 border-edge px-3 py-3">{footerLinks}</div>
       </aside>
 
       {/* Menu deslizante en celular */}
@@ -149,8 +146,8 @@ export function Shell({
             className="absolute inset-0 bg-black/45 backdrop-blur-sm"
             onClick={() => setOpen(false)}
           />
-          <div className="absolute left-0 top-0 flex h-full w-[84%] max-w-xs flex-col bg-panel shadow-lift">
-            <div className="flex items-start justify-between gap-2 border-b border-line px-4 py-4">
+          <div className="absolute left-0 top-0 flex h-full w-[84%] max-w-xs flex-col border-r-2 border-edge bg-panel">
+            <div className="flex items-start justify-between gap-2 border-b-2 border-edge px-4 py-4">
               <div className="min-w-0">{brand}</div>
               <button
                 type="button"
@@ -162,7 +159,7 @@ export function Shell({
               </button>
             </div>
             <div className="flex-1 overflow-y-auto px-3 py-4">{navList}</div>
-            <div className="border-t border-line px-3 py-3">{footerLinks}</div>
+            <div className="border-t-2 border-edge px-3 py-3">{footerLinks}</div>
           </div>
         </div>
       )}
@@ -172,7 +169,7 @@ export function Shell({
       </main>
 
       {/* Accesos rapidos abajo, en celular */}
-      <nav className="fixed bottom-0 left-0 right-0 z-30 flex items-stretch justify-around border-t border-line bg-panel/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-30 flex items-stretch justify-around border-t-2 border-edge bg-panel pb-[env(safe-area-inset-bottom)] lg:hidden">
         {nav.slice(0, 5).map((item) => {
           const active = isActive(item.href);
           return (
@@ -180,11 +177,21 @@ export function Shell({
               key={item.href}
               href={item.href}
               className={
-                "flex flex-1 flex-col items-center gap-1 px-1 pb-2 pt-2.5 text-[10px] font-medium transition " +
-                (active ? "text-brand-600" : "text-muted")
+                "flex flex-1 flex-col items-center gap-1 px-1 pb-2 pt-2.5 text-[10px] font-bold uppercase tracking-wide transition " +
+                (active ? "text-strong" : "text-muted")
               }
             >
-              <Icon name={item.icon} className="h-[18px] w-[18px]" />
+              {/* El icono activo va en un cuadro solido con el color del negocio. */}
+              <span
+                className={
+                  "flex h-7 w-9 items-center justify-center rounded-lg border-2 transition " +
+                  (active
+                    ? "border-edge bg-brand-600 text-on-brand"
+                    : "border-transparent")
+                }
+              >
+                <Icon name={item.icon} className="h-[18px] w-[18px]" />
+              </span>
               <span className="max-w-full truncate">{item.label.split(" ")[0]}</span>
             </Link>
           );

@@ -14,6 +14,8 @@ export default {
         "surface-3": withAlpha("--surface-3"),
         line: withAlpha("--line"),
         "line-strong": withAlpha("--line-strong"),
+        /** Borde marcado de los bloques y color de la sombra dura. */
+        edge: withAlpha("--edge"),
         strong: withAlpha("--text-strong"),
         body: withAlpha("--text-body"),
         muted: withAlpha("--text-muted"),
@@ -54,14 +56,20 @@ export default {
           "Arial",
           "sans-serif",
         ],
+        /** Titulos y plata: la version negra de la misma familia. */
+        display: ["var(--font-display)", "var(--font-sans)", "system-ui", "sans-serif"],
       },
       boxShadow: {
-        soft: "0 1px 2px hsl(var(--shadow) / 0.06), 0 8px 24px -12px hsl(var(--shadow) / 0.18)",
-        lift: "0 2px 4px hsl(var(--shadow) / 0.07), 0 16px 36px -18px hsl(var(--shadow) / 0.28)",
+        /** Sombra dura desplazada: es lo que da el aire de bloque. */
+        block: "3px 3px 0 0 rgb(var(--edge))",
+        "block-lg": "5px 5px 0 0 rgb(var(--edge))",
+        "block-brand": "3px 3px 0 0 rgb(var(--brand-600))",
       },
       borderRadius: {
-        xl: "0.75rem",
-        "2xl": "1rem",
+        // Radios mas cerrados que los de Tailwind: el bloque quiere esquina.
+        lg: "0.4rem",
+        xl: "0.55rem",
+        "2xl": "0.75rem",
       },
     },
   },

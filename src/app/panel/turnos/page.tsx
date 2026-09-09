@@ -358,7 +358,7 @@ export default async function TurnosPage({
                 {visible.map((a) => (
                   <li
                     key={a.id}
-                    className="rounded-xl border-l-4 border border-line bg-surface p-3"
+                    className="rounded-xl border-l-4 border-2 border-edge bg-surface p-3"
                     style={
                       a.staffId
                         ? { borderLeftColor: colorOf.get(a.staffId) ?? undefined }
@@ -448,7 +448,7 @@ export default async function TurnosPage({
                           </summary>
                           <form
                             action={setAppointmentStaffAction}
-                            className="mt-2 flex flex-wrap items-end gap-2 rounded-xl border border-line bg-panel p-3"
+                            className="mt-2 flex flex-wrap items-end gap-2 rounded-xl border-2 border-edge bg-panel p-3"
                           >
                             <input type="hidden" name="id" value={a.id} />
                             <label className="block">
@@ -479,7 +479,7 @@ export default async function TurnosPage({
                           </summary>
                           <form
                             action={closeAppointmentSaleAction}
-                            className="mt-2 flex flex-wrap items-end gap-2 rounded-xl border border-line bg-panel p-3"
+                            className="mt-2 flex flex-wrap items-end gap-2 rounded-xl border-2 border-edge bg-panel p-3"
                           >
                             <input type="hidden" name="id" value={a.id} />
                             <label className="block">
@@ -560,7 +560,7 @@ export default async function TurnosPage({
           </Card>
 
           <Card title="Tu enlace de reservas">
-            <p className="break-all rounded-xl border border-line bg-surface px-3 py-2.5 text-xs text-body">
+            <p className="break-all rounded-xl border-2 border-edge bg-surface px-3 py-2.5 text-xs text-body">
               /reservar/{user.slug}
             </p>
             <p className="mt-2 text-xs text-muted">

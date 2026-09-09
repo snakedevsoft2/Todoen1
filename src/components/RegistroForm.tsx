@@ -28,10 +28,10 @@ export function RegistroForm() {
             <label
               key={t.value}
               className={
-                "cursor-pointer rounded-xl border p-3 text-center transition " +
+                "cursor-pointer rounded-xl border-2 p-3 text-center transition " +
                 (type === t.value
-                  ? "border-brand-500 bg-brand-50"
-                  : "border-line bg-surface hover:bg-surface")
+                  ? "border-edge bg-brand-600 text-on-brand shadow-block"
+                  : "border-edge bg-panel hover:bg-surface")
               }
             >
               <input
@@ -42,8 +42,8 @@ export function RegistroForm() {
                 onChange={() => setType(t.value)}
                 className="sr-only"
               />
-              <span className="block text-sm font-semibold text-strong">{t.label}</span>
-              <span className="mt-0.5 block text-[11px] text-muted">{t.hint}</span>
+              <span className="block text-sm font-bold">{t.label}</span>
+              <span className="mt-0.5 block text-[11px] opacity-75">{t.hint}</span>
             </label>
           ))}
         </div>

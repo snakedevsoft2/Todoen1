@@ -145,14 +145,14 @@ export function BookingForm({
               type="button"
               onClick={() => chooseStaff("")}
               className={
-                "rounded-xl border px-3 py-2.5 text-left transition " +
+                "rounded-xl border-2 px-3 py-2.5 text-left transition " +
                 (staffId === ""
-                  ? "border-brand-600 bg-brand-50"
-                  : "border-line bg-surface hover:border-brand-500")
+                  ? "border-edge bg-brand-600 text-on-brand shadow-block"
+                  : "border-edge bg-panel hover:bg-surface")
               }
             >
-              <span className="block text-sm font-semibold text-strong">El que este libre</span>
-              <span className="block text-[11px] text-muted">Mas horarios disponibles</span>
+              <span className="block text-sm font-bold">El que este libre</span>
+              <span className="block text-[11px] opacity-75">Mas horarios disponibles</span>
             </button>
             {team.map((person) => (
               <button
@@ -160,10 +160,10 @@ export function BookingForm({
                 type="button"
                 onClick={() => chooseStaff(person.id)}
                 className={
-                  "flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left transition " +
+                  "flex items-center gap-2 rounded-xl border-2 px-3 py-2.5 text-left transition " +
                   (staffId === person.id
-                    ? "border-brand-600 bg-brand-50"
-                    : "border-line bg-surface hover:border-brand-500")
+                    ? "border-edge bg-brand-600 text-on-brand shadow-block"
+                    : "border-edge bg-panel hover:bg-surface")
                 }
               >
                 <span
@@ -173,10 +173,8 @@ export function BookingForm({
                   {initials(person.name)}
                 </span>
                 <span className="min-w-0">
-                  <span className="block truncate text-sm font-semibold text-strong">
-                    {person.name}
-                  </span>
-                  <span className="block text-[11px] text-muted">
+                  <span className="block truncate text-sm font-bold">{person.name}</span>
+                  <span className="block text-[11px] opacity-75">
                     {slots.filter(
                       (s) => !isPast(s) && !(busyByStaff.get(person.id)?.has(s) ?? false)
                     ).length}{" "}
@@ -210,12 +208,12 @@ export function BookingForm({
                   disabled={isTaken}
                   onClick={() => setSlot(s)}
                   className={
-                    "rounded-xl border px-2 py-2.5 text-xs font-semibold transition " +
+                    "rounded-lg border-2 px-2 py-2.5 text-xs font-bold transition " +
                     (isTaken
                       ? "cursor-not-allowed border-line bg-surface text-subtle line-through"
                       : selected
-                        ? "border-brand-600 bg-brand-600 text-on-brand"
-                        : "border-line bg-surface text-body hover:border-brand-500 hover:bg-surface")
+                        ? "border-edge bg-brand-600 text-on-brand shadow-[2px_2px_0_0_rgb(var(--edge))]"
+                        : "border-edge bg-panel text-body hover:bg-surface")
                   }
                 >
                   {pretty12h(s)}
@@ -243,10 +241,10 @@ export function BookingForm({
             <label
               key={s.id}
               className={
-                "flex cursor-pointer items-center justify-between gap-3 rounded-xl border px-3 py-2.5 transition " +
+                "flex cursor-pointer items-center justify-between gap-3 rounded-xl border-2 px-3 py-2.5 transition " +
                 (serviceId === s.id
-                  ? "border-brand-500 bg-brand-50"
-                  : "border-line bg-surface hover:bg-surface")
+                  ? "border-edge bg-brand-600 text-on-brand shadow-block"
+                  : "border-edge bg-panel hover:bg-surface")
               }
             >
               <span className="min-w-0">
@@ -258,12 +256,12 @@ export function BookingForm({
                   onChange={() => setServiceId(s.id)}
                   className="sr-only"
                 />
-                <span className="block truncate text-sm font-semibold text-strong">{s.name}</span>
-                <span className="block text-[11px] text-muted">
+                <span className="block truncate text-sm font-bold">{s.name}</span>
+                <span className="block text-[11px] opacity-75">
                   {s.durationMin} min{s.description ? " - " + s.description : ""}
                 </span>
               </span>
-              <span className="shrink-0 text-sm font-bold text-brand-600">
+              <span className={"shrink-0 font-display text-sm " + (serviceId === s.id ? "" : "text-brand-600")}>
                 {money(s.price, currency)}
               </span>
             </label>

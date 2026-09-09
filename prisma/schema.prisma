@@ -107,8 +107,30 @@ model User {
   notifications Notification[]
   variants     ProductVariant[]
   stockMoves   StockMove[]
+  suppliers    Supplier[]
 
   @@index([slug])
+}
+
+/// A quien le compra el negocio. Sirve para saber a quien pedirle y a como.
+model Supplier {
+  id      String  @id @default(cuid())
+  userId  String
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name    String
+  /// Persona con la que se habla, si no es el mismo negocio.
+  contact String?
+  phone   String?
+  notes   String?
+  active  Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  services Service[]
+  moves    StockMove[]
+
+  @@index([userId, active])
 }
 
 /// Persona que atiende en el negocio (barberos). Puede tener su propio usuario
@@ -130,6 +152,9 @@ model Staff {
   /// Aparece en la pagina publica para que el cliente lo elija.
   bookable     Boolean   @default(true)
   active       Boolean   @default(true)
+  /// Cuando termino (o salto) el instructivo de bienvenida. Va por persona y
+  /// no por negocio: cada empleado nuevo lo ve la primera vez que entra.
+  tourDoneAt   DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -162,6 +187,9 @@ model Service {
   trackStock Boolean @default(false)
   /// Aparece en el catalogo publico /catalogo/[slug].
   showcase   Boolean @default(true)
+  /// A quien se le compra esta prenda.
+  supplierId String?
+  supplier   Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -225,11 +253,16 @@ model StockMove {
   reason     String?
   day        String // "YYYY-MM-DD"
   saleId     String?
+  /// De quien vino la mercancia. Solo tiene sentido en las entradas, y es lo
+  /// que permite saber despues a quien le compras cada prenda y a como.
+  supplierId String?
+  supplier   Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
 
   @@index([userId, day])
   @@index([variantId, createdAt])
+  @@index([supplierId])
 }
 
 /// Turno reservado por el cliente (barberia).

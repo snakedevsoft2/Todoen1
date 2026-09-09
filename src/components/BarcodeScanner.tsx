@@ -140,7 +140,7 @@ export function BarcodeScanner({
       role="dialog"
       aria-label={title}
     >
-      <div className="w-full max-w-md overflow-hidden rounded-2xl border border-line bg-panel shadow-xl">
+      <div className="w-full max-w-md overflow-hidden rounded-2xl border-2 border-edge bg-panel shadow-xl">
         <div className="flex items-center justify-between gap-2 px-4 py-3">
           <p className="text-sm font-bold text-strong">{title}</p>
           <button type="button" onClick={onClose} className="btn-ghost btn-sm px-2" aria-label="Cerrar">

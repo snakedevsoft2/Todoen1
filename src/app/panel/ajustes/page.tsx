@@ -56,15 +56,15 @@ export default async function AjustesPage() {
         {!isOwner && (
           <Card title="Tus datos" subtitle="Asi te ve el resto del equipo" className="lg:col-span-2">
             <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-xl border border-line bg-surface px-3 py-2.5">
+              <div className="rounded-xl border-2 border-edge bg-surface px-3 py-2.5">
                 <p className="text-[11px] uppercase tracking-wide text-muted">Nombre</p>
                 <p className="mt-0.5 text-sm font-semibold text-strong">{staff.name}</p>
               </div>
-              <div className="rounded-xl border border-line bg-surface px-3 py-2.5">
+              <div className="rounded-xl border-2 border-edge bg-surface px-3 py-2.5">
                 <p className="text-[11px] uppercase tracking-wide text-muted">Correo</p>
                 <p className="mt-0.5 truncate text-sm font-semibold text-strong">{staff.email}</p>
               </div>
-              <div className="rounded-xl border border-line bg-surface px-3 py-2.5">
+              <div className="rounded-xl border-2 border-edge bg-surface px-3 py-2.5">
                 <p className="text-[11px] uppercase tracking-wide text-muted">Comision</p>
                 <p className="mt-0.5 text-sm font-semibold text-strong">{staff.commissionPct}%</p>
               </div>
@@ -80,7 +80,7 @@ export default async function AjustesPage() {
             title={isClothing ? "Tu catalogo publico" : "Tu pagina de reservas"}
             subtitle="El enlace que le mandas a los clientes"
           >
-            <p className="break-all rounded-xl border border-line bg-surface px-3 py-2.5 text-sm text-body">
+            <p className="break-all rounded-xl border-2 border-edge bg-surface px-3 py-2.5 text-sm text-body">
               {publicLink}
             </p>
             <div className="mt-3 flex flex-wrap gap-2">

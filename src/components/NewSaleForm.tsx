@@ -180,13 +180,13 @@ export function NewSaleForm({
 
       {services.length > 0 && (
         <div className="space-y-3">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+          <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted">
             Toca para agregar {itemLabel}
           </p>
           {Object.entries(grouped).map(([category, list]) => (
             <div key={category}>
               <p className="mb-1.5 text-[11px] text-subtle">{category}</p>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <div className="grid grid-cols-2 gap-2">
                 {list.map((s) => {
                   const sizes = s.variants ?? [];
                   const stock = sizes.reduce((sum, v) => sum + Math.max(0, v.stock), 0);
@@ -201,7 +201,7 @@ export function NewSaleForm({
                         className={
                           "btn-ghost w-full flex-col items-start gap-0 px-3 py-2.5 text-left " +
                           (soldOut ? "opacity-50" : "") +
-                          (openSizes === s.id ? " ring-2 ring-brand-500" : "")
+                          (openSizes === s.id ? " bg-brand-50" : "")
                         }
                       >
                         <span className="flex w-full items-center gap-2">
@@ -210,7 +210,7 @@ export function NewSaleForm({
                             <img
                               src={s.photo}
                               alt=""
-                              className="h-8 w-8 shrink-0 rounded-lg border border-line object-cover"
+                              className="h-8 w-8 shrink-0 rounded-lg border-2 border-edge object-cover"
                               loading="lazy"
                             />
                           )}
@@ -233,7 +233,7 @@ export function NewSaleForm({
                       </button>
 
                       {openSizes === s.id && sizes.length > 0 && (
-                        <div className="col-span-2 rounded-xl border border-brand-200 bg-brand-50 p-2.5 sm:col-span-3">
+                        <div className="col-span-2 rounded-xl border-2 border-edge bg-brand-50 p-2.5">
                           <p className="mb-1.5 text-[11px] font-semibold text-brand-700">
                             Elige la talla de {s.name}
                           </p>
@@ -287,7 +287,7 @@ export function NewSaleForm({
         </button>
       </div>
 
-      <div className="rounded-xl border border-line bg-surface p-3">
+      <div className="rounded-xl border-2 border-edge bg-surface p-3">
         {cart.length === 0 ? (
           <p className="py-3 text-center text-sm text-subtle">
             Todavia no agregas nada a esta venta.
@@ -359,7 +359,7 @@ export function NewSaleForm({
           </Field>
         )}
 
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Dia de la venta">
             <input className="input" type="date" name="day" defaultValue={today} />
           </Field>

@@ -51,10 +51,13 @@ export function StockMoveForm({
   variants,
   today,
   defaultVariantId,
+  suppliers = [],
 }: {
   variants: MovableVariant[];
   today: string;
   defaultVariantId?: string;
+  /** A quien se le compra. Solo se pregunta en las entradas. */
+  suppliers?: { id: string; name: string }[];
 }) {
   const [state, formAction] = useActionState(stockMoveAction, undefined);
   const [type, setType] = useState("ENTRADA");
@@ -104,10 +107,10 @@ export function StockMoveForm({
           <label
             key={t.value}
             className={
-              "cursor-pointer rounded-xl border p-2.5 text-center transition " +
+              "cursor-pointer rounded-xl border-2 p-2.5 text-center transition " +
               (type === t.value
-                ? "border-brand-500 bg-brand-50"
-                : "border-line bg-surface hover:bg-surface")
+                ? "border-edge bg-brand-600 text-on-brand shadow-block"
+                : "border-edge bg-panel hover:bg-surface")
             }
           >
             <input
@@ -118,9 +121,13 @@ export function StockMoveForm({
               onChange={() => setType(t.value)}
               className="sr-only"
             />
-            <Icon name={t.icon} className={"mx-auto h-5 w-5 " + t.tone} />
-            <span className="mt-1 block text-xs font-semibold text-strong">{t.label}</span>
-            <span className="mt-0.5 block text-[10px] leading-tight text-muted">{t.hint}</span>
+            {/* Elegido: todo hereda el color de encima del bloque. */}
+            <Icon
+              name={t.icon}
+              className={"mx-auto h-5 w-5 " + (type === t.value ? "" : t.tone)}
+            />
+            <span className="mt-1 block text-xs font-bold">{t.label}</span>
+            <span className="mt-0.5 block text-[10px] leading-tight opacity-75">{t.hint}</span>
           </label>
         ))}
       </div>
@@ -198,9 +205,23 @@ export function StockMoveForm({
       </div>
 
       {type === "ENTRADA" && (
-        <Field label="Dia del movimiento">
-          <input className="input" type="date" name="day" defaultValue={today} />
-        </Field>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Dia del movimiento">
+            <input className="input" type="date" name="day" defaultValue={today} />
+          </Field>
+          {suppliers.length > 0 && (
+            <Field label="A quien le compraste" hint="Alimenta el reporte de proveedores.">
+              <select className="input" name="supplierId" defaultValue="">
+                <option value="">Sin proveedor</option>
+                {suppliers.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
+        </div>
       )}
 
       <Field label="Motivo (opcional)">

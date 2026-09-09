@@ -305,6 +305,46 @@ intenta entrar a Barberos, Personalizar o Avisos, agenda en columnas con los dos
 reserva del cliente eligiendo barbero, cierre de venta a nombre del barbero, paso de un turno a
 otro barbero con su venta incluida, y la tabla de medición por barbero en Reportes.
 
+### Instructivo y soporte
+
+- **Instructivo de bienvenida.** La primera vez que entra cada persona (dueño o empleado) aparece
+  una guía de seis pasos, distinta según el negocio. Se puede **omitir** en cualquier momento, y
+  omitir cuenta igual que terminar: no se vuelve a poner encima. Desde **Soporte** se puede volver
+  a abrir cuando se quiera. La marca va en `Staff.tourDoneAt`, por persona y no por negocio.
+- **Soporte técnico** en `/panel/soporte`, con el WhatsApp directo. El mensaje sale ya escrito con
+  el nombre del negocio y de quien escribe, y hay seis motivos frecuentes que lo redactan solos.
+  El número vive en un único sitio: `src/lib/support.ts`.
+
+### Para el dueño
+
+- **Exportar a Excel** desde Reportes: ventas (una fila por línea de venta), gastos, inventario
+  valorizado y movimientos de stock. Sale en CSV con `sep=;` y marca UTF-8, que es lo que hace que
+  Excel en español lo abra en columnas y con las tildes bien.
+- **Comparativas.** Cada rango se compara con el anterior del mismo largo y pegado a él: si miras
+  los últimos 7 días, se compara con los 7 anteriores. Sube o baja en porcentaje, y en gastos subir
+  se pinta en rojo, no en verde.
+- **Proveedores** (tienda de ropa): a quién le compras cada prenda, cuánto llevas comprado, cuándo
+  fue la última vez y a cómo te sale cada prenda. Se llena solo: cada prenda dice a quién se le
+  compra, y cada **entrada** de inventario guarda el proveedor y el costo.
+
+## El estilo
+
+Cada negocio elige su propio color, así que la personalidad **no puede venir del color**: viene de
+la tipografía, la forma y la estructura, que sí son iguales para todos.
+
+- **Tipografía propia.** Archivo para el texto y Archivo Black para títulos y plata, servidas por
+  `next/font` desde el mismo dominio (sin pedirle nada a Google en producción). Toda la plata va con
+  números tabulares, así que las columnas de pesos alinean.
+- **Bloques, no cajas flotando.** Borde de 2px (`border-edge`, un token que el motor de temas genera
+  junto al resto de la paleta) y sombra dura desplazada. La sombra se reserva para lo que se toca o
+  se mira primero — las cifras del día y los botones — porque si todo flotara no destacaría nada.
+- **Los botones se hunden.** Al presionar se mueven hacia su sombra y la sombra desaparece.
+- **La cifra manda.** Cada `Stat` va en la negra a 32px con una raya de color debajo, para leerla
+  desde el otro lado del mostrador.
+
+Casi todo esto vive en `globals.css` y `tailwind.config.ts`, así que las pantallas que no se tocaron
+heredan el estilo solas.
+
 ## Notas técnicas
 
 - El dinero se guarda en enteros (pesos, sin centavos) para evitar errores de redondeo. La moneda

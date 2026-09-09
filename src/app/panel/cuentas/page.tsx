@@ -74,7 +74,7 @@ export default async function CuentasPage() {
                 const total = o.items.reduce((s, i) => s + i.unitPrice * i.qty, 0);
                 const units = o.items.reduce((s, i) => s + i.qty, 0);
                 return (
-                  <li key={o.id} className="rounded-xl border border-line bg-surface p-3">
+                  <li key={o.id} className="rounded-xl border-2 border-edge bg-surface p-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="truncate text-base font-bold text-strong">{o.label}</p>

@@ -19,6 +19,7 @@ export type EditableService = {
   brand?: string | null;
   trackStock?: boolean;
   showcase?: boolean;
+  supplierId?: string | null;
 };
 
 export function ServiceForm({
@@ -29,6 +30,7 @@ export function ServiceForm({
   /** Tienda de ropa: foto, marca, inventario por talla y catalogo publico. */
   clothing = false,
   photo,
+  suppliers = [],
 }: {
   service?: EditableService;
   categories: string[];
@@ -36,6 +38,8 @@ export function ServiceForm({
   submitLabel: string;
   clothing?: boolean;
   photo?: string | null;
+  /** A quien se le puede comprar esta prenda. Vacio si no hay proveedores. */
+  suppliers?: { id: string; name: string }[];
 }) {
   const [state, formAction] = useActionState(saveServiceAction, undefined);
 
@@ -112,13 +116,26 @@ export function ServiceForm({
         )}
 
         {clothing && (
-          <Field label="Marca o proveedor (opcional)">
+          <Field label="Marca (opcional)">
             <input
               className="input"
               name="brand"
               defaultValue={service?.brand ?? ""}
               placeholder="Ej: Levis"
             />
+          </Field>
+        )}
+
+        {clothing && suppliers.length > 0 && (
+          <Field label="A quien se la compras" hint="Se usa en el reporte de proveedores.">
+            <select className="input" name="supplierId" defaultValue={service?.supplierId ?? ""}>
+              <option value="">Sin proveedor</option>
+              {suppliers.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
           </Field>
         )}
 

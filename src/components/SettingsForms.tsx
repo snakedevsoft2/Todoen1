@@ -81,7 +81,7 @@ export function BusinessSettingsForm({
         </Field>
       </div>
 
-      <div className="rounded-xl border border-line bg-surface p-3">
+      <div className="rounded-xl border-2 border-edge bg-surface p-3">
         <p className="mb-3 text-sm font-semibold text-strong">Horario de atencion</p>
         <div className="grid gap-3 sm:grid-cols-3">
           <Field label="Abre a las">
@@ -121,7 +121,7 @@ export function BusinessSettingsForm({
             {WEEKDAYS.map((d) => (
               <label
                 key={d.value}
-                className="flex cursor-pointer items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2 text-sm text-body hover:bg-surface"
+                className="flex cursor-pointer items-center gap-2 rounded-xl border-2 border-edge bg-surface px-3 py-2 text-sm text-body hover:bg-surface"
               >
                 <input
                   type="checkbox"
@@ -138,7 +138,7 @@ export function BusinessSettingsForm({
       </div>
 
       {(isBarber || isClothing) && (
-        <div className="rounded-xl border border-line bg-surface p-3">
+        <div className="rounded-xl border-2 border-edge bg-surface p-3">
           <p className="mb-3 text-sm font-semibold text-strong">
             {isClothing ? "Catalogo en linea" : "Reservas en linea"}
           </p>

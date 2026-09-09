@@ -36,7 +36,12 @@ export function navFor(type: BusinessType, role: string = "DUENO"): NavItem[] {
       : type === "ROPA"
         ? [
             { href: "/panel/inventario", label: "Inventario", icon: "box" },
-            ...(owner ? [{ href: "/panel/equipo", label: "Empleados", icon: "users" }] : []),
+            ...(owner
+              ? [
+                  { href: "/panel/proveedores", label: "Proveedores", icon: "truck" },
+                  { href: "/panel/equipo", label: "Empleados", icon: "users" },
+                ]
+              : []),
           ]
         : [{ href: "/panel/cuentas", label: "Cuentas abiertas", icon: "table" }];
 
@@ -46,6 +51,8 @@ export function navFor(type: BusinessType, role: string = "DUENO"): NavItem[] {
     ...COMMON_TAIL,
     ...(owner ? OWNER_TAIL : []),
     { href: "/panel/ajustes", label: "Ajustes", icon: "cog" },
+    // El soporte va de ultimo y lo ve todo el mundo, dueno o empleado.
+    { href: "/panel/soporte", label: "Soporte", icon: "whatsapp" },
   ];
 }
 

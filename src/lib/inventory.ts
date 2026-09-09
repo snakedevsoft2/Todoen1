@@ -16,6 +16,8 @@ export type StockMoveInput = {
   unitCost?: number;
   reason?: string | null;
   saleId?: string | null;
+  /** De quien vino la mercancia. Solo aplica a las entradas. */
+  supplierId?: string | null;
   /** Si es false, deja que el stock quede negativo (solo para ajustes). */
   blockNegative?: boolean;
 };
@@ -69,6 +71,7 @@ export async function applyStockMove(
       reason: input.reason ?? null,
       day: input.day,
       saleId: input.saleId ?? null,
+      supplierId: input.supplierId ?? null,
     },
   });
 

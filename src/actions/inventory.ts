@@ -235,6 +235,20 @@ export async function stockMoveAction(
     delta = rawType === "ENTRADA" ? qty : -qty;
   }
 
+  // De quien vino la mercancia. Solo se guarda en las entradas: en una salida
+  // o en un conteo no hay proveedor que valga.
+  let supplierId: string | null = null;
+  if (rawType === "ENTRADA") {
+    const pedido = str(formData.get("supplierId"));
+    if (pedido) {
+      const supplier = await db.supplier.findFirst({
+        where: { id: pedido, userId: user.id },
+        select: { id: true },
+      });
+      supplierId = supplier?.id ?? null;
+    }
+  }
+
   const result = await db.$transaction((tx) =>
     applyStockMove(tx, {
       userId: user.id,
@@ -244,6 +258,7 @@ export async function stockMoveAction(
       day,
       unitCost: rawType === "ENTRADA" ? unitCost || variant.cost : variant.cost,
       reason,
+      supplierId,
       // El conteo fisico manda: si conto menos, el stock baja aunque duela.
       blockNegative: rawType !== "AJUSTE",
     })
