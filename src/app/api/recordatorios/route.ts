@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { addDays, todayIn } from "@/lib/dates";
+import { collectionMessage, debtState, saldo } from "@/lib/debts";
 import { pretty12h, prettyDay } from "@/lib/format";
 import {
   isProvider,
@@ -20,6 +21,9 @@ import {
  * Se protege con CRON_SECRET para que nadie de afuera dispare los envios.
  */
 export const dynamic = "force-dynamic";
+
+/** Cada cuantos dias se le puede volver a cobrar a la misma persona. */
+const DIAS_ENTRE_COBROS = 3;
 
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
@@ -118,5 +122,77 @@ export async function GET(request: Request) {
     }
   }
 
-  return Response.json({ negocios: negocios.length, enviados, fallidos, sinConfigurar });
+  // Cobros de cartera: lo mismo, pero para las deudas vencidas.
+  let cobros = 0;
+  for (const shop of negocios) {
+    const hoy = todayIn(shop.timezone);
+    // No acosamos: como mucho un cobro cada tres dias por deuda.
+    const corte = new Date(Date.now() - DIAS_ENTRE_COBROS * 86400000);
+
+    const deudas = await db.debt.findMany({
+      where: {
+        userId: shop.id,
+        status: "PENDIENTE",
+        clientPhone: { not: null },
+        dueDay: { not: null, lte: hoy },
+        OR: [{ lastReminderAt: null }, { lastReminderAt: { lt: corte } }],
+      },
+      include: { payments: { select: { amount: true } } },
+    });
+
+    for (const deuda of deudas) {
+      const pendiente = saldo(deuda);
+      if (pendiente <= 0) continue;
+
+      const to = toInternational(deuda.clientPhone, shop.whatsappNumber);
+      if (!to) continue;
+
+      const provider: WhatsappProvider = isProvider(shop.whatsappProvider)
+        ? shop.whatsappProvider
+        : "enlace";
+
+      const mensaje = collectionMessage({
+        businessName: shop.businessName,
+        clientName: deuda.clientName,
+        concept: deuda.concept,
+        saldo: pendiente,
+        currency: shop.currency,
+        estado: debtState(deuda, hoy),
+        prettyDue: deuda.dueDay ? prettyDay(deuda.dueDay) : null,
+      });
+
+      const resultado = await sendWhatsapp({
+        provider,
+        to,
+        message: mensaje,
+        apiKey: shop.whatsappApiKey,
+        phoneId: shop.whatsappPhoneId,
+      });
+
+      await db.notification.create({
+        data: {
+          userId: shop.id,
+          provider,
+          toNumber: to,
+          message: mensaje,
+          status: resultado.status,
+          detail: resultado.detail,
+        },
+      });
+
+      if (resultado.status === "ENVIADO") {
+        await db.debt.update({
+          where: { id: deuda.id },
+          data: { lastReminderAt: new Date() },
+        });
+        cobros += 1;
+      }
+    }
+  }
+
+  return Response.json({
+    negocios: negocios.length,
+    turnos: { enviados, fallidos, sinConfigurar },
+    cartera: { cobros },
+  });
 }

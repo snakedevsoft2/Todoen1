@@ -325,6 +325,90 @@ QR**. Es lo mismo para la barbería que para la tienda de ropa: cambia lo que se
   códigos de barras, así que no agrega peso.
 - La **barbería** además muestra un botón a su agenda, que sigue siendo solo suya.
 
+### Asistente con IA
+
+Un chat en `/panel/asistente` que responde sobre el negocio y sobre cómo se hace algo en la app.
+
+**Para activarlo** hay que poner `GEMINI_API_KEY`. Sin ella el apartado avisa que falta la clave y el
+resto de la app sigue igual. Opcionalmente `GEMINI_MODEL` cambia el modelo; por defecto
+`gemini-2.0-flash`.
+
+#### Cómo sacar la clave (gratis)
+
+Google AI Studio **no se instala**: es una página web. Solo hay que entrar y copiar una clave.
+
+1. Entra a **https://aistudio.google.com** y inicia sesión con tu cuenta de Google (la misma sirve
+   para el login con Google).
+2. Acepta los términos si te los pide.
+3. En el menú de la izquierda busca **"Get API key"** (o entra directo a
+   **https://aistudio.google.com/apikey**).
+4. Toca **"Create API key"**. Te va a pedir un proyecto de Google Cloud: si no tienes ninguno, elige
+   **"Create API key in new project"** y él lo crea solo. No hay que configurar nada más.
+5. Copia la clave. Empieza por `AIza...`. **Cópiala en ese momento**, porque después se muestra
+   tapada.
+
+#### Dónde ponerla
+
+**En tu computador**, en el archivo `.env` de la raíz del proyecto:
+
+```
+GEMINI_API_KEY=AIza...tu-clave
+```
+
+**En Vercel**, en *Settings → Environment Variables*: nombre `GEMINI_API_KEY`, valor la clave, y
+márcala para *Production*, *Preview* y *Development*. Después hay que **volver a desplegar** para que
+la tome.
+
+#### Sobre el costo
+
+El plan gratuito da un límite de peticiones por minuto y por día que le sobra a un negocio: cada
+pregunta del asistente son unos 600 tokens. Si algún día se pasa, la app lo dice con un mensaje
+(*"Se acabaron las consultas gratuitas por hoy"*) y no cobra nada ni se rompe.
+
+**No compartas esa clave ni la subas al repositorio.** El `.env` ya está en `.gitignore`. Si se te
+escapa, en la misma página de AI Studio la puedes borrar y crear otra.
+
+Lo que lo hace útil no es el modelo, es **el contexto**: antes de cada respuesta se arma un resumen
+con las cifras reales del negocio — ventas de hoy y del mes, comparación con los 30 días anteriores,
+lo más vendido, inventario con las tallas en rojo, agenda y cartera. Por eso puede decir *"te estás
+quedando sin la M"* en vez de *"revisa tu inventario"*. El resumen pesa unos 480 tokens.
+
+Decisiones que importan:
+
+- **El resumen se arma en el servidor**, a partir del negocio de la sesión. El navegador no decide de
+  qué negocio son los números.
+- **Solo van cifras y nombres de productos.** Nada de datos de clientes: no hacen falta para
+  aconsejar y no tienen por qué salir del negocio.
+- **La conversación no se guarda.** Viaja completa desde el navegador en cada pregunta y se pierde al
+  recargar. Son consejos, no un registro del negocio.
+- **`temperature` en 0.3** y una regla dura en el prompt: usar solo los números del resumen y decir
+  "eso no lo tengo a la mano" antes que inventar. Un consejo con cifras inventadas hace más daño que
+  no dar consejo.
+- Nada rompe la pantalla: cuota agotada, clave mala o demora salen como un aviso legible.
+
+### Cartera
+
+Para lo que fiaste y todavía no te han pagado. En `/panel/cartera`.
+
+- **Quién debe, cuánto, desde cuándo y próximo vencimiento.** El estado se calcula solo: al día,
+  vence pronto (3 días o menos), vence hoy o vencida hace N días.
+- **Cobro por WhatsApp** con el mensaje ya escrito, y el tono cambia según esté vencida o no. Si el
+  negocio tiene CallMeBot o Meta, el cobro sale solo desde `/api/recordatorios` — como mucho **uno
+  cada 3 días** por deuda, para no acosar al cliente.
+- **Historial de pagos** con el saldo que quedaba después de cada abono.
+- **Comprobante en PDF** de cada abono, con la cuenta completa, para mandárselo al cliente.
+
+**La decisión que importa: no contar la plata dos veces.** Al anotar la deuda se pregunta si la venta
+ya se registró en Ventas:
+
+- Si **no** se registró (el fiado típico: entregaste la mercancía sin cobrar), cada abono entra como
+  **venta del día en que lo recibes**, con origen `CARTERA`.
+- Si **sí** se registró, los abonos solo bajan el saldo — esa plata ya se contó cuando hiciste la
+  venta, y volver a sumarla inflaría la caja.
+
+Borrar un abono deshace también la venta que generó, si la hubo. Una deuda con abonos no se borra: se
+anula, para no perder el rastro de la plata que sí entró.
+
 ### La pantalla de ingreso
 
 Tiene su propio juego de estilos (`.auth-*` en `globals.css`), aparte del resto de la aplicación. Es

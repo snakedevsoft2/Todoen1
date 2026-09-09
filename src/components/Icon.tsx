@@ -40,6 +40,8 @@ const PATHS: Record<string, string> = {
   truck: "M3 7h10v9H3zm10 3h4l3 3v3h-7zM7 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm10 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z",
   download: "M12 4v10m0 0 4-4m-4 4-4-4M5 18h14",
   trend: "M4 17l5-5 3 3 7-7m0 0h-4.5M20 8v4.5",
+  sparkle: "M12 3.5 13.8 9l5.7 1.8-5.7 1.8L12 18.3l-1.8-5.7L4.5 10.8 10.2 9 12 3.5ZM19 3v3m1.5-1.5h-3M5.5 16v2.5M6.75 17.25h-2.5",
+  handshake: "M3 10h3l3-2 3 2 3-2 3 2h3M7.5 12.5 10 15l1.5-1.5L13 15l2.5-2.5M3 10v5a2 2 0 0 0 2 2h1m15-7v5a2 2 0 0 1-2 2h-1",
 };
 
 export function Icon({

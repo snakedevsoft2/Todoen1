@@ -49,6 +49,14 @@ enum SaleOrigin {
   MANUAL
   TURNO
   ORDEN
+  /// Abono de una deuda que todavia no se habia registrado como venta.
+  CARTERA
+}
+
+enum DebtStatus {
+  PENDIENTE
+  PAGADA
+  ANULADA
 }
 
 /// Por que se movio el stock. VENTA y DEVOLUCION los pone la aplicacion sola.
@@ -122,8 +130,70 @@ model User {
   variants     ProductVariant[]
   stockMoves   StockMove[]
   suppliers    Supplier[]
+  debts        Debt[]
+  debtPayments DebtPayment[]
 
   @@index([slug])
+}
+
+/// Plata que le deben al negocio. Un fiado, un abono pendiente, una cuota.
+model Debt {
+  id          String  @id @default(cuid())
+  userId      String
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientName  String
+  clientPhone String?
+  concept     String
+  /// Total de la deuda. Lo que falta sale de restarle los abonos.
+  amount      Int
+  /// Desde cuando debe, en "YYYY-MM-DD".
+  day         String
+  /// Proximo vencimiento. Vacio si no se acordo fecha.
+  dueDay      String?
+  status      DebtStatus @default(PENDIENTE)
+  notes       String?
+
+  /**
+   * Si la venta ya se registro en Ventas cuando se entrego la mercancia.
+   *
+   * Decide si los abonos entran a la caja del dia: si la venta ya se conto,
+   * cobrar es recuperar plata que ya estaba sumada, y volverla a sumar seria
+   * contar doble. Si no se conto (el fiado tipico), cada abono si es venta
+   * del dia en que se recibe.
+   */
+  alreadyInvoiced Boolean @default(false)
+
+  /// Cuando se le mando el ultimo cobro, para no acosar al cliente.
+  lastReminderAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  payments DebtPayment[]
+
+  @@index([userId, status])
+  @@index([userId, dueDay])
+}
+
+/// Cada abono que el cliente hace sobre su deuda.
+model DebtPayment {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  debtId String
+  debt   Debt   @relation(fields: [debtId], references: [id], onDelete: Cascade)
+
+  amount Int
+  day    String // "YYYY-MM-DD"
+  method PaymentMethod @default(EFECTIVO)
+  notes  String?
+  /// Venta que genero este abono, cuando la deuda no estaba facturada.
+  saleId String?
+
+  createdAt DateTime @default(now())
+
+  @@index([debtId])
+  @@index([userId, day])
 }
 
 /// A quien le compra el negocio. Sirve para saber a quien pedirle y a como.

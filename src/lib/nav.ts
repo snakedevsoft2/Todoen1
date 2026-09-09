@@ -6,9 +6,11 @@ export type NavItem = { href: string; label: string; icon: string };
 const COMMON_TAIL: NavItem[] = [
   { href: "/panel/ventas", label: "Ventas", icon: "receipt" },
   { href: "/panel/gastos", label: "Gastos", icon: "wallet" },
+  { href: "/panel/cartera", label: "Cartera", icon: "handshake" },
   { href: "/panel/caja", label: "Cierre de caja", icon: "lock" },
   { href: "/panel/catalogo", label: "Productos y servicios", icon: "tag" },
   { href: "/panel/reportes", label: "Reportes", icon: "chart" },
+  { href: "/panel/asistente", label: "Asistente", icon: "sparkle" },
 ];
 
 /** Configuracion del negocio: solo el dueno. */
