@@ -156,6 +156,53 @@ por WhatsApp con la confirmación ya redactada.
    quitan el acceso o lo desactivan, su sesión deja de valer en la siguiente petición.
 6. Lo que es configuración (Ajustes del negocio, Personalizar, Avisos y Barberos) está protegido
    en la página **y** en la acción del servidor, así que no basta con adivinar la dirección.
+7. Las líneas de una venta y de una cuenta abierta llevan **el dueño escrito en la fila**, no
+   heredado del padre. Así el aislamiento no depende de que quien escriba una consulta se
+   acuerde de pasar por la venta o por la cuenta.
+8. Hay **17 pruebas automáticas** (`npm test`) que crean dos negocios con datos iguales y
+   comprueban que ninguno alcanza una sola fila del otro: ni leyendo, ni buscando por id, ni
+   editando, ni borrando. Corren contra la base de datos de verdad y limpian lo suyo al terminar.
+
+Las pruebas se probaron rompiendo el aislamiento a mano —insertando una línea de venta con el
+dueño equivocado por SQL directo, saltándose la aplicación— y comprobando que fallan. Una prueba
+que nunca falla no protege nada.
+
+---
+
+## El menú lo arma cada persona
+
+La aplicación tiene veinte apartados porque sirve para negocios muy distintos. Nadie los necesita
+todos, así que **el menú no es fijo**.
+
+- **El catálogo vive en la base de datos** (`Module`, `BusinessTypeModule`), no en el código. De
+  ahí salen el menú, el configurador y la guía, así que los tres no pueden desfasarse entre sí.
+- **Si un oficio no tiene fila para un apartado, ese apartado no existe para él.** Ni apagado. Es
+  la razón por la que la agenda por hora es de barbería (y de servicios) y no puede aparecerse en
+  un restaurante por un descuido de código.
+- **Cada persona arma el suyo**, no el negocio: al dueño le sirven reportes y proveedores, y al
+  que solo vende le estorban. Se guarda en `WorkspaceConfig`.
+- **Apagar no borra.** El apartado sigue funcionando si se entra por su dirección; solo deja de
+  ocupar un renglón.
+- Lo que se estrene después aparece solo al final, en vez de quedar invisible para siempre.
+
+De fábrica, una tienda de ropa ve 13 apartados; con el arreglo **Lo esencial** quedan 7.
+
+### Las tres capas del instructivo
+
+1. **Asistente de bienvenida** (`/panel/bienvenida`) — cuatro pasos la primera vez: qué es esto,
+   qué necesitas ver, ajusta tu menú, tu primer paso. Tiene *Saltar por ahora* en todos los pasos
+   y **retoma donde se dejó** si se sale a mitad.
+2. **Instructivo** — el recorrido pantalla por pantalla, después de armar el menú.
+3. **Guía** (`/panel/guia`) — buscador para una duda suelta. Entiende cómo habla la gente: buscar
+   *fiado* encuentra Cartera, que en ninguna parte dice "fiado". No exige tildes.
+
+Las tres se pueden volver a abrir desde **Soporte**.
+
+### Qué se mide y qué no
+
+Se anota **una sola fila por apartado, por persona y por día** (`ModuleEvent`): solo para poder
+decir *"llevas dos meses sin abrir Proveedores, ¿lo apagas?"* en vez de adivinar. No se guarda
+cuánto tiempo, ni qué se tocó, ni qué se escribió.
 
 ---
 
@@ -170,8 +217,19 @@ Copia `.env.example` a `.env`. Si tienes Docker, la base de datos de pruebas se 
 ```bash
 npm run db:up          # PostgreSQL en el puerto 55432
 npx prisma migrate deploy
+npm run db:modulos     # el catálogo de apartados (obligatorio: de ahí sale el menú)
 npm run seed           # datos de ejemplo (opcional)
 npm run dev
+```
+
+`npm run db:modulos` se puede correr las veces que sea: actualiza lo que cambió, crea lo nuevo y
+borra lo que ya no aplica. En Vercel corre solo dentro de `npm run build`, así que un texto
+corregido llega sin tocar la base a mano.
+
+Para correr las pruebas de aislamiento:
+
+```bash
+npm test
 ```
 
 Si prefieres una base en la nube, pon su cadena de conexión en `DATABASE_URL` y sáltate
