@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { money } from "@/lib/format";
@@ -46,6 +46,13 @@ export default async function CatalogoPublicoPage({
 
   const shop = await db.user.findUnique({ where: { slug } });
   if (!shop) notFound();
+
+  // La vitrina es de la tienda de ropa. La barberia tiene su agenda publica en
+  // la otra direccion, asi que la mandamos alla.
+  if (shop.businessType !== "ROPA") {
+    if (shop.businessType === "BARBERIA") redirect("/reservar/" + slug);
+    notFound();
+  }
 
   const products = await db.service.findMany({
     where: { userId: shop.id, active: true, showcase: true },

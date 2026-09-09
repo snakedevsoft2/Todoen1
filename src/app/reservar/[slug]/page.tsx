@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { addDays, isValidDay, timeIn, todayIn } from "@/lib/dates";
@@ -8,7 +8,6 @@ import { WEEKDAYS } from "@/lib/timezones";
 import { logoUrl } from "@/lib/nav";
 import { BookingForm } from "@/components/BookingForm";
 import { DayPicker } from "@/components/DayPicker";
-import { Alert } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { ThemeStyle } from "@/components/ThemeStyle";
 import { BrandMark } from "@/components/BrandMark";
@@ -39,6 +38,13 @@ export default async function ReservarPage({
 
   const shop = await db.user.findUnique({ where: { slug } });
   if (!shop) notFound();
+
+  // La agenda por hora es solo de la barberia. La tienda de ropa tiene su
+  // catalogo en esta misma direccion publica, asi que la mandamos alla.
+  if (shop.businessType !== "BARBERIA") {
+    if (shop.businessType === "ROPA") redirect("/catalogo/" + slug);
+    notFound();
+  }
 
   const today = todayIn(shop.timezone);
   const requested = query.d && isValidDay(query.d) ? query.d : today;
@@ -162,12 +168,6 @@ export default async function ReservarPage({
             ? "Elige con quien te quieres atender, la hora libre y el servicio. El cupo queda guardado a tu nombre."
             : "Elige la hora libre y el servicio. El cupo queda guardado a tu nombre."}
         </p>
-
-        {shop.businessType !== "BARBERIA" && !disabledReason && (
-          <div className="mb-4">
-            <Alert kind="info">Este negocio tambien recibe reservas por hora.</Alert>
-          </div>
-        )}
 
         <BookingForm
           slug={slug}

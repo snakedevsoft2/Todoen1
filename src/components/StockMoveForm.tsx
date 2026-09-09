@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useCallback, useMemo, useState } from "react";
 import { stockMoveAction } from "@/actions/inventory";
 import { SubmitButton } from "./SubmitButton";
+import { ScanButton } from "./ScanButton";
 import { Alert, Field } from "./ui";
 import { Icon } from "./Icon";
 
@@ -12,6 +13,8 @@ export type MovableVariant = {
   label: string;
   stock: number;
   cost: number;
+  /** Codigo de barras de la etiqueta, si se lo pusieron. */
+  sku: string | null;
 };
 
 const TYPES = [
@@ -61,9 +64,26 @@ export function StockMoveForm({
       : (variants[0]?.id ?? "")
   );
 
+  const [scanAviso, setScanAviso] = useState("");
+
   const selected = useMemo(
     () => variants.find((v) => v.id === variantId),
     [variants, variantId]
+  );
+
+  const porCodigo = useCallback(
+    (code: string) => {
+      const encontrada = variants.find((v) => v.sku && v.sku.toUpperCase() === code);
+      if (!encontrada) {
+        setScanAviso(
+          "Ninguna talla tiene el codigo " + code + ". Ponselo desde Productos, en la talla."
+        );
+        return;
+      }
+      setVariantId(encontrada.id);
+      setScanAviso(encontrada.serviceName + " - " + encontrada.label + " lista para mover.");
+    },
+    [variants]
   );
 
   if (variants.length === 0) {
@@ -106,19 +126,33 @@ export function StockMoveForm({
       </div>
 
       <Field label="Prenda y talla">
-        <select
-          className="input"
-          name="variantId"
-          value={variantId}
-          onChange={(e) => setVariantId(e.target.value)}
-        >
-          {variants.map((v) => (
-            <option key={v.id} value={v.id}>
-              {v.serviceName} - {v.label} (hay {v.stock})
-            </option>
-          ))}
-        </select>
+        <div className="flex gap-2">
+          <select
+            className="input"
+            name="variantId"
+            value={variantId}
+            onChange={(e) => {
+              setVariantId(e.target.value);
+              setScanAviso("");
+            }}
+          >
+            {variants.map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.serviceName} - {v.label} (hay {v.stock})
+                {v.sku ? " - " + v.sku : ""}
+              </option>
+            ))}
+          </select>
+          <ScanButton
+            onScan={porCodigo}
+            label=""
+            title="Escanear la etiqueta para elegir la talla"
+            className="btn-ghost shrink-0 px-3"
+          />
+        </div>
       </Field>
+
+      {scanAviso && <p className="-mt-1 text-xs text-muted">{scanAviso}</p>}
 
       <div className="grid gap-3 sm:grid-cols-2">
         <Field

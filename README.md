@@ -15,6 +15,9 @@ totalmente responsive (celular, tablet y computador).
 ### Barbería
 
 - Los clientes separan turno desde un enlace público propio: `/reservar/tu-negocio`.
+- **Separar turno es solo de la barbería.** `/reservar/...` de otro tipo de negocio responde 404 (la
+  tienda de ropa se va a su catálogo), y la acción pública de reserva rechaza cualquier intento que
+  no venga de una barbería, aunque le cambien el negocio al formulario.
 - Horario configurable, por defecto **lunes a sábado de 9:00 am a 8:00 pm** en bloques de 30 minutos.
 - Una hora ocupada desaparece para los demás clientes, así no se cruzan dos turnos.
 - El barbero ve la agenda del día con la hora, el nombre del cliente, el teléfono, el corte que
@@ -62,6 +65,14 @@ Pensado para el local que vende por talla y color y necesita saber qué le queda
 - **La venta descuenta el stock sola.** Al vender eliges la prenda y la talla; la venta y el descuento
   van en la misma transacción, así que o quedan los dos o ninguno. Si borras la venta, las prendas
   vuelven al inventario. No se puede vender más de lo que hay.
+- **Código de barras.** Cada talla puede llevar el código de su etiqueta, y no se permite repetirlo
+  dentro del negocio (si no, escanear no sabría cuál es cuál). Se escanea de dos formas:
+  - **Con la cámara del celular**, desde el botón *Escanear*. Usa el lector nativo del navegador
+    cuando existe (Android) y, cuando no (iPhone), carga la librería solo en ese momento.
+  - **Con pistola lectora USB o Bluetooth**: se dispara sobre la página de inventario y busca sola,
+    sin tocar nada. Esos lectores escriben como un teclado, y se reconocen por la velocidad.
+  - Al escanear, el inventario deja esa talla filtrada **y ya elegida en *Mover stock***, así que
+    cargar o descontar es un solo toque más. Si la etiqueta está rota, se escribe el código a mano.
 - **Avisos de bajo stock** en el resumen del día y en el inventario, con filtros de *por acabarse* y
   *agotadas*.
 - **Fotos de las prendas.** Se suben desde el celular con vista previa, se achican solas y se ven en
@@ -269,7 +280,8 @@ src/
     page.tsx           Presentación
     login, registro    Acceso
     panel/             Panel privado de cada negocio (incluye personalizar y avisos)
-    reservar/[slug]/   Página pública de reservas
+    reservar/[slug]/   Página pública de reservas (solo barbería)
+    catalogo/[slug]/   Catálogo público con fotos (solo tienda de ropa)
     logo/[slug]/       Sirve el logo del negocio como imagen cacheada
   components/          Interfaz reutilizable
   lib/                 Sesión, fechas, dinero, horarios, consultas, equipo, temas y WhatsApp

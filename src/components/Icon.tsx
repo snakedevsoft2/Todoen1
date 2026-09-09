@@ -36,6 +36,7 @@ const PATHS: Record<string, string> = {
   scale: "M12 4v16M7 20h10M6 8h12M6 8 3.5 14h5L6 8Zm12 0-2.5 6h5L18 8Z",
   alert: "M12 8v5m0 3h.01M10.3 4.3 2.6 17.5A2 2 0 0 0 4.3 20.5h15.4a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0Z",
   search: "M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14Zm5-2 5 5",
+  barcode: "M3 6V4.5A1.5 1.5 0 0 1 4.5 3H6m12 0h1.5A1.5 1.5 0 0 1 21 4.5V6M3 18v1.5A1.5 1.5 0 0 0 4.5 21H6m12 0h1.5a1.5 1.5 0 0 0 1.5-1.5V18M7 7v10m3.5-10v10M14 7v10m3.5-10v10",
 };
 
 export function Icon({

@@ -5,10 +5,12 @@ import { todayIn } from "@/lib/dates";
 import { money, shortDay } from "@/lib/format";
 import { photoUrl } from "@/lib/nav";
 import { variantLabel, getInventorySummary, type InventorySummary } from "@/lib/inventory";
+import { normalizeCode } from "@/lib/variants";
 import { Badge, Card, Empty, PageHeader, Stat } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { SubmitButton } from "@/components/SubmitButton";
 import { StockMoveForm, type MovableVariant } from "@/components/StockMoveForm";
+import { InventorySearch } from "@/components/InventorySearch";
 import { quickStockAction } from "@/actions/inventory";
 
 export const dynamic = "force-dynamic";
@@ -101,8 +103,17 @@ export default async function InventarioPage({
         label: variantLabel(v),
         stock: v.stock,
         cost: v.cost,
+        sku: v.sku,
       }))
   );
+
+  // Si lo que buscaron es exactamente el codigo de una talla (o sea, alguien
+  // escaneo), la dejamos elegida en "Mover stock" para no repetir el trabajo.
+  const codigoBuscado = normalizeCode(params.q ?? "");
+  const porCodigo = codigoBuscado
+    ? services.flatMap((s) => s.variants).find((v) => v.sku === codigoBuscado)
+    : undefined;
+  const preseleccion = params.v ?? porCodigo?.id;
 
   const filters = [
     { key: "todos", label: "Todas" },
@@ -149,28 +160,13 @@ export default async function InventarioPage({
 
       <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_400px]">
         <div className="space-y-4">
-          <Card title="Buscar en tu inventario">
-            <form action="/panel/inventario" className="grid gap-2 sm:grid-cols-[1fr_180px_auto]">
-              <input
-                className="input"
-                name="q"
-                defaultValue={params.q ?? ""}
-                placeholder="Prenda, talla, color o codigo"
-              />
-              <select className="input" name="cat" defaultValue={category}>
-                <option value="">Todas las categorias</option>
-                {categories.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-              <button className="btn-ghost" type="submit">
-                <Icon name="search" className="h-4 w-4" />
-                Buscar
-              </button>
-              {filtro !== "todos" && <input type="hidden" name="filtro" value={filtro} />}
-            </form>
+          <Card title="Buscar o escanear">
+            <InventorySearch
+              categories={categories}
+              defaultQuery={params.q ?? ""}
+              defaultCategory={category}
+              filtro={filtro}
+            />
 
             <div className="mt-3 flex flex-wrap gap-2">
               {filters.map((f) => (
@@ -354,7 +350,15 @@ export default async function InventarioPage({
         <div className="space-y-4">
           <div id="mover">
             <Card title="Mover stock" subtitle="Entradas, salidas y conteo fisico">
-              <StockMoveForm variants={movable} today={today} defaultVariantId={params.v} />
+              {/* La key cambia con la talla preseleccionada para que el
+                  formulario se vuelva a montar: al escanear se navega sin
+                  recargar y, sin esto, React conservaria la talla anterior. */}
+              <StockMoveForm
+                key={preseleccion ?? "sin-preseleccion"}
+                variants={movable}
+                today={today}
+                defaultVariantId={preseleccion}
+              />
             </Card>
           </div>
 

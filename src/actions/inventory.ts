@@ -7,6 +7,7 @@ import { requireUser } from "@/lib/auth";
 import { isValidDay, todayIn } from "@/lib/dates";
 import { parseIntSafe, parseMoney, str } from "@/lib/format";
 import { applyStockMove, variantLabel } from "@/lib/inventory";
+import { normalizeCode } from "@/lib/variants";
 
 export type InventoryState = { error?: string; ok?: string } | undefined;
 
@@ -55,7 +56,7 @@ export async function saveVariantAction(
   const cost = parseMoney(formData.get("cost"));
   const rawPrice = str(formData.get("price"));
   const price = rawPrice ? parseMoney(rawPrice) : null;
-  const sku = str(formData.get("sku")) || null;
+  const sku = normalizeCode(str(formData.get("sku"))) || null;
 
   if (price !== null && price < 0) return { error: "El precio no puede ser negativo." };
 
@@ -65,6 +66,21 @@ export async function saveVariantAction(
   });
   if (duplicate) {
     return { error: "Ya tienes la talla " + variantLabel({ size, color }) + " en esta prenda." };
+  }
+
+  // El codigo tiene que ser unico dentro del negocio: si dos tallas comparten
+  // el mismo, escanear deja de servir porque no se sabe cual es cual.
+  if (sku) {
+    const usado = await db.productVariant.findFirst({
+      where: { userId: user.id, sku, ...(id ? { NOT: { id } } : {}) },
+      include: { service: { select: { name: true } } },
+    });
+    if (usado) {
+      return {
+        error:
+          "El codigo " + sku + " ya esta en " + usado.service.name + " " + variantLabel(usado) + ".",
+      };
+    }
   }
 
   if (id) {

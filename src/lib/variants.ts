@@ -27,6 +27,15 @@ export function variantPrice(
   return variant.price ?? service.price;
 }
 
+/**
+ * Deja un codigo de barras como se guarda: sin espacios ni guiones y en
+ * mayusculas, para que el mismo codigo leido con la camara, con la pistola o
+ * escrito a mano encuentre siempre la misma talla.
+ */
+export function normalizeCode(raw: string): string {
+  return raw.replace(/[\s-]+/g, "").toUpperCase().slice(0, 64);
+}
+
 /** Tallas y colores mas comunes, para llenar el formulario en un toque. */
 export const SIZE_PRESETS = ["XS", "S", "M", "L", "XL", "XXL", "Unica"];
 export const NUMERIC_SIZES = ["28", "30", "32", "34", "36", "38", "40", "42"];

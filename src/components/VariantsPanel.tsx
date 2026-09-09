@@ -10,6 +10,7 @@ import {
 import { COLOR_PRESETS, NUMERIC_SIZES, SIZE_PRESETS, variantLabel } from "@/lib/variants";
 import { money } from "@/lib/format";
 import { SubmitButton } from "./SubmitButton";
+import { ScanButton } from "./ScanButton";
 import { Alert, Badge, Field } from "./ui";
 import { Icon } from "./Icon";
 
@@ -232,6 +233,7 @@ function SingleForm({
   onDone?: () => void;
 }) {
   const [state, formAction] = useActionState(saveVariantAction, undefined);
+  const [sku, setSku] = useState(variant?.sku ?? "");
 
   // Cuando guarda bien, cerramos la ficha de edicion.
   useEffect(() => {
@@ -277,8 +279,25 @@ function SingleForm({
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Codigo / SKU (opcional)">
-          <input className="input" name="sku" defaultValue={variant?.sku ?? ""} placeholder="CAM-M-NEG" />
+        <Field
+          label="Codigo de barras (opcional)"
+          hint="Escanea la etiqueta y despues la encuentras con el lector."
+        >
+          <div className="flex gap-2">
+            <input
+              className="input"
+              name="sku"
+              value={sku}
+              onChange={(e) => setSku(e.target.value)}
+              placeholder="7701234567890"
+            />
+            <ScanButton
+              onScan={setSku}
+              label=""
+              title="Escanear el codigo de la etiqueta"
+              className="btn-ghost shrink-0 px-3"
+            />
+          </div>
         </Field>
         <Field label="Minimo" hint="Avisa cuando baje de aqui.">
           <input

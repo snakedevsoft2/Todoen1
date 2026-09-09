@@ -87,6 +87,12 @@ export async function bookAppointmentAction(
 
   const shop = await db.user.findUnique({ where: { slug } });
   if (!shop) return { error: "No encontramos este negocio." };
+  // Separar turno es solo de la barberia. La comprobacion va aqui y no solo en
+  // la pagina: el servicio es opcional, asi que sin esto se podria crear un
+  // turno "por definir" en un restaurante o en una tienda de ropa.
+  if (shop.businessType !== "BARBERIA") {
+    return { error: "Este negocio no recibe reservas por hora." };
+  }
   if (!shop.bookingOpen) return { error: "Las reservas estan cerradas por ahora." };
   if (!clientName) return { error: "Escribe tu nombre." };
   if (clientPhone.replace(/\D/g, "").length < 7) return { error: "Escribe un telefono valido." };
