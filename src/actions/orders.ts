@@ -55,6 +55,7 @@ export async function addOrderItemAction(formData: FormData) {
     } else {
       await db.orderItem.create({
         data: {
+          userId: user.id,
           orderId: order.id,
           serviceId: service.id,
           name: service.name,
@@ -67,7 +68,7 @@ export async function addOrderItemAction(formData: FormData) {
     const name = str(formData.get("name"));
     const unitPrice = parseMoney(formData.get("unitPrice"));
     if (!name || unitPrice <= 0) return;
-    await db.orderItem.create({ data: { orderId: order.id, name, unitPrice, qty } });
+    await db.orderItem.create({ data: { userId: user.id, orderId: order.id, name, unitPrice, qty } });
   }
 
   revalidatePath("/panel/cuentas");
@@ -136,6 +137,7 @@ export async function closeOrderAction(formData: FormData) {
         orderId: order.id,
         items: {
           create: order.items.map((i) => ({
+            userId: user.id,
             serviceId: i.serviceId,
             name: i.name,
             unitPrice: i.unitPrice,

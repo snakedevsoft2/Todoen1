@@ -202,7 +202,7 @@ async function main() {
             staffId: attended.staffId,
             appointmentId: attended.id,
             items: {
-              create: [{ serviceId: attended.serviceId, name: attended.serviceName, unitPrice: attended.price, qty: 1 }],
+              create: [{ userId: user.id, serviceId: attended.serviceId, name: attended.serviceName, unitPrice: attended.price, qty: 1 }],
             },
           },
         });
@@ -215,8 +215,8 @@ async function main() {
           day,
           items: {
             create: [
-              { serviceId: first.id, name: first.name, unitPrice: first.price, qty: 2 },
-              { serviceId: user.services[4].id, name: user.services[4].name, unitPrice: user.services[4].price, qty: 2 },
+              { userId: user.id, serviceId: first.id, name: first.name, unitPrice: first.price, qty: 2 },
+              { userId: user.id, serviceId: user.services[4].id, name: user.services[4].name, unitPrice: user.services[4].price, qty: 2 },
             ],
           },
         },
@@ -229,7 +229,7 @@ async function main() {
           day,
           status: "PAGADA",
           items: {
-            create: [{ serviceId: second.id, name: second.name, unitPrice: second.price, qty: 1 }],
+            create: [{ userId: user.id, serviceId: second.id, name: second.name, unitPrice: second.price, qty: 1 }],
           },
         },
         include: { items: true },
@@ -247,6 +247,7 @@ async function main() {
           orderId: paid.id,
           items: {
             create: paid.items.map((i) => ({
+              userId: user.id,
               serviceId: i.serviceId,
               name: i.name,
               unitPrice: i.unitPrice,

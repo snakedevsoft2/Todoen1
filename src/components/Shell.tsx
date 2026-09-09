@@ -93,6 +93,12 @@ export function Shell({
           {bookingLabel}
         </Link>
       )}
+      {/* Va aqui abajo y no en el menu a proposito: el objetivo de esta
+          pantalla es tener menos botones, no uno mas. */}
+      <Link href="/panel/espacio" className="btn-ghost btn-sm w-full justify-start">
+        <Icon name="sliders" className="h-4 w-4" />
+        Armar mi menu
+      </Link>
       {logout}
       <div className="flex items-center gap-2 px-1 pt-1">
         <span

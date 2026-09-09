@@ -108,39 +108,43 @@ model User {
   notifyOnBooking  Boolean @default(true)
 
   // Configuracion de agenda / caja
-  currency     String  @default("COP")
-  timezone     String  @default("America/Bogota")
-  openHour     Int     @default(9) // 9 = 9:00 am
-  closeHour    Int     @default(20) // 20 = 8:00 pm
-  slotMinutes  Int     @default(30)
-  workDays     String  @default("1,2,3,4,5,6") // 1=lunes ... 7=domingo
-  bookingOpen  Boolean @default(true)
+  currency    String  @default("COP")
+  timezone    String  @default("America/Bogota")
+  openHour    Int     @default(9) // 9 = 9:00 am
+  closeHour   Int     @default(20) // 20 = 8:00 pm
+  slotMinutes Int     @default(30)
+  workDays    String  @default("1,2,3,4,5,6") // 1=lunes ... 7=domingo
+  bookingOpen Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  staff        Staff[]
-  services     Service[]
-  appointments Appointment[]
-  sales        Sale[]
-  expenses     Expense[]
-  orders       Order[]
-  cashClosures CashClosure[]
+  staff         Staff[]
+  services      Service[]
+  appointments  Appointment[]
+  sales         Sale[]
+  expenses      Expense[]
+  orders        Order[]
+  cashClosures  CashClosure[]
   notifications Notification[]
-  variants     ProductVariant[]
-  stockMoves   StockMove[]
-  suppliers    Supplier[]
-  debts        Debt[]
-  debtPayments DebtPayment[]
+  variants      ProductVariant[]
+  stockMoves    StockMove[]
+  suppliers     Supplier[]
+  debts         Debt[]
+  debtPayments  DebtPayment[]
+  orderItems    OrderItem[]
+  saleItems     SaleItem[]
+  workspaces    WorkspaceConfig[]
+  moduleEvents  ModuleEvent[]
 
   @@index([slug])
 }
 
 /// Plata que le deben al negocio. Un fiado, un abono pendiente, una cuota.
 model Debt {
-  id          String  @id @default(cuid())
+  id          String     @id @default(cuid())
   userId      String
-  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   clientName  String
   clientPhone String?
   concept     String
@@ -155,7 +159,6 @@ model Debt {
 
   /**
    * Si la venta ya se registro en Ventas cuando se entrego la mercancia.
-   *
    * Decide si los abonos entran a la caja del dia: si la venta ya se conto,
    * cobrar es recuperar plata que ya estaba sumada, y volverla a sumar seria
    * contar doble. Si no se conto (el fiado tipico), cada abono si es venta
@@ -220,30 +223,52 @@ model Supplier {
 /// Persona que atiende en el negocio (barberos). Puede tener su propio usuario
 /// para entrar a la aplicacion, pero siempre trabaja dentro del mismo negocio.
 model Staff {
-  id           String    @id @default(cuid())
-  userId       String
-  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name         String
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
   /// Correo con el que entra a la aplicacion. Si esta vacio, no tiene acceso.
-  email        String?   @unique
-  passwordHash String?
-  phone        String?
-  role         StaffRole @default(BARBERO)
+  email         String?   @unique
+  passwordHash  String?
+  phone         String?
+  role          StaffRole @default(BARBERO)
   /// Color para reconocerlo de un vistazo en la agenda.
-  color        String    @default("#0ea5e9")
+  color         String    @default("#0ea5e9")
   /// Porcentaje que se lleva de lo que cobra. Solo para el reporte.
-  commissionPct Int      @default(0)
+  commissionPct Int       @default(0)
   /// Aparece en la pagina publica para que el cliente lo elija.
-  bookable     Boolean   @default(true)
-  active       Boolean   @default(true)
+  bookable      Boolean   @default(true)
+  active        Boolean   @default(true)
   /// Cuando termino (o salto) el instructivo de bienvenida. Va por persona y
   /// no por negocio: cada empleado nuevo lo ve la primera vez que entra.
-  tourDoneAt   DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  tourDoneAt    DateTime?
+
+  /// Hasta que paso llego el asistente de bienvenida, para poder retomarlo
+  /// donde lo dejo en vez de volver a empezar.
+  onboardingStep Int @default(0)
+
+  /// Cuando lo termino o lo salto. Es lo mismo: ya decidio.
+  onboardingDoneAt DateTime?
+
+  /**
+   * ANTIGUO. La configuracion ahora vive en WorkspaceConfig. Estas dos
+   * columnas se conservan porque en produccion puede haber gente que ya
+   * configuro su menu antes del cambio: el sembrador las lee una vez y las
+   * pasa a la tabla nueva. Nadie mas debe escribir aqui.
+   * El espacio de trabajo de esta persona: que apartados esconde y en que
+   * orden quiere el resto.
+   * Va por persona y no por negocio a proposito: el dueno quiere ver reportes
+   * y proveedores, y al que solo vende le estorban. Se guardan las direcciones
+   * separadas por coma, que no llevan comas nunca.
+   */
+  navHidden String?
+  navOrder  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   appointments Appointment[]
   sales        Sale[]
+  workspace    WorkspaceConfig?
 
   @@index([userId, active])
 }
@@ -268,15 +293,15 @@ model Service {
   /// Marca o proveedor de la prenda. Solo informativo.
   brand      String?
   /// Si es true, la prenda se vende por tallas y descuenta stock al vender.
-  trackStock Boolean @default(false)
+  trackStock Boolean   @default(false)
   /// Aparece en el catalogo publico /catalogo/[slug].
-  showcase   Boolean @default(true)
+  showcase   Boolean   @default(true)
   /// A quien se le compra esta prenda.
   supplierId String?
   supplier   Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   appointments Appointment[]
   saleItems    SaleItem[]
@@ -298,16 +323,16 @@ model ProductVariant {
   serviceId String
   service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 
-  size  String @default("Unica")
-  color String @default("Unico")
+  size  String  @default("Unica")
+  color String  @default("Unico")
   sku   String?
 
-  stock    Int  @default(0)
-  minStock Int  @default(0)
+  stock    Int     @default(0)
+  minStock Int     @default(0)
   /// Precio propio de esta talla. Si es null se usa el precio del producto.
   price    Int?
   /// Lo que costo la ultima entrada, para valorizar el inventario.
-  cost     Int  @default(0)
+  cost     Int     @default(0)
   active   Boolean @default(true)
 
   createdAt DateTime @default(now())
@@ -328,19 +353,19 @@ model StockMove {
   variantId String
   variant   ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
 
-  type StockMoveType
+  type       StockMoveType
   /// Cuanto cambio el stock: positivo entra, negativo sale.
   delta      Int
   /// Como quedo el stock despues del movimiento.
   stockAfter Int
-  unitCost   Int     @default(0)
+  unitCost   Int           @default(0)
   reason     String?
   day        String // "YYYY-MM-DD"
   saleId     String?
   /// De quien vino la mercancia. Solo tiene sentido en las entradas, y es lo
   /// que permite saber despues a quien le compras cada prenda y a como.
   supplierId String?
-  supplier   Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  supplier   Supplier?     @relation(fields: [supplierId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
 
@@ -351,30 +376,30 @@ model StockMove {
 
 /// Turno reservado por el cliente (barberia).
 model Appointment {
-  id          String            @id @default(cuid())
-  userId      String
-  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  serviceId   String?
-  service     Service?          @relation(fields: [serviceId], references: [id], onDelete: SetNull)
-  serviceName String // copia del nombre por si el servicio se borra
-  staffId     String?
-  staff       Staff?            @relation(fields: [staffId], references: [id], onDelete: SetNull)
-  staffName   String? // copia del nombre del barbero por si se borra
-  price       Int               @default(0)
-  clientName  String
-  clientPhone String
-  day         String // "YYYY-MM-DD"
-  startTime   String // "HH:mm"
-  endTime     String // "HH:mm"
-  status      AppointmentStatus @default(PENDIENTE)
-  notes       String?
+  id             String            @id @default(cuid())
+  userId         String
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serviceId      String?
+  service        Service?          @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  serviceName    String // copia del nombre por si el servicio se borra
+  staffId        String?
+  staff          Staff?            @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  staffName      String? // copia del nombre del barbero por si se borra
+  price          Int               @default(0)
+  clientName     String
+  clientPhone    String
+  day            String // "YYYY-MM-DD"
+  startTime      String // "HH:mm"
+  endTime        String // "HH:mm"
+  status         AppointmentStatus @default(PENDIENTE)
+  notes          String?
   /// El cliente pidio que le recuerden su turno por WhatsApp. Lo elige el al
   /// reservar: es su telefono, no el del negocio.
-  wantsReminder  Boolean   @default(true)
+  wantsReminder  Boolean           @default(true)
   /// Cuando se le mando el recordatorio, para no mandarlo dos veces.
   reminderSentAt DateTime?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
 
   sale Sale?
 
@@ -404,6 +429,10 @@ model Order {
 
 model OrderItem {
   id        String   @id @default(cuid())
+  /// Duplicado del dueno de la cuenta a proposito: asi el aislamiento vive en
+  /// la fila y no depende de que cada consulta se acuerde de pasar por el padre.
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   orderId   String
   order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   serviceId String?
@@ -414,6 +443,7 @@ model OrderItem {
   createdAt DateTime @default(now())
 
   @@index([orderId])
+  @@index([userId])
 }
 
 /// Venta cerrada. Es la fuente de verdad del dinero del dia.
@@ -442,22 +472,27 @@ model Sale {
 }
 
 model SaleItem {
-  id        String   @id @default(cuid())
-  saleId    String
-  sale      Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  serviceId String?
-  service   Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  id           String          @id @default(cuid())
+  /// Mismo motivo que en OrderItem: el aislamiento va en la fila, no en la
+  /// disciplina de quien escribe la consulta.
+  userId       String
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  saleId       String
+  sale         Sale            @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  serviceId    String?
+  service      Service?        @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   /// Talla y color vendidos, cuando el producto lleva inventario.
-  variantId String?
-  variant   ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  variantId    String?
+  variant      ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
   /// Copia de "M / Negro" por si la talla se borra despues.
   variantLabel String?
-  name      String
-  unitPrice Int
-  qty       Int      @default(1)
+  name         String
+  unitPrice    Int
+  qty          Int             @default(1)
 
   @@index([saleId])
   @@index([variantId])
+  @@index([userId])
 }
 
 /// Gastos del dia (insumos, arriendo, domicilios...).
@@ -476,23 +511,23 @@ model Expense {
 
 /// Cierre de caja del dia.
 model CashClosure {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  day            String // "YYYY-MM-DD"
-  openingAmount  Int      @default(0)
-  totalSales     Int
-  totalCash      Int
-  totalCard      Int
-  totalTransfer  Int
-  totalOther     Int      @default(0)
-  totalExpenses  Int
-  netTotal       Int
-  salesCount     Int
-  countedCash    Int      @default(0)
-  difference     Int      @default(0)
-  notes          String?
-  closedAt       DateTime @default(now())
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  day           String // "YYYY-MM-DD"
+  openingAmount Int      @default(0)
+  totalSales    Int
+  totalCash     Int
+  totalCard     Int
+  totalTransfer Int
+  totalOther    Int      @default(0)
+  totalExpenses Int
+  netTotal      Int
+  salesCount    Int
+  countedCash   Int      @default(0)
+  difference    Int      @default(0)
+  notes         String?
+  closedAt      DateTime @default(now())
 
   @@unique([userId, day])
   @@index([userId, day])
@@ -518,5 +553,138 @@ model Notification {
   appointmentId String?
   createdAt     DateTime           @default(now())
 
+  @@index([userId, createdAt])
+}
+
+/// Categoria del modulo, para agrupar el configurador en bloques legibles.
+enum ModuleGroup {
+  /// Lo que no se puede esconder: resumen, ajustes y soporte.
+  FIJO
+  /// El apartado propio del oficio: turnos, cuentas abiertas, inventario.
+  NUCLEO
+  /// Plata: ventas, gastos, cartera, caja, catalogo, proveedores.
+  DINERO
+  /// Lo que trae mas clientes: portafolio, reportes, asistente, avisos.
+  CRECIMIENTO
+  /// Equipo, marca y el armador del menu.
+  CONFIGURACION
+}
+
+/**
+ * Catalogo maestro de apartados.
+ * Antes esta lista vivia en src/lib/nav.ts. Vive en la base para que el
+ * configurador pueda leerla, para poder describir cada apartado con palabras
+ * que el cliente entienda, y para estrenar apartados sin volver a desplegar.
+ */
+model Module {
+  /// Nombre corto y estable, ej "turnos". Es la llave que se guarda en la
+  /// configuracion de cada persona: la direccion puede cambiar, la llave no.
+  key   String      @id
+  href  String      @unique
+  label String
+  icon  String
+  group ModuleGroup
+
+  /// Una linea. Es lo que se lee en la tarjeta del configurador.
+  shortDescription String
+  /// Parrafo con el para que. Se lee al abrir el detalle o en la guia.
+  longDescription  String
+
+  /// No se puede esconder. Sin resumen no hay a donde volver, sin ajustes no
+  /// se podria deshacer el menu, y soporte es a donde acude quien se trabo.
+  fixed     Boolean @default(false)
+  /// Configuracion del negocio: el empleado no lo ve aunque este encendido.
+  ownerOnly Boolean @default(false)
+
+  /// Si aparece en el menu lateral. "Armar mi menu" existe en el catalogo
+  /// pero se llega por el pie del menu, no ocupando un renglon del menu.
+  inSidebar Boolean @default(true)
+
+  /**
+   * Variable de entorno que el apartado necesita para funcionar.
+   * Si esta puesta y falta la credencial, el apartado no se ofrece: mejor que
+   * no aparezca a que aparezca y lleve a una pantalla rota.
+   */
+  requiresEnv String?
+
+  /// Orden de respaldo cuando el tipo de negocio no dice otra cosa.
+  sortOrder Int     @default(100)
+  active    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  businessTypes BusinessTypeModule[]
+}
+
+/**
+ * Que apartados le tocan a cada tipo de negocio.
+ * Aqui vive la regla de que la agenda por hora es de barberia: si no hay fila
+ * para ese tipo de negocio, el apartado no existe para el, ni apagado.
+ * El tipo va como texto y no como enum a proposito: asi el catalogo puede
+ * quedar listo para distribuidora, servicios y freelance sin abrirlos todavia
+ * al registro.
+ */
+model BusinessTypeModule {
+  id           String @id @default(cuid())
+  businessType String
+  moduleKey    String
+  module       Module @relation(fields: [moduleKey], references: [key], onDelete: Cascade)
+
+  /// Si viene encendido la primera vez. Lo que no todo el mundo usa (cartera,
+  /// asistente, avisos) entra apagado para no llenar el menu de botones.
+  enabledByDefault Boolean @default(true)
+  sortOrder        Int     @default(100)
+
+  /// Como se llama el apartado en este oficio: "Barberos" o "Empleados".
+  labelOverride String?
+  /// Ejemplo concreto en las palabras del oficio, para el configurador.
+  example       String?
+
+  @@unique([businessType, moduleKey])
+  @@index([businessType])
+}
+
+/**
+ * El espacio de trabajo de una persona.
+ * Va por persona y no por negocio: al dueno le sirven reportes y proveedores,
+ * y al que solo vende le estorban. Guarda llaves de modulo separadas por coma.
+ * Lleva userId ademas de staffId por la misma razon que las lineas de venta:
+ * el aislamiento vive en la fila y no depende de que la consulta se acuerde de
+ * pasar por el padre.
+ */
+model WorkspaceConfig {
+  id      String @id @default(cuid())
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  staffId String @unique
+  staff   Staff  @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  /// Llaves apagadas. Las fijas se ignoran aunque alguien las mande.
+  hiddenKeys String @default("")
+  /// Orden elegido. Lo que no aparezca aqui se va al final, para que un
+  /// apartado nuevo se estrene solo en vez de quedar invisible para siempre.
+  orderKeys  String @default("")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+/**
+ * Cuando alguien abre un apartado.
+ * Sirve para una sola cosa: poder decirle al cliente "llevas dos meses sin
+ * abrir Proveedores, lo apago?" en vez de adivinar que le sobra.
+ */
+model ModuleEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  staffId   String?
+  moduleKey String
+  createdAt DateTime @default(now())
+
+  @@index([userId, moduleKey])
   @@index([userId, createdAt])
 }

@@ -118,7 +118,7 @@ export async function addPaymentAction(
           clientName: debt.clientName,
           notes: "Abono - " + debt.concept,
           items: {
-            create: [{ name: "Abono - " + debt.concept, unitPrice: amount, qty: 1 }],
+            create: [{ userId: user.id, name: "Abono - " + debt.concept, unitPrice: amount, qty: 1 }],
           },
         },
       });

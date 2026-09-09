@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { todayIn } from "@/lib/dates";
@@ -16,6 +17,12 @@ export const dynamic = "force-dynamic";
 
 export default async function PanelHomePage() {
   const { user, staff: me } = await requireSession();
+
+  // El asistente de bienvenida va primero que el resumen: sin el, alguien
+  // nuevo aterriza en un menu de trece botones sin saber cuales son suyos.
+  // Tiene "Saltar por ahora" en todos los pasos, asi que no encierra a nadie.
+  if (!me.onboardingDoneAt) redirect("/panel/bienvenida");
+
   const today = todayIn(user.timezone);
   const isBarber = user.businessType === "BARBERIA";
   const isClothing = user.businessType === "ROPA";
@@ -81,8 +88,9 @@ export default async function PanelHomePage() {
 
   return (
     <>
-      {/* La primera vez que entra cada persona, o cuando lo pide otra vez. */}
-      {!me.tourDoneAt && (
+      {/* El instructivo va despues del asistente: primero se arma el menu, y
+          solo entonces tiene sentido explicar apartado por apartado. */}
+      {me.onboardingDoneAt && !me.tourDoneAt && (
         <GuiaInicial
           steps={tourSteps(user.businessType)}
           businessName={user.businessName}

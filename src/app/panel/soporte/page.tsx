@@ -8,6 +8,7 @@ import {
   supportLink,
 } from "@/lib/support";
 import { restartTourAction } from "@/actions/tour";
+import { restartOnboardingAction } from "@/actions/onboarding";
 import { Card, PageHeader } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Icon } from "@/components/Icon";
@@ -104,6 +105,33 @@ export default async function SoportePage() {
                 Ver el instructivo otra vez
               </SubmitButton>
             </form>
+          </Card>
+
+          {/* Tres capas, de la mas guiada a la mas suelta: el asistente arma el
+              menu, el instructivo explica pantalla por pantalla, y la guia
+              responde una duda suelta cuando ya se esta trabajando. */}
+          <Card title="Volver a armar tu menu" subtitle="El asistente de bienvenida">
+            <p className="mb-3 text-sm text-body">
+              Si te sobran o te faltan apartados, el asistente te vuelve a preguntar que necesitas
+              y te deja el menu como lo quieras. No borra nada de lo que ya tienes cargado.
+            </p>
+            <form action={restartOnboardingAction}>
+              <SubmitButton className="btn-ghost w-full" pendingText="Abriendo...">
+                <Icon name="sliders" className="h-4 w-4" />
+                Volver a armar mi menu
+              </SubmitButton>
+            </form>
+          </Card>
+
+          <Card title="Buscar una duda suelta" subtitle="La guia">
+            <p className="mb-3 text-sm text-body">
+              Escribes lo que quieres hacer y te decimos donde y como. Sirve para consultarla con
+              el cliente enfrente.
+            </p>
+            <Link href="/panel/guia" className="btn-ghost w-full">
+              <Icon name="book" className="h-4 w-4" />
+              Abrir la guia
+            </Link>
           </Card>
 
           <Card title="Antes de escribir">

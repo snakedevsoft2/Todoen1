@@ -121,6 +121,7 @@ export async function createSaleAction(_prev: SaleState, formData: FormData): Pr
   ).map((i) => {
     const variant = i.variantId ? variantById.get(i.variantId) : undefined;
     return {
+      userId: user.id,
       serviceId: i.serviceId && owned.has(i.serviceId) ? i.serviceId : null,
       variantId: variant?.id ?? null,
       variantLabel: variant ? variantLabel(variant) : null,

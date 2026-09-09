@@ -408,6 +408,7 @@ export async function closeAppointmentSaleAction(formData: FormData) {
         items: {
           create: [
             {
+              userId: user.id,
               serviceId: appointment.serviceId,
               name: appointment.serviceName,
               unitPrice: amount,
