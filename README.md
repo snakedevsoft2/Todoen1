@@ -1,6 +1,6 @@
 # TODO EN UNO
 
-Aplicación web para **barbería, restaurante y comidas rápidas**. Cada dueño tiene su propio
+Aplicación web para **barbería, restaurante, comidas rápidas y tienda de ropa**. Cada dueño tiene su propio
 usuario y su propio espacio de trabajo: registra sus ventas del día, sus gastos, cierra su caja
 y administra su propio catálogo de productos o servicios. **Los datos de un negocio nunca se
 cruzan con los de otro.**
@@ -48,7 +48,48 @@ totalmente responsive (celular, tablet y computador).
 - **Cerrar cuenta** convierte la cuenta en venta del día con su método de pago.
 - Venta directa sin abrir cuenta, para el mostrador rápido.
 
-### Los tres negocios comparten
+### Tienda de ropa
+
+Pensado para el local que vende por talla y color y necesita saber qué le queda.
+
+- **Inventario por talla y color.** Cada prenda tiene sus variantes (S / Negro, 32 / Azul, Única…)
+  con su propio stock, su mínimo, su costo y, si hace falta, su propio precio. Se crean en lote:
+  escribes `S, M, L, XL` y los colores, y quedan todas de una vez.
+- **Movimientos con motivo.** Entrada cuando llega mercancía, salida cuando se daña o se regala, y
+  conteo físico cuando cuentas y no cuadra (escribes cuántas contaste, no la diferencia). Todo queda
+  en un historial que dice quién movió qué, cuándo y por qué. Los botones `+` y `−` mueven una unidad
+  sin abrir formulario.
+- **La venta descuenta el stock sola.** Al vender eliges la prenda y la talla; la venta y el descuento
+  van en la misma transacción, así que o quedan los dos o ninguno. Si borras la venta, las prendas
+  vuelven al inventario. No se puede vender más de lo que hay.
+- **Avisos de bajo stock** en el resumen del día y en el inventario, con filtros de *por acabarse* y
+  *agotadas*.
+- **Fotos de las prendas.** Se suben desde el celular con vista previa, se achican solas y se ven en
+  el inventario, al vender y en el catálogo público.
+- **Catálogo público** en `/catalogo/<tu-negocio>`: foto, precio, tallas disponibles y un botón que
+  abre WhatsApp con el mensaje escrito. Solo salen las prendas que marques para el catálogo.
+- **Empleados con su propio usuario.** Entran con su correo, venden, ven el inventario y los reportes,
+  pero no tocan la configuración ni el equipo. Cada venta queda a nombre de quien la hizo, con su
+  comisión.
+- **Estadísticas de la tienda** en Reportes: facturado, costo de la mercancía vendida, utilidad bruta
+  y margen, precio promedio por prenda, tallas que más salen, categorías que más facturan y la
+  medición por empleado.
+
+### Facturas en PDF
+
+Desde **Ventas**, cada venta tiene un botón *Factura* que arma el PDF en el mismo navegador (no pasa
+por el servidor ni queda guardado en ninguna parte):
+
+- **Desde el celular** abre el menú de compartir con el PDF ya adjunto, que es como se manda por
+  WhatsApp o por Gmail.
+- **Desde el computador** descarga el PDF y abre el chat de WhatsApp o el correo de Gmail con el
+  resumen ya escrito, para adjuntarlo.
+- También se puede solo descargar.
+
+La factura lleva el logo y los datos del negocio, el número, la fecha, el cliente, quién atendió, el
+detalle con talla y cantidad, el total y la forma de pago.
+
+### Los cuatro negocios comparten
 
 - **Ventas del día** con carrito rápido, método de pago y detalle por producto.
 - **Gastos del día** por categoría, con el reparto en porcentaje.

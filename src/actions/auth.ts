@@ -8,13 +8,14 @@ import { clearSessionCookie, cookieJar, signSession, writeSessionCookie } from "
 
 export type AuthState = { error?: string } | undefined;
 
-const VALID_TYPES: BusinessType[] = ["BARBERIA", "RESTAURANTE", "COMIDAS_RAPIDAS"];
+const VALID_TYPES: BusinessType[] = ["BARBERIA", "RESTAURANTE", "COMIDAS_RAPIDAS", "ROPA"];
 
 /** Cada tipo de negocio arranca con un color distinto. Se cambia en Personalizar. */
 const DEFAULT_BRAND: Record<BusinessType, string> = {
   BARBERIA: "#4f46e5",
   RESTAURANTE: "#b91c1c",
   COMIDAS_RAPIDAS: "#ea580c",
+  ROPA: "#0f766e",
 };
 
 const DEFAULT_CATALOG: Record<BusinessType, { name: string; price: number; durationMin: number; category: string }[]> = {
@@ -35,6 +36,12 @@ const DEFAULT_CATALOG: Record<BusinessType, { name: string; price: number; durat
     { name: "Perro caliente", price: 11000, durationMin: 0, category: "Perros" },
     { name: "Salchipapa", price: 13000, durationMin: 0, category: "Papas" },
     { name: "Gaseosa 400ml", price: 4000, durationMin: 0, category: "Bebidas" },
+  ],
+  ROPA: [
+    { name: "Camiseta basica", price: 35000, durationMin: 0, category: "Camisetas" },
+    { name: "Jean clasico", price: 89000, durationMin: 0, category: "Jeans" },
+    { name: "Buzo con capota", price: 79000, durationMin: 0, category: "Buzos" },
+    { name: "Vestido casual", price: 95000, durationMin: 0, category: "Vestidos" },
   ],
 };
 
@@ -84,6 +91,8 @@ export async function registerAction(_prev: AuthState, formData: FormData): Prom
           durationMin: s.durationMin || 30,
           category: s.category,
           bookable: businessType === "BARBERIA",
+          // La ropa se vende por talla y descuenta inventario.
+          trackStock: businessType === "ROPA",
         })),
       },
     },

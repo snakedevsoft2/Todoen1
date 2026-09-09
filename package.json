@@ -17,6 +17,7 @@
     "@prisma/client": "^6.2.1",
     "bcryptjs": "^2.4.3",
     "jose": "^5.9.6",
+    "jspdf": "^4.2.1",
     "next": "^15.5.25",
     "react": "19.0.0",
     "react-dom": "19.0.0",

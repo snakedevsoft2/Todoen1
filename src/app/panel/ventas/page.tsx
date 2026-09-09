@@ -3,10 +3,13 @@ import { requireSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { addDays, isValidDay, todayIn } from "@/lib/dates";
 import { money, prettyDay, shortDay } from "@/lib/format";
-import { ITEM_NOUN } from "@/lib/nav";
+import { ITEM_NOUN, logoUrl, photoUrl } from "@/lib/nav";
+import { variantLabel } from "@/lib/variants";
+import { hasTeam } from "@/lib/staff";
 import { getDaySummary } from "@/lib/queries";
 import { Card, Empty, PageHeader, Stat } from "@/components/ui";
-import { NewSaleForm } from "@/components/NewSaleForm";
+import { NewSaleForm, type VariantOption } from "@/components/NewSaleForm";
+import { InvoiceActions } from "@/components/InvoiceActions";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Icon } from "@/components/Icon";
 import { deleteSaleAction, updateSalePaymentAction } from "@/actions/sales";
@@ -28,8 +31,9 @@ export default async function VentasPage({
   const params = await searchParams;
   const today = todayIn(user.timezone);
   const day = params.d && isValidDay(params.d) ? params.d : today;
+  const isClothing = user.businessType === "ROPA";
 
-  const [sales, services, summary, team] = await Promise.all([
+  const [sales, catalog, summary, team] = await Promise.all([
     db.sale.findMany({
       where: { userId: user.id, day },
       orderBy: { createdAt: "desc" },
@@ -38,10 +42,24 @@ export default async function VentasPage({
     db.service.findMany({
       where: { userId: user.id, active: true },
       orderBy: [{ category: "asc" }, { name: "asc" }],
-      select: { id: true, name: true, price: true, category: true },
+      select: {
+        id: true,
+        name: true,
+        price: true,
+        category: true,
+        image: true,
+        updatedAt: true,
+        trackStock: true,
+        variants: {
+          where: { active: true },
+          orderBy: [{ size: "asc" }, { color: "asc" }],
+          select: { id: true, size: true, color: true, stock: true, price: true },
+        },
+      },
     }),
     getDaySummary(user.id, day),
-    user.businessType === "BARBERIA"
+    // La barberia reparte las ventas entre barberos; la tienda, entre empleados.
+    hasTeam(user.businessType)
       ? db.staff.findMany({
           where: { userId: user.id, active: true },
           orderBy: [{ role: "asc" }, { createdAt: "asc" }],
@@ -50,14 +68,32 @@ export default async function VentasPage({
       : Promise.resolve([]),
   ]);
 
-  // Cuanto hizo cada barbero en el dia.
-  const porBarbero = team
+  const services = catalog.map((s) => ({
+    id: s.id,
+    name: s.name,
+    price: s.price,
+    category: s.category,
+    photo: photoUrl(s.id, s.image, s.updatedAt),
+    variants: s.trackStock
+      ? (s.variants.map((v) => ({
+          id: v.id,
+          label: variantLabel(v),
+          stock: v.stock,
+          price: v.price ?? s.price,
+        })) satisfies VariantOption[])
+      : undefined,
+  }));
+
+  // Cuanto hizo cada persona en el dia.
+  const porPersona = team
     .map((person) => ({
       ...person,
       total: sales.filter((s) => s.staffId === person.id).reduce((sum, s) => sum + s.total, 0),
       count: sales.filter((s) => s.staffId === person.id).length,
     }))
     .filter((row) => row.count > 0);
+
+  const logo = logoUrl(user.slug, user.logo, user.updatedAt);
 
   return (
     <>
@@ -84,13 +120,16 @@ export default async function VentasPage({
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Total vendido" value={money(summary.totalSales, user.currency)} tone="brand" />
         <Stat label="Ventas cerradas" value={String(summary.salesCount)} />
-        <Stat label="Items vendidos" value={String(summary.itemsSold)} />
+        <Stat
+          label={isClothing ? "Prendas vendidas" : "Items vendidos"}
+          value={String(summary.itemsSold)}
+        />
         <Stat label="Ticket promedio" value={money(summary.ticketAverage, user.currency)} />
       </div>
 
-      {porBarbero.length > 1 && (
+      {porPersona.length > 1 && (
         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {porBarbero.map((person) => (
+          {porPersona.map((person) => (
             <div key={person.id} className="card-tight flex items-center gap-2.5">
               <span
                 className="h-2.5 w-2.5 shrink-0 rounded-full"
@@ -114,7 +153,9 @@ export default async function VentasPage({
           subtitle={
             user.businessType === "BARBERIA"
               ? "Agrega los cortes que hiciste sin reserva"
-              : "Venta directa sin abrir cuenta"
+              : isClothing
+                ? "Elige la prenda, la talla y cobra"
+                : "Venta directa sin abrir cuenta"
           }
         >
           {services.length === 0 && (
@@ -133,6 +174,7 @@ export default async function VentasPage({
             itemLabel={ITEM_NOUN[user.businessType].plural}
             team={team}
             defaultStaffId={me.id}
+            staffLabel={isClothing ? "Quien vendio" : "Quien atendio"}
           />
         </Card>
 
@@ -152,7 +194,17 @@ export default async function VentasPage({
                         </span>
                       </p>
                       <p className="mt-1 text-xs text-body">
-                        {s.items.map((i) => i.qty + "x " + i.name).join(", ") || "Venta"}
+                        {s.items
+                          .map(
+                            (i) =>
+                              i.qty +
+                              "x " +
+                              i.name +
+                              (i.variantLabel && !i.name.includes(i.variantLabel)
+                                ? " (" + i.variantLabel + ")"
+                                : "")
+                          )
+                          .join(", ") || "Venta"}
                       </p>
                       <p className="mt-0.5 text-xs text-subtle">
                         {s.clientName ?? "Mostrador"} - {shortDay(s.day)}
@@ -164,7 +216,8 @@ export default async function VentasPage({
                             className="h-2 w-2 rounded-full"
                             style={{ backgroundColor: s.staff.color }}
                           />
-                          Atendio {s.staff.name}
+                          {isClothing ? "Vendio " : "Atendio "}
+                          {s.staff.name}
                         </p>
                       )}
                     </div>
@@ -190,12 +243,45 @@ export default async function VentasPage({
                         <SubmitButton
                           className="btn-ghost btn-sm px-2 text-bad"
                           pendingText="..."
-                          confirm="Borrar esta venta del dia"
+                          ariaLabel="Borrar venta"
+                          confirm={
+                            "Borrar esta venta del dia" +
+                            (s.items.some((i) => i.variantId)
+                              ? ". Las prendas vuelven al inventario."
+                              : "")
+                          }
                         >
                           <Icon name="trash" className="h-4 w-4" />
                         </SubmitButton>
                       </form>
                     </div>
+                  </div>
+
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <InvoiceActions
+                      data={{
+                        saleId: s.id,
+                        businessName: user.businessName,
+                        businessPhone: user.phone,
+                        businessAddress: user.address,
+                        logoUrl: logo,
+                        currency: user.currency,
+                        day: s.day,
+                        clientName: s.clientName,
+                        paymentMethod: s.paymentMethod,
+                        staffName: s.staff?.name ?? null,
+                        items: s.items.map((i) => ({
+                          name:
+                            i.variantLabel && !i.name.includes(i.variantLabel)
+                              ? i.name + " (" + i.variantLabel + ")"
+                              : i.name,
+                          qty: i.qty,
+                          unitPrice: i.unitPrice,
+                        })),
+                        total: s.total,
+                        notes: s.notes,
+                      }}
+                    />
                   </div>
                 </li>
               ))}

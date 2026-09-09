@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { saveServiceAction } from "@/actions/services";
 import { SubmitButton } from "./SubmitButton";
+import { PhotoField } from "./PhotoField";
 import { Alert, Field } from "./ui";
 
 export type EditableService = {
@@ -15,6 +16,9 @@ export type EditableService = {
   category: string;
   bookable: boolean;
   active: boolean;
+  brand?: string | null;
+  trackStock?: boolean;
+  showcase?: boolean;
 };
 
 export function ServiceForm({
@@ -22,11 +26,16 @@ export function ServiceForm({
   categories,
   showDuration,
   submitLabel,
+  /** Tienda de ropa: foto, marca, inventario por talla y catalogo publico. */
+  clothing = false,
+  photo,
 }: {
   service?: EditableService;
   categories: string[];
   showDuration: boolean;
   submitLabel: string;
+  clothing?: boolean;
+  photo?: string | null;
 }) {
   const [state, formAction] = useActionState(saveServiceAction, undefined);
 
@@ -35,6 +44,8 @@ export function ServiceForm({
       {service && <input type="hidden" name="id" value={service.id} />}
       {state?.error && <Alert kind="error">{state.error}</Alert>}
       {state?.ok && <Alert kind="ok">{state.ok}</Alert>}
+
+      {clothing && <PhotoField currentUrl={photo} />}
 
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Nombre" className="sm:col-span-2">
@@ -100,17 +111,50 @@ export function ServiceForm({
           </Field>
         )}
 
+        {clothing && (
+          <Field label="Marca o proveedor (opcional)">
+            <input
+              className="input"
+              name="brand"
+              defaultValue={service?.brand ?? ""}
+              placeholder="Ej: Levis"
+            />
+          </Field>
+        )}
+
         <Field label="Descripcion (opcional)" className="sm:col-span-2">
           <input
             className="input"
             name="description"
             defaultValue={service?.description ?? ""}
-            placeholder="Ej: incluye lavado"
+            placeholder={clothing ? "Ej: algodon, corte slim" : "Ej: incluye lavado"}
           />
         </Field>
       </div>
 
       <div className="flex flex-wrap gap-4">
+        {clothing && (
+          <>
+            <label className="flex items-center gap-2 text-sm text-body">
+              <input
+                type="checkbox"
+                name="trackStock"
+                defaultChecked={service ? service.trackStock !== false : true}
+                className="h-4 w-4 rounded border-line bg-panel accent-brand-600"
+              />
+              Llevar inventario por talla
+            </label>
+            <label className="flex items-center gap-2 text-sm text-body">
+              <input
+                type="checkbox"
+                name="showcase"
+                defaultChecked={service ? service.showcase !== false : true}
+                className="h-4 w-4 rounded border-line bg-panel accent-brand-600"
+              />
+              Mostrar en el catalogo publico
+            </label>
+          </>
+        )}
         {showDuration && (
           <label className="flex items-center gap-2 text-sm text-body">
             <input

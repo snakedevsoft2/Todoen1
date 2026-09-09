@@ -7,9 +7,36 @@ import { Alert, Field } from "./ui";
 import { money } from "@/lib/format";
 import { Icon } from "./Icon";
 
-type ServiceRow = { id: string; name: string; price: number; category: string };
+export type VariantOption = {
+  id: string;
+  label: string;
+  stock: number;
+  price: number;
+};
+
+type ServiceRow = {
+  id: string;
+  name: string;
+  price: number;
+  category: string;
+  /** Foto de la prenda, cuando la tiene. */
+  photo?: string | null;
+  /** Tallas con stock propio. Vacio en los negocios que no llevan inventario. */
+  variants?: VariantOption[];
+};
+
 type StaffRow = { id: string; name: string; color: string };
-type CartRow = { key: string; serviceId: string | null; name: string; unitPrice: number; qty: number };
+
+type CartRow = {
+  key: string;
+  serviceId: string | null;
+  variantId: string | null;
+  name: string;
+  unitPrice: number;
+  qty: number;
+  /** Tope de unidades cuando la talla lleva inventario. */
+  max?: number;
+};
 
 export function NewSaleForm({
   services,
@@ -18,17 +45,20 @@ export function NewSaleForm({
   itemLabel,
   team = [],
   defaultStaffId,
+  staffLabel = "Quien atendio",
 }: {
   services: ServiceRow[];
   currency: string;
   today: string;
   itemLabel: string;
-  /** Barberos entre los que se reparte la venta. Vacio en los otros negocios. */
+  /** Personas entre las que se reparte la venta. Vacio si el negocio no tiene equipo. */
   team?: StaffRow[];
   defaultStaffId?: string;
+  staffLabel?: string;
 }) {
   const [state, formAction] = useActionState(createSaleAction, undefined);
   const [cart, setCart] = useState<CartRow[]>([]);
+  const [openSizes, setOpenSizes] = useState<string | null>(null);
   const [freeName, setFreeName] = useState("");
   const [freePrice, setFreePrice] = useState("");
 
@@ -36,7 +66,10 @@ export function NewSaleForm({
 
   // Al guardar bien la venta dejamos el carrito limpio para la siguiente.
   useEffect(() => {
-    if (state?.ok) setCart([]);
+    if (state?.ok) {
+      setCart([]);
+      setOpenSizes(null);
+    }
   }, [state]);
 
   const grouped = useMemo(() => {
@@ -47,8 +80,13 @@ export function NewSaleForm({
   }, [services]);
 
   function addService(service: ServiceRow) {
+    // Si la prenda tiene tallas, primero hay que decir cual se vendio.
+    if (service.variants && service.variants.length > 0) {
+      setOpenSizes(openSizes === service.id ? null : service.id);
+      return;
+    }
     setCart((prev) => {
-      const found = prev.find((r) => r.serviceId === service.id);
+      const found = prev.find((r) => r.serviceId === service.id && !r.variantId);
       if (found) {
         return prev.map((r) => (r.key === found.key ? { ...r, qty: r.qty + 1 } : r));
       }
@@ -57,9 +95,33 @@ export function NewSaleForm({
         {
           key: service.id,
           serviceId: service.id,
+          variantId: null,
           name: service.name,
           unitPrice: service.price,
           qty: 1,
+        },
+      ];
+    });
+  }
+
+  function addVariant(service: ServiceRow, variant: VariantOption) {
+    if (variant.stock <= 0) return;
+    setCart((prev) => {
+      const found = prev.find((r) => r.variantId === variant.id);
+      if (found) {
+        if (found.qty >= variant.stock) return prev;
+        return prev.map((r) => (r.key === found.key ? { ...r, qty: r.qty + 1 } : r));
+      }
+      return [
+        ...prev,
+        {
+          key: variant.id,
+          serviceId: service.id,
+          variantId: variant.id,
+          name: service.name + " - " + variant.label,
+          unitPrice: variant.price,
+          qty: 1,
+          max: variant.stock,
         },
       ];
     });
@@ -73,6 +135,7 @@ export function NewSaleForm({
       {
         key: "free-" + Date.now(),
         serviceId: null,
+        variantId: null,
         name: freeName.trim(),
         unitPrice: price,
         qty: 1,
@@ -85,7 +148,13 @@ export function NewSaleForm({
   function bump(key: string, delta: number) {
     setCart((prev) =>
       prev
-        .map((r) => (r.key === key ? { ...r, qty: r.qty + delta } : r))
+        .map((r) => {
+          if (r.key !== key) return r;
+          const qty = r.qty + delta;
+          // No se puede vender mas de lo que hay en la talla.
+          if (r.max !== undefined && qty > r.max) return r;
+          return { ...r, qty };
+        })
         .filter((r) => r.qty > 0)
     );
   }
@@ -95,7 +164,13 @@ export function NewSaleForm({
   }
 
   const itemsJson = JSON.stringify(
-    cart.map((r) => ({ serviceId: r.serviceId, name: r.name, unitPrice: r.unitPrice, qty: r.qty }))
+    cart.map((r) => ({
+      serviceId: r.serviceId,
+      variantId: r.variantId,
+      name: r.name,
+      unitPrice: r.unitPrice,
+      qty: r.qty,
+    }))
   );
 
   return (
@@ -112,17 +187,80 @@ export function NewSaleForm({
             <div key={category}>
               <p className="mb-1.5 text-[11px] text-subtle">{category}</p>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {list.map((s) => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => addService(s)}
-                    className="btn-ghost w-full flex-col items-start gap-0 px-3 py-2.5 text-left"
-                  >
-                    <span className="w-full truncate text-xs font-semibold text-strong">{s.name}</span>
-                    <span className="text-[11px] text-brand-600">{money(s.price, currency)}</span>
-                  </button>
-                ))}
+                {list.map((s) => {
+                  const sizes = s.variants ?? [];
+                  const stock = sizes.reduce((sum, v) => sum + Math.max(0, v.stock), 0);
+                  const soldOut = sizes.length > 0 && stock <= 0;
+
+                  return (
+                    <div key={s.id} className="contents">
+                      <button
+                        type="button"
+                        onClick={() => addService(s)}
+                        disabled={soldOut}
+                        className={
+                          "btn-ghost w-full flex-col items-start gap-0 px-3 py-2.5 text-left " +
+                          (soldOut ? "opacity-50" : "") +
+                          (openSizes === s.id ? " ring-2 ring-brand-500" : "")
+                        }
+                      >
+                        <span className="flex w-full items-center gap-2">
+                          {s.photo && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={s.photo}
+                              alt=""
+                              className="h-8 w-8 shrink-0 rounded-lg border border-line object-cover"
+                              loading="lazy"
+                            />
+                          )}
+                          <span className="min-w-0 flex-1">
+                            {/* Sin truncar: con foto el espacio es poco y el
+                                nombre de la prenda es lo que se busca. */}
+                            <span className="block break-words text-xs font-semibold leading-tight text-strong">
+                              {s.name}
+                            </span>
+                            <span className="block text-[11px] text-brand-600">
+                              {money(s.price, currency)}
+                              {sizes.length > 0 && (
+                                <span className={soldOut ? " text-bad" : " text-subtle"}>
+                                  {soldOut ? " - agotada" : " - " + stock + " disp."}
+                                </span>
+                              )}
+                            </span>
+                          </span>
+                        </span>
+                      </button>
+
+                      {openSizes === s.id && sizes.length > 0 && (
+                        <div className="col-span-2 rounded-xl border border-brand-200 bg-brand-50 p-2.5 sm:col-span-3">
+                          <p className="mb-1.5 text-[11px] font-semibold text-brand-700">
+                            Elige la talla de {s.name}
+                          </p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {sizes.map((v) => (
+                              <button
+                                key={v.id}
+                                type="button"
+                                onClick={() => addVariant(s, v)}
+                                disabled={v.stock <= 0}
+                                className={
+                                  "rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition " +
+                                  (v.stock <= 0
+                                    ? "cursor-not-allowed border-line bg-surface text-subtle line-through"
+                                    : "border-line bg-surface text-strong hover:border-brand-500")
+                                }
+                              >
+                                {v.label}
+                                <span className="ml-1 font-normal text-muted">({v.stock})</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           ))}
@@ -160,14 +298,22 @@ export function NewSaleForm({
               <li key={r.key} className="flex items-center justify-between gap-2 py-2">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-strong">{r.name}</p>
-                  <p className="text-xs text-muted">{money(r.unitPrice, currency)} c/u</p>
+                  <p className="text-xs text-muted">
+                    {money(r.unitPrice, currency)} c/u
+                    {r.max !== undefined ? " - quedan " + r.max : ""}
+                  </p>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <button type="button" onClick={() => bump(r.key, -1)} className="btn-ghost btn-sm px-2.5">
                     -
                   </button>
                   <span className="w-7 text-center text-sm font-bold">{r.qty}</span>
-                  <button type="button" onClick={() => bump(r.key, 1)} className="btn-ghost btn-sm px-2.5">
+                  <button
+                    type="button"
+                    onClick={() => bump(r.key, 1)}
+                    disabled={r.max !== undefined && r.qty >= r.max}
+                    className="btn-ghost btn-sm px-2.5"
+                  >
                     +
                   </button>
                   <span className="w-24 text-right text-sm font-bold text-brand-600">
@@ -196,7 +342,7 @@ export function NewSaleForm({
         <input type="hidden" name="itemsJson" value={itemsJson} />
 
         {team.length > 1 && (
-          <Field label="Quien atendio" hint="La venta se suma a la medicion de esta persona.">
+          <Field label={staffLabel} hint="La venta se suma a la medicion de esta persona.">
             <select
               className="input"
               name="staffId"

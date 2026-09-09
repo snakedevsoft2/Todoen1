@@ -46,13 +46,16 @@ export async function updateBusinessAction(
       closeHour,
       slotMinutes,
       workDays: days.length ? days.sort().join(",") : user.workDays,
-      bookingOpen: formData.get("bookingOpen") === "on",
+      // La tienda de ropa no recibe reservas: el campo no viaja en su formulario.
+      bookingOpen:
+        user.businessType === "BARBERIA" ? formData.get("bookingOpen") === "on" : user.bookingOpen,
       slug,
     },
   });
 
   revalidatePath("/panel/ajustes");
   revalidatePath("/panel");
+  revalidatePath("/catalogo/" + slug);
   return { ok: "Ajustes guardados." };
 }
 

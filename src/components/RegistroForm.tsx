@@ -10,6 +10,7 @@ const TYPES = [
   { value: "BARBERIA", label: "Barberia", hint: "Turnos, cortes y caja" },
   { value: "RESTAURANTE", label: "Restaurante", hint: "Cuentas por mesa y caja" },
   { value: "COMIDAS_RAPIDAS", label: "Comidas rapidas", hint: "Venta al mostrador y caja" },
+  { value: "ROPA", label: "Tienda de ropa", hint: "Inventario por talla y catalogo" },
 ];
 
 export function RegistroForm() {
@@ -22,7 +23,7 @@ export function RegistroForm() {
 
       <div>
         <span className="label">Tipo de negocio</span>
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {TYPES.map((t) => (
             <label
               key={t.value}

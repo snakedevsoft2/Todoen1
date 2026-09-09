@@ -7,6 +7,9 @@ import { parseIntSafe, parseMoney, str } from "@/lib/format";
 
 export type ActionState = { error?: string; ok?: string } | undefined;
 
+const MAX_PHOTO_BYTES = 400 * 1024;
+const ALLOWED_PHOTO = /^data:image\/(png|jpeg|jpg|webp);base64,[A-Za-z0-9+/=]+$/;
+
 export async function saveServiceAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const user = await requireUser();
   const id = str(formData.get("id"));
@@ -15,6 +18,21 @@ export async function saveServiceAction(_prev: ActionState, formData: FormData):
 
   const price = parseMoney(formData.get("price"));
   if (price < 0) return { error: "El precio no puede ser negativo." };
+
+  // La foto solo viaja cuando el formulario la trae (tienda de ropa).
+  const photoInput = str(formData.get("image"));
+  let image: string | null | undefined;
+  if (photoInput === "__borrar__") {
+    image = null;
+  } else if (photoInput) {
+    if (!ALLOWED_PHOTO.test(photoInput)) {
+      return { error: "La foto debe ser una imagen PNG, JPG o WEBP." };
+    }
+    if (photoInput.length > MAX_PHOTO_BYTES * 1.4) {
+      return { error: "La foto pesa demasiado. Sube una imagen mas liviana." };
+    }
+    image = photoInput;
+  }
 
   const data = {
     name,
@@ -25,6 +43,10 @@ export async function saveServiceAction(_prev: ActionState, formData: FormData):
     category: str(formData.get("category"), "General"),
     bookable: formData.get("bookable") === "on",
     active: formData.get("active") !== null ? formData.get("active") === "on" : true,
+    ...(formData.has("brand") ? { brand: str(formData.get("brand")) || null } : {}),
+    ...(formData.has("trackStock") ? { trackStock: formData.get("trackStock") === "on" } : {}),
+    ...(formData.has("showcase") ? { showcase: formData.get("showcase") === "on" } : {}),
+    ...(image !== undefined ? { image } : {}),
   };
 
   if (id) {
@@ -36,6 +58,8 @@ export async function saveServiceAction(_prev: ActionState, formData: FormData):
   }
 
   revalidatePath("/panel/catalogo");
+  revalidatePath("/panel/inventario");
+  revalidatePath("/catalogo/" + user.slug);
   revalidatePath("/panel");
   return { ok: id ? "Item actualizado." : "Item agregado." };
 }
@@ -47,6 +71,8 @@ export async function toggleServiceAction(formData: FormData) {
   if (!service) return;
   await db.service.update({ where: { id: service.id }, data: { active: !service.active } });
   revalidatePath("/panel/catalogo");
+  revalidatePath("/panel/inventario");
+  revalidatePath("/catalogo/" + user.slug);
 }
 
 export async function deleteServiceAction(formData: FormData) {
@@ -54,4 +80,6 @@ export async function deleteServiceAction(formData: FormData) {
   const id = str(formData.get("id"));
   await db.service.deleteMany({ where: { id, userId: user.id } });
   revalidatePath("/panel/catalogo");
+  revalidatePath("/panel/inventario");
+  revalidatePath("/catalogo/" + user.slug);
 }

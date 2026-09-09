@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/auth";
-import { BUSINESS_LABEL } from "@/lib/nav";
+import { BUSINESS_LABEL, publicPath } from "@/lib/nav";
 import { Card, PageHeader } from "@/components/ui";
 import { BusinessSettingsForm, PasswordForm } from "@/components/SettingsForms";
 import { StaffPasswordForm } from "@/components/StaffForms";
@@ -14,7 +14,9 @@ export const dynamic = "force-dynamic";
 export default async function AjustesPage() {
   const { user, staff } = await requireSession();
   const isBarber = user.businessType === "BARBERIA";
+  const isClothing = user.businessType === "ROPA";
   const isOwner = staff.role === "DUENO";
+  const publicLink = publicPath(user.businessType, user.slug);
 
   return (
     <>
@@ -46,6 +48,7 @@ export default async function AjustesPage() {
               slug: user.slug,
             }}
             isBarber={isBarber}
+            isClothing={isClothing}
           />
         </Card>
         )}
@@ -72,20 +75,25 @@ export default async function AjustesPage() {
           </Card>
         )}
 
-        {isBarber && (
-          <Card title="Tu pagina de reservas" subtitle="El enlace que le mandas a los clientes">
+        {publicLink && (
+          <Card
+            title={isClothing ? "Tu catalogo publico" : "Tu pagina de reservas"}
+            subtitle="El enlace que le mandas a los clientes"
+          >
             <p className="break-all rounded-xl border border-line bg-surface px-3 py-2.5 text-sm text-body">
-              /reservar/{user.slug}
+              {publicLink}
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <CopyLink path={"/reservar/" + user.slug} />
-              <Link href={"/reservar/" + user.slug} target="_blank" className="btn-ghost btn-sm">
+              <CopyLink path={publicLink} />
+              <Link href={publicLink} target="_blank" className="btn-ghost btn-sm">
                 <Icon name="link" className="h-4 w-4" />
                 Abrir
               </Link>
             </div>
             <p className="mt-3 text-xs text-subtle">
-              El cliente solo ve tus servicios marcados como reservables y las horas libres.
+              {isClothing
+                ? "El cliente ve las prendas que marcaste para el catalogo, con su foto, su precio y las tallas que quedan."
+                : "El cliente solo ve tus servicios marcados como reservables y las horas libres."}
             </p>
           </Card>
         )}

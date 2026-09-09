@@ -16,6 +16,7 @@ export function Shell({
   staffColor,
   logo,
   bookingUrl,
+  bookingLabel = "Ver pagina de reservas",
   logout,
   children,
 }: {
@@ -28,6 +29,8 @@ export function Shell({
   staffColor?: string;
   logo?: string | null;
   bookingUrl?: string;
+  /** Como se llama esa pagina publica: reservas en la barberia, catalogo en la ropa. */
+  bookingLabel?: string;
   logout: ReactNode;
   children: ReactNode;
 }) {
@@ -90,7 +93,7 @@ export function Shell({
       {bookingUrl && (
         <Link href={bookingUrl} target="_blank" className="btn-ghost btn-sm w-full justify-start">
           <Icon name="link" className="h-4 w-4" />
-          Ver pagina de reservas
+          {bookingLabel}
         </Link>
       )}
       {logout}

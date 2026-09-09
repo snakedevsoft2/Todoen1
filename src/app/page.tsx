@@ -18,6 +18,11 @@ const FEATURES = [
     text: "Registra la venta en dos toques desde el celular y lleva el total del dia sin cuadernos.",
   },
   {
+    icon: "shirt",
+    title: "Tienda de ropa con inventario",
+    text: "Cada prenda con su foto, sus tallas y sus colores. La venta descuenta el stock sola, te avisa cuando una talla se esta acabando y publica tu catalogo en un enlace.",
+  },
+  {
     icon: "wallet",
     title: "Gastos y ganancia real",
     text: "Anota lo que gastaste en el dia y la aplicacion te muestra cuanto te queda limpio.",
@@ -74,6 +79,7 @@ export default function LandingPage() {
             <span className="badge border-warn-line bg-warn-soft text-warn">
               Comidas rapidas
             </span>
+            <span className="badge border-line bg-surface text-body">Tienda de ropa</span>
           </div>
         </div>
 

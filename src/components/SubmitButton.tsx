@@ -9,12 +9,15 @@ export function SubmitButton({
   pendingText,
   confirm,
   disabled,
+  ariaLabel,
 }: {
   children: ReactNode;
   className?: string;
   pendingText?: string;
   confirm?: string;
   disabled?: boolean;
+  /** Para los botones que solo muestran un icono o un signo. */
+  ariaLabel?: string;
 }) {
   const { pending } = useFormStatus();
   return (
@@ -22,6 +25,8 @@ export function SubmitButton({
       type="submit"
       disabled={pending || disabled}
       className={className}
+      aria-label={ariaLabel}
+      title={ariaLabel}
       onClick={(event) => {
         if (confirm && !window.confirm(confirm)) event.preventDefault();
       }}

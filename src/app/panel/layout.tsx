@@ -1,5 +1,5 @@
 import { requireSession } from "@/lib/auth";
-import { BUSINESS_LABEL, logoUrl, navFor } from "@/lib/nav";
+import { BUSINESS_LABEL, logoUrl, navFor, publicPath } from "@/lib/nav";
 import { ROLE_LABEL } from "@/lib/staff";
 import { Shell } from "@/components/Shell";
 import { Icon } from "@/components/Icon";
@@ -29,7 +29,10 @@ export default async function PanelLayout({ children }: { children: React.ReactN
         roleLabel={ROLE_LABEL[staff.role] ?? "Barbero"}
         staffColor={staff.color}
         logo={logoUrl(user.slug, user.logo, user.updatedAt)}
-        bookingUrl={user.businessType === "BARBERIA" ? "/reservar/" + user.slug : undefined}
+        bookingUrl={publicPath(user.businessType, user.slug) ?? undefined}
+        bookingLabel={
+          user.businessType === "ROPA" ? "Ver catalogo publico" : "Ver pagina de reservas"
+        }
         logout={logout}
       >
         {children}

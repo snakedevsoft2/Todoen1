@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { requireSession, requireUser } from "@/lib/auth";
 import { isValidDay, todayIn } from "@/lib/dates";
 import { parseMoney, str } from "@/lib/format";
+import { applyStockMove, variantLabel } from "@/lib/inventory";
 
 export type SaleState = { error?: string; ok?: string } | undefined;
 
@@ -16,7 +17,14 @@ function readPayment(value: FormDataEntryValue | null): PaymentMethod {
   return VALID_PAYMENTS.includes(v) ? v : "EFECTIVO";
 }
 
-type CartItem = { serviceId?: string | null; name: string; unitPrice: number; qty: number };
+type CartItem = {
+  serviceId?: string | null;
+  /** Talla vendida, cuando la prenda lleva inventario. */
+  variantId?: string | null;
+  name: string;
+  unitPrice: number;
+  qty: number;
+};
 
 function parseCart(raw: string): CartItem[] {
   if (!raw) return [];
@@ -26,6 +34,7 @@ function parseCart(raw: string): CartItem[] {
     return parsed
       .map((row) => ({
         serviceId: typeof row?.serviceId === "string" && row.serviceId ? row.serviceId : null,
+        variantId: typeof row?.variantId === "string" && row.variantId ? row.variantId : null,
         name: String(row?.name ?? "").trim(),
         unitPrice: Math.max(0, Math.round(Number(row?.unitPrice) || 0)),
         qty: Math.max(1, Math.round(Number(row?.qty) || 1)),
@@ -65,37 +74,98 @@ export async function createSaleAction(_prev: SaleState, formData: FormData): Pr
       )
     : new Set<string>();
 
+  // Igual con las tallas: solo se descuenta inventario de este negocio.
+  const variantIds = items.map((i) => i.variantId).filter((v): v is string => Boolean(v));
+  const variants = variantIds.length
+    ? await db.productVariant.findMany({
+        where: { id: { in: variantIds }, userId: user.id },
+        include: { service: { select: { name: true } } },
+      })
+    : [];
+  const variantById = new Map(variants.map((v) => [v.id, v]));
+
+  // La misma talla puede venir en dos lineas: se suma antes de revisar el stock.
+  const needed = new Map<string, number>();
+  for (const item of items) {
+    if (!item.variantId || !variantById.has(item.variantId)) continue;
+    needed.set(item.variantId, (needed.get(item.variantId) ?? 0) + item.qty);
+  }
+  for (const [id, qty] of needed) {
+    const variant = variantById.get(id)!;
+    if (variant.stock < qty) {
+      return {
+        error:
+          "No alcanza el stock de " +
+          variant.service.name +
+          " " +
+          variantLabel(variant) +
+          ". Quedan " +
+          variant.stock +
+          " y pediste " +
+          qty +
+          ".",
+      };
+    }
+  }
+
   // La venta queda a nombre del barbero elegido, o de quien la esta registrando.
   const staffId = str(formData.get("staffId"));
   const staff = staffId
     ? await db.staff.findFirst({ where: { id: staffId, userId: user.id }, select: { id: true } })
     : null;
 
-  await db.sale.create({
-    data: {
-      userId: user.id,
-      day,
-      total,
-      staffId: staff?.id ?? me.id,
-      paymentMethod: readPayment(formData.get("paymentMethod")),
-      origin: "MANUAL",
-      clientName: str(formData.get("clientName")) || null,
-      notes: str(formData.get("notes")) || null,
-      items: {
-        create: (items.length > 0
-          ? items
-          : [{ serviceId: null, name: str(formData.get("concept"), "Venta"), unitPrice: total, qty: 1 }]
-        ).map((i) => ({
-          serviceId: i.serviceId && owned.has(i.serviceId) ? i.serviceId : null,
-          name: i.name,
-          unitPrice: i.unitPrice,
-          qty: i.qty,
-        })),
-      },
-    },
+  const rows = (
+    items.length > 0
+      ? items
+      : [{ serviceId: null, variantId: null, name: str(formData.get("concept"), "Venta"), unitPrice: total, qty: 1 }]
+  ).map((i) => {
+    const variant = i.variantId ? variantById.get(i.variantId) : undefined;
+    return {
+      serviceId: i.serviceId && owned.has(i.serviceId) ? i.serviceId : null,
+      variantId: variant?.id ?? null,
+      variantLabel: variant ? variantLabel(variant) : null,
+      name: i.name,
+      unitPrice: i.unitPrice,
+      qty: i.qty,
+    };
   });
 
+  try {
+    // La venta y el descuento de stock van juntos: o quedan los dos, o ninguno.
+    await db.$transaction(async (tx) => {
+      const sale = await tx.sale.create({
+        data: {
+          userId: user.id,
+          day,
+          total,
+          staffId: staff?.id ?? me.id,
+          paymentMethod: readPayment(formData.get("paymentMethod")),
+          origin: "MANUAL",
+          clientName: str(formData.get("clientName")) || null,
+          notes: str(formData.get("notes")) || null,
+          items: { create: rows },
+        },
+      });
+
+      for (const [variantId, qty] of needed) {
+        const moved = await applyStockMove(tx, {
+          userId: user.id,
+          variantId,
+          type: "VENTA",
+          delta: -qty,
+          day,
+          reason: "Venta",
+          saleId: sale.id,
+        });
+        if (!moved.ok) throw new Error(moved.error);
+      }
+    });
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "No pudimos guardar la venta." };
+  }
+
   revalidatePath("/panel/ventas");
+  revalidatePath("/panel/inventario");
   revalidatePath("/panel");
   return { ok: "Venta registrada." };
 }
@@ -103,8 +173,18 @@ export async function createSaleAction(_prev: SaleState, formData: FormData): Pr
 export async function deleteSaleAction(formData: FormData) {
   const user = await requireUser();
   const id = str(formData.get("id"));
-  const sale = await db.sale.findFirst({ where: { id, userId: user.id } });
+  const sale = await db.sale.findFirst({
+    where: { id, userId: user.id },
+    include: { items: { select: { variantId: true, qty: true } } },
+  });
   if (!sale) return;
+
+  // Lo que se vendio por talla vuelve al inventario al borrar la venta.
+  const back = new Map<string, number>();
+  for (const item of sale.items) {
+    if (!item.variantId) continue;
+    back.set(item.variantId, (back.get(item.variantId) ?? 0) + item.qty);
+  }
 
   await db.$transaction(async (tx) => {
     if (sale.appointmentId) {
@@ -119,12 +199,24 @@ export async function deleteSaleAction(formData: FormData) {
         data: { status: "ABIERTA" },
       });
     }
+    for (const [variantId, qty] of back) {
+      await applyStockMove(tx, {
+        userId: user.id,
+        variantId,
+        type: "DEVOLUCION",
+        delta: qty,
+        day: sale.day,
+        reason: "Venta borrada",
+        saleId: sale.id,
+      });
+    }
     await tx.sale.delete({ where: { id: sale.id } });
   });
 
   revalidatePath("/panel/ventas");
   revalidatePath("/panel/turnos");
   revalidatePath("/panel/cuentas");
+  revalidatePath("/panel/inventario");
   revalidatePath("/panel");
 }
 

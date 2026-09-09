@@ -14,11 +14,14 @@ enum BusinessType {
   BARBERIA
   RESTAURANTE
   COMIDAS_RAPIDAS
+  ROPA
 }
 
 enum StaffRole {
   DUENO
   BARBERO
+  /// Empleado de la tienda de ropa: vende y ve el movimiento, no la configuracion.
+  VENDEDOR
 }
 
 enum AppointmentStatus {
@@ -46,6 +49,15 @@ enum SaleOrigin {
   MANUAL
   TURNO
   ORDEN
+}
+
+/// Por que se movio el stock. VENTA y DEVOLUCION los pone la aplicacion sola.
+enum StockMoveType {
+  ENTRADA
+  SALIDA
+  AJUSTE
+  VENTA
+  DEVOLUCION
 }
 
 /// Un usuario = un negocio = un espacio de trabajo aislado.
@@ -93,6 +105,8 @@ model User {
   orders       Order[]
   cashClosures CashClosure[]
   notifications Notification[]
+  variants     ProductVariant[]
+  stockMoves   StockMove[]
 
   @@index([slug])
 }
@@ -138,14 +152,84 @@ model Service {
   category    String  @default("General")
   bookable    Boolean @default(true) // aparece en la reserva publica
   active      Boolean @default(true)
+
+  // Tienda de ropa
+  /// Foto de la prenda guardada como data URL, igual que el logo.
+  image      String?
+  /// Marca o proveedor de la prenda. Solo informativo.
+  brand      String?
+  /// Si es true, la prenda se vende por tallas y descuenta stock al vender.
+  trackStock Boolean @default(false)
+  /// Aparece en el catalogo publico /catalogo/[slug].
+  showcase   Boolean @default(true)
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   appointments Appointment[]
   saleItems    SaleItem[]
   orderItems   OrderItem[]
+  variants     ProductVariant[]
 
   @@index([userId, active])
+}
+
+/// Una talla y color concretos de una prenda. Es lo que de verdad tiene stock.
+///
+/// Guardamos userId aparte del serviceId a proposito: asi cada consulta de
+/// inventario filtra directo por el negocio de la sesion, sin pasar por el
+/// producto, y nadie puede tocar el stock de otro negocio.
+model ProductVariant {
+  id        String  @id @default(cuid())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serviceId String
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  size  String @default("Unica")
+  color String @default("Unico")
+  sku   String?
+
+  stock    Int  @default(0)
+  minStock Int  @default(0)
+  /// Precio propio de esta talla. Si es null se usa el precio del producto.
+  price    Int?
+  /// Lo que costo la ultima entrada, para valorizar el inventario.
+  cost     Int  @default(0)
+  active   Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  moves     StockMove[]
+  saleItems SaleItem[]
+
+  @@unique([serviceId, size, color])
+  @@index([userId, active])
+}
+
+/// Historial de cada movimiento de stock. Nunca se edita: solo se agrega.
+model StockMove {
+  id        String         @id @default(cuid())
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  variantId String
+  variant   ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  type StockMoveType
+  /// Cuanto cambio el stock: positivo entra, negativo sale.
+  delta      Int
+  /// Como quedo el stock despues del movimiento.
+  stockAfter Int
+  unitCost   Int     @default(0)
+  reason     String?
+  day        String // "YYYY-MM-DD"
+  saleId     String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, day])
+  @@index([variantId, createdAt])
 }
 
 /// Turno reservado por el cliente (barberia).
@@ -241,11 +325,17 @@ model SaleItem {
   sale      Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
   serviceId String?
   service   Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  /// Talla y color vendidos, cuando el producto lleva inventario.
+  variantId String?
+  variant   ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  /// Copia de "M / Negro" por si la talla se borra despues.
+  variantLabel String?
   name      String
   unitPrice Int
   qty       Int      @default(1)
 
   @@index([saleId])
+  @@index([variantId])
 }
 
 /// Gastos del dia (insumos, arriendo, domicilios...).

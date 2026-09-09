@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { checkPassword, hashPassword, requireOwner, requireSession } from "@/lib/auth";
 import { parseIntSafe, str } from "@/lib/format";
 import { normalizeHex } from "@/lib/theme";
-import { STAFF_COLORS } from "@/lib/staff";
+import { STAFF_COLORS, teamNoun } from "@/lib/staff";
 
 export type StaffState = { error?: string; ok?: string } | undefined;
 
@@ -33,14 +33,15 @@ export async function createStaffAction(
   const email = str(formData.get("email")).toLowerCase();
   const password = String(formData.get("password") ?? "");
   const phone = str(formData.get("phone"));
+  const noun = teamNoun(user.businessType);
 
-  if (!name) return { error: "Escribe el nombre del barbero." };
+  if (!name) return { error: "Escribe el nombre del " + noun.singular + "." };
 
   const count = await db.staff.count({ where: { userId: user.id } });
   if (count >= 20) return { error: "Por ahora puedes tener hasta 20 personas en el equipo." };
 
-  // El correo y la contrasena son opcionales: puedes tener un barbero que solo
-  // aparece en la agenda, sin usuario para entrar.
+  // El correo y la contrasena son opcionales: puedes tener a alguien que solo
+  // aparece en los reportes, sin usuario para entrar.
   if (email || password) {
     if (!EMAIL_RE.test(email)) return { error: "Escribe un correo valido para que pueda entrar." };
     if (password.length < 6) return { error: "La contrasena debe tener al menos 6 caracteres." };
@@ -54,7 +55,8 @@ export async function createStaffAction(
       email: email || null,
       passwordHash: password ? hashPassword(password) : null,
       phone: phone || null,
-      role: "BARBERO",
+      // El rol depende del negocio: barbero en la barberia, vendedor en la ropa.
+      role: noun.role === "VENDEDOR" ? "VENDEDOR" : "BARBERO",
       color: normalizeHex(str(formData.get("color"), STAFF_COLORS[count % STAFF_COLORS.length])),
       commissionPct: readCommission(formData.get("commissionPct")),
       bookable: formData.get("bookable") !== null,
@@ -63,7 +65,11 @@ export async function createStaffAction(
 
   revalidatePath("/panel/equipo");
   revalidatePath("/panel/turnos");
-  return { ok: email ? "Barbero agregado. Ya puede entrar con su correo." : "Barbero agregado." };
+  revalidatePath("/panel/ventas");
+  const nombre = noun.singular.charAt(0).toUpperCase() + noun.singular.slice(1);
+  return {
+    ok: email ? nombre + " agregado. Ya puede entrar con su correo." : nombre + " agregado.",
+  };
 }
 
 export async function updateStaffAction(formData: FormData) {

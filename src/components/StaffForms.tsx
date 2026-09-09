@@ -10,7 +10,7 @@ import {
   updateStaffAction,
   deleteStaffAction,
 } from "@/actions/staff";
-import { STAFF_COLORS, initials } from "@/lib/staff";
+import { ROLE_LABEL, STAFF_COLORS, initials, teamNoun } from "@/lib/staff";
 import { SubmitButton } from "./SubmitButton";
 import { Alert, Badge, Field } from "./ui";
 import { Icon } from "./Icon";
@@ -76,9 +76,12 @@ function ColorPicker({ name, defaultValue }: { name: string; defaultValue: strin
   );
 }
 
-export function NewStaffForm() {
+export function NewStaffForm({ businessType = "BARBERIA" }: { businessType?: string }) {
   const [state, formAction] = useActionState(createStaffAction, undefined);
   const [withAccess, setWithAccess] = useState(true);
+  const noun = teamNoun(businessType);
+  // Solo la barberia reparte agenda; en la tienda de ropa el color es para los reportes.
+  const agenda = businessType === "BARBERIA";
 
   return (
     <form action={formAction} className="space-y-3">
@@ -86,7 +89,7 @@ export function NewStaffForm() {
       {state?.ok && <Alert kind="ok">{state.ok}</Alert>}
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Nombre del barbero">
+        <Field label={"Nombre del " + noun.singular}>
           <input className="input" name="name" required placeholder="Ej: Andres Lopez" />
         </Field>
         <Field label="Telefono (opcional)">
@@ -94,13 +97,20 @@ export function NewStaffForm() {
         </Field>
       </div>
 
-      <Field label="Color en la agenda" hint="Para reconocer sus turnos de un vistazo.">
+      <Field
+        label={agenda ? "Color en la agenda" : "Color en los reportes"}
+        hint={
+          agenda
+            ? "Para reconocer sus turnos de un vistazo."
+            : "Para reconocer sus ventas de un vistazo."
+        }
+      >
         <ColorPicker name="color" defaultValue={STAFF_COLORS[1]} />
       </Field>
 
       <Field
         label="Comision (%)"
-        hint="Cuanto se lleva de lo que cobra. Solo se usa para el reporte. Dejalo en 0 si no aplica."
+        hint="Cuanto se lleva de lo que vende. Solo se usa para el reporte. Dejalo en 0 si no aplica."
       >
         <input
           className="input w-28"
@@ -113,10 +123,12 @@ export function NewStaffForm() {
         />
       </Field>
 
-      <label className="flex items-center gap-2 text-sm text-body">
-        <input type="checkbox" name="bookable" defaultChecked className="h-4 w-4" />
-        Los clientes pueden elegirlo en la pagina de reservas
-      </label>
+      {agenda && (
+        <label className="flex items-center gap-2 text-sm text-body">
+          <input type="checkbox" name="bookable" defaultChecked className="h-4 w-4" />
+          Los clientes pueden elegirlo en la pagina de reservas
+        </label>
+      )}
 
       <div className="rounded-xl border border-line bg-surface p-3">
         <label className="flex items-center gap-2 text-sm font-semibold text-strong">
@@ -129,8 +141,10 @@ export function NewStaffForm() {
           Darle su propio usuario para entrar
         </label>
         <p className="mt-1 text-xs text-muted">
-          Con esto el barbero entra con su correo y su contrasena, y ve la agenda y las ventas del
-          negocio. No puede cambiar los ajustes ni el equipo.
+          {agenda
+            ? "Con esto el barbero entra con su correo y su contrasena, y ve la agenda y las ventas del negocio."
+            : "Con esto el empleado entra con su correo y su contrasena, y puede vender, ver el inventario y los reportes."}{" "}
+          No puede cambiar los ajustes ni el equipo.
         </p>
 
         {withAccess && (
@@ -140,16 +154,16 @@ export function NewStaffForm() {
                 className="input"
                 type="email"
                 name="email"
-                placeholder="barbero@correo.com"
+                placeholder={agenda ? "barbero@correo.com" : "empleado@correo.com"}
                 autoComplete="off"
               />
             </Field>
-            <Field label="Contrasena" hint="Minimo 6 caracteres. Despues el la puede cambiar.">
+            <Field label="Contrasena" hint="Minimo 6 caracteres. Despues la puede cambiar.">
               <input
                 className="input"
                 type="text"
                 name="password"
-                placeholder="Ej: barberia123"
+                placeholder="Ej: tienda123"
                 autoComplete="new-password"
               />
             </Field>
@@ -159,7 +173,7 @@ export function NewStaffForm() {
 
       <SubmitButton className="btn-primary w-full sm:w-auto" pendingText="Agregando...">
         <Icon name="plus" className="h-4 w-4" />
-        Agregar barbero
+        Agregar {noun.singular}
       </SubmitButton>
     </form>
   );
@@ -213,13 +227,22 @@ export function StaffCard({
   staff,
   stats,
   currency,
+  businessType = "BARBERIA",
 }: {
   staff: StaffRow;
-  stats?: { totalSales: string; attended: number; booked: number; commission: string };
+  stats?: {
+    totalSales: string;
+    attended: number;
+    booked: number;
+    salesCount: number;
+    commission: string;
+  };
   currency: string;
+  businessType?: string;
 }) {
   const [tab, setTab] = useState<"none" | "datos" | "acceso">("none");
   const isOwner = staff.role === "DUENO";
+  const agenda = businessType === "BARBERIA";
 
   return (
     <li className={"rounded-xl border p-3 " + (staff.active ? "border-line bg-surface" : "border-dashed border-line bg-panel opacity-70")}>
@@ -229,7 +252,11 @@ export function StaffCard({
           <div className="min-w-0">
             <p className="flex flex-wrap items-center gap-2 text-sm font-bold text-strong">
               {staff.name}
-              {isOwner ? <Badge tone="blue">Dueno</Badge> : <Badge>Barbero</Badge>}
+              {isOwner ? (
+                <Badge tone="blue">Dueno</Badge>
+              ) : (
+                <Badge>{ROLE_LABEL[staff.role] ?? "Empleado"}</Badge>
+              )}
               {!staff.active && <Badge tone="red">Inactivo</Badge>}
             </p>
             <p className="mt-0.5 truncate text-xs text-muted">
@@ -245,7 +272,13 @@ export function StaffCard({
               )}
             </p>
             <p className="mt-0.5 text-xs text-subtle">
-              {staff.bookable ? "Los clientes lo pueden elegir" : "No aparece en las reservas"}
+              {agenda
+                ? staff.bookable
+                  ? "Los clientes lo pueden elegir"
+                  : "No aparece en las reservas"
+                : staff.active
+                  ? "Puede vender en la tienda"
+                  : "Sin acceso a la tienda"}
               {staff.commissionPct > 0 ? " - Comision " + staff.commissionPct + "%" : ""}
             </p>
           </div>
@@ -255,7 +288,9 @@ export function StaffCard({
           <div className="text-right">
             <p className="text-sm font-bold text-brand-600">{stats.totalSales}</p>
             <p className="text-[11px] text-subtle">
-              {stats.booked} turnos este mes - {stats.attended} atendidos
+              {agenda
+                ? stats.booked + " turnos este mes - " + stats.attended + " atendidos"
+                : stats.salesCount + " ventas este mes"}
             </p>
             {staff.commissionPct > 0 && (
               <p className="text-[11px] text-muted">Comision {stats.commission}</p>
@@ -291,7 +326,13 @@ export function StaffCard({
             <SubmitButton
               className="btn-ghost btn-sm"
               pendingText="..."
-              confirm={"Quitarle el acceso a " + staff.name + ". Seguira apareciendo en la agenda."}
+              confirm={
+                "Quitarle el acceso a " +
+                staff.name +
+                (agenda
+                  ? ". Seguira apareciendo en la agenda."
+                  : ". Sus ventas anteriores no se pierden.")
+              }
             >
               Quitar acceso
             </SubmitButton>
@@ -336,7 +377,7 @@ export function StaffCard({
               <input className="input" name="phone" defaultValue={staff.phone ?? ""} inputMode="tel" />
             </Field>
           </div>
-          <Field label="Color en la agenda">
+          <Field label={agenda ? "Color en la agenda" : "Color en los reportes"}>
             <ColorPicker name="color" defaultValue={staff.color} />
           </Field>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -351,15 +392,20 @@ export function StaffCard({
                 defaultValue={staff.commissionPct}
               />
             </Field>
-            <label className="flex items-center gap-2 self-end pb-2 text-sm text-body">
-              <input
-                type="checkbox"
-                name="bookable"
-                defaultChecked={staff.bookable}
-                className="h-4 w-4"
-              />
-              Aparece en la pagina de reservas
-            </label>
+            {agenda ? (
+              <label className="flex items-center gap-2 self-end pb-2 text-sm text-body">
+                <input
+                  type="checkbox"
+                  name="bookable"
+                  defaultChecked={staff.bookable}
+                  className="h-4 w-4"
+                />
+                Aparece en la pagina de reservas
+              </label>
+            ) : (
+              // Sin agenda el campo no se muestra, pero se conserva como estaba.
+              staff.bookable && <input type="hidden" name="bookable" value="on" />
+            )}
           </div>
           <SubmitButton className="btn-primary btn-sm" pendingText="Guardando...">
             Guardar cambios

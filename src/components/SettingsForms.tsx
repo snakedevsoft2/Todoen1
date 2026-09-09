@@ -33,9 +33,12 @@ function hourLabel(h: number) {
 export function BusinessSettingsForm({
   settings,
   isBarber,
+  isClothing = false,
 }: {
   settings: BusinessSettings;
   isBarber: boolean;
+  /** La tienda de ropa tambien tiene enlace publico, pero es su catalogo. */
+  isClothing?: boolean;
 }) {
   const [state, formAction] = useActionState(updateBusinessAction, undefined);
   const selectedDays = settings.workDays.split(",").map((d) => Number(d.trim()));
@@ -134,27 +137,33 @@ export function BusinessSettingsForm({
         </div>
       </div>
 
-      {isBarber && (
+      {(isBarber || isClothing) && (
         <div className="rounded-xl border border-line bg-surface p-3">
-          <p className="mb-3 text-sm font-semibold text-strong">Reservas en linea</p>
+          <p className="mb-3 text-sm font-semibold text-strong">
+            {isClothing ? "Catalogo en linea" : "Reservas en linea"}
+          </p>
           <Field
-            label="Enlace de tu pagina de reservas"
+            label={isClothing ? "Enlace de tu catalogo" : "Enlace de tu pagina de reservas"}
             hint="Solo letras, numeros y guiones. Si lo cambias, el enlace anterior deja de servir."
           >
             <div className="flex items-center gap-2">
-              <span className="shrink-0 text-xs text-subtle">/reservar/</span>
+              <span className="shrink-0 text-xs text-subtle">
+                {isClothing ? "/catalogo/" : "/reservar/"}
+              </span>
               <input className="input" name="slug" defaultValue={settings.slug} />
             </div>
           </Field>
-          <label className="mt-3 flex items-center gap-2 text-sm text-body">
-            <input
-              type="checkbox"
-              name="bookingOpen"
-              defaultChecked={settings.bookingOpen}
-              className="h-4 w-4 rounded border-line bg-panel accent-brand-600"
-            />
-            Recibir reservas de clientes
-          </label>
+          {isBarber && (
+            <label className="mt-3 flex items-center gap-2 text-sm text-body">
+              <input
+                type="checkbox"
+                name="bookingOpen"
+                defaultChecked={settings.bookingOpen}
+                className="h-4 w-4 rounded border-line bg-panel accent-brand-600"
+              />
+              Recibir reservas de clientes
+            </label>
+          )}
         </div>
       )}
 

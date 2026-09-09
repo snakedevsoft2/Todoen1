@@ -1,8 +1,9 @@
 import { requireUser } from "@/lib/auth";
 import { addDays, isValidDay, startOfMonth, todayIn } from "@/lib/dates";
 import { money, shortDay } from "@/lib/format";
-import { getRangeTotals, getStaffTotals, getTopItems } from "@/lib/queries";
+import { getClothingStats, getRangeTotals, getStaffTotals, getTopItems } from "@/lib/queries";
 import { ITEM_NOUN } from "@/lib/nav";
+import { ROLE_LABEL } from "@/lib/staff";
 import { Card, Empty, PageHeader, Stat } from "@/components/ui";
 import { StaffDot } from "@/components/StaffForms";
 
@@ -23,16 +24,18 @@ export default async function ReportesPage({
   const safeFrom = from <= to ? from : to;
 
   const isBarber = user.businessType === "BARBERIA";
+  const isClothing = user.businessType === "ROPA";
 
-  const [totals, topItems, staffTotals] = await Promise.all([
+  const [totals, topItems, staffTotals, clothing] = await Promise.all([
     getRangeTotals(user.id, safeFrom, to),
     getTopItems(user.id, safeFrom, to, 10),
     getStaffTotals(user.id, safeFrom, to),
+    isClothing ? getClothingStats(user.id, safeFrom, to) : Promise.resolve(null),
   ]);
 
-  // Solo tiene sentido comparar cuando hay mas de una persona atendiendo.
+  // Solo tiene sentido comparar cuando hay mas de una persona vendiendo.
   const staffRows = staffTotals.rows.filter((r) => r.active || r.totalSales > 0 || r.booked > 0);
-  const showStaff = isBarber && staffRows.length > 1;
+  const showStaff = (isBarber || isClothing) && staffRows.length > 1;
   const maxStaffSales = Math.max(1, ...staffRows.map((r) => r.totalSales));
 
   const maxSales = Math.max(1, ...totals.rows.map((r) => r.sales));
@@ -105,17 +108,25 @@ export default async function ReportesPage({
       {showStaff && (
         <div className="mt-5">
           <Card
-            title="Medicion por barbero"
-            subtitle="Cuanto atendio y cuanto entro por cada uno en este periodo"
+            title={isClothing ? "Medicion por empleado" : "Medicion por barbero"}
+            subtitle={
+              isClothing
+                ? "Cuanto vendio cada uno en este periodo y que comision le queda"
+                : "Cuanto atendio y cuanto entro por cada uno en este periodo"
+            }
           >
             <div className="table-wrap">
               <table className="tbl">
                 <thead>
                   <tr>
-                    <th>Barbero</th>
-                    <th className="text-right">Turnos</th>
-                    <th className="text-right">Atendidos</th>
-                    <th className="text-right">No asistio</th>
+                    <th>{isClothing ? "Empleado" : "Barbero"}</th>
+                    {!isClothing && (
+                      <>
+                        <th className="text-right">Turnos</th>
+                        <th className="text-right">Atendidos</th>
+                        <th className="text-right">No asistio</th>
+                      </>
+                    )}
                     <th className="text-right">Ventas</th>
                     <th className="text-right">Vendido</th>
                     <th className="text-right">Ticket promedio</th>
@@ -133,15 +144,19 @@ export default async function ReportesPage({
                               {row.name}
                             </span>
                             <span className="block text-[11px] text-subtle">
-                              {row.role === "DUENO" ? "Dueno" : "Barbero"}
+                              {ROLE_LABEL[row.role] ?? "Empleado"}
                               {row.active ? "" : " - inactivo"}
                             </span>
                           </span>
                         </span>
                       </td>
-                      <td className="text-right">{row.booked}</td>
-                      <td className="text-right">{row.attended}</td>
-                      <td className="text-right">{row.noShow}</td>
+                      {!isClothing && (
+                        <>
+                          <td className="text-right">{row.booked}</td>
+                          <td className="text-right">{row.attended}</td>
+                          <td className="text-right">{row.noShow}</td>
+                        </>
+                      )}
                       <td className="text-right">{row.salesCount}</td>
                       <td className="text-right font-semibold text-brand-600">
                         {money(row.totalSales, user.currency)}
@@ -184,11 +199,100 @@ export default async function ReportesPage({
             {staffTotals.unassigned.salesCount > 0 && (
               <p className="mt-4 rounded-xl border border-warn-line bg-warn-soft px-3 py-2 text-xs text-warn">
                 {money(staffTotals.unassigned.totalSales, user.currency)} en{" "}
-                {staffTotals.unassigned.salesCount} ventas quedaron sin barbero asignado. Al
-                registrar una venta, elige quien la atendio para que la medicion cuadre.
+                {staffTotals.unassigned.salesCount} ventas quedaron sin{" "}
+                {isClothing ? "empleado" : "barbero"} asignado. Al registrar una venta, elige quien
+                la hizo para que la medicion cuadre.
               </p>
             )}
           </Card>
+        </div>
+      )}
+
+      {clothing && (
+        <div className="mt-5 space-y-4">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <Stat
+              label="Facturado"
+              value={money(clothing.revenue, user.currency)}
+              hint={clothing.unitsSold + " prendas vendidas"}
+              tone="brand"
+            />
+            <Stat
+              label="Costo de la mercancia"
+              value={money(clothing.cost, user.currency)}
+              hint="Lo que te costo lo vendido"
+              tone="bad"
+            />
+            <Stat
+              label="Utilidad bruta"
+              value={money(clothing.grossProfit, user.currency)}
+              hint={"Margen del " + clothing.marginPct + "%"}
+              tone={clothing.grossProfit >= 0 ? "good" : "bad"}
+            />
+            <Stat
+              label="Precio promedio"
+              value={money(
+                clothing.unitsSold ? Math.round(clothing.revenue / clothing.unitsSold) : 0,
+                user.currency
+              )}
+              hint="Por prenda vendida"
+            />
+          </div>
+
+          {clothing.withoutCost > 0 && (
+            <p className="rounded-xl border border-warn-line bg-warn-soft px-3 py-2 text-xs text-warn">
+              {clothing.withoutCost} prendas vendidas no tienen costo cargado, asi que la utilidad
+              sale mas alta de lo real. Ponle el costo a cada talla desde Inventario.
+            </p>
+          )}
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Card title="Tallas que mas salen" subtitle="Para saber que reponer primero">
+              {clothing.topSizes.length === 0 ? (
+                <Empty title="Aun no hay prendas vendidas por talla" />
+              ) : (
+                <ul className="space-y-2">
+                  {clothing.topSizes.map((row) => {
+                    const max = clothing.topSizes[0].qty || 1;
+                    return (
+                      <li key={row.label}>
+                        <div className="mb-1 flex items-center justify-between text-xs">
+                          <span className="font-medium text-body">{row.label}</span>
+                          <span className="text-muted">{row.qty} vendidas</span>
+                        </div>
+                        <div className="h-2.5 overflow-hidden rounded-full bg-panel">
+                          <div
+                            className="h-full rounded-full bg-brand-600"
+                            style={{ width: (row.qty / max) * 100 + "%" }}
+                          />
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </Card>
+
+            <Card title="Categorias que mas facturan" subtitle="En que se te va y de que vives">
+              {clothing.topCategories.length === 0 ? (
+                <Empty title="Aun no hay ventas en este periodo" />
+              ) : (
+                <ul className="divide-y divide-line">
+                  {clothing.topCategories.map((row) => (
+                    <li key={row.name} className="flex items-center justify-between gap-3 py-2.5">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-strong">{row.name}</p>
+                        <p className="text-[11px] text-subtle">{row.qty} prendas</p>
+                      </div>
+                      <span className="text-sm font-bold text-brand-600">
+                        {money(row.total, user.currency)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+          </div>
         </div>
       )}
 

@@ -5,7 +5,9 @@ import { todayIn } from "@/lib/dates";
 import { getDaySummary } from "@/lib/queries";
 import { money, pretty12h, prettyDay } from "@/lib/format";
 import { BUSINESS_LABEL, ITEM_NOUN } from "@/lib/nav";
-import { Card, Empty, PageHeader, Stat, StatusBadge } from "@/components/ui";
+import { getInventorySummary, getLowStock } from "@/lib/inventory";
+import { variantLabel } from "@/lib/variants";
+import { Badge, Card, Empty, PageHeader, Stat, StatusBadge } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 
 export const dynamic = "force-dynamic";
@@ -14,8 +16,10 @@ export default async function PanelHomePage() {
   const { user, staff: me } = await requireSession();
   const today = todayIn(user.timezone);
   const isBarber = user.businessType === "BARBERIA";
+  const isClothing = user.businessType === "ROPA";
 
-  const [summary, appointments, openOrders, recentSales, closure, expenses] = await Promise.all([
+  const [summary, appointments, openOrders, recentSales, closure, expenses, stock, lowStock] =
+    await Promise.all([
     getDaySummary(user.id, today),
     isBarber
       ? db.appointment.findMany({
@@ -27,7 +31,7 @@ export default async function PanelHomePage() {
           },
         })
       : Promise.resolve([]),
-    isBarber
+    isBarber || isClothing
       ? Promise.resolve([])
       : db.order.findMany({
           where: { userId: user.id, status: "ABIERTA" },
@@ -42,6 +46,8 @@ export default async function PanelHomePage() {
     }),
     db.cashClosure.findUnique({ where: { userId_day: { userId: user.id, day: today } } }),
     db.expense.findMany({ where: { userId: user.id, day: today }, orderBy: { createdAt: "desc" }, take: 5 }),
+    isClothing ? getInventorySummary(user.id) : Promise.resolve(null),
+    isClothing ? getLowStock(user.id, 8) : Promise.resolve([]),
   ]);
 
   const pending = appointments.filter((a) => a.status === "PENDIENTE" || a.status === "CONFIRMADO");
@@ -83,6 +89,11 @@ export default async function PanelHomePage() {
               <Icon name="calendar" className="h-4 w-4" />
               Ver turnos
             </Link>
+          ) : isClothing ? (
+            <Link href="/panel/inventario" className="btn-primary btn-sm">
+              <Icon name="box" className="h-4 w-4" />
+              Ver inventario
+            </Link>
           ) : (
             <Link href="/panel/cuentas" className="btn-primary btn-sm">
               <Icon name="table" className="h-4 w-4" />
@@ -106,7 +117,7 @@ export default async function PanelHomePage() {
           tone={summary.netTotal >= 0 ? "good" : "bad"}
         />
         <Stat
-          label={isBarber ? "Cortes cobrados" : "Items vendidos"}
+          label={isBarber ? "Cortes cobrados" : isClothing ? "Prendas vendidas" : "Items vendidos"}
           value={String(summary.itemsSold)}
           hint={
             isBarber
@@ -120,12 +131,27 @@ export default async function PanelHomePage() {
         <Stat label="Efectivo" value={money(summary.byMethod.EFECTIVO, user.currency)} />
         <Stat label="Tarjeta" value={money(summary.byMethod.TARJETA, user.currency)} />
         <Stat label="Transferencia" value={money(summary.byMethod.TRANSFERENCIA, user.currency)} />
-        <Stat
-          label={isBarber ? "Turnos separados hoy" : "Cuentas abiertas"}
-          value={String(isBarber ? appointments.length : openOrders.length)}
-          hint={isBarber ? pending.length + " por atender" : "Sin cobrar " + money(openTotal, user.currency)}
-          tone="brand"
-        />
+        {isClothing && stock ? (
+          <Stat
+            label="Prendas en tienda"
+            value={String(stock.units)}
+            hint={
+              stock.lowCount + stock.outCount > 0
+                ? stock.lowCount + stock.outCount + " tallas en rojo"
+                : "Inventario al dia"
+            }
+            tone={stock.lowCount + stock.outCount > 0 ? "amber" : "brand"}
+          />
+        ) : (
+          <Stat
+            label={isBarber ? "Turnos separados hoy" : "Cuentas abiertas"}
+            value={String(isBarber ? appointments.length : openOrders.length)}
+            hint={
+              isBarber ? pending.length + " por atender" : "Sin cobrar " + money(openTotal, user.currency)
+            }
+            tone="brand"
+          />
+        )}
       </div>
 
       {porBarbero.length > 1 && (
@@ -207,6 +233,44 @@ export default async function PanelHomePage() {
                       )}
                     </div>
                     <StatusBadge status={a.status} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        ) : isClothing ? (
+          <Card
+            title="Se te esta acabando"
+            subtitle="Tallas agotadas o por debajo del minimo"
+            action={
+              <Link href="/panel/inventario" className="btn-ghost btn-sm">
+                Abrir inventario
+              </Link>
+            }
+          >
+            {lowStock.length === 0 ? (
+              <Empty
+                title="Todo el inventario esta bien"
+                hint="Ninguna talla llego a su minimo. Sigue vendiendo."
+              />
+            ) : (
+              <ul className="space-y-2">
+                {lowStock.map((v) => (
+                  <li
+                    key={v.id}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-line bg-surface px-3 py-2.5"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-strong">
+                        {v.service.name}
+                      </p>
+                      <p className="text-xs text-muted">
+                        {variantLabel(v)} - minimo {v.minStock}
+                      </p>
+                    </div>
+                    <Badge tone={v.stock <= 0 ? "red" : "amber"}>
+                      {v.stock <= 0 ? "Agotada" : "Quedan " + v.stock}
+                    </Badge>
                   </li>
                 ))}
               </ul>
