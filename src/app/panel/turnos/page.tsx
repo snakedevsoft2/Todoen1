@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/auth";
+import { remindersForTomorrow } from "@/lib/reminders";
+import { ReminderList } from "@/components/ReminderList";
 import { db } from "@/lib/db";
 import { addDays, isValidDay, todayIn } from "@/lib/dates";
 import { buildSlots, isWorkDay, workDaysArray } from "@/lib/slots";
@@ -34,7 +36,7 @@ export default async function TurnosPage({
   const today = todayIn(user.timezone);
   const day = params.d && isValidDay(params.d) ? params.d : today;
 
-  const [team, appointments, services] = await Promise.all([
+  const [team, appointments, services, recordatorios] = await Promise.all([
     db.staff.findMany({
       where: { userId: user.id, active: true },
       orderBy: [{ role: "asc" }, { createdAt: "asc" }],
@@ -50,6 +52,7 @@ export default async function TurnosPage({
       orderBy: [{ category: "asc" }, { name: "asc" }],
       select: { id: true, name: true, price: true, durationMin: true },
     }),
+    remindersForTomorrow(user.id, user.timezone),
   ]);
 
   // Filtro por barbero. Sin filtro se ve la agenda completa de la barberia.
@@ -549,6 +552,23 @@ export default async function TurnosPage({
         </div>
 
         <div className="space-y-4">
+          <ReminderList
+            rows={recordatorios.map((r) => ({
+              id: r.id,
+              clientName: r.clientName,
+              clientPhone: r.clientPhone,
+              serviceName: r.serviceName,
+              day: r.day,
+              startTime: r.startTime,
+              staffName: r.staff?.name ?? r.staffName,
+              reminderSentAt: r.reminderSentAt,
+            }))}
+            businessName={user.businessName}
+            address={user.address}
+            ownerNumber={user.whatsappNumber}
+            autoOn={user.whatsappProvider === "callmebot" || user.whatsappProvider === "meta"}
+          />
+
           <Card title="Agregar turno a mano" subtitle="Para el cliente que llega sin reservar">
             <NewAppointmentForm
               day={day}

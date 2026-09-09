@@ -325,6 +325,55 @@ QR**. Es lo mismo para la barbería que para la tienda de ropa: cambia lo que se
   códigos de barras, así que no agrega peso.
 - La **barbería** además muestra un botón a su agenda, que sigue siendo solo suya.
 
+### La pantalla de ingreso
+
+Tiene su propio juego de estilos (`.auth-*` en `globals.css`), aparte del resto de la aplicación. Es
+deliberado: el panel es de bloques marcados porque se usa a diario y se lee de lejos; la puerta de
+entrada busca lo contrario — sobria, con aire, bordes de un píxel y sombras que casi no se ven.
+
+- **Dos columnas en escritorio.** A la izquierda no hay una ilustración: es un fragmento del panel de
+  verdad (métricas, ingresos de la semana, últimos movimientos) conectado con líneas finas. En móvil
+  desaparece y manda el formulario.
+- **"Recordarme" hace algo de verdad**: sin marcar, la cookie no lleva `maxAge` y el navegador la
+  borra al cerrarse. Es lo que se espera en el computador del local, donde entra más de una persona.
+- **"¿Olvidaste tu contraseña?"** va al WhatsApp de soporte con el correo ya escrito. Todavía no hay
+  recuperación por correo (haría falta un servicio de envío), y un enlace muerto sería peor.
+
+### Ingresar con Google
+
+Además del correo y contraseña, se puede entrar con Google. Está hecho a mano contra el protocolo de
+Google (no con una librería de autenticación completa) porque la app ya tiene su propia sesión, y una
+librería de esas querría mandar en todo eso.
+
+**Para activarlo hay que crear un cliente OAuth en Google Cloud** y poner dos variables:
+
+```
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+```
+
+En el cliente OAuth, la URI de redirección autorizada es `https://tu-dominio/auth/google/callback`
+(y `http://localhost:3000/auth/google/callback` para probar en local).
+
+Sin esas variables el botón simplemente no aparece y todo lo demás sigue funcionando igual.
+
+Quien entra con Google entra al mismo sitio y con los mismos permisos que entraría con su contraseña:
+se busca su correo entre los dueños y entre los empleados. Si el correo no está en ningún negocio, lo
+mandamos a crear la cuenta con el correo y el nombre ya puestos, porque para abrir un negocio hacen
+falta datos que Google no da.
+
+### Recordatorio de turno para el cliente (barbería)
+
+Al reservar, el cliente decide si quiere que le recuerden su turno por WhatsApp — viene marcado, pero
+se puede quitar. Es su teléfono, así que la decisión es suya.
+
+- En **Turnos** aparece la lista de los recordatorios de mañana. Cada uno abre WhatsApp con el
+  mensaje ya escrito, así que **funciona sin configurar nada**. Los que ya se mandaron se quedan
+  visibles para saber por dónde va, y se pueden deshacer.
+- Si el negocio configuró CallMeBot o Meta, `/api/recordatorios` los manda solo. Está pensado para
+  Vercel Cron una vez al día y se protege con `CRON_SECRET`. Solo marca como enviado lo que salió de
+  verdad: si falla, queda pendiente en Turnos para mandarlo a mano.
+
 ### Instructivo y soporte
 
 - **Instructivo de bienvenida.** La primera vez que entra cada persona (dueño o empleado) aparece

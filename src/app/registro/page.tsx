@@ -7,8 +7,14 @@ import { AnimatedBackdrop } from "@/components/AnimatedBackdrop";
 
 export const dynamic = "force-dynamic";
 
-export default async function RegistroPage() {
+export default async function RegistroPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ email?: string; nombre?: string; google?: string }>;
+}) {
   if (await getCurrentUser()) redirect("/panel");
+  const params = await searchParams;
+  const desdeGoogle = params.google === "1";
 
   return (
     <>
@@ -23,12 +29,14 @@ export default async function RegistroPage() {
           </p>
           <h1 className="mt-3 font-display text-[22px] leading-none text-strong">Crear tu cuenta</h1>
           <p className="mt-2 text-sm text-muted">
-            Tu negocio queda separado del de los demas usuarios.
+            {desdeGoogle
+              ? "Tu correo de Google todavia no tiene un negocio. Cuentanos cual es y lo creamos."
+              : "Tu negocio queda separado del de los demas usuarios."}
           </p>
         </div>
 
         <div className="animate-entrar" style={{ animationDelay: "0.08s" }}>
-          <RegistroForm />
+          <RegistroForm defaultEmail={params.email} defaultName={params.nombre} />
         </div>
       </div>
     </>

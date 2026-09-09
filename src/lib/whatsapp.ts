@@ -217,3 +217,26 @@ export function confirmMessage(input: {
     "Te esperamos puntual.",
   ].join("\n");
 }
+
+/** Texto del recordatorio que se le manda al cliente el dia antes. */
+export function reminderMessage(input: {
+  businessName: string;
+  clientName: string;
+  prettyDay: string;
+  time: string;
+  serviceName: string;
+  staffName?: string | null;
+  address?: string | null;
+}): string {
+  return [
+    "Hola " + input.clientName + ", te recordamos tu turno en " + input.businessName + ".",
+    "",
+    "Dia: " + input.prettyDay,
+    "Hora: " + input.time,
+    "Servicio: " + input.serviceName,
+    ...(input.staffName ? ["Te atiende: " + input.staffName] : []),
+    ...(input.address ? ["Direccion: " + input.address] : []),
+    "",
+    "Si no puedes venir, avisanos y te lo cambiamos.",
+  ].join("\n");
+}

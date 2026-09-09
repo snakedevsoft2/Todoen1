@@ -13,7 +13,14 @@ const TYPES = [
   { value: "ROPA", label: "Tienda de ropa", hint: "Inventario por talla y catalogo" },
 ];
 
-export function RegistroForm() {
+export function RegistroForm({
+  defaultEmail,
+  defaultName,
+}: {
+  /** Vienen de Google cuando la persona entro por ahi y no tenia cuenta. */
+  defaultEmail?: string;
+  defaultName?: string;
+} = {}) {
   const [state, formAction] = useActionState(registerAction, undefined);
   const [type, setType] = useState("BARBERIA");
 
@@ -54,7 +61,7 @@ export function RegistroForm() {
       </Field>
 
       <Field label="Tu nombre">
-        <input className="input" name="ownerName" required placeholder="Luis Ramirez" />
+        <input className="input" name="ownerName" required defaultValue={defaultName} placeholder="Luis Ramirez" />
       </Field>
 
       <Field label="Telefono (opcional)">
@@ -69,6 +76,7 @@ export function RegistroForm() {
           required
           inputMode="email"
           autoComplete="email"
+          defaultValue={defaultEmail}
           placeholder="tucorreo@ejemplo.com"
         />
       </Field>

@@ -298,6 +298,11 @@ model Appointment {
   endTime     String // "HH:mm"
   status      AppointmentStatus @default(PENDIENTE)
   notes       String?
+  /// El cliente pidio que le recuerden su turno por WhatsApp. Lo elige el al
+  /// reservar: es su telefono, no el del negocio.
+  wantsReminder  Boolean   @default(true)
+  /// Cuando se le mando el recordatorio, para no mandarlo dos veces.
+  reminderSentAt DateTime?
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 

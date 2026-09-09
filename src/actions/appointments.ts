@@ -157,6 +157,8 @@ export async function bookAppointmentAction(
         startTime,
         endTime: endTimeFor(startTime, service?.durationMin ?? shop.slotMinutes),
         notes: notes || null,
+        // Lo eligio el cliente al reservar. Si no manda el campo, no quiere.
+        wantsReminder: formData.get("wantsReminder") === "on",
         status: "PENDIENTE",
       },
     });

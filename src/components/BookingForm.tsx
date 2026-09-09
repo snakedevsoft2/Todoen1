@@ -288,6 +288,23 @@ export function BookingForm({
         <input className="input" name="notes" placeholder="Ej: quiero degradado bajo" />
       </Field>
 
+      {/* Lo decide el cliente: es su telefono. Va marcado porque es lo que
+          casi todo el mundo quiere, pero se puede quitar. */}
+      <label className="flex items-start gap-2.5 rounded-xl border-2 border-edge bg-surface p-3 text-sm text-body">
+        <input
+          type="checkbox"
+          name="wantsReminder"
+          defaultChecked
+          className="mt-0.5 h-4 w-4 shrink-0 rounded border-line bg-panel accent-brand-600"
+        />
+        <span>
+          <span className="font-bold text-strong">Recuerdenme mi turno por WhatsApp</span>
+          <span className="mt-0.5 block text-xs text-muted">
+            Te escribimos el dia antes al numero que dejaste.
+          </span>
+        </span>
+      </label>
+
       <SubmitButton
         className="btn-primary w-full"
         pendingText="Separando tu turno..."

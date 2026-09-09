@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
+import { getCurrentSession } from "@/lib/auth";
 import { ITEM_NOUN, logoUrl, photoUrl } from "@/lib/nav";
 import { variantLabel } from "@/lib/variants";
 import { normalizePhone } from "@/lib/whatsapp";
@@ -48,6 +49,14 @@ export default async function PortafolioPage({
   const shop = await db.user.findUnique({ where: { slug } });
   if (!shop) notFound();
 
+  // El dueno puede ver su pagina completa aunque todavia no la haya lanzado:
+  // es la unica forma de revisar como queda de verdad antes de publicarla.
+  // Comparamos contra el negocio de la sesion, no contra el slug, para que
+  // nadie vea el borrador de otro.
+  const sesion = await getCurrentSession();
+  const esSuya = sesion?.user.id === shop.id;
+  const enBorrador = !shop.publicOpen && esSuya;
+
   const productos = await db.service.findMany({
     where: { userId: shop.id, active: true, showcase: true },
     orderBy: [{ category: "asc" }, { name: "asc" }],
@@ -82,7 +91,7 @@ export default async function PortafolioPage({
 
   const categories = [...new Set(items.map((i) => i.category))].sort();
 
-  if (!shop.publicOpen) {
+  if (!shop.publicOpen && !esSuya) {
     return (
       <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-4 text-center">
         <ThemeStyle brandColor={shop.brandColor} theme={shop.theme} />
@@ -106,6 +115,20 @@ export default async function PortafolioPage({
   return (
     <div className="min-h-dvh">
       <ThemeStyle brandColor={shop.brandColor} theme={shop.theme} />
+
+      {/* Aviso de borrador: solo lo ve el dueno, nunca un cliente. */}
+      {enBorrador && (
+        <div className="sticky top-0 z-40 border-b-2 border-edge bg-warn-soft px-4 py-2.5">
+          <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-x-3 gap-y-1 text-xs text-warn">
+            <Icon name="alert" className="h-4 w-4 shrink-0" />
+            <span className="font-bold">Asi se vera tu pagina.</span>
+            <span>Todavia no esta lanzada: solo tu la ves.</span>
+            <Link href="/panel/portafolio" className="link ml-auto font-bold">
+              Lanzarla
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* Portada */}
       <header className="border-b-2 border-edge">

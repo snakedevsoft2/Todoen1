@@ -62,13 +62,20 @@ export async function cookieJar() {
 
 type CookieJar = Awaited<ReturnType<typeof cookies>>;
 
-export function writeSessionCookie(jar: CookieJar, token: string) {
+/**
+ * Guarda la sesion en una cookie.
+ *
+ * `remember` no es un adorno: cuando esta apagado la cookie no lleva maxAge,
+ * asi que el navegador la borra al cerrarse. Es lo que hay que hacer en un
+ * computador prestado o en el del local, donde entra mas de una persona.
+ */
+export function writeSessionCookie(jar: CookieJar, token: string, remember = true) {
   jar.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: MAX_AGE_SECONDS,
+    ...(remember ? { maxAge: MAX_AGE_SECONDS } : {}),
   });
 }
 

@@ -33,9 +33,11 @@ export default async function PortafolioPage() {
         title="Mi portafolio"
         subtitle="La pagina que compartes con tus clientes por enlace o por QR"
       >
+        {/* Sin lanzar, la pagina completa la ve solo el dueno: sirve de
+            ensayo antes de compartir el enlace. */}
         <Link href={ruta} target="_blank" className="btn-primary btn-sm">
           <Icon name="link" className="h-4 w-4" />
-          Ver como lo ven
+          {user.publicOpen ? "Ver como lo ven" : "Ver como quedaria"}
         </Link>
       </PageHeader>
 

@@ -116,6 +116,9 @@ export async function loginAction(_prev: AuthState, formData: FormData): Promise
   const jar = await cookieJar();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
+  // Sin "Recordarme" la cookie muere al cerrar el navegador: es lo que se
+  // espera en el computador del local, donde entra mas de una persona.
+  const remember = formData.get("remember") === "on";
   if (!email || !password) return { error: "Escribe tu correo y contrasena." };
 
   const user = await db.user.findUnique({ where: { email } });
@@ -134,7 +137,8 @@ export async function loginAction(_prev: AuthState, formData: FormData): Promise
         type: user.businessType,
         sid: owner.id,
         role: owner.role,
-      })
+      }),
+      remember
     );
     redirect("/panel");
   }
@@ -156,7 +160,8 @@ export async function loginAction(_prev: AuthState, formData: FormData): Promise
       type: staff.user.businessType,
       sid: staff.id,
       role: staff.role,
-    })
+    }),
+    remember
   );
   redirect("/panel");
 }

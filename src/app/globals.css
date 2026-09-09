@@ -205,6 +205,74 @@ body {
 }
 
 /*
+  Pantalla de ingreso.
+
+  Tiene su propio juego de estilos, aparte del resto de la aplicacion. El panel
+  es de bloques marcados porque se usa a diario y de lejos; la puerta de entrada
+  busca lo contrario: sobria, con aire, bordes de un pixel y sombras que casi no
+  se ven. Por eso no reutiliza .card ni .input: los pisaria el estilo de bloque.
+*/
+@layer components {
+  .auth-page {
+    --auth-line: 226 232 240;
+    --auth-ink: 15 23 42;
+    --auth-muted: 100 116 139;
+    @apply min-h-dvh bg-white text-[rgb(var(--auth-ink))];
+  }
+
+  .auth-label {
+    @apply mb-1.5 block text-[13px] font-medium text-[rgb(var(--auth-ink))];
+  }
+
+  .auth-input {
+    @apply w-full rounded-[10px] border border-[rgb(var(--auth-line))] bg-white
+      px-3.5 py-3 text-[15px] text-[rgb(var(--auth-ink))]
+      shadow-[0_1px_2px_rgba(16,24,40,0.04)]
+      outline-none transition duration-150
+      placeholder:text-[rgb(var(--auth-muted))]
+      hover:border-slate-300
+      focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10;
+  }
+
+  .auth-input-error {
+    @apply border-rose-400 focus:border-rose-500 focus:ring-rose-500/10;
+  }
+
+  .auth-btn {
+    @apply inline-flex w-full items-center justify-center gap-2 rounded-[10px]
+      px-4 py-3 text-[15px] font-semibold leading-none
+      transition duration-150
+      focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-500/25
+      disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .auth-btn-primary {
+    @apply auth-btn bg-slate-900 text-white
+      shadow-[0_1px_2px_rgba(16,24,40,0.08)]
+      hover:bg-slate-800;
+  }
+
+  .auth-btn-outline {
+    @apply auth-btn border border-[rgb(var(--auth-line))] bg-white text-[rgb(var(--auth-ink))]
+      shadow-[0_1px_2px_rgba(16,24,40,0.04)]
+      hover:border-slate-300 hover:bg-slate-50;
+  }
+
+  .auth-link {
+    @apply font-medium text-brand-600 underline-offset-2 transition-colors
+      hover:text-brand-700 hover:underline
+      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40
+      focus-visible:ring-offset-2 rounded-sm;
+  }
+
+  /* Panel izquierdo: fragmento real del producto, no una ilustracion. */
+  .auth-tile {
+    @apply rounded-[10px] border border-[rgb(var(--auth-line))] bg-white p-3.5
+      shadow-[0_1px_2px_rgba(16,24,40,0.04)];
+  }
+}
+
+/*
   Fondo animado de las pantallas de entrada.
 
   Son bloques con borde que flotan despacio sobre una cuadricula que se

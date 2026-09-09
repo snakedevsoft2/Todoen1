@@ -1,65 +1,53 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { APP_NAME, APP_TAGLINE } from "@/lib/brand";
+import { googleEnabled } from "@/lib/google";
+import { APP_NAME } from "@/lib/brand";
 import { Logo } from "@/components/Logo";
 import { LoginForm } from "@/components/LoginForm";
-import { LoginShowcase } from "@/components/LoginShowcase";
-import { AnimatedBackdrop } from "@/components/AnimatedBackdrop";
+import { AuthVisual } from "@/components/AuthVisual";
 
 export const dynamic = "force-dynamic";
 
-export default async function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
   // Si ya hay sesion no tiene sentido mostrar el formulario.
   if (await getCurrentUser()) redirect("/panel");
+  const { error } = await searchParams;
 
   return (
-    <>
-      <AnimatedBackdrop />
+    <div className="auth-page lg:grid lg:grid-cols-[1fr_minmax(0,540px)] xl:grid-cols-[1.15fr_minmax(0,560px)]">
+      {/* Lado visual. En celular no aparece: ahi lo unico que importa es entrar. */}
+      <aside className="hidden border-r border-slate-200 bg-slate-50/60 lg:block">
+        <AuthVisual />
+      </aside>
 
-      <div className="min-h-dvh lg:grid lg:grid-cols-[1.05fr_minmax(0,470px)]">
-        {/* Panel de bienvenida: en pantalla grande, donde sobra el espacio. */}
-        <aside className="hidden border-r-2 border-edge lg:block">
-          <LoginShowcase />
-        </aside>
-
-        <main className="flex min-h-dvh flex-col justify-center px-4 py-10 sm:px-8">
-          <div className="mx-auto w-full max-w-md">
-            <div className="animate-entrar mb-6">
-              {/* El logo grande recibe a quien llega, y en celular hace de marca
-                  porque ahi no hay panel lateral. */}
-              <Logo className="h-20 w-20 drop-shadow-sm" />
-              <p className="mt-3 font-display text-[30px] leading-none tracking-tight text-strong lg:hidden">
-                {APP_NAME.slice(0, -1)}
-                <span className="text-brand-600">{APP_NAME.slice(-1)}</span>
-              </p>
-              <h1 className="mt-3 font-display text-[26px] leading-none tracking-tight text-strong lg:text-[32px]">
-                Entra a tu negocio
-              </h1>
-              <p className="mt-2 text-sm text-muted lg:hidden">{APP_TAGLINE}.</p>
-              <p className="mt-2 hidden text-sm text-muted lg:block">
-                Solo veras los datos de tu propio negocio.
-              </p>
-            </div>
-
-            <div className="animate-entrar" style={{ animationDelay: "0.08s" }}>
-              <LoginForm />
-            </div>
-
-            {/* En celular los negocios van debajo del formulario. */}
-            <div className="mt-8 lg:hidden">
-              <LoginShowcase compact />
-            </div>
-
-            <Link
-              href="/"
-              className="mt-6 block text-center text-xs font-semibold text-subtle hover:text-body"
-            >
-              Volver al inicio
-            </Link>
+      <main className="flex min-h-dvh flex-col justify-center px-5 py-10 sm:px-10 lg:px-14">
+        <div className="mx-auto w-full max-w-[400px]">
+          {/* La marca va aqui solo cuando no hay panel al lado. */}
+          <div className="mb-9 flex items-center gap-3 lg:hidden">
+            <Logo className="h-9 w-9" />
+            <span className="text-[19px] font-bold tracking-[-0.01em] text-slate-900">
+              {APP_NAME.slice(0, -1)}
+              <span className="text-brand-600">{APP_NAME.slice(-1)}</span>
+            </span>
           </div>
-        </main>
-      </div>
-    </>
+
+          <LoginForm googleReady={googleEnabled()} error={error} />
+        </div>
+
+        <div className="mx-auto mt-10 w-full max-w-[400px]">
+          <Link
+            href="/"
+            className="text-[13px] text-slate-400 transition-colors hover:text-slate-600"
+          >
+            Volver al inicio
+          </Link>
+        </div>
+      </main>
+    </div>
   );
 }
