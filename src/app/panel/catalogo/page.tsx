@@ -89,6 +89,7 @@ export default async function CatalogoPage() {
             categories={categories}
             showDuration={isBarber}
             clothing={isClothing}
+            photoLabel={"Foto (" + noun.singular + ")"}
             suppliers={suppliers}
             submitLabel={"Agregar " + noun.singular}
           />
@@ -244,6 +245,7 @@ export default async function CatalogoPage() {
                                 showDuration={isBarber}
                                 clothing={isClothing}
                                 photo={photo}
+                                photoLabel={"Foto (" + noun.singular + ")"}
                                 suppliers={suppliers}
                                 submitLabel="Guardar cambios"
                               />

@@ -31,7 +31,7 @@ export function supportLink({
   topic?: string;
 }): string {
   const lines = [
-    "Hola, necesito ayuda con TODO EN UNO.",
+    "Hola, necesito ayuda con Todoen1.",
     "",
     "Negocio: " + businessName + " (" + businessLabel + ")",
   ];

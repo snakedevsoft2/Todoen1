@@ -13,6 +13,7 @@ const COMMON_TAIL: NavItem[] = [
 
 /** Configuracion del negocio: solo el dueno. */
 const OWNER_TAIL: NavItem[] = [
+  { href: "/panel/portafolio", label: "Mi portafolio", icon: "image" },
   { href: "/panel/personalizar", label: "Personalizar", icon: "palette" },
   { href: "/panel/avisos", label: "Avisos", icon: "bell" },
 ];
@@ -71,19 +72,17 @@ export const ITEM_NOUN: Record<BusinessType, { singular: string; plural: string 
 };
 
 /**
- * Direccion publica que el negocio comparte con sus clientes.
- * La barberia comparte la agenda; la tienda de ropa, su catalogo.
+ * El portafolio publico. Lo tienen los cuatro negocios: es la pagina que se
+ * comparte por enlace o por QR para que el cliente vea y pida.
  */
-export function publicPath(type: BusinessType, slug: string): string | null {
-  if (type === "BARBERIA") return "/reservar/" + slug;
-  if (type === "ROPA") return "/catalogo/" + slug;
-  return null;
+export function publicPath(_type: BusinessType, slug: string): string {
+  return "/catalogo/" + slug;
 }
 
-export const PUBLIC_LINK_LABEL: Partial<Record<BusinessType, string>> = {
-  BARBERIA: "enlace de reservas",
-  ROPA: "enlace del catalogo",
-};
+/** La agenda por hora, que es solo de la barberia. */
+export function bookingPath(type: BusinessType, slug: string): string | null {
+  return type === "BARBERIA" ? "/reservar/" + slug : null;
+}
 
 /** Direccion publica del logo. Lleva version para poder cachearlo fuerte. */
 export function logoUrl(

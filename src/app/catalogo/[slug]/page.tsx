@@ -1,13 +1,15 @@
-import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
+import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
-import { money } from "@/lib/format";
-import { logoUrl, photoUrl } from "@/lib/nav";
+import { ITEM_NOUN, logoUrl, photoUrl } from "@/lib/nav";
 import { variantLabel } from "@/lib/variants";
 import { normalizePhone } from "@/lib/whatsapp";
+import { APP_NAME } from "@/lib/brand";
 import { Icon } from "@/components/Icon";
 import { ThemeStyle } from "@/components/ThemeStyle";
 import { BrandMark } from "@/components/BrandMark";
+import { PortfolioOrder, type PortfolioItem } from "@/components/PortfolioOrder";
 
 export const dynamic = "force-dynamic";
 
@@ -19,42 +21,34 @@ export async function generateMetadata({
   const { slug } = await params;
   const shop = await db.user.findUnique({
     where: { slug },
-    select: { businessName: true, tagline: true },
+    select: { businessName: true, tagline: true, publicHeadline: true, publicAbout: true },
   });
+  if (!shop) return { title: "Portafolio" };
   return {
-    title: shop ? "Catalogo - " + shop.businessName : "Catalogo",
-    description: shop?.tagline ?? undefined,
+    title: (shop.publicHeadline || shop.businessName) + " - Portafolio",
+    description: shop.publicAbout ?? shop.tagline ?? undefined,
   };
 }
 
 /**
- * Vitrina publica de la tienda de ropa.
+ * Portafolio publico del negocio.
  *
- * No es una tienda en linea: muestra lo que hay, con foto, precio y las tallas
- * que quedan, y manda al cliente a WhatsApp para cerrar la venta. Solo salen
- * las prendas activas que el negocio marco para el catalogo.
+ * Es la pagina que se comparte por enlace o por QR: quien la abre ve lo que el
+ * negocio vende, con foto y precio, arma su pedido y lo manda por WhatsApp. La
+ * tienen los cuatro tipos de negocio; la barberia ademas manda a su agenda para
+ * separar el turno.
  */
-export default async function CatalogoPublicoPage({
+export default async function PortafolioPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ cat?: string }>;
 }) {
   const { slug } = await params;
-  const query = await searchParams;
 
   const shop = await db.user.findUnique({ where: { slug } });
   if (!shop) notFound();
 
-  // La vitrina es de la tienda de ropa. La barberia tiene su agenda publica en
-  // la otra direccion, asi que la mandamos alla.
-  if (shop.businessType !== "ROPA") {
-    if (shop.businessType === "BARBERIA") redirect("/reservar/" + slug);
-    notFound();
-  }
-
-  const products = await db.service.findMany({
+  const productos = await db.service.findMany({
     where: { userId: shop.id, active: true, showcase: true },
     orderBy: [{ category: "asc" }, { name: "asc" }],
     include: {
@@ -65,157 +59,156 @@ export default async function CatalogoPublicoPage({
     },
   });
 
-  const categories = [...new Set(products.map((p) => p.category))].sort();
-  const category = query.cat && categories.includes(query.cat) ? query.cat : "";
-  const visible = category ? products.filter((p) => p.category === category) : products;
+  const noun = ITEM_NOUN[shop.businessType];
+  const esBarberia = shop.businessType === "BARBERIA";
+  const whatsapp = normalizePhone(shop.whatsappNumber) ?? normalizePhone(shop.phone);
+  const cover = shop.publicCover;
 
-  const phone = normalizePhone(shop.whatsappNumber) ?? normalizePhone(shop.phone);
+  const items: PortfolioItem[] = productos.map((p) => {
+    const conStock = p.variants.filter((v) => v.stock > 0);
+    return {
+      id: p.id,
+      name: p.name,
+      price: p.price,
+      category: p.category,
+      photo: photoUrl(p.id, p.image, p.updatedAt),
+      description: p.description,
+      brand: p.brand,
+      variants: conStock.map((v) => ({ id: v.id, label: variantLabel(v) })),
+      // Solo esta agotado si lleva inventario y no quedo ninguna talla.
+      soldOut: p.trackStock && p.variants.length > 0 && conStock.length === 0,
+    };
+  });
 
-  const orderLink = (productName: string) => {
-    if (!phone) return null;
-    const text =
-      "Hola " + shop.businessName + ", me interesa: " + productName + ". Sigue disponible?";
-    return "https://wa.me/" + phone + "?text=" + encodeURIComponent(text);
-  };
+  const categories = [...new Set(items.map((i) => i.category))].sort();
+
+  if (!shop.publicOpen) {
+    return (
+      <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-4 text-center">
+        <ThemeStyle brandColor={shop.brandColor} theme={shop.theme} />
+        <BrandMark
+          name={shop.businessName}
+          logo={logoUrl(shop.slug, shop.logo, shop.updatedAt)}
+          size="xl"
+          className="mx-auto"
+        />
+        <h1 className="mt-4 font-display text-2xl text-strong">{shop.businessName}</h1>
+        <p className="mt-2 text-sm text-muted">
+          El portafolio no esta disponible por ahora. Escribenos directamente.
+        </p>
+        {shop.phone && (
+          <p className="mt-2 text-sm font-semibold text-brand-600">{shop.phone}</p>
+        )}
+      </div>
+    );
+  }
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:py-12">
+    <div className="min-h-dvh">
       <ThemeStyle brandColor={shop.brandColor} theme={shop.theme} />
 
-      <header className="text-center">
-        <div className="mx-auto mb-3 flex justify-center">
-          <BrandMark
-            name={shop.businessName}
-            logo={logoUrl(shop.slug, shop.logo, shop.updatedAt)}
-            size="xl"
-          />
+      {/* Portada */}
+      <header className="border-b-2 border-edge">
+        {cover && (
+          <div className="relative h-40 w-full overflow-hidden border-b-2 border-edge sm:h-56">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={cover} alt="" className="h-full w-full object-cover" />
+          </div>
+        )}
+
+        <div className="mx-auto w-full max-w-5xl px-4 py-7 text-center">
+          <div className={"mx-auto flex justify-center " + (cover ? "-mt-16 sm:-mt-20" : "")}>
+            <BrandMark
+              name={shop.businessName}
+              logo={logoUrl(shop.slug, shop.logo, shop.updatedAt)}
+              size="xl"
+            />
+          </div>
+
+          <h1 className="mt-4 font-display text-[30px] leading-none tracking-tight text-strong sm:text-[40px]">
+            {shop.publicHeadline || shop.businessName}
+          </h1>
+
+          {shop.tagline && <p className="mt-2 text-sm font-semibold text-brand-600">{shop.tagline}</p>}
+
+          {shop.publicAbout && (
+            <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-body">
+              {shop.publicAbout}
+            </p>
+          )}
+
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-subtle">
+            {shop.address && (
+              <span>
+                <Icon name="home" className="mr-1 inline h-3 w-3" />
+                {shop.address}
+              </span>
+            )}
+            {shop.phone && (
+              <span>
+                <Icon name="phone" className="mr-1 inline h-3 w-3" />
+                {shop.phone}
+              </span>
+            )}
+          </div>
+
+          <div className="mt-5 flex flex-wrap justify-center gap-2">
+            {esBarberia && shop.bookingOpen && (
+              <Link href={"/reservar/" + slug} className="btn-primary">
+                <Icon name="calendar" className="h-4 w-4" />
+                Separar mi turno
+              </Link>
+            )}
+            {whatsapp && (
+              <a
+                href={
+                  "https://wa.me/" +
+                  whatsapp +
+                  "?text=" +
+                  encodeURIComponent("Hola " + shop.businessName + ", vi tu portafolio.")
+                }
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-ghost"
+              >
+                <Icon name="whatsapp" className="h-4 w-4" />
+                Escribirnos
+              </a>
+            )}
+          </div>
         </div>
-        <h1 className="text-2xl font-bold text-strong sm:text-3xl">{shop.businessName}</h1>
-        {shop.tagline && (
-          <p className="mx-auto mt-1 max-w-md text-sm text-brand-600">{shop.tagline}</p>
-        )}
-        {shop.address && <p className="mt-2 text-xs text-subtle">{shop.address}</p>}
-        {shop.phone && (
-          <p className="mt-1 text-xs text-subtle">
-            <Icon name="phone" className="mr-1 inline h-3 w-3" />
-            {shop.phone}
-          </p>
-        )}
       </header>
 
-      {categories.length > 1 && (
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
-          <a
-            href={"/catalogo/" + slug}
-            className={category === "" ? "btn-primary btn-sm" : "btn-ghost btn-sm"}
-          >
-            Todo
-          </a>
-          {categories.map((c) => (
-            <a
-              key={c}
-              href={"/catalogo/" + slug + "?cat=" + encodeURIComponent(c)}
-              className={category === c ? "btn-primary btn-sm" : "btn-ghost btn-sm"}
-            >
-              {c}
-            </a>
-          ))}
-        </div>
-      )}
+      <main className="mx-auto w-full max-w-5xl px-4 py-8">
+        {items.length === 0 ? (
+          <div className="card text-center">
+            <p className="font-display text-base text-body">
+              Todavia no hay {noun.plural} publicados.
+            </p>
+            <p className="mt-1 text-xs text-subtle">Vuelve pronto o escribenos directamente.</p>
+          </div>
+        ) : (
+          <PortfolioOrder
+            items={items}
+            categories={categories}
+            currency={shop.currency}
+            whatsapp={whatsapp}
+            businessName={shop.businessName}
+            showPrices={shop.publicShowPrices}
+            itemNoun={noun.plural}
+            orderNote={shop.publicOrderNote}
+          />
+        )}
+      </main>
 
-      {visible.length === 0 ? (
-        <div className="card mt-6 text-center">
-          <p className="text-sm font-medium text-body">Todavia no hay prendas publicadas.</p>
-          <p className="mt-1 text-xs text-subtle">Vuelve pronto o escribenos directamente.</p>
-        </div>
-      ) : (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {visible.map((product) => {
-            const photo = photoUrl(product.id, product.image, product.updatedAt);
-            const available = product.variants.filter((v) => v.stock > 0);
-            // Solo esta agotada si tiene tallas cargadas y ninguna quedo. Una
-            // prenda a la que todavia no le cargaron el inventario se muestra
-            // normal: no es que se haya acabado, es que aun no la contaron.
-            const soldOut =
-              product.trackStock && product.variants.length > 0 && available.length === 0;
-            const link = orderLink(product.name);
-
-            return (
-              <article
-                key={product.id}
-                className="card flex flex-col overflow-hidden p-0"
-              >
-                <div className="relative flex aspect-[4/5] items-center justify-center bg-panel">
-                  {photo ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={photo}
-                      alt={product.name}
-                      className="h-full w-full object-cover"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <Icon name="shirt" className="h-12 w-12 text-subtle" />
-                  )}
-                  {soldOut && (
-                    <span className="absolute right-2 top-2 rounded-full bg-bad px-2.5 py-1 text-[11px] font-bold text-white">
-                      Agotado
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex flex-1 flex-col p-3.5">
-                  <p className="text-sm font-bold text-strong">{product.name}</p>
-                  {product.brand && (
-                    <p className="mt-0.5 text-[11px] uppercase tracking-wide text-subtle">
-                      {product.brand}
-                    </p>
-                  )}
-                  {product.description && (
-                    <p className="mt-1 text-xs text-muted">{product.description}</p>
-                  )}
-
-                  <p className="mt-2 text-lg font-bold text-brand-600">
-                    {money(product.price, shop.currency)}
-                  </p>
-
-                  {product.trackStock && available.length > 0 && (
-                    <div className="mt-2">
-                      <p className="mb-1 text-[11px] text-subtle">Tallas disponibles</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {available.map((v) => (
-                          <span
-                            key={v.id}
-                            className="rounded-lg border-2 border-edge bg-surface px-2 py-1 text-[11px] font-semibold text-body"
-                          >
-                            {variantLabel(v)}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {link && !soldOut && (
-                    <a
-                      href={link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn-success btn-sm mt-3 w-full justify-center"
-                    >
-                      <Icon name="whatsapp" className="h-4 w-4" />
-                      Preguntar por esta
-                    </a>
-                  )}
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      )}
-
-      <p className="mt-8 text-center text-xs text-subtle">
-        Precios sujetos a cambio. Escribenos para confirmar disponibilidad.
-      </p>
+      <footer className="border-t-2 border-edge py-6 text-center">
+        <p className="text-[11px] text-subtle">
+          Precios sujetos a cambio. Escribenos para confirmar disponibilidad.
+        </p>
+        <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-subtle">
+          Hecho con {APP_NAME}
+        </p>
+      </footer>
     </div>
   );
 }

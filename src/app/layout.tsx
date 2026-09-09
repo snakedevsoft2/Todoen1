@@ -27,7 +27,7 @@ const archivoBlack = Archivo_Black({
 });
 
 export const metadata: Metadata = {
-  title: "TODO EN UNO - Ventas, turnos y caja",
+  title: "Todoen1 - Ventas, inventario y caja",
   description:
     "Aplicacion para barberias, restaurantes, comidas rapidas y tiendas de ropa: turnos, inventario, ventas del dia, gastos y cierre de caja.",
 };

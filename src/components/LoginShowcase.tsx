@@ -1,84 +1,86 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { APP_NAME, APP_TAGLINE, NEGOCIOS } from "@/lib/brand";
 import { Icon } from "./Icon";
 
 /**
- * Panel vivo del ingreso.
+ * Panel de bienvenida del ingreso.
  *
  * Va rotando entre los cuatro negocios para que quien llega entienda de una
- * para que sirve la aplicacion, sin tener que leer un parrafo. Si la persona
- * pidio menos animacion en su sistema, se queda quieto en el primero.
+ * si la aplicacion es para el, sin tener que leer un parrafo. Los cuatro
+ * aparecen siempre como items: el que esta sonando se resalta, pero los otros
+ * tres se siguen viendo, que es justo lo que hay que demostrar.
+ *
+ * Si la persona pidio menos animacion en su sistema, se queda quieto.
  */
-const NEGOCIOS = [
-  {
-    label: "Barberia",
-    icon: "scissors",
-    color: "#4f46e5",
-    titular: "Tus clientes separan el turno solos",
-    stat: "12 turnos hoy",
-    detalle: "9 atendidos - $ 340.000",
-    puntos: ["Agenda por barbero", "Enlace propio de reservas", "Aviso por WhatsApp"],
-  },
-  {
-    label: "Restaurante",
-    icon: "table",
-    color: "#b91c1c",
-    titular: "Una cuenta por cada mesa",
-    stat: "6 mesas abiertas",
-    detalle: "Sin cobrar $ 285.000",
-    puntos: ["Cuentas por mesa", "Cierra y se vuelve venta", "Cierre de caja del dia"],
-  },
-  {
-    label: "Comidas rapidas",
-    icon: "receipt",
-    color: "#ea580c",
-    titular: "Cobra en dos toques",
-    stat: "$ 780.000 hoy",
-    detalle: "38 ventas - ticket $ 20.500",
-    puntos: ["Venta al mostrador", "Gastos del dia", "Cuanto te queda limpio"],
-  },
-  {
-    label: "Tienda de ropa",
-    icon: "shirt",
-    color: "#0f766e",
-    titular: "Tu ropa contada por talla",
-    stat: "146 prendas",
-    detalle: "3 tallas por acabarse",
-    puntos: ["Inventario por talla y color", "Escanea el codigo de barras", "Catalogo con fotos"],
-  },
-];
-
-export function LoginShowcase() {
+export function LoginShowcase({ compact = false }: { compact?: boolean }) {
   const [i, setI] = useState(0);
+  const [auto, setAuto] = useState(true);
 
   useEffect(() => {
+    if (!auto) return;
     const quieto = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     if (quieto) return;
     const timer = setInterval(() => setI((v) => (v + 1) % NEGOCIOS.length), 4200);
     return () => clearInterval(timer);
-  }, []);
+  }, [auto]);
 
   const n = NEGOCIOS[i];
 
+  /** Al tocar un negocio dejamos de rotar: la persona esta mirando ese. */
+  function elegir(index: number) {
+    setI(index);
+    setAuto(false);
+  }
+
   return (
-    <div className="flex h-full flex-col justify-center gap-8 p-8 xl:p-10">
+    <div className={"flex h-full flex-col justify-center gap-7 " + (compact ? "" : "p-8 xl:p-10")}>
+      {!compact && (
+        <div className="animate-entrar">
+          <p className="font-display text-[38px] leading-none tracking-tight text-strong xl:text-[46px]">
+            {APP_NAME.slice(0, -1)}
+            <span className="text-brand-600">{APP_NAME.slice(-1)}</span>
+          </p>
+          <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted">
+            {APP_TAGLINE}. Un negocio, un usuario, datos separados: lo tuyo no lo ve nadie mas.
+          </p>
+        </div>
+      )}
+
+      {/* Los cuatro negocios, siempre visibles. El activo se pinta solido. */}
       <div>
-        <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-brand-600">
-          Todo en uno
+        <p className="mb-2.5 text-[10px] font-bold uppercase tracking-[0.16em] text-muted">
+          Sirve para
         </p>
-        <h2 className="mt-3 max-w-md font-display text-[34px] leading-[1.05] tracking-tight text-strong xl:text-[42px]">
-          Ventas, inventario y caja de tu negocio.
-        </h2>
-        <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted">
-          Un negocio, un usuario, datos separados. Lo tuyo no lo ve nadie mas.
-        </p>
+        <div className="flex flex-wrap gap-2">
+          {NEGOCIOS.map((negocio, index) => {
+            const activo = index === i;
+            return (
+              <button
+                key={negocio.key}
+                type="button"
+                onClick={() => elegir(index)}
+                className={
+                  "flex items-center gap-2 rounded-xl border-2 px-3 py-2 text-xs font-bold transition-all duration-200 " +
+                  (activo
+                    ? "border-edge text-white shadow-block"
+                    : "border-edge bg-panel text-body hover:bg-surface")
+                }
+                style={activo ? { backgroundColor: negocio.color } : undefined}
+              >
+                <Icon name={negocio.icon} className="h-4 w-4 shrink-0" />
+                {negocio.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Tarjeta que va cambiando de negocio */}
+      {/* Tarjeta del negocio que esta sonando */}
       <div
         key={i}
-        className="animate-rise rounded-2xl border-2 border-edge bg-panel p-5 shadow-block-lg"
+        className="animate-rise rounded-2xl border-2 bg-panel p-5 shadow-block-lg"
         style={{ borderColor: n.color }}
       >
         <div className="flex items-center gap-3">
@@ -113,22 +115,6 @@ export function LoginShowcase() {
             </li>
           ))}
         </ul>
-      </div>
-
-      <div className="flex items-center gap-2">
-        {NEGOCIOS.map((negocio, index) => (
-          <button
-            key={negocio.label}
-            type="button"
-            onClick={() => setI(index)}
-            aria-label={negocio.label}
-            className={
-              "h-2 rounded-full transition-all " +
-              (index === i ? "w-8" : "w-2 bg-line-strong hover:bg-muted")
-            }
-            style={index === i ? { backgroundColor: negocio.color } : undefined}
-          />
-        ))}
       </div>
     </div>
   );

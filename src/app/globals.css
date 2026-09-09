@@ -204,6 +204,71 @@ body {
   }
 }
 
+/*
+  Fondo animado de las pantallas de entrada.
+
+  Son bloques con borde que flotan despacio sobre una cuadricula que se
+  desplaza. Todo es CSS: no hay imagenes ni JavaScript, asi que no pesa nada y
+  no estorba al escribir la contrasena. Con "menos movimiento" activado se
+  queda quieto.
+*/
+@keyframes flotar {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(18px, -26px, 0) rotate(6deg);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+}
+
+@keyframes cuadricula {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 56px 56px;
+  }
+}
+
+.backdrop-grid {
+  background-image:
+    linear-gradient(to right, rgb(var(--edge) / 0.07) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(var(--edge) / 0.07) 1px, transparent 1px);
+  background-size: 56px 56px;
+  animation: cuadricula 18s linear infinite;
+}
+
+.backdrop-bloque {
+  animation: flotar 14s ease-in-out infinite;
+}
+
+/* Entrada de la marca y de la tarjeta del ingreso. */
+@keyframes entrar {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-entrar {
+  animation: entrar 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backdrop-grid,
+  .backdrop-bloque,
+  .animate-entrar {
+    animation: none;
+  }
+}
+
 /* Entrada suave de las tarjetas que cambian solas (el panel del ingreso). */
 @keyframes rise {
   from {

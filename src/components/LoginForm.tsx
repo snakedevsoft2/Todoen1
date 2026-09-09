@@ -84,7 +84,7 @@ export function LoginForm() {
             SUPPORT_WHATSAPP +
             "?text=" +
             encodeURIComponent(
-              "Hola, no puedo entrar a TODO EN UNO." +
+              "Hola, no puedo entrar a Todoen1." +
                 (email ? "\n\nMi correo es: " + email : "")
             )
           }

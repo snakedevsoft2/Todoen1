@@ -29,10 +29,8 @@ export default async function PanelLayout({ children }: { children: React.ReactN
         roleLabel={ROLE_LABEL[staff.role] ?? "Barbero"}
         staffColor={staff.color}
         logo={logoUrl(user.slug, user.logo, user.updatedAt)}
-        bookingUrl={publicPath(user.businessType, user.slug) ?? undefined}
-        bookingLabel={
-          user.businessType === "ROPA" ? "Ver catalogo publico" : "Ver pagina de reservas"
-        }
+        bookingUrl={publicPath(user.businessType, user.slug)}
+        bookingLabel="Ver mi portafolio"
         logout={logout}
       >
         {children}

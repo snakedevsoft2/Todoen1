@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { APP_NAME, APP_TAGLINE } from "@/lib/brand";
 import { Icon } from "@/components/Icon";
+import { AnimatedBackdrop } from "@/components/AnimatedBackdrop";
 
 const FEATURES = [
   {
@@ -42,13 +44,16 @@ const FEATURES = [
 export default function LandingPage() {
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-16">
-      <header className="flex flex-wrap items-center justify-between gap-4">
+      <AnimatedBackdrop />
+
+      <header className="animate-entrar flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-brand-600">
-            Todo en uno
+          <p className="font-display text-[34px] leading-none tracking-tight text-strong sm:text-[42px]">
+            {APP_NAME.slice(0, -1)}
+            <span className="text-brand-600">{APP_NAME.slice(-1)}</span>
           </p>
-          <h1 className="mt-1 text-2xl font-bold text-strong sm:text-3xl">
-            Ventas, turnos y caja en una sola app
+          <h1 className="mt-2 text-lg font-semibold text-body sm:text-xl">
+            {APP_TAGLINE}, en una sola app
           </h1>
         </div>
         <div className="flex gap-2">

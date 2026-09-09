@@ -305,6 +305,23 @@ intenta entrar a Barberos, Personalizar o Avisos, agenda en columnas con los dos
 reserva del cliente eligiendo barbero, cierre de venta a nombre del barbero, paso de un turno a
 otro barbero con su venta incluida, y la tabla de medición por barbero en Reportes.
 
+### Portafolio público (los cuatro negocios)
+
+Cada negocio tiene su propia página en `/catalogo/<tu-negocio>`, que se comparte **por enlace o por
+QR**. Es lo mismo para la barbería que para la tienda de ropa: cambia lo que se muestra, no la idea.
+
+- **Fotos para todo.** El corte, el plato y la prenda entran igual: cada item lleva su foto, y se
+  marca con *Mostrar en mi portafolio*.
+- **El cliente arma su pedido** ahí mismo — toca lo que quiere, ajusta cantidades, pone su nombre y
+  una nota, y el pedido sale **escrito por WhatsApp**. No se cobra en la página: el negocio confirma
+  y cobra como siempre lo ha hecho.
+- **Editable** desde `/panel/portafolio`: portada, titular, presentación, nota del pedido, mostrar u
+  ocultar los precios, y un interruptor para publicarlo o apagarlo.
+- **Código QR** generado en el servidor como SVG (`/qr/<tu-negocio>`), para pegar en la vitrina o el
+  mostrador. Se imprime del tamaño que sea sin pixelarse. Sale de la misma librería que ya lee los
+  códigos de barras, así que no agrega peso.
+- La **barbería** además muestra un botón a su agenda, que sigue siendo solo suya.
+
 ### Instructivo y soporte
 
 - **Instructivo de bienvenida.** La primera vez que entra cada persona (dueño o empleado) aparece

@@ -77,7 +77,7 @@ export default async function AjustesPage() {
 
         {publicLink && (
           <Card
-            title={isClothing ? "Tu catalogo publico" : "Tu pagina de reservas"}
+            title="Tu portafolio publico"
             subtitle="El enlace que le mandas a los clientes"
           >
             <p className="break-all rounded-xl border-2 border-edge bg-surface px-3 py-2.5 text-sm text-body">
@@ -91,9 +91,9 @@ export default async function AjustesPage() {
               </Link>
             </div>
             <p className="mt-3 text-xs text-subtle">
-              {isClothing
-                ? "El cliente ve las prendas que marcaste para el catalogo, con su foto, su precio y las tallas que quedan."
-                : "El cliente solo ve tus servicios marcados como reservables y las horas libres."}
+              El cliente ve lo que marcaste para tu portafolio, con foto y precio, y arma su pedido.
+              Lo editas en <strong className="text-body">Mi portafolio</strong>, donde tambien esta
+              tu codigo QR.
             </p>
           </Card>
         )}

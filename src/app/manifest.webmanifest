@@ -1,7 +1,7 @@
 {
-  "name": "TODO EN UNO",
-  "short_name": "Todo en uno",
-  "description": "Ventas, turnos y caja para barberia, restaurante y comidas rapidas",
+  "name": "Todoen1",
+  "short_name": "Todoen1",
+  "description": "Ventas, inventario y caja para barberia, restaurante, comidas rapidas y tiendas de ropa",
   "start_url": "/panel",
   "display": "standalone",
   "background_color": "#0b1120",

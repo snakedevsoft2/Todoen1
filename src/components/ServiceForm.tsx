@@ -30,6 +30,7 @@ export function ServiceForm({
   /** Tienda de ropa: foto, marca, inventario por talla y catalogo publico. */
   clothing = false,
   photo,
+  photoLabel = "Foto",
   suppliers = [],
 }: {
   service?: EditableService;
@@ -38,6 +39,8 @@ export function ServiceForm({
   submitLabel: string;
   clothing?: boolean;
   photo?: string | null;
+  /** Como se llama la foto en este negocio: del corte, del plato, de la prenda. */
+  photoLabel?: string;
   /** A quien se le puede comprar esta prenda. Vacio si no hay proveedores. */
   suppliers?: { id: string; name: string }[];
 }) {
@@ -49,7 +52,13 @@ export function ServiceForm({
       {state?.error && <Alert kind="error">{state.error}</Alert>}
       {state?.ok && <Alert kind="ok">{state.ok}</Alert>}
 
-      {clothing && <PhotoField currentUrl={photo} />}
+      {/* La foto es de todos: el corte, el plato y la prenda entran igual al
+          portafolio publico. */}
+      <PhotoField
+        currentUrl={photo}
+        label={photoLabel}
+        hint="Se ve en tu portafolio publico y al vender."
+      />
 
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Nombre" className="sm:col-span-2">
@@ -151,27 +160,25 @@ export function ServiceForm({
 
       <div className="flex flex-wrap gap-4">
         {clothing && (
-          <>
-            <label className="flex items-center gap-2 text-sm text-body">
-              <input
-                type="checkbox"
-                name="trackStock"
-                defaultChecked={service ? service.trackStock !== false : true}
-                className="h-4 w-4 rounded border-line bg-panel accent-brand-600"
-              />
-              Llevar inventario por talla
-            </label>
-            <label className="flex items-center gap-2 text-sm text-body">
-              <input
-                type="checkbox"
-                name="showcase"
-                defaultChecked={service ? service.showcase !== false : true}
-                className="h-4 w-4 rounded border-line bg-panel accent-brand-600"
-              />
-              Mostrar en el catalogo publico
-            </label>
-          </>
+          <label className="flex items-center gap-2 text-sm text-body">
+            <input
+              type="checkbox"
+              name="trackStock"
+              defaultChecked={service ? service.trackStock !== false : true}
+              className="h-4 w-4 rounded border-line bg-panel accent-brand-600"
+            />
+            Llevar inventario por talla
+          </label>
         )}
+        <label className="flex items-center gap-2 text-sm text-body">
+          <input
+            type="checkbox"
+            name="showcase"
+            defaultChecked={service ? service.showcase !== false : true}
+            className="h-4 w-4 rounded border-line bg-panel accent-brand-600"
+          />
+          Mostrar en mi portafolio
+        </label>
         {showDuration && (
           <label className="flex items-center gap-2 text-sm text-body">
             <input

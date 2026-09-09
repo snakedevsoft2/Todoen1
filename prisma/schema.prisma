@@ -78,6 +78,20 @@ model User {
   theme      String  @default("claro") // "claro" u "oscuro"
   tagline    String? // frase corta para la pagina publica
 
+  // Portafolio publico: la pagina que el negocio comparte por enlace o QR.
+  /// Si esta apagado, la pagina publica responde que no esta disponible.
+  publicOpen       Boolean @default(true)
+  /// Titular grande de la pagina. Si esta vacio usamos el nombre del negocio.
+  publicHeadline   String?
+  /// Parrafo de presentacion.
+  publicAbout      String?
+  /// Foto de portada, guardada como data URL igual que el logo.
+  publicCover      String?
+  /// Nota que sale junto al boton de pedir (horarios, domicilios, condiciones).
+  publicOrderNote  String?
+  /// Si se muestran los precios. Hay negocios que prefieren no publicarlos.
+  publicShowPrices Boolean @default(true)
+
   // Avisos por WhatsApp cuando un cliente separa turno
   whatsappNumber   String? // numero que recibe los avisos, solo digitos con indicativo
   whatsappProvider String  @default("enlace") // "enlace", "callmebot" o "meta"
