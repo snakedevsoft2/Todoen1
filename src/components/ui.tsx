@@ -16,9 +16,9 @@ export function Card({
   return (
     <section className={"card " + className}>
       {(title || action) && (
-        <header className="mb-4 flex flex-wrap items-start justify-between gap-3 border-b-2 border-edge pb-3">
+        <header className="mb-4 flex flex-wrap items-start justify-between gap-3 border-b border-line pb-3">
           <div>
-            {title && <h2 className="font-display text-[17px] leading-tight text-strong">{title}</h2>}
+            {title && <h2 className="font-display text-[16px] leading-tight text-strong">{title}</h2>}
             {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
           </div>
           {action}
@@ -40,28 +40,27 @@ export function Stat({
   hint?: string;
   tone?: "default" | "good" | "bad" | "brand" | "amber";
 }) {
+  /*
+    El color de una cifra tiene que significar algo: verde lo que entra, rojo
+    lo que sale, ambar lo que hay que mirar. El resto va en tinta normal.
+    "brand" existia para pintar de azul cualquier cifra y con cuatro tarjetas
+    seguidas la pantalla parecia un semaforo, asi que ahora es neutra.
+  */
   const tones: Record<string, string> = {
     default: "text-strong",
     good: "text-good",
     bad: "text-bad",
-    brand: "text-brand-600",
+    brand: "text-strong",
     amber: "text-warn",
   };
-  // La cifra es lo que la persona viene a ver: va en la negra, grande y
-  // tabular, con una raya del color del tono debajo para leerla de lejos.
-  const rules: Record<string, string> = {
-    default: "bg-edge",
-    good: "bg-good",
-    bad: "bg-bad",
-    brand: "bg-brand-600",
-    amber: "bg-warn",
-  };
+  // La cifra sigue siendo lo que la persona viene a ver, y por eso es lo unico
+  // grande de la caja. La raya de color que iba debajo se fue: con cuatro
+  // tarjetas seguidas eran cuatro subrayados peleando entre si.
   return (
     <div className="card-tight">
-      <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted">{label}</p>
-      <p className={"mt-2 stat-value " + tones[tone]}>{value}</p>
-      <span className={"mt-2 block h-[3px] w-8 rounded-full " + rules[tone]} />
-      {hint && <p className="mt-2 text-xs font-medium text-subtle">{hint}</p>}
+      <p className="eyebrow">{label}</p>
+      <p className={"mt-2.5 stat-value " + tones[tone]}>{value}</p>
+      {hint && <p className="mt-1.5 text-xs text-subtle">{hint}</p>}
     </div>
   );
 }
@@ -87,11 +86,11 @@ export function Field({
 }
 
 const BADGE_TONES: Record<string, string> = {
-  slate: "border-edge bg-surface text-strong",
-  blue: "border-edge bg-brand-100 text-brand-800",
-  green: "border-edge bg-good-soft text-good",
-  amber: "border-edge bg-warn-soft text-warn",
-  red: "border-edge bg-bad-soft text-bad",
+  slate: "border-line bg-surface text-muted",
+  blue: "border-brand-200 bg-brand-50 text-brand-700",
+  green: "border-good-line bg-good-soft text-good",
+  amber: "border-warn-line bg-warn-soft text-warn",
+  red: "border-bad-line bg-bad-soft text-bad",
 };
 
 export function Badge({
@@ -106,7 +105,7 @@ export function Badge({
 
 export function Empty({ title, hint }: { title: string; hint?: string }) {
   return (
-    <div className="rounded-xl border-2 border-dashed border-line-strong px-4 py-10 text-center">
+    <div className="rounded-xl border border-dashed border-line-strong px-4 py-10 text-center">
       <p className="font-display text-sm text-body">{title}</p>
       {hint && <p className="mx-auto mt-1.5 max-w-sm text-xs text-subtle">{hint}</p>}
     </div>
@@ -115,14 +114,12 @@ export function Empty({ title, hint }: { title: string; hint?: string }) {
 
 export function Alert({ kind, children }: { kind: "error" | "ok" | "info"; children: ReactNode }) {
   const styles = {
-    error: "bg-bad-soft text-bad",
-    ok: "bg-good-soft text-good",
-    info: "bg-brand-50 text-brand-800",
+    error: "border-bad-line bg-bad-soft text-bad",
+    ok: "border-good-line bg-good-soft text-good",
+    info: "border-brand-200 bg-brand-50 text-brand-800",
   }[kind];
   return (
-    <p className={"rounded-xl border-2 border-edge px-3 py-2.5 text-sm font-semibold " + styles}>
-      {children}
-    </p>
+    <p className={"rounded-lg border px-3.5 py-2.5 text-sm font-medium " + styles}>{children}</p>
   );
 }
 
@@ -136,9 +133,9 @@ export function PageHeader({
   children?: ReactNode;
 }) {
   return (
-    <header className="mb-5 flex flex-wrap items-end justify-between gap-3 border-b-2 border-edge pb-4">
+    <header className="mb-5 flex flex-wrap items-end justify-between gap-3 border-b border-line pb-4">
       <div>
-        <h1 className="font-display text-[26px] leading-none tracking-tight text-strong sm:text-[32px]">
+        <h1 className="font-display text-[22px] leading-tight tracking-tight text-strong sm:text-[26px]">
           {title}
         </h1>
         {subtitle && <p className="mt-2 text-sm font-medium text-muted">{subtitle}</p>}

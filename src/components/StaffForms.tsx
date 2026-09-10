@@ -65,7 +65,7 @@ function ColorPicker({ name, defaultValue }: { name: string; defaultValue: strin
             onClick={() => setColor(c)}
             aria-label={"Color " + c}
             className={
-              "h-7 w-7 rounded-full border-2 transition " +
+              "h-7 w-7 rounded-full border transition " +
               (color === c ? "border-strong scale-110" : "border-transparent")
             }
             style={{ backgroundColor: c }}
@@ -130,7 +130,7 @@ export function NewStaffForm({ businessType = "BARBERIA" }: { businessType?: str
         </label>
       )}
 
-      <div className="rounded-xl border-2 border-edge bg-surface p-3">
+      <div className="rounded-xl border border-line bg-surface p-3">
         <label className="flex items-center gap-2 text-sm font-semibold text-strong">
           <input
             type="checkbox"
@@ -367,7 +367,7 @@ export function StaffCard({
       </div>
 
       {tab === "datos" && (
-        <form action={updateStaffAction} className="mt-3 space-y-3 rounded-xl border-2 border-edge bg-panel p-3">
+        <form action={updateStaffAction} className="mt-3 space-y-3 rounded-xl border border-line bg-panel p-3">
           <input type="hidden" name="id" value={staff.id} />
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Nombre">
@@ -414,7 +414,7 @@ export function StaffCard({
       )}
 
       {tab === "acceso" && !isOwner && (
-        <div className="mt-3 rounded-xl border-2 border-edge bg-panel p-3">
+        <div className="mt-3 rounded-xl border border-line bg-panel p-3">
           <AccessForm staff={staff} />
         </div>
       )}

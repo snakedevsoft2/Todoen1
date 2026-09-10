@@ -48,25 +48,36 @@ export function Shell({
     href === "/panel" ? pathname === "/panel" : pathname.startsWith(href);
 
   /*
-    La pagina donde estas es un bloque solido con su borde y su sombra, no un
-    fondo suave: se ve de un vistazo desde el otro lado del mostrador.
+    El apartado donde estas se marca con fondo tenue, el texto y el icono en el
+    color de la marca, y una barrita a la izquierda. Antes era un bloque azul
+    solido con sombra: se veia desde el otro lado del mostrador, pero con doce
+    apartados el menu terminaba gritando mas fuerte que el contenido.
   */
   const navList = (
-    <nav className="space-y-1.5">
+    <nav className="space-y-0.5">
       {nav.map((item) => {
         const active = isActive(item.href);
         return (
           <Link
             key={item.href}
             href={item.href}
+            aria-current={active ? "page" : undefined}
             className={
-              "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition-[transform,box-shadow] duration-75 " +
+              "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors duration-150 " +
               (active
-                ? "border-2 border-edge bg-brand-600 text-on-brand shadow-block"
-                : "border-2 border-transparent text-muted hover:border-edge hover:bg-surface hover:text-strong")
+                ? "bg-brand-50 font-semibold text-brand-700"
+                : "font-medium text-muted hover:bg-surface hover:text-strong")
             }
           >
-            <Icon name={item.icon} className="h-[18px] w-[18px] shrink-0" />
+            {active && (
+              <span className="absolute inset-y-1.5 left-0 w-[3px] rounded-full bg-brand-600" />
+            )}
+            <Icon
+              name={item.icon}
+              className={
+                "h-[18px] w-[18px] shrink-0 " + (active ? "text-brand-600" : "text-subtle")
+              }
+            />
             <span className="truncate">{item.label}</span>
           </Link>
         );
@@ -81,7 +92,7 @@ export function Shell({
         <p className="truncate font-display text-[15px] leading-tight text-strong">
           {businessName}
         </p>
-        <p className="truncate text-[10px] font-bold uppercase tracking-[0.12em] text-brand-600">
+        <p className="truncate text-[11px] font-medium uppercase tracking-[0.04em] text-brand-600">
           {businessLabel}
         </p>
       </div>
@@ -127,7 +138,7 @@ export function Shell({
   return (
     <div className="min-h-dvh lg:flex">
       {/* Barra superior, solo en celular */}
-      <header className="sticky top-0 z-30 flex items-center gap-3 border-b-2 border-edge bg-panel px-4 py-2.5 lg:hidden">
+      <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-line bg-panel px-4 py-2.5 lg:hidden">
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -140,7 +151,7 @@ export function Shell({
           <BrandMark name={businessName} logo={logo} size="sm" />
           <div className="min-w-0">
             <p className="truncate font-display text-sm leading-tight text-strong">{businessName}</p>
-            <p className="truncate text-[10px] font-bold uppercase tracking-[0.12em] text-brand-600">
+            <p className="truncate text-[11px] font-medium uppercase tracking-[0.04em] text-brand-600">
               {businessLabel}
             </p>
           </div>
@@ -148,10 +159,10 @@ export function Shell({
       </header>
 
       {/* Menu lateral en pantallas grandes */}
-      <aside className="hidden w-[264px] shrink-0 border-r-2 border-edge bg-panel lg:sticky lg:top-0 lg:flex lg:h-dvh lg:flex-col">
-        <div className="border-b-2 border-edge px-4 py-4">{brand}</div>
+      <aside className="hidden w-[264px] shrink-0 border-r border-line bg-panel lg:sticky lg:top-0 lg:flex lg:h-dvh lg:flex-col">
+        <div className="border-b border-line px-4 py-4">{brand}</div>
         <div className="flex-1 overflow-y-auto px-3 py-4">{navList}</div>
-        <div className="border-t-2 border-edge px-3 py-3">{footerLinks}</div>
+        <div className="border-t border-line px-3 py-3">{footerLinks}</div>
       </aside>
 
       {/* Menu deslizante en celular */}
@@ -163,8 +174,8 @@ export function Shell({
             className="absolute inset-0 bg-black/45 backdrop-blur-sm"
             onClick={() => setOpen(false)}
           />
-          <div className="absolute left-0 top-0 flex h-full w-[84%] max-w-xs flex-col border-r-2 border-edge bg-panel">
-            <div className="flex items-start justify-between gap-2 border-b-2 border-edge px-4 py-4">
+          <div className="absolute left-0 top-0 flex h-full w-[84%] max-w-xs flex-col border-r border-line bg-panel">
+            <div className="flex items-start justify-between gap-2 border-b border-line px-4 py-4">
               <div className="min-w-0">{brand}</div>
               <button
                 type="button"
@@ -176,7 +187,7 @@ export function Shell({
               </button>
             </div>
             <div className="flex-1 overflow-y-auto px-3 py-4">{navList}</div>
-            <div className="border-t-2 border-edge px-3 py-3">{footerLinks}</div>
+            <div className="border-t border-line px-3 py-3">{footerLinks}</div>
           </div>
         </div>
       )}
@@ -186,7 +197,7 @@ export function Shell({
       </main>
 
       {/* Accesos rapidos abajo, en celular */}
-      <nav className="fixed bottom-0 left-0 right-0 z-30 flex items-stretch justify-around border-t-2 border-edge bg-panel pb-[env(safe-area-inset-bottom)] lg:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-30 flex items-stretch justify-around border-t border-line bg-panel pb-[env(safe-area-inset-bottom)] lg:hidden">
         {nav.slice(0, 5).map((item) => {
           const active = isActive(item.href);
           return (
@@ -194,16 +205,16 @@ export function Shell({
               key={item.href}
               href={item.href}
               className={
-                "flex flex-1 flex-col items-center gap-1 px-1 pb-2 pt-2.5 text-[10px] font-bold uppercase tracking-wide transition " +
+                "flex flex-1 flex-col items-center gap-1 px-1 pb-2 pt-2.5 text-[11px] font-medium uppercase tracking-wide transition " +
                 (active ? "text-strong" : "text-muted")
               }
             >
               {/* El icono activo va en un cuadro solido con el color del negocio. */}
               <span
                 className={
-                  "flex h-7 w-9 items-center justify-center rounded-lg border-2 transition " +
+                  "flex h-7 w-9 items-center justify-center rounded-lg border transition " +
                   (active
-                    ? "border-edge bg-brand-600 text-on-brand"
+                    ? "border-transparent bg-brand-600 text-on-brand"
                     : "border-transparent")
                 }
               >

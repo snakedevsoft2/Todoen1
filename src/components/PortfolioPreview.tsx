@@ -64,14 +64,14 @@ export function PortfolioPreview({
   return (
     <div className="mx-auto w-full max-w-[300px]">
       {/* Marco de celular */}
-      <div className="overflow-hidden rounded-[26px] border-[6px] border-edge bg-panel shadow-block-lg">
+      <div className="overflow-hidden rounded-[26px] border-[6px] border-strong bg-panel shadow-soft-lg">
         <div className="h-5 bg-edge" />
 
         <div className="max-h-[520px] overflow-y-auto">
           {!open ? (
             <div className="flex flex-col items-center justify-center px-5 py-16 text-center">
               <span
-                className="flex h-14 w-14 items-center justify-center rounded-xl border-2 border-edge font-display text-white"
+                className="flex h-14 w-14 items-center justify-center rounded-xl border border-line font-display text-white"
                 style={{ backgroundColor: brandColor }}
               >
                 {iniciales || "N"}
@@ -85,7 +85,7 @@ export function PortfolioPreview({
             <>
               {cover && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={cover} alt="" className="h-24 w-full border-b-2 border-edge object-cover" />
+                <img src={cover} alt="" className="h-24 w-full border-b border-line object-cover" />
               )}
 
               <div className={"px-4 pb-4 text-center " + (cover ? "pt-0" : "pt-5")}>
@@ -95,11 +95,11 @@ export function PortfolioPreview({
                     <img
                       src={logo}
                       alt=""
-                      className="h-14 w-14 rounded-xl border-2 border-edge bg-panel object-contain p-1"
+                      className="h-14 w-14 rounded-xl border border-line bg-panel object-contain p-1"
                     />
                   ) : (
                     <span
-                      className="flex h-14 w-14 items-center justify-center rounded-xl border-2 border-edge font-display text-white"
+                      className="flex h-14 w-14 items-center justify-center rounded-xl border border-line font-display text-white"
                       style={{ backgroundColor: brandColor }}
                     >
                       {iniciales || "N"}
@@ -130,19 +130,19 @@ export function PortfolioPreview({
                 <div className="mt-3 flex flex-wrap justify-center gap-1.5">
                   {showBooking && (
                     <span
-                      className="rounded-lg border-2 border-edge px-2.5 py-1 text-[9px] font-bold text-white"
+                      className="rounded-lg border border-line px-2.5 py-1 text-[9px] font-bold text-white"
                       style={{ backgroundColor: brandColor }}
                     >
                       Separar mi turno
                     </span>
                   )}
-                  <span className="rounded-lg border-2 border-edge bg-panel px-2.5 py-1 text-[9px] font-bold text-strong">
+                  <span className="rounded-lg border border-line bg-panel px-2.5 py-1 text-[9px] font-bold text-strong">
                     Escribirnos
                   </span>
                 </div>
               </div>
 
-              <div className="border-t-2 border-edge p-3">
+              <div className="border-t border-line p-3">
                 {items.length === 0 ? (
                   <p className="py-6 text-center text-[10px] text-subtle">
                     Marca tus items con <strong>Mostrar en mi portafolio</strong> para que salgan
@@ -153,11 +153,11 @@ export function PortfolioPreview({
                     {items.map((item) => (
                       <div
                         key={item.id}
-                        className="overflow-hidden rounded-lg border-2 border-edge bg-panel"
+                        className="overflow-hidden rounded-lg border border-line bg-panel"
                       >
                         <div
                           className={
-                            "flex items-center justify-center border-b-2 border-edge bg-surface " +
+                            "flex items-center justify-center border-b border-line bg-surface " +
                             (item.photo ? "aspect-[4/5]" : "h-8")
                           }
                         >

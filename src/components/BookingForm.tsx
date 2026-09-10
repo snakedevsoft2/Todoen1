@@ -145,10 +145,10 @@ export function BookingForm({
               type="button"
               onClick={() => chooseStaff("")}
               className={
-                "rounded-xl border-2 px-3 py-2.5 text-left transition " +
+                "rounded-xl border px-3 py-2.5 text-left transition " +
                 (staffId === ""
-                  ? "border-edge bg-brand-600 text-on-brand shadow-block"
-                  : "border-edge bg-panel hover:bg-surface")
+                  ? "border-transparent bg-brand-600 text-on-brand shadow-soft"
+                  : "border-line bg-panel hover:bg-surface")
               }
             >
               <span className="block text-sm font-bold">El que este libre</span>
@@ -160,10 +160,10 @@ export function BookingForm({
                 type="button"
                 onClick={() => chooseStaff(person.id)}
                 className={
-                  "flex items-center gap-2 rounded-xl border-2 px-3 py-2.5 text-left transition " +
+                  "flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left transition " +
                   (staffId === person.id
-                    ? "border-edge bg-brand-600 text-on-brand shadow-block"
-                    : "border-edge bg-panel hover:bg-surface")
+                    ? "border-transparent bg-brand-600 text-on-brand shadow-soft"
+                    : "border-line bg-panel hover:bg-surface")
                 }
               >
                 <span
@@ -208,12 +208,12 @@ export function BookingForm({
                   disabled={isTaken}
                   onClick={() => setSlot(s)}
                   className={
-                    "rounded-lg border-2 px-2 py-2.5 text-xs font-bold transition " +
+                    "rounded-lg border px-2 py-2.5 text-xs font-bold transition " +
                     (isTaken
                       ? "cursor-not-allowed border-line bg-surface text-subtle line-through"
                       : selected
-                        ? "border-edge bg-brand-600 text-on-brand shadow-[2px_2px_0_0_rgb(var(--edge))]"
-                        : "border-edge bg-panel text-body hover:bg-surface")
+                        ? "border-transparent bg-brand-600 text-on-brand shadow-soft"
+                        : "border-line bg-panel text-body hover:bg-surface")
                   }
                 >
                   {pretty12h(s)}
@@ -241,10 +241,10 @@ export function BookingForm({
             <label
               key={s.id}
               className={
-                "flex cursor-pointer items-center justify-between gap-3 rounded-xl border-2 px-3 py-2.5 transition " +
+                "flex cursor-pointer items-center justify-between gap-3 rounded-xl border px-3 py-2.5 transition " +
                 (serviceId === s.id
-                  ? "border-edge bg-brand-600 text-on-brand shadow-block"
-                  : "border-edge bg-panel hover:bg-surface")
+                  ? "border-transparent bg-brand-600 text-on-brand shadow-soft"
+                  : "border-line bg-panel hover:bg-surface")
               }
             >
               <span className="min-w-0">
@@ -290,7 +290,7 @@ export function BookingForm({
 
       {/* Lo decide el cliente: es su telefono. Va marcado porque es lo que
           casi todo el mundo quiere, pero se puede quitar. */}
-      <label className="flex items-start gap-2.5 rounded-xl border-2 border-edge bg-surface p-3 text-sm text-body">
+      <label className="flex items-start gap-2.5 rounded-xl border border-line bg-surface p-3 text-sm text-body">
         <input
           type="checkbox"
           name="wantsReminder"

@@ -71,7 +71,7 @@ export function VariantsPanel({
       </div>
 
       {variants.length > 0 && (
-        <ul className="divide-y divide-line rounded-xl border-2 border-edge bg-surface px-3">
+        <ul className="divide-y divide-line rounded-xl border border-line bg-surface px-3">
           {variants.map((v) => (
             <VariantLine key={v.id} serviceId={serviceId} variant={v} currency={currency} />
           ))}
@@ -146,7 +146,7 @@ function VariantLine({
       </div>
 
       {open && (
-        <div className="mt-2 rounded-xl border-2 border-edge bg-panel p-3">
+        <div className="mt-2 rounded-xl border border-line bg-panel p-3">
           <SingleForm serviceId={serviceId} variant={variant} onDone={() => setOpen(false)} />
         </div>
       )}
@@ -159,7 +159,7 @@ function BulkForm({ serviceId }: { serviceId: string }) {
   const [sizes, setSizes] = useState("S, M, L, XL");
 
   return (
-    <form action={formAction} className="space-y-3 rounded-xl border-2 border-edge bg-panel p-3">
+    <form action={formAction} className="space-y-3 rounded-xl border border-line bg-panel p-3">
       <input type="hidden" name="serviceId" value={serviceId} />
       {state?.error && <Alert kind="error">{state.error}</Alert>}
       {state?.ok && <Alert kind="ok">{state.ok}</Alert>}

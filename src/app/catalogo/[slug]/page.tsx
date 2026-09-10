@@ -141,7 +141,7 @@ export default async function PortafolioPage({
 
       {/* Aviso de borrador: solo lo ve el dueno, nunca un cliente. */}
       {enBorrador && (
-        <div className="sticky top-0 z-40 border-b-2 border-edge bg-warn-soft px-4 py-2.5">
+        <div className="sticky top-0 z-40 border-b border-line bg-warn-soft px-4 py-2.5">
           <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-x-3 gap-y-1 text-xs text-warn">
             <Icon name="alert" className="h-4 w-4 shrink-0" />
             <span className="font-bold">Asi se vera tu pagina.</span>
@@ -154,9 +154,9 @@ export default async function PortafolioPage({
       )}
 
       {/* Portada */}
-      <header className="border-b-2 border-edge">
+      <header className="border-b border-line">
         {cover && (
-          <div className="relative h-40 w-full overflow-hidden border-b-2 border-edge sm:h-56">
+          <div className="relative h-40 w-full overflow-hidden border-b border-line sm:h-56">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={cover} alt="" className="h-full w-full object-cover" />
           </div>
@@ -254,7 +254,7 @@ export default async function PortafolioPage({
         )}
       </main>
 
-      <footer className="border-t-2 border-edge py-6 text-center">
+      <footer className="border-t border-line py-6 text-center">
         <p className="text-[11px] text-subtle">
           Precios sujetos a cambio. Escribenos para confirmar disponibilidad.
         </p>

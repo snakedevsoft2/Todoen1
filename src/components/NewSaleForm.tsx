@@ -180,7 +180,7 @@ export function NewSaleForm({
 
       {services.length > 0 && (
         <div className="space-y-3">
-          <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted">
+          <p className="text-[11px] font-medium uppercase tracking-[0.04em] text-muted">
             Toca para agregar {itemLabel}
           </p>
           {Object.entries(grouped).map(([category, list]) => (
@@ -210,7 +210,7 @@ export function NewSaleForm({
                             <img
                               src={s.photo}
                               alt=""
-                              className="h-8 w-8 shrink-0 rounded-lg border-2 border-edge object-cover"
+                              className="h-8 w-8 shrink-0 rounded-lg border border-line object-cover"
                               loading="lazy"
                             />
                           )}
@@ -233,7 +233,7 @@ export function NewSaleForm({
                       </button>
 
                       {openSizes === s.id && sizes.length > 0 && (
-                        <div className="col-span-2 rounded-xl border-2 border-edge bg-brand-50 p-2.5">
+                        <div className="col-span-2 rounded-xl border border-line bg-brand-50 p-2.5">
                           <p className="mb-1.5 text-[11px] font-semibold text-brand-700">
                             Elige la talla de {s.name}
                           </p>
@@ -287,7 +287,7 @@ export function NewSaleForm({
         </button>
       </div>
 
-      <div className="rounded-xl border-2 border-edge bg-surface p-3">
+      <div className="rounded-xl border border-line bg-surface p-3">
         {cart.length === 0 ? (
           <p className="py-3 text-center text-sm text-subtle">
             Todavia no agregas nada a esta venta.

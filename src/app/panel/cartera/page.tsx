@@ -98,7 +98,7 @@ export default async function CarteraPage({
       </div>
 
       {vencidas.length > 0 && (
-        <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border-2 border-edge bg-bad-soft px-4 py-3 text-sm text-bad">
+        <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-line bg-bad-soft px-4 py-3 text-sm text-bad">
           <Icon name="alert" className="h-4 w-4 shrink-0" />
           <span>
             Tienes {vencidas.length} {vencidas.length === 1 ? "deuda vencida" : "deudas vencidas"}{" "}
@@ -199,7 +199,7 @@ export default async function CarteraPage({
                       </div>
                     </div>
 
-                    <div className="mt-3 flex flex-wrap gap-2 border-t-2 border-edge pt-3">
+                    <div className="mt-3 flex flex-wrap gap-2 border-t border-line pt-3">
                       <Link href={"/panel/cartera/" + deuda.id} className="btn-primary btn-sm">
                         Abrir
                       </Link>

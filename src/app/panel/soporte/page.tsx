@@ -38,7 +38,7 @@ export default async function SoportePage() {
         <div className="space-y-4">
           <Card>
             <div className="flex flex-wrap items-center gap-4">
-              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border-2 border-edge bg-good-solid text-on-good shadow-block">
+              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-line bg-good-solid text-on-good shadow-soft">
                 <Icon name="whatsapp" className="h-7 w-7" />
               </span>
               <div className="min-w-0 flex-1">
@@ -76,7 +76,7 @@ export default async function SoportePage() {
                   href={link(topic.label)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-start gap-3 rounded-xl border-2 border-edge bg-panel px-3 py-2.5 text-left transition hover:bg-surface"
+                  className="flex items-start gap-3 rounded-xl border border-line bg-panel px-3 py-2.5 text-left transition hover:bg-surface"
                 >
                   <span className="mt-0.5 shrink-0 text-brand-600">
                     <Icon name={topic.icon} className="h-4 w-4" />
@@ -150,7 +150,7 @@ export default async function SoportePage() {
               </li>
             </ul>
 
-            <div className="mt-4 border-t-2 border-edge pt-4">
+            <div className="mt-4 border-t border-line pt-4">
               <p className="text-xs text-subtle">
                 Datos con los que escribes: <strong className="text-body">{user.businessName}</strong>{" "}
                 ({businessLabel}), como {staff.name}.

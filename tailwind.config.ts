@@ -14,7 +14,7 @@ export default {
         "surface-3": withAlpha("--surface-3"),
         line: withAlpha("--line"),
         "line-strong": withAlpha("--line-strong"),
-        /** Borde marcado de los bloques y color de la sombra dura. */
+        /** Borde algo mas marcado, para separar sin gritar. */
         edge: withAlpha("--edge"),
         strong: withAlpha("--text-strong"),
         body: withAlpha("--text-body"),
@@ -60,16 +60,25 @@ export default {
         display: ["var(--font-display)", "var(--font-sans)", "system-ui", "sans-serif"],
       },
       boxShadow: {
-        /** Sombra dura desplazada: es lo que da el aire de bloque. */
-        block: "3px 3px 0 0 rgb(var(--edge))",
-        "block-lg": "5px 5px 0 0 rgb(var(--edge))",
-        "block-brand": "3px 3px 0 0 rgb(var(--brand-600))",
+        /*
+          Sombras de apoyo, no de decoracion.
+
+          La jerarquia la lleva el borde y el espacio; la sombra solo despega
+          del fondo lo que de verdad flota. Salen de --shadow (un fragmento
+          HSL que cambia con el tema) para que en oscuro no se vean sucias.
+        */
+        soft: "0 1px 2px 0 hsl(var(--shadow) / 0.06)",
+        "soft-md":
+          "0 1px 3px 0 hsl(var(--shadow) / 0.08), 0 1px 2px -1px hsl(var(--shadow) / 0.05)",
+        "soft-lg":
+          "0 10px 26px -8px hsl(var(--shadow) / 0.14), 0 2px 6px -2px hsl(var(--shadow) / 0.06)",
+        /** Halo del campo enfocado, como el de la pantalla de ingreso. */
+        "focus-brand": "0 0 0 3px rgb(var(--brand-500) / 0.14)",
       },
       borderRadius: {
-        // Radios mas cerrados que los de Tailwind: el bloque quiere esquina.
-        lg: "0.4rem",
-        xl: "0.55rem",
-        "2xl": "0.75rem",
+        lg: "0.5rem",
+        xl: "0.625rem",
+        "2xl": "0.875rem",
       },
     },
   },

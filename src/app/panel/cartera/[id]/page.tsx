@@ -85,7 +85,7 @@ export default async function DeudaPage({ params }: { params: Promise<{ id: stri
       </div>
 
       {anulada && (
-        <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border-2 border-edge bg-surface px-4 py-3 text-sm text-muted">
+        <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-line bg-surface px-4 py-3 text-sm text-muted">
           <Icon name="alert" className="h-4 w-4 shrink-0" />
           <span>Esta deuda esta anulada. No cuenta en los totales de cartera.</span>
           <form action={reopenDebtAction} className="ml-auto">
@@ -114,7 +114,7 @@ export default async function DeudaPage({ params }: { params: Promise<{ id: stri
                     deuda.amount - (pagado - posteriores.reduce((s, p) => s + p.amount, 0));
 
                   return (
-                    <li key={pago.id} className="rounded-xl border-2 border-edge bg-surface p-3">
+                    <li key={pago.id} className="rounded-xl border border-line bg-surface p-3">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="font-display text-[15px] text-strong num">
@@ -265,7 +265,7 @@ export default async function DeudaPage({ params }: { params: Promise<{ id: stri
               </span>
             </div>
 
-            <div className="mt-4 flex flex-wrap gap-2 border-t-2 border-edge pt-4">
+            <div className="mt-4 flex flex-wrap gap-2 border-t border-line pt-4">
               {!anulada && (
                 <form action={cancelDebtAction}>
                   <input type="hidden" name="id" value={deuda.id} />

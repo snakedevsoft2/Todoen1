@@ -441,8 +441,8 @@ function Comparativa({
           const bien = igual ? null : subio === row.upIsGood;
 
           return (
-            <div key={row.key} className="rounded-xl border-2 border-edge bg-surface p-3.5">
-              <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted">
+            <div key={row.key} className="rounded-xl border border-line bg-surface p-3.5">
+              <p className="text-[11px] font-medium uppercase tracking-[0.04em] text-muted">
                 {row.label}
               </p>
               <p className="mt-2 font-display text-[22px] leading-none text-strong num">

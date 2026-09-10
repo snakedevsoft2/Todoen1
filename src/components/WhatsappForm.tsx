@@ -67,7 +67,7 @@ export function WhatsappForm({
                 className={
                   "flex cursor-pointer gap-3 rounded-xl border p-3 transition " +
                   (provider === option.value
-                    ? "border-edge bg-brand-600 text-on-brand shadow-block"
+                    ? "border-transparent bg-brand-600 text-on-brand shadow-soft"
                     : "border-line hover:border-line-strong")
                 }
               >

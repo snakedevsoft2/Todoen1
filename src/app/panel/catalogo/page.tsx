@@ -122,11 +122,11 @@ export default async function CatalogoPage() {
                       const photo = photoUrl(s.id, s.image, s.updatedAt);
 
                       return (
-                        <li key={s.id} className="rounded-xl border-2 border-edge bg-surface p-3">
+                        <li key={s.id} className="rounded-xl border border-line bg-surface p-3">
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div className="flex min-w-0 gap-3">
                               {isClothing && (
-                                <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border-2 border-edge bg-panel">
+                                <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-line bg-panel">
                                   {photo ? (
                                     // eslint-disable-next-line @next/next/no-img-element
                                     <img
@@ -224,7 +224,7 @@ export default async function CatalogoPage() {
                             <summary className="cursor-pointer text-xs font-semibold text-brand-600">
                               Editar {isClothing ? "prenda" : ""}
                             </summary>
-                            <div className="mt-3 rounded-xl border-2 border-edge bg-panel p-3">
+                            <div className="mt-3 rounded-xl border border-line bg-panel p-3">
                               <ServiceForm
                                 service={{
                                   id: s.id,

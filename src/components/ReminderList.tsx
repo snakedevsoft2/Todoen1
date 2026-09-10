@@ -77,8 +77,8 @@ export function ReminderList({
               <li
                 key={row.id}
                 className={
-                  "flex flex-wrap items-center justify-between gap-2 rounded-xl border-2 px-3 py-2.5 " +
-                  (enviado ? "border-line bg-surface opacity-70" : "border-edge bg-panel")
+                  "flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3 py-2.5 " +
+                  (enviado ? "border-line bg-surface opacity-70" : "border-line bg-panel")
                 }
               >
                 <div className="min-w-0">

@@ -56,7 +56,7 @@ export default async function AsistentePage() {
         <div className="mb-4">
           <Card>
             <div className="flex flex-wrap items-start gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 border-edge bg-warn-soft text-warn">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-warn-soft text-warn">
                 <Icon name="alert" className="h-5 w-5" />
               </span>
               <div className="min-w-0 flex-1">

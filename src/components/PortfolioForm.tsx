@@ -134,7 +134,7 @@ export function PortfolioForm({
             />
           </Field>
 
-          <div className="space-y-2.5 rounded-xl border-2 border-edge bg-surface p-3">
+          <div className="space-y-2.5 rounded-xl border border-line bg-surface p-3">
             <label className="flex items-center gap-2 text-sm font-semibold text-strong">
               <input
                 type="checkbox"

@@ -66,7 +66,7 @@ function Fila({ item, index, total, onMover, onAlternar }: FilaProps) {
         type="button"
         {...attributes}
         {...listeners}
-        className="mt-1 shrink-0 cursor-grab touch-none rounded border-2 border-transparent px-1 text-subtle transition hover:text-strong focus-visible:border-edge focus-visible:ring-4 focus-visible:ring-brand-500/40 active:cursor-grabbing"
+        className="mt-1 shrink-0 cursor-grab touch-none rounded border border-transparent px-1 text-subtle transition hover:text-strong focus-visible:border-line focus-visible:ring-4 focus-visible:ring-brand-500/40 active:cursor-grabbing"
         aria-label={"Mover " + item.label + ". Posicion " + (index + 1) + " de " + total}
       >
         <Icon name="grip" className="h-4 w-4" />
@@ -77,7 +77,7 @@ function Fila({ item, index, total, onMover, onAlternar }: FilaProps) {
           type="button"
           onClick={() => onMover(index, -1)}
           disabled={index === 0}
-          className="rounded border-2 border-edge px-1.5 leading-none text-strong transition disabled:opacity-25"
+          className="rounded border border-line px-1.5 leading-none text-strong transition disabled:opacity-25"
           aria-label={"Subir " + item.label}
         >
           ▲
@@ -86,7 +86,7 @@ function Fila({ item, index, total, onMover, onAlternar }: FilaProps) {
           type="button"
           onClick={() => onMover(index, 1)}
           disabled={index === total - 1}
-          className="rounded border-2 border-edge px-1.5 leading-none text-strong transition disabled:opacity-25"
+          className="rounded border border-line px-1.5 leading-none text-strong transition disabled:opacity-25"
           aria-label={"Bajar " + item.label}
         >
           ▼
@@ -95,7 +95,7 @@ function Fila({ item, index, total, onMover, onAlternar }: FilaProps) {
 
       <span
         className={
-          "mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 border-edge " +
+          "mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-line " +
           (item.visible ? "bg-brand-600 text-on-brand" : "bg-panel text-subtle")
         }
       >
@@ -130,8 +130,8 @@ function Fila({ item, index, total, onMover, onAlternar }: FilaProps) {
         />
         {/* La casilla real esta oculta, asi que el foco del teclado tiene que
             verse aqui o no se ve en ninguna parte. */}
-        <span className="h-6 w-11 rounded-full border-2 border-edge bg-surface transition peer-checked:bg-brand-600 peer-focus-visible:ring-4 peer-focus-visible:ring-brand-500/40" />
-        <span className="absolute left-1 h-4 w-4 rounded-full border-2 border-edge bg-panel transition peer-checked:translate-x-5" />
+        <span className="h-6 w-11 rounded-full border border-line bg-surface transition peer-checked:bg-brand-600 peer-focus-visible:ring-4 peer-focus-visible:ring-brand-500/40" />
+        <span className="absolute left-1 h-4 w-4 rounded-full border border-line bg-panel transition peer-checked:translate-x-5" />
       </label>
     </li>
   );
@@ -204,7 +204,7 @@ export function WorkspaceForm({ items }: { items: WorkspaceItem[] }) {
         onDragEnd={alSoltar}
       >
         <SortableContext items={lista.map((i) => i.key)} strategy={verticalListSortingStrategy}>
-          <ul className="divide-y-2 divide-line overflow-hidden rounded-xl border-2 border-edge bg-panel">
+          <ul className="divide-y-2 divide-line overflow-hidden rounded-xl border border-line bg-panel">
             {lista.map((item, i) => (
               <Fila
                 key={item.key}

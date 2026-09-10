@@ -62,7 +62,7 @@ export function WholesaleForm({
         {state?.error && <Alert kind="error">{state.error}</Alert>}
         {state?.ok && <Alert kind="ok">{state.ok}</Alert>}
 
-        <div className="space-y-2.5 rounded-xl border-2 border-edge bg-surface p-3">
+        <div className="space-y-2.5 rounded-xl border border-line bg-surface p-3">
           <label className="flex items-center gap-2 text-sm font-semibold text-strong">
             <input
               type="checkbox"
@@ -112,7 +112,7 @@ export function WholesaleForm({
         </SubmitButton>
       </form>
 
-      <div className="border-t-2 border-edge pt-4">
+      <div className="border-t border-line pt-4">
         <p className="font-display text-[15px] text-strong">Escalas por cantidad</p>
         <p className="mt-1 text-sm text-muted">
           Entre mas {itemPlural} lleve el pedido, mejor el precio. Se cuentan todas las unidades
@@ -129,7 +129,7 @@ export function WholesaleForm({
         ) : (
           <ul className="mt-3 space-y-2">
             {ordenadas.map((t) => (
-              <li key={t.id} className="rounded-xl border-2 border-edge bg-surface p-3">
+              <li key={t.id} className="rounded-xl border border-line bg-surface p-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-display text-[15px] text-strong">
@@ -173,7 +173,7 @@ export function WholesaleForm({
                 </div>
 
                 {editando === t.id && (
-                  <div className="mt-3 border-t-2 border-edge pt-3">
+                  <div className="mt-3 border-t border-line pt-3">
                     <TierForm
                       tier={t}
                       itemPlural={itemPlural}
@@ -188,7 +188,7 @@ export function WholesaleForm({
         )}
 
         {ordenadas.length < MAX_TIERS ? (
-          <div className="mt-4 rounded-xl border-2 border-dashed border-line-strong p-3">
+          <div className="mt-4 rounded-xl border border-dashed border-line-strong p-3">
             <p className="mb-3 text-sm font-semibold text-strong">Agregar una escala</p>
             <TierForm itemPlural={itemPlural} submitLabel="Agregar escala" resetOnDone />
           </div>

@@ -48,10 +48,10 @@ export function AssistantChat({
 
   return (
     <div className="flex h-[calc(100dvh-14rem)] min-h-[440px] flex-col">
-      <div className="flex-1 space-y-3 overflow-y-auto rounded-2xl border-2 border-edge bg-surface p-4">
+      <div className="flex-1 space-y-3 overflow-y-auto rounded-2xl border border-line bg-surface p-4">
         {turns.length === 0 && !pensando && (
           <div className="py-6 text-center">
-            <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl border-2 border-edge bg-brand-600 text-on-brand shadow-block">
+            <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl border border-line bg-brand-600 text-on-brand shadow-soft">
               <Icon name="chart" className="h-6 w-6" />
             </span>
             <p className="mt-3 font-display text-lg text-strong">Preguntame por tu negocio</p>
@@ -69,7 +69,7 @@ export function AssistantChat({
           >
             <div
               className={
-                "max-w-[85%] whitespace-pre-wrap rounded-2xl border-2 border-edge px-4 py-2.5 text-sm leading-relaxed sm:max-w-[75%] " +
+                "max-w-[85%] whitespace-pre-wrap rounded-2xl border border-line px-4 py-2.5 text-sm leading-relaxed sm:max-w-[75%] " +
                 (turn.role === "user"
                   ? "rounded-br-md bg-brand-600 text-on-brand"
                   : "rounded-bl-md bg-panel text-body")
@@ -82,7 +82,7 @@ export function AssistantChat({
 
         {pensando && (
           <div className="flex justify-start">
-            <div className="rounded-2xl rounded-bl-md border-2 border-edge bg-panel px-4 py-3">
+            <div className="rounded-2xl rounded-bl-md border border-line bg-panel px-4 py-3">
               <span className="flex gap-1" aria-label="Pensando">
                 {[0, 1, 2].map((i) => (
                   <span
@@ -142,7 +142,7 @@ export function AssistantChat({
         >
           {pensando ? (
             <span
-              className="h-4 w-4 animate-spin rounded-full border-2 border-on-brand/30 border-t-on-brand"
+              className="h-4 w-4 animate-spin rounded-full border border-on-brand/30 border-t-on-brand"
               aria-hidden="true"
             />
           ) : (

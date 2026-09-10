@@ -50,7 +50,7 @@ export function LoginShowcase({ compact = false }: { compact?: boolean }) {
 
       {/* Los cuatro negocios, siempre visibles. El activo se pinta solido. */}
       <div>
-        <p className="mb-2.5 text-[10px] font-bold uppercase tracking-[0.16em] text-muted">
+        <p className="mb-2.5 text-[11px] font-medium uppercase tracking-[0.16em] text-muted">
           Sirve para
         </p>
         <div className="flex flex-wrap gap-2">
@@ -62,10 +62,10 @@ export function LoginShowcase({ compact = false }: { compact?: boolean }) {
                 type="button"
                 onClick={() => elegir(index)}
                 className={
-                  "flex items-center gap-2 rounded-xl border-2 px-3 py-2 text-xs font-bold transition-all duration-200 " +
+                  "flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition-all duration-200 " +
                   (activo
-                    ? "border-edge text-white shadow-block"
-                    : "border-edge bg-panel text-body hover:bg-surface")
+                    ? "border-transparent text-white shadow-soft"
+                    : "border-line bg-panel text-body hover:bg-surface")
                 }
                 style={activo ? { backgroundColor: negocio.color } : undefined}
               >
@@ -80,18 +80,18 @@ export function LoginShowcase({ compact = false }: { compact?: boolean }) {
       {/* Tarjeta del negocio que esta sonando */}
       <div
         key={i}
-        className="animate-rise rounded-2xl border-2 bg-panel p-5 shadow-block-lg"
+        className="animate-rise rounded-2xl border border-line bg-panel p-5 shadow-soft-lg"
         style={{ borderColor: n.color }}
       >
         <div className="flex items-center gap-3">
           <span
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 border-edge text-white"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line text-white"
             style={{ backgroundColor: n.color }}
           >
             <Icon name={n.icon} className="h-5 w-5" />
           </span>
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted">
+            <p className="text-[11px] font-medium uppercase tracking-[0.04em] text-muted">
               {n.label}
             </p>
             <p className="truncate font-display text-[15px] leading-tight text-strong">

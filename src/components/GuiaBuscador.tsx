@@ -128,14 +128,14 @@ export function GuiaBuscador({ temas }: { temas: GuiaTema[] }) {
             const desplegado = abierto === t.key;
             return (
               <li key={t.key}>
-                <div className="rounded-xl border-2 border-edge bg-panel">
+                <div className="rounded-xl border border-line bg-panel">
                   <button
                     type="button"
                     onClick={() => setAbierto(desplegado ? null : t.key)}
                     className="flex w-full items-start gap-3 px-4 py-3 text-left"
                     aria-expanded={desplegado}
                   >
-                    <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 border-edge bg-brand-600 text-on-brand">
+                    <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-line bg-brand-600 text-on-brand">
                       <Icon name={t.icon} className="h-4 w-4" />
                     </span>
                     <span className="min-w-0 flex-1">

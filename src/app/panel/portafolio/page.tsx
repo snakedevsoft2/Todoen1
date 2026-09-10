@@ -78,7 +78,7 @@ export default async function PortafolioPage() {
       </div>
 
       {publicados === 0 && (
-        <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border-2 border-edge bg-warn-soft px-4 py-3 text-sm text-warn">
+        <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-line bg-warn-soft px-4 py-3 text-sm text-warn">
           <Icon name="alert" className="h-4 w-4 shrink-0" />
           <span>
             Tu portafolio esta vacio. Marca tus {noun.plural} con{" "}
@@ -147,7 +147,7 @@ export default async function PortafolioPage() {
 
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
         <Card title="Tu enlace" subtitle="El que mandas por WhatsApp o pones en tu perfil">
-            <p className="break-all rounded-xl border-2 border-edge bg-surface px-3 py-2.5 text-sm text-body">
+            <p className="break-all rounded-xl border border-line bg-surface px-3 py-2.5 text-sm text-body">
               {ruta}
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
@@ -163,7 +163,7 @@ export default async function PortafolioPage() {
         </Card>
 
         <Card title="Tu codigo QR" subtitle="Para la vitrina, el mostrador o una tarjeta">
-            <div className="flex justify-center rounded-xl border-2 border-edge bg-white p-4">
+            <div className="flex justify-center rounded-xl border border-line bg-white p-4">
               {/* El QR se arma en el servidor y sale como vector: se puede
                   imprimir del tamano que sea sin que se pixele. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}

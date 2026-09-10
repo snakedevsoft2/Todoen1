@@ -125,7 +125,7 @@ export function InvoiceActions({
   }
 
   return (
-    <div className="w-full rounded-xl border-2 border-edge bg-panel p-3">
+    <div className="w-full rounded-xl border border-line bg-panel p-3">
       <div className="mb-2 flex items-center justify-between gap-2">
         <p className="text-xs font-semibold text-strong">
           Factura {invoiceNumber(data.saleId)}

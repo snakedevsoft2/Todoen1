@@ -184,12 +184,12 @@ export default async function VentasPage({
           ) : (
             <ul className="space-y-2">
               {sales.map((s) => (
-                <li key={s.id} className="rounded-xl border-2 border-edge bg-surface p-3">
+                <li key={s.id} className="rounded-xl border border-line bg-surface p-3">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-strong">
                         {money(s.total, user.currency)}
-                        <span className="ml-2 rounded-full border-2 border-edge px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted">
+                        <span className="ml-2 rounded-full border border-line px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted">
                           {ORIGIN_LABEL[s.origin]}
                         </span>
                       </p>

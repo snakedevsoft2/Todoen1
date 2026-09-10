@@ -33,7 +33,7 @@ export function BrandMark({
     return (
       <span
         className={
-          "inline-flex shrink-0 items-center justify-center overflow-hidden rounded-xl border-2 border-edge bg-panel " +
+          "inline-flex shrink-0 items-center justify-center overflow-hidden rounded-xl border border-line bg-panel " +
           box +
           " " +
           className
@@ -47,7 +47,7 @@ export function BrandMark({
   return (
     <span
       className={
-        "inline-flex shrink-0 items-center justify-center rounded-xl border-2 border-edge bg-brand-600 font-display tracking-wide text-on-brand " +
+        "inline-flex shrink-0 items-center justify-center rounded-xl border border-line bg-brand-600 font-display tracking-wide text-on-brand " +
         box +
         " " +
         className

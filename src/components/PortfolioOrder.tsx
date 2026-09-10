@@ -140,10 +140,10 @@ export function PortfolioOrder({
       {wholesale && wholesale.tiers.length > 0 && (
         <section
           id="mayoristas"
-          className="mb-6 rounded-2xl border-2 border-edge bg-brand-50 p-4 sm:p-5"
+          className="mb-6 rounded-2xl border border-line bg-brand-50 p-4 sm:p-5"
         >
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-lg border-2 border-edge bg-brand-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] text-white">
+            <span className="rounded-lg border border-line bg-brand-600 px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.04em] text-white">
               Promocion
             </span>
             <h2 className="font-display text-lg leading-tight text-strong">{wholesale.title}</h2>
@@ -161,8 +161,8 @@ export function PortfolioOrder({
                 <li
                   key={t.id}
                   className={
-                    "rounded-xl border-2 px-3 py-2.5 " +
-                    (activa ? "border-brand-600 bg-panel" : "border-edge bg-panel")
+                    "rounded-xl border bg-panel px-3 py-2.5 " +
+                    (activa ? "border-brand-500 shadow-focus-brand" : "border-line")
                   }
                 >
                   <p className="font-display text-[15px] leading-none text-strong">
@@ -180,7 +180,7 @@ export function PortfolioOrder({
           </ul>
 
           {wholesale.note && (
-            <p className="mt-3 border-t-2 border-edge pt-3 text-xs text-muted">{wholesale.note}</p>
+            <p className="mt-3 border-t border-line pt-3 text-xs text-muted">{wholesale.note}</p>
           )}
         </section>
       )}
@@ -214,7 +214,7 @@ export function PortfolioOrder({
                 fotos no tiene por que verse lleno de huecos enormes. */}
             <div
               className={
-                "relative flex items-center justify-center border-b-2 border-edge bg-surface " +
+                "relative flex items-center justify-center border-b border-line bg-surface " +
                 (item.photo ? "aspect-[4/5]" : "h-16")
               }
             >
@@ -230,7 +230,7 @@ export function PortfolioOrder({
                 <Icon name="image" className="h-6 w-6 text-subtle" />
               )}
               {item.soldOut && (
-                <span className="absolute right-2 top-2 rounded-md border-2 border-edge bg-bad px-2 py-0.5 text-[10px] font-bold uppercase text-white">
+                <span className="absolute right-2 top-2 rounded-md border border-line bg-bad px-2 py-0.5 text-[11px] font-medium uppercase text-white">
                   Agotado
                 </span>
               )}
@@ -239,7 +239,7 @@ export function PortfolioOrder({
             <div className="flex flex-1 flex-col p-3.5">
               <p className="font-display text-[15px] leading-tight text-strong">{item.name}</p>
               {item.brand && (
-                <p className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.1em] text-subtle">
+                <p className="mt-0.5 text-[11px] font-medium uppercase tracking-[0.04em] text-subtle">
                   {item.brand}
                 </p>
               )}
@@ -268,7 +268,7 @@ export function PortfolioOrder({
 
               {item.variants.length > 0 ? (
                 <div className="mt-3">
-                  <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.1em] text-subtle">
+                  <p className="mb-1.5 text-[11px] font-medium uppercase tracking-[0.04em] text-subtle">
                     Tallas
                   </p>
                   <div className="flex flex-wrap gap-1.5">
@@ -277,7 +277,7 @@ export function PortfolioOrder({
                         key={v.id}
                         type="button"
                         onClick={() => agregar(item, v)}
-                        className="rounded-lg border-2 border-edge bg-panel px-2.5 py-1 text-xs font-bold text-strong transition hover:bg-brand-50"
+                        className="rounded-lg border border-line bg-panel px-2.5 py-1 text-xs font-bold text-strong transition hover:bg-brand-50"
                       >
                         {v.label}
                       </button>
@@ -304,8 +304,8 @@ export function PortfolioOrder({
       {/* Barra del pedido: se queda abajo mientras el cliente escoge. */}
       {lineas.length > 0 && (
         <div className="sticky bottom-3 z-30 mt-6">
-          <div className="mx-auto max-w-2xl rounded-2xl border-2 border-edge bg-panel p-4 shadow-block-lg">
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-muted">
+          <div className="mx-auto max-w-2xl rounded-2xl border border-line bg-panel p-4 shadow-soft-lg">
+            <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.04em] text-muted">
               Tu pedido
               {tiers.length > 0 && (
                 <span className="ml-1.5 normal-case tracking-normal text-subtle">
@@ -369,7 +369,7 @@ export function PortfolioOrder({
             {/* Aviso de mayorista: o ya lo tiene, o le decimos cuanto le falta.
                 Lo segundo es lo que de verdad sube el pedido. */}
             {escala && (
-              <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border-2 border-edge bg-good-soft px-3 py-2 text-xs font-semibold text-good">
+              <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-line bg-good-soft px-3 py-2 text-xs font-semibold text-good">
                 <Icon name="tag" className="h-4 w-4 shrink-0" />
                 <span>
                   Precio al por mayor: {escala.percentOff}% menos
@@ -385,7 +385,7 @@ export function PortfolioOrder({
               <p
                 className={
                   (escala ? "mt-2 " : "mt-3 ") +
-                  "flex flex-wrap items-center gap-x-2 rounded-xl border-2 border-edge bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-800"
+                  "flex flex-wrap items-center gap-x-2 rounded-xl border border-line bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-800"
                 }
               >
                 <Icon name="tag" className="h-4 w-4 shrink-0" />
@@ -398,7 +398,7 @@ export function PortfolioOrder({
             )}
 
             {showPrices && (
-              <div className="mt-3 flex items-center justify-between border-t-2 border-edge pt-3">
+              <div className="mt-3 flex items-center justify-between border-t border-line pt-3">
                 <span className="text-sm text-muted">Total aproximado</span>
                 <span className="flex items-baseline gap-2">
                   {cuentas.saved > 0 && (
@@ -424,7 +424,7 @@ export function PortfolioOrder({
                 Enviar pedido por WhatsApp
               </a>
             ) : (
-              <p className="mt-3 rounded-xl border-2 border-edge bg-warn-soft px-3 py-2 text-xs text-warn">
+              <p className="mt-3 rounded-xl border border-line bg-warn-soft px-3 py-2 text-xs text-warn">
                 Este negocio todavia no publico un numero de WhatsApp. Escribele directamente.
               </p>
             )}

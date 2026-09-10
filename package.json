@@ -15,7 +15,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:modulos": "tsx prisma/sembrar-modulos.ts",
-    "verificar:admin": "node scripts/verificar-admin.mjs"
+    "verificar:admin": "node scripts/verificar-admin.mjs",
+    "clave": "node scripts/cambiar-clave.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

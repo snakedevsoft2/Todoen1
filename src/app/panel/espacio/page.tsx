@@ -117,7 +117,7 @@ export default async function EspacioPage() {
               ))}
             </div>
 
-            <div className="mt-4 border-t-2 border-edge pt-4">
+            <div className="mt-4 border-t border-line pt-4">
               <form action={resetWorkspaceAction}>
                 <SubmitButton
                   className="btn-ghost btn-sm w-full"

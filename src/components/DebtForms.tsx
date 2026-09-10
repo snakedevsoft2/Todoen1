@@ -47,7 +47,7 @@ export function NewDebtForm({ today, currency }: { today: string; currency: stri
 
       {/* Esta casilla decide si los abonos entran a la caja. Es la diferencia
           entre llevar bien las cuentas y contar la misma plata dos veces. */}
-      <label className="flex items-start gap-2.5 rounded-xl border-2 border-edge bg-surface p-3 text-sm text-body">
+      <label className="flex items-start gap-2.5 rounded-xl border border-line bg-surface p-3 text-sm text-body">
         <input
           type="checkbox"
           name="alreadyInvoiced"

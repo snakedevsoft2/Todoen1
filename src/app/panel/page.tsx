@@ -230,7 +230,7 @@ export default async function PanelHomePage() {
                 {appointments.map((a) => (
                   <li
                     key={a.id}
-                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl border-2 border-edge bg-surface px-3 py-2.5"
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface px-3 py-2.5"
                   >
                     <div className="min-w-0">
                       <p className="flex items-center gap-2 text-sm font-semibold text-strong">
@@ -277,7 +277,7 @@ export default async function PanelHomePage() {
                 {lowStock.map((v) => (
                   <li
                     key={v.id}
-                    className="flex items-center justify-between gap-3 rounded-xl border-2 border-edge bg-surface px-3 py-2.5"
+                    className="flex items-center justify-between gap-3 rounded-xl border border-line bg-surface px-3 py-2.5"
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-strong">
@@ -315,7 +315,7 @@ export default async function PanelHomePage() {
                     <li key={o.id}>
                       <Link
                         href={"/panel/cuentas/" + o.id}
-                        className="flex items-center justify-between gap-3 rounded-xl border-2 border-edge bg-surface px-3 py-2.5 transition hover:bg-surface"
+                        className="flex items-center justify-between gap-3 rounded-xl border border-line bg-surface px-3 py-2.5 transition hover:bg-surface"
                       >
                         <div className="min-w-0">
                           <p className="truncate text-sm font-semibold text-strong">{o.label}</p>
@@ -351,7 +351,7 @@ export default async function PanelHomePage() {
               {recentSales.map((s) => (
                 <li
                   key={s.id}
-                  className="flex items-center justify-between gap-3 rounded-xl border-2 border-edge bg-surface px-3 py-2.5"
+                  className="flex items-center justify-between gap-3 rounded-xl border border-line bg-surface px-3 py-2.5"
                 >
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-strong">

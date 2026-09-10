@@ -107,10 +107,10 @@ export function StockMoveForm({
           <label
             key={t.value}
             className={
-              "cursor-pointer rounded-xl border-2 p-2.5 text-center transition " +
+              "cursor-pointer rounded-xl border p-2.5 text-center transition " +
               (type === t.value
-                ? "border-edge bg-brand-600 text-on-brand shadow-block"
-                : "border-edge bg-panel hover:bg-surface")
+                ? "border-transparent bg-brand-600 text-on-brand shadow-soft"
+                : "border-line bg-panel hover:bg-surface")
             }
           >
             <input

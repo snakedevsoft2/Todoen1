@@ -103,7 +103,7 @@ export function SupplierCard({
   const [abierto, setAbierto] = useState(false);
 
   return (
-    <li className="rounded-xl border-2 border-edge bg-surface p-3">
+    <li className="rounded-xl border border-line bg-surface p-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="flex flex-wrap items-center gap-2 font-display text-[15px] text-strong">
@@ -133,7 +133,7 @@ export function SupplierCard({
           {stats.prendas.map((prenda) => (
             <span
               key={prenda}
-              className="rounded-md border-2 border-line-strong bg-panel px-2 py-0.5 text-[11px] text-body"
+              className="rounded-md border border-line-strong bg-panel px-2 py-0.5 text-[11px] text-body"
             >
               {prenda}
             </span>
@@ -178,7 +178,7 @@ export function SupplierCard({
       </div>
 
       {abierto && (
-        <div className="mt-3 rounded-xl border-2 border-edge bg-panel p-3">
+        <div className="mt-3 rounded-xl border border-line bg-panel p-3">
           <SupplierForm
             supplier={supplier}
             submitLabel="Guardar cambios"

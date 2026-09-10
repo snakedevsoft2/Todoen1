@@ -47,10 +47,10 @@ export function GuiaInicial({
       aria-modal="true"
       aria-label="Instructivo de bienvenida"
     >
-      <div className="w-full max-w-lg overflow-hidden rounded-t-2xl border-2 border-edge bg-panel sm:rounded-2xl sm:shadow-block-lg">
-        <header className="flex items-start justify-between gap-3 border-b-2 border-edge px-5 py-4">
+      <div className="w-full max-w-lg overflow-hidden rounded-t-2xl border border-line bg-panel sm:rounded-2xl sm:shadow-soft-lg">
+        <header className="flex items-start justify-between gap-3 border-b border-line px-5 py-4">
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-brand-600">
+            <p className="text-[11px] font-medium uppercase tracking-[0.04em] text-brand-600">
               {primero ? "Bienvenido" : "Paso " + (index + 1) + " de " + steps.length}
             </p>
             <p className="mt-1 truncate font-display text-lg leading-tight text-strong">
@@ -68,7 +68,7 @@ export function GuiaInicial({
         </header>
 
         <div className="px-5 py-6">
-          <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl border-2 border-edge bg-brand-600 text-on-brand shadow-block">
+          <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl border border-line bg-brand-600 text-on-brand shadow-soft">
             <Icon name={step.icon} className="h-6 w-6" />
           </span>
 
@@ -87,7 +87,7 @@ export function GuiaInicial({
           )}
         </div>
 
-        <footer className="flex items-center justify-between gap-3 border-t-2 border-edge px-5 py-4">
+        <footer className="flex items-center justify-between gap-3 border-t border-line px-5 py-4">
           <div className="flex gap-1.5" aria-hidden="true">
             {steps.map((_, i) => (
               <span

@@ -338,6 +338,23 @@ La página pública de reservas de la barbería de ejemplo queda en
 
 Para apagar la base de datos local: `npm run db:down`.
 
+### Si olvidaste tu contraseña
+
+La app no tiene «olvidé mi contraseña», y la que está guardada **no se puede recuperar**: en la
+base solo vive su hash de bcrypt, que va en un solo sentido a propósito. Lo que sí se puede es
+reemplazarla desde la terminal, con la base prendida:
+
+```bash
+node scripts/cambiar-clave.mjs tucorreo@gmail.com "la-clave-nueva"
+```
+
+Sirve igual para la cuenta del negocio y para el usuario de un empleado o barbero. Si la recuerdas
+y solo quieres cambiarla, se hace en **Ajustes** dentro del panel, que pide la actual.
+
+**El panel de la plataforma (`/admin`) no tiene contraseña propia**: se entra con la cuenta de
+siempre, y aparece solo si ese correo está en `ADMIN_EMAILS`. Para dar o quitar ese permiso hay que
+tocar la configuración del servidor, no una pantalla.
+
 ## Desplegar en Vercel
 
 ### 1. Crear la base de datos

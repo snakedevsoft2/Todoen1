@@ -66,7 +66,7 @@ export function PhotoField({
       <span className="label">{label}</span>
 
       <div className="flex items-center gap-3">
-        <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border-2 border-edge bg-panel">
+        <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-line bg-panel">
           {shown ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={shown} alt="Vista previa" className="h-full w-full object-cover" />

@@ -130,7 +130,7 @@ export default async function BienvenidaPage() {
             <span
               key={i}
               className={
-                "h-1.5 flex-1 rounded-full border-2 border-edge " +
+                "h-1.5 flex-1 rounded-full border border-line " +
                 (i <= paso ? "bg-brand-600" : "bg-surface")
               }
             />
@@ -201,7 +201,7 @@ export default async function BienvenidaPage() {
                 <form key={preset.key} action={chooseWorkspaceAction}>
                   <input type="hidden" name="preset" value={preset.key} />
                   <SubmitButton
-                    className="block w-full rounded-xl border-2 border-edge bg-panel px-4 py-3 text-left transition hover:border-brand-600 hover:shadow-[4px_4px_0_0_var(--edge)]"
+                    className="block w-full rounded-xl border border-line bg-panel px-4 py-3 text-left transition hover:border-brand-600 hover:shadow-[4px_4px_0_0_var(--edge)]"
                     pendingText="Guardando..."
                   >
                     <span className="flex items-baseline justify-between gap-3">
@@ -255,7 +255,7 @@ export default async function BienvenidaPage() {
               {enElMenu.map((m) => (
                 <li
                   key={m.key}
-                  className="flex items-center gap-1.5 rounded-lg border-2 border-edge bg-surface px-2.5 py-1.5 text-xs font-bold text-strong"
+                  className="flex items-center gap-1.5 rounded-lg border border-line bg-surface px-2.5 py-1.5 text-xs font-bold text-strong"
                 >
                   <Icon name={m.icon} className="h-3.5 w-3.5" />
                   {m.label}

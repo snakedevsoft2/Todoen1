@@ -12,8 +12,7 @@
   /* Las dos variables --font-archivo* las inyecta next/font desde el layout. */
   --font-sans: var(--font-archivo), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
     Arial, sans-serif;
-  --font-display: var(--font-archivo-black), var(--font-archivo), ui-sans-serif, system-ui,
-    sans-serif;
+  --font-display: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
 
   --brand-50: 239 246 255;
   --brand-100: 219 234 254;
@@ -33,7 +32,7 @@
   --surface-3: 226 232 240;
   --line: 226 232 240;
   --line-strong: 203 213 225;
-  --edge: 24 32 46;
+  --edge: 214 221 230;
   --text-strong: 15 23 42;
   --text-body: 51 65 85;
   --text-muted: 100 116 139;
@@ -82,31 +81,51 @@ body {
 
 @layer components {
   /*
-    Jerarquia del bloque: manda el borde, no la sombra.
+    Jerarquia sobria: manda el espacio, despues el borde, y la sombra casi no
+    se ve.
 
-    Casi todo lleva borde marcado y nada de sombra. La sombra dura se reserva
-    para lo que la persona toca o mira primero: las cifras del dia y los
-    botones. Si todo flotara, no destacaria nada.
+    Antes cada tarjeta era un bloque con borde negro de 2px y sombra dura
+    desplazada. Se leia de lejos, pero con doce apartados en pantalla todo
+    competia por la atencion al tiempo. Ahora el contorno es una linea de 1px
+    y lo que separa las cosas es el aire entre ellas, que es como se ven las
+    herramientas de trabajo seria. Es el mismo lenguaje de la pantalla de
+    ingreso, mas abajo.
   */
   .card {
-    @apply rounded-2xl border-2 border-edge bg-panel p-4 sm:p-5;
+    @apply rounded-2xl border border-line bg-panel p-4 shadow-soft sm:p-5;
   }
 
   .card-tight {
-    @apply rounded-xl border-2 border-edge bg-panel p-3.5 shadow-block;
+    @apply rounded-xl border border-line bg-panel p-4 shadow-soft;
   }
 
   .surface-box {
-    @apply rounded-xl border-2 border-edge bg-surface;
+    @apply rounded-xl border border-line bg-surface;
+  }
+
+  /*
+    Titulos y cifras.
+
+    La familia display (Archivo) se usa por su forma, no por su peso: en 600
+    da un titulo firme sin el bloque de tinta que dejaba la version Black.
+  */
+  .font-display {
+    font-weight: 600;
+    letter-spacing: -0.014em;
   }
 
   .label {
-    @apply mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-muted;
+    @apply mb-1.5 block text-[13px] font-medium text-body;
   }
 
-  /* Cifra grande del dia: es lo mas importante de cada pantalla. */
+  /* Etiqueta chica de una cifra o de un grupo. Sin gritar. */
+  .eyebrow {
+    @apply text-[11px] font-medium uppercase tracking-[0.04em] text-muted;
+  }
+
+  /* Cifra del dia: sigue siendo lo primero que se mira, sin ser un cartel. */
   .stat-value {
-    @apply font-display text-[26px] leading-none tracking-tight sm:text-[32px];
+    @apply font-display text-[24px] leading-none tracking-tight sm:text-[28px];
     font-variant-numeric: tabular-nums;
   }
 
@@ -117,10 +136,11 @@ body {
   }
 
   .input {
-    @apply w-full rounded-xl border-2 border-edge bg-panel px-3 py-2.5 text-[15px] font-medium
-      text-strong outline-none transition
-      placeholder:font-normal placeholder:text-subtle
-      focus:border-brand-600 focus:shadow-block-brand;
+    @apply w-full rounded-lg border border-line bg-panel px-3 py-2.5 text-[15px]
+      text-strong shadow-soft outline-none transition duration-150
+      placeholder:text-subtle
+      hover:border-line-strong
+      focus:border-brand-500 focus:shadow-focus-brand;
     font-variant-numeric: tabular-nums;
   }
 
@@ -132,46 +152,43 @@ body {
   }
 
   /*
-    Al presionar, el boton se mueve hacia su sombra y la sombra desaparece:
-    parece que se hunde de verdad. Es el gesto que le da el caracter.
+    El boton ya no se hunde hacia su sombra: cambia de color y nada mas. El
+    gesto era simpatico, pero en una pantalla que se usa cien veces al dia
+    termina cansando.
   */
   .btn {
-    @apply inline-flex select-none items-center justify-center gap-2 rounded-xl
-      border-2 border-edge px-4 py-2.5 text-sm font-bold leading-none
-      shadow-block transition-[transform,box-shadow,background-color] duration-75
-      hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-block-lg
-      active:translate-x-[3px] active:translate-y-[3px] active:shadow-none
-      disabled:pointer-events-none disabled:opacity-45 disabled:shadow-none;
+    @apply inline-flex select-none items-center justify-center gap-2 rounded-lg
+      border border-transparent px-3.5 py-2.5 text-sm font-semibold leading-none
+      shadow-soft transition-colors duration-150
+      disabled:pointer-events-none disabled:opacity-50;
   }
 
   .btn-primary {
-    @apply btn bg-brand-600 text-on-brand hover:bg-brand-500;
+    @apply btn bg-brand-600 text-on-brand hover:bg-brand-700;
   }
 
   .btn-ghost {
-    @apply btn bg-panel text-strong hover:bg-surface;
+    @apply btn border-line bg-panel text-strong hover:border-line-strong hover:bg-surface;
   }
 
   .btn-soft {
-    @apply btn bg-brand-50 text-brand-700 hover:bg-brand-100;
+    @apply btn border-transparent bg-brand-50 text-brand-700 hover:bg-brand-100;
   }
 
   .btn-danger {
-    @apply btn bg-bad-soft text-bad hover:brightness-95;
+    @apply btn border-bad-line bg-bad-soft text-bad hover:brightness-[0.97];
   }
 
   .btn-success {
-    @apply btn bg-good-solid text-on-good hover:brightness-110;
+    @apply btn bg-good-solid text-on-good hover:brightness-105;
   }
 
   .btn-sm {
-    @apply px-3 py-2 text-xs shadow-[2px_2px_0_0_rgb(var(--edge))]
-      hover:shadow-block active:shadow-none;
+    @apply px-3 py-2 text-[13px];
   }
 
   .badge {
-    @apply inline-flex items-center gap-1 rounded-md border-2 px-2 py-0.5 text-[10px]
-      font-bold uppercase tracking-[0.06em];
+    @apply inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-medium;
   }
 
   .table-wrap {
@@ -183,7 +200,7 @@ body {
   }
 
   .tbl th {
-    @apply border-b-2 border-edge px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-[0.08em] text-muted;
+    @apply border-b border-line px-3 py-2.5 text-left text-[12px] font-semibold text-muted;
   }
 
   .tbl td {

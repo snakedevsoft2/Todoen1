@@ -240,7 +240,7 @@ export default async function InventarioPage({
               return (
                 <Card key={service.id}>
                   <div className="flex flex-wrap items-start gap-3">
-                    <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border-2 border-edge bg-panel">
+                    <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-line bg-panel">
                       {photo ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img

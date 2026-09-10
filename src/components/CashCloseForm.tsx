@@ -58,7 +58,7 @@ export function CashCloseForm({
         </Field>
       </div>
 
-      <div className="rounded-xl border-2 border-edge bg-surface p-3 text-sm">
+      <div className="rounded-xl border border-line bg-surface p-3 text-sm">
         <div className="flex justify-between py-1">
           <span className="text-muted">Base inicial</span>
           <span className="text-body">{money(openingNum, currency)}</span>
