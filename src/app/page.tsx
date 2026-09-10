@@ -2,6 +2,8 @@ import Link from "next/link";
 import { APP_NAME, APP_TAGLINE } from "@/lib/brand";
 import { Icon } from "@/components/Icon";
 import { AnimatedBackdrop } from "@/components/AnimatedBackdrop";
+import { CanalesOficiales } from "@/components/CanalesOficiales";
+import { COMPANY_LOGO } from "@/lib/canales";
 
 const FEATURES = [
   {
@@ -47,7 +49,14 @@ export default function LandingPage() {
       <AnimatedBackdrop />
 
       <header className="animate-entrar flex flex-wrap items-center justify-between gap-4">
-        <div>
+        <div className="flex items-center gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={COMPANY_LOGO}
+            alt=""
+            className="h-16 w-auto shrink-0 object-contain sm:h-20"
+          />
+          <div>
           <p className="font-display text-[34px] leading-none tracking-tight text-strong sm:text-[42px]">
             {APP_NAME.slice(0, -1)}
             <span className="text-brand-600">{APP_NAME.slice(-1)}</span>
@@ -55,6 +64,7 @@ export default function LandingPage() {
           <h1 className="mt-2 text-lg font-semibold text-body sm:text-xl">
             {APP_TAGLINE}, en una sola app
           </h1>
+          </div>
         </div>
         <div className="flex gap-2">
           <Link href="/login" className="btn-ghost">
@@ -94,8 +104,12 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <footer className="mt-12 text-center text-xs text-subtle">
-        Funciona en celular, tablet y computador.
+      <footer className="mt-12 border-t border-line pt-8 text-center">
+        <p className="text-xs text-subtle">Funciona en celular, tablet y computador.</p>
+        <p className="mt-6 text-[11px] font-medium uppercase tracking-[0.04em] text-muted">
+          Canales oficiales
+        </p>
+        <CanalesOficiales className="mt-3" />
       </footer>
     </div>
   );

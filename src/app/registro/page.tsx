@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { APP_NAME } from "@/lib/brand";
 import { Logo } from "@/components/Logo";
+import { CanalesOficiales } from "@/components/CanalesOficiales";
 import { RegistroForm } from "@/components/RegistroForm";
 import { AnimatedBackdrop } from "@/components/AnimatedBackdrop";
 
@@ -37,6 +38,11 @@ export default async function RegistroPage({
 
         <div className="animate-entrar" style={{ animationDelay: "0.08s" }}>
           <RegistroForm defaultEmail={params.email} defaultName={params.nombre} />
+        </div>
+
+        <div className="mt-8 border-t border-line pt-6 text-center">
+          <p className="text-xs text-subtle">Cualquier duda, escribenos</p>
+          <CanalesOficiales className="mt-3" />
         </div>
       </div>
     </>

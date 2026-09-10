@@ -12,6 +12,8 @@ import { restartOnboardingAction } from "@/actions/onboarding";
 import { Card, PageHeader } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Icon } from "@/components/Icon";
+import { CanalesOficiales } from "@/components/CanalesOficiales";
+import { COMPANY_LOGO } from "@/lib/canales";
 
 export const dynamic = "force-dynamic";
 
@@ -94,6 +96,20 @@ export default async function SoportePage() {
         </div>
 
         <div className="space-y-4">
+          <Card
+            title="Canales oficiales"
+            subtitle="Los unicos por los que escribimos. Si te contactan por otro, no somos nosotros"
+          >
+            <div className="mb-4 flex items-center gap-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={COMPANY_LOGO} alt="" className="h-14 w-auto shrink-0 object-contain" />
+              <p className="text-sm text-body">
+                Aqui te respondemos y aqui publicamos lo nuevo de la aplicacion.
+              </p>
+            </div>
+            <CanalesOficiales variant="lista" />
+          </Card>
+
           <Card title="Vuelve a ver el instructivo" subtitle="El de bienvenida, paso a paso">
             <p className="mb-3 text-sm text-body">
               Si quieres repasar como se registra una venta, como se cierra la caja o donde queda

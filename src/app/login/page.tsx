@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { googleEnabled } from "@/lib/google";
 import { APP_NAME } from "@/lib/brand";
 import { Logo } from "@/components/Logo";
+import { CanalesOficiales } from "@/components/CanalesOficiales";
 import { LoginForm } from "@/components/LoginForm";
 import { AuthVisual } from "@/components/AuthVisual";
 
@@ -46,6 +47,15 @@ export default async function LoginPage({
           >
             Volver al inicio
           </Link>
+
+          {/* Quien no logra entrar necesita por donde escribirnos, y este es
+              el sitio donde ya esta atascado. */}
+          <div className="mt-6 border-t border-slate-200 pt-5">
+            <p className="text-center text-[12px] text-slate-400">
+              Escribenos por nuestros canales oficiales
+            </p>
+            <CanalesOficiales className="mt-3" />
+          </div>
         </div>
       </main>
     </div>
