@@ -33,6 +33,12 @@ const SUGERENCIAS: Record<BusinessType, string[]> = {
     "Como uso el escaner de codigo de barras?",
     "Como cobro un fiado que se vencio?",
   ],
+  OTRO: [
+    "Como voy este mes?",
+    "Que me esta dejando mas plata?",
+    "Que apartados me sirven para mi negocio?",
+    "Como cierro la caja del dia?",
+  ],
 };
 
 export default async function AsistentePage() {

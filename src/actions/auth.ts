@@ -9,7 +9,13 @@ import { SUPPORT_WHATSAPP_PRETTY } from "@/lib/support";
 
 export type AuthState = { error?: string } | undefined;
 
-const VALID_TYPES: BusinessType[] = ["BARBERIA", "RESTAURANTE", "COMIDAS_RAPIDAS", "ROPA"];
+const VALID_TYPES: BusinessType[] = [
+  "BARBERIA",
+  "RESTAURANTE",
+  "COMIDAS_RAPIDAS",
+  "ROPA",
+  "OTRO",
+];
 
 /**
  * Lo que se le dice a una cuenta suspendida.
@@ -26,6 +32,7 @@ const DEFAULT_BRAND: Record<BusinessType, string> = {
   RESTAURANTE: "#b91c1c",
   COMIDAS_RAPIDAS: "#ea580c",
   ROPA: "#0f766e",
+  OTRO: "#0369a1",
 };
 
 const DEFAULT_CATALOG: Record<BusinessType, { name: string; price: number; durationMin: number; category: string }[]> = {
@@ -52,6 +59,13 @@ const DEFAULT_CATALOG: Record<BusinessType, { name: string; price: number; durat
     { name: "Jean clasico", price: 89000, durationMin: 0, category: "Jeans" },
     { name: "Buzo con capota", price: 79000, durationMin: 0, category: "Buzos" },
     { name: "Vestido casual", price: 95000, durationMin: 0, category: "Vestidos" },
+  ],
+  // Aqui no podemos adivinar el oficio, asi que en vez de inventar productos
+  // que no van a servirle a nadie, dejamos dos marcados como ejemplo para que
+  // se vea de una que hay que cambiarlos.
+  OTRO: [
+    { name: "Mi primer producto (cambiame)", price: 10000, durationMin: 0, category: "General" },
+    { name: "Mi primer servicio (cambiame)", price: 25000, durationMin: 30, category: "General" },
   ],
 };
 

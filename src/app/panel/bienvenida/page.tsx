@@ -50,6 +50,12 @@ const PRIMER_PASO: Record<string, { texto: string; href: string; boton: string }
     href: "/panel/catalogo",
     boton: "Cargar mis prendas",
   },
+  OTRO: {
+    texto:
+      "Sube lo que vendes con su precio, sea producto o servicio. Te dejamos dos de ejemplo para que veas cómo es: cámbialos por los tuyos. Si manejas existencias, márcale la casilla de inventario.",
+    href: "/panel/catalogo",
+    boton: "Cargar lo que vendo",
+  },
 };
 
 export default async function BienvenidaPage() {

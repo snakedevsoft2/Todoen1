@@ -127,6 +127,42 @@ describe("apagarle algo a una cuenta no toca a las demas", () => {
   });
 });
 
+describe("el tipo 'Otro' trae lo que no depende de un oficio", () => {
+  it("tiene inventario, catalogo y reportes, que es lo que se le prometio", async () => {
+    const suyos = await db.businessTypeModule.findMany({
+      where: { businessType: "OTRO", enabledByDefault: true },
+      select: { moduleKey: true },
+    });
+    const llaves = suyos.map((s) => s.moduleKey);
+
+    expect(llaves).toContain("inventario");
+    expect(llaves).toContain("catalogo");
+    expect(llaves).toContain("reportes");
+    expect(llaves).toContain("ventas");
+    expect(llaves).toContain("gastos");
+    expect(llaves).toContain("portafolio");
+  });
+
+  it("pero no la agenda por hora, que sigue siendo de barberia", async () => {
+    const turnos = await db.businessTypeModule.count({
+      where: { businessType: "OTRO", moduleKey: "turnos" },
+    });
+    expect(turnos).toBe(0);
+  });
+
+  it("lo que no todo el mundo usa le entra apagado, no encima", async () => {
+    const apagados = await db.businessTypeModule.findMany({
+      where: { businessType: "OTRO", enabledByDefault: false },
+      select: { moduleKey: true },
+    });
+    const llaves = apagados.map((a) => a.moduleKey);
+
+    expect(llaves).toContain("cartera");
+    expect(llaves).toContain("cuentas");
+    expect(llaves).toContain("avisos");
+  });
+});
+
 describe("la regla de la barberia aguanta incluso al administrador", () => {
   it("un restaurante no tiene turnos ni para poder prenderselos", async () => {
     const existe = await db.businessTypeModule.count({

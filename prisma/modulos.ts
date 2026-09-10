@@ -38,6 +38,7 @@ export const TIPOS = [
   "RESTAURANTE",
   "COMIDAS_RAPIDAS",
   "ROPA",
+  "OTRO",
   "DISTRIBUIDORA",
   "SERVICIOS",
   "FREELANCE",
@@ -45,8 +46,14 @@ export const TIPOS = [
 
 export type Tipo = (typeof TIPOS)[number];
 
-/** Los cuatro que hoy se pueden elegir al crear una cuenta. */
-export const TIPOS_ABIERTOS: Tipo[] = ["BARBERIA", "RESTAURANTE", "COMIDAS_RAPIDAS", "ROPA"];
+/** Los que hoy se pueden elegir al crear una cuenta. */
+export const TIPOS_ABIERTOS: Tipo[] = [
+  "BARBERIA",
+  "RESTAURANTE",
+  "COMIDAS_RAPIDAS",
+  "ROPA",
+  "OTRO",
+];
 
 export const MODULOS: ModuloDef[] = [
   // ---------------------------------------------------------------- FIJOS
@@ -406,6 +413,48 @@ export const PRESETS: Record<Tipo, Record<string, Preset>> = {
     guia: {},
     equipo: { label: "Empleados", ejemplo: "Cada vendedora con su usuario y sus ventas aparte." },
     personalizar: { on: false },
+    espacio: {},
+    ajustes: {},
+    soporte: {},
+  },
+
+  /**
+   * El negocio que no encaja en ninguno de los otros.
+   *
+   * Aqui no podemos adivinar el oficio, asi que le damos todo lo que no
+   * depende de uno: inventario, catalogo, la plata, el portafolio, reportes.
+   * Es al reves que en los demas, donde de fabrica se entrega poco: aqui es
+   * mejor que lo vea y apague lo que le sobre, porque nadie mas puede saber
+   * que le sirve.
+   *
+   * Lo unico que no lleva es la agenda por hora. Esa sigue siendo de barberia.
+   */
+  OTRO: {
+    resumen: {},
+    catalogo: {
+      label: "Productos y servicios",
+      ejemplo: "Lo que vendes, con su precio. Sea producto o servicio.",
+    },
+    inventario: {
+      ejemplo: "Si manejas existencias: cuanto te queda de cada cosa.",
+    },
+    ventas: { ejemplo: "Lo que vendiste hoy, con su factura para el cliente." },
+    gastos: { ejemplo: "Arriendo, mercancia, servicios: todo lo que sale." },
+    cartera: { on: false, ejemplo: "Quien te quedo debiendo y desde cuando." },
+    caja: {},
+    proveedores: { on: false, ejemplo: "A quien le compras y a como." },
+    portafolio: { ejemplo: "Tu pagina publica con fotos y el boton de WhatsApp." },
+    reportes: { ejemplo: "Como vas comparado con el mes pasado." },
+    asistente: { on: false, ejemplo: "Que apartados me sirven para mi negocio?" },
+    avisos: { on: false },
+    guia: {},
+    equipo: { label: "Empleados", ejemplo: "Cada uno con su usuario y sus ventas aparte." },
+    personalizar: { on: false },
+    cuentas: {
+      on: false,
+      label: "Cuentas abiertas",
+      ejemplo: "Si atiendes por mesa o por pedido y cobras al final.",
+    },
     espacio: {},
     ajustes: {},
     soporte: {},

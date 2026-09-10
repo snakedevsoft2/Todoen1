@@ -15,6 +15,10 @@ enum BusinessType {
   RESTAURANTE
   COMIDAS_RAPIDAS
   ROPA
+  /// Para el negocio que no encaja en los otros cuatro. Arranca con todo lo
+  /// que no depende de un oficio en particular y el dueno apaga lo que le
+  /// sobre desde "Armar mi menu".
+  OTRO
 }
 
 enum StaffRole {

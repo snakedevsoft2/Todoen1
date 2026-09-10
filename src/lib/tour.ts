@@ -79,6 +79,16 @@ const PRIMERO: Record<BusinessType, TourStep> = {
     href: "/panel/inventario",
     action: "Ver inventario",
   },
+  // "Otro" no tiene un apartado propio del oficio, porque no sabemos cual es.
+  // Lo que si sabemos es que le entregamos casi todo, asi que el paso que de
+  // verdad le sirve es aprender a quitarse de encima lo que no usa.
+  OTRO: {
+    icon: "sliders",
+    title: "Deja solo lo que uses",
+    text: "Como no sabemos a que te dedicas, te dimos casi todo. Entra a Armar mi menu y apaga lo que no necesites: no se borra nada y lo puedes volver a prender cuando quieras.",
+    href: "/panel/espacio",
+    action: "Armar mi menu",
+  },
 };
 
 const SEGUNDO: Record<BusinessType, TourStep> = {
@@ -109,6 +119,13 @@ const SEGUNDO: Record<BusinessType, TourStep> = {
     text: "Con su foto, su precio y sus tallas. Puedes crear S, M, L y XL de una sola vez, y la prenda sale publicada en tu catalogo con un enlace para compartir.",
     href: "/panel/catalogo",
     action: "Ver mis prendas",
+  },
+  OTRO: {
+    icon: "tag",
+    title: "Primero, lo que vendes y a como",
+    text: "Sea producto o servicio, ponlo con su precio. Te dejamos dos de ejemplo para que veas como es: cambialos por los tuyos. Si manejas existencias, marca la casilla de inventario y le llevas la cuenta.",
+    href: "/panel/catalogo",
+    action: "Ver mi lista",
   },
 };
 
