@@ -247,6 +247,22 @@ todos, así que **el menú no es fijo**.
 
 De fábrica, una tienda de ropa ve 13 apartados; con el arreglo **Lo esencial** quedan 7.
 
+### "Otro negocio"
+
+El quinto tipo, para el que no encaja en los otros cuatro: una ferretería, una papelería, un
+taller, una veterinaria.
+
+Va **al revés que los demás**: en los otros se entrega poco de fábrica y la persona prende lo que
+le falte. Aquí no podemos adivinar el oficio, así que se le entrega casi todo —inventario,
+catálogo, ventas, gastos, caja, portafolio, reportes, equipo— y el primer paso del instructivo es
+justamente **apagar lo que le sobre**. Cartera, cuentas abiertas, proveedores, avisos y el
+asistente le quedan disponibles pero apagados.
+
+Lo único que **no** lleva es la agenda por hora: esa sigue siendo de barbería.
+
+Su catálogo arranca con dos productos llamados *"(cámbiame)"*, para que se vea de una que hay que
+reemplazarlos, en vez de inventarle platos o cortes que no tienen nada que ver con lo suyo.
+
 ### Las tres capas del instructivo
 
 1. **Asistente de bienvenida** (`/panel/bienvenida`) — cuatro pasos la primera vez: qué es esto,
