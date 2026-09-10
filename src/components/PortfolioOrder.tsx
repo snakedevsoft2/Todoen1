@@ -2,7 +2,15 @@
 
 import { useMemo, useState } from "react";
 import { money } from "@/lib/format";
+import { sortTiers, tierPrice, wholesaleTotals, type Tier } from "@/lib/wholesale";
 import { Icon } from "./Icon";
+
+/** El apartado de mayoristas del negocio, tal como se publica. */
+export type Wholesale = {
+  title: string;
+  note: string | null;
+  tiers: Tier[];
+};
 
 export type PortfolioItem = {
   id: string;
@@ -35,6 +43,7 @@ export function PortfolioOrder({
   showPrices,
   itemNoun,
   orderNote,
+  wholesale,
 }: {
   items: PortfolioItem[];
   categories: string[];
@@ -45,6 +54,8 @@ export function PortfolioOrder({
   showPrices: boolean;
   itemNoun: string;
   orderNote: string | null;
+  /** Promociones por cantidad. Null si el negocio no vende al por mayor. */
+  wholesale: Wholesale | null;
 }) {
   const [categoria, setCategoria] = useState("");
   const [lineas, setLineas] = useState<Linea[]>([]);
@@ -56,10 +67,14 @@ export function PortfolioOrder({
     [items, categoria]
   );
 
-  const total = useMemo(
-    () => lineas.reduce((s, l) => s + l.precio * l.qty, 0),
-    [lineas]
-  );
+  const tiers = useMemo(() => wholesale?.tiers ?? [], [wholesale]);
+  /** La escala mas barata de alcanzar. Es el gancho que se muestra en la ficha. */
+  const entrada = tiers.length > 0 ? sortTiers(tiers)[0] : null;
+
+  // Las cuentas del pedido ya con la escala de mayorista que alcanzo.
+  const cuentas = useMemo(() => wholesaleTotals(lineas, tiers), [lineas, tiers]);
+  const total = cuentas.total;
+  const escala = cuentas.tier;
 
   function agregar(item: PortfolioItem, variante?: { id: string; label: string }) {
     const key = variante ? variante.id : item.id;
@@ -78,19 +93,40 @@ export function PortfolioOrder({
   }
 
   const mensaje = useMemo(() => {
-    const lista = lineas.map(
-      (l) => "- " + l.qty + " x " + l.nombre + (showPrices ? "  " + money(l.precio * l.qty, currency) : "")
-    );
+    // Mandamos el precio ya con la promocion aplicada: si el negocio ve otra
+    // cifra distinta a la que vio el cliente, el descuento se vuelve una pelea.
+    const lista = lineas.map((l) => {
+      const unidad = escala ? tierPrice(l.precio, escala.percentOff) : l.precio;
+      return "- " + l.qty + " x " + l.nombre + (showPrices ? "  " + money(unidad * l.qty, currency) : "");
+    });
+    const promo = escala
+      ? [
+          "",
+          "Voy al por mayor: " +
+            cuentas.units +
+            " unidades, " +
+            escala.percentOff +
+            "% de descuento" +
+            (escala.label ? " (" + escala.label + ")" : ""),
+        ]
+      : [];
     const texto = [
       "Hola " + businessName + ", quiero pedir:",
       "",
       ...lista,
-      ...(showPrices ? ["", "Total aproximado: " + money(total, currency)] : []),
+      ...promo,
+      ...(showPrices
+        ? [
+            "",
+            ...(escala ? ["Antes: " + money(cuentas.full, currency)] : []),
+            "Total aproximado: " + money(total, currency),
+          ]
+        : []),
       ...(nombre ? ["", "Mi nombre: " + nombre] : []),
       ...(nota ? ["Nota: " + nota] : []),
     ];
     return texto.join("\n");
-  }, [lineas, showPrices, currency, businessName, total, nombre, nota]);
+  }, [lineas, showPrices, currency, businessName, total, nombre, nota, escala, cuentas]);
 
   const enlacePedido =
     whatsapp && lineas.length > 0
@@ -99,6 +135,56 @@ export function PortfolioOrder({
 
   return (
     <>
+      {/* Apartado de mayoristas: quien compra en cantidad ve de una cuanto le
+          rebajan y desde cuantas unidades, sin tener que preguntar. */}
+      {wholesale && wholesale.tiers.length > 0 && (
+        <section
+          id="mayoristas"
+          className="mb-6 rounded-2xl border-2 border-edge bg-brand-50 p-4 sm:p-5"
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-lg border-2 border-edge bg-brand-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] text-white">
+              Promocion
+            </span>
+            <h2 className="font-display text-lg leading-tight text-strong">{wholesale.title}</h2>
+          </div>
+
+          <p className="mt-1.5 text-sm text-body">
+            Entre mas {itemNoun} lleves, mejor el precio. Se cuentan todas las unidades del pedido,
+            asi sean tallas y colores distintos.
+          </p>
+
+          <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {sortTiers(wholesale.tiers).map((t) => {
+              const activa = escala?.id === t.id;
+              return (
+                <li
+                  key={t.id}
+                  className={
+                    "rounded-xl border-2 px-3 py-2.5 " +
+                    (activa ? "border-brand-600 bg-panel" : "border-edge bg-panel")
+                  }
+                >
+                  <p className="font-display text-[15px] leading-none text-strong">
+                    Desde {t.minQty} {itemNoun}
+                  </p>
+                  <p className="mt-1.5 font-display text-xl leading-none text-brand-600 num">
+                    -{t.percentOff}%
+                  </p>
+                  <p className="mt-1 text-[11px] text-subtle">
+                    {activa ? "Es la que llevas" : t.label ?? "En cada unidad"}
+                  </p>
+                </li>
+              );
+            })}
+          </ul>
+
+          {wholesale.note && (
+            <p className="mt-3 border-t-2 border-edge pt-3 text-xs text-muted">{wholesale.note}</p>
+          )}
+        </section>
+      )}
+
       {categories.length > 1 && (
         <div className="mb-5 flex flex-wrap justify-center gap-2">
           <button
@@ -162,9 +248,22 @@ export function PortfolioOrder({
               )}
 
               {showPrices && (
-                <p className="mt-2 font-display text-lg leading-none text-brand-600 num">
-                  {money(item.price, currency)}
-                </p>
+                <>
+                  <p className="mt-2 font-display text-lg leading-none text-brand-600 num">
+                    {money(item.price, currency)}
+                  </p>
+                  {/* La escala de entrada, para que el mayorista vea el precio
+                      bueno sin tener que armar el pedido primero. */}
+                  {entrada && (
+                    <p className="mt-1 text-[11px] font-semibold text-muted">
+                      Desde {entrada.minQty}:{" "}
+                      <span className="num text-good">
+                        {money(tierPrice(item.price, entrada.percentOff), currency)}
+                      </span>{" "}
+                      c/u
+                    </p>
+                  )}
+                </>
               )}
 
               {item.variants.length > 0 ? (
@@ -208,6 +307,11 @@ export function PortfolioOrder({
           <div className="mx-auto max-w-2xl rounded-2xl border-2 border-edge bg-panel p-4 shadow-block-lg">
             <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-muted">
               Tu pedido
+              {tiers.length > 0 && (
+                <span className="ml-1.5 normal-case tracking-normal text-subtle">
+                  ({cuentas.units} {cuentas.units === 1 ? "unidad" : "unidades"})
+                </span>
+              )}
             </p>
 
             <ul className="max-h-52 divide-y divide-line overflow-y-auto">
@@ -236,7 +340,10 @@ export function PortfolioOrder({
                     </button>
                     {showPrices && (
                       <span className="w-24 text-right text-sm font-bold text-brand-600 num">
-                        {money(l.precio * l.qty, currency)}
+                        {money(
+                          (escala ? tierPrice(l.precio, escala.percentOff) : l.precio) * l.qty,
+                          currency
+                        )}
                       </span>
                     )}
                   </span>
@@ -259,11 +366,49 @@ export function PortfolioOrder({
               />
             </div>
 
+            {/* Aviso de mayorista: o ya lo tiene, o le decimos cuanto le falta.
+                Lo segundo es lo que de verdad sube el pedido. */}
+            {escala && (
+              <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border-2 border-edge bg-good-soft px-3 py-2 text-xs font-semibold text-good">
+                <Icon name="tag" className="h-4 w-4 shrink-0" />
+                <span>
+                  Precio al por mayor: {escala.percentOff}% menos
+                  {escala.label ? " - " + escala.label : ""}
+                </span>
+                {showPrices && cuentas.saved > 0 && (
+                  <span className="num">Ahorras {money(cuentas.saved, currency)}</span>
+                )}
+              </p>
+            )}
+
+            {cuentas.next && (
+              <p
+                className={
+                  (escala ? "mt-2 " : "mt-3 ") +
+                  "flex flex-wrap items-center gap-x-2 rounded-xl border-2 border-edge bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-800"
+                }
+              >
+                <Icon name="tag" className="h-4 w-4 shrink-0" />
+                <span>
+                  Agrega {cuentas.missing} {cuentas.missing === 1 ? "unidad" : "unidades"} mas y
+                  {escala ? " subes a " : " te llevas "}
+                  {cuentas.next.percentOff}% de descuento.
+                </span>
+              </p>
+            )}
+
             {showPrices && (
               <div className="mt-3 flex items-center justify-between border-t-2 border-edge pt-3">
                 <span className="text-sm text-muted">Total aproximado</span>
-                <span className="font-display text-xl text-strong num">
-                  {money(total, currency)}
+                <span className="flex items-baseline gap-2">
+                  {cuentas.saved > 0 && (
+                    <span className="text-sm text-subtle line-through num">
+                      {money(cuentas.full, currency)}
+                    </span>
+                  )}
+                  <span className="font-display text-xl text-strong num">
+                    {money(total, currency)}
+                  </span>
                 </span>
               </div>
             )}

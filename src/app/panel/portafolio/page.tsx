@@ -6,6 +6,7 @@ import { Card, Empty, PageHeader, Stat } from "@/components/ui";
 import { CopyLink } from "@/components/CopyLink";
 import { Icon } from "@/components/Icon";
 import { PortfolioForm } from "@/components/PortfolioForm";
+import { WholesaleForm } from "@/components/WholesaleForm";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,7 @@ export default async function PortafolioPage() {
   const noun = ITEM_NOUN[user.businessType];
   const ruta = "/catalogo/" + user.slug;
 
-  const [publicados, sinFoto, total, muestra] = await Promise.all([
+  const [publicados, sinFoto, total, muestra, tiers] = await Promise.all([
     db.service.count({ where: { userId: user.id, active: true, showcase: true } }),
     db.service.count({ where: { userId: user.id, active: true, showcase: true, image: null } }),
     db.service.count({ where: { userId: user.id, active: true } }),
@@ -25,7 +26,16 @@ export default async function PortafolioPage() {
       take: 4,
       select: { id: true, name: true, price: true, image: true, updatedAt: true },
     }),
+    db.wholesaleTier.findMany({
+      where: { userId: user.id },
+      orderBy: { minQty: "asc" },
+      select: { id: true, minQty: true, percentOff: true, label: true },
+    }),
   ]);
+
+  // Un precio de verdad del catalogo para el ejemplo de cada escala. Con uno
+  // inventado el dueno no sabe si el descuento le sirve o no.
+  const samplePrice = muestra.find((m) => m.price > 0)?.price ?? null;
 
   return (
     <>
@@ -111,6 +121,26 @@ export default async function PortafolioPage() {
                 photo: photoUrl(m.id, m.image, m.updatedAt),
               })),
             }}
+          />
+        </Card>
+      </div>
+
+      <div className="mt-5">
+        <Card
+          title="Promociones al por mayor"
+          subtitle="El apartado del catalogo para quien te compra en cantidad"
+        >
+          <WholesaleForm
+            initial={{
+              wholesaleOpen: user.wholesaleOpen,
+              wholesaleTitle: user.wholesaleTitle,
+              wholesaleNote: user.wholesaleNote,
+            }}
+            tiers={tiers}
+            currency={user.currency}
+            itemSingular={noun.singular}
+            itemPlural={noun.plural}
+            samplePrice={samplePrice}
           />
         </Card>
       </div>

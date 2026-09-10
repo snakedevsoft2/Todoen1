@@ -79,6 +79,9 @@ Pensado para el local que vende por talla y color y necesita saber qué le queda
   el inventario, al vender y en el catálogo público.
 - **Catálogo público** en `/catalogo/<tu-negocio>`: foto, precio, tallas disponibles y un botón que
   abre WhatsApp con el mensaje escrito. Solo salen las prendas que marques para el catálogo.
+- **Promociones al por mayor** en el mismo catálogo: escalas por cantidad (*desde 6 prendas 10%
+  menos, desde 12 un 20%*) que el cliente ve de una y que el pedido aplica solo. Ver
+  **[Promociones al por mayor](#promociones-al-por-mayor)**.
 - **Empleados con su propio usuario.** Entran con su correo, venden, ven el inventario y los reportes,
   pero no tocan la configuración ni el equipo. Cada venta queda a nombre de quien la hizo, con su
   comisión.
@@ -458,6 +461,35 @@ QR**. Es lo mismo para la barbería que para la tienda de ropa: cambia lo que se
   mostrador. Se imprime del tamaño que sea sin pixelarse. Sale de la misma librería que ya lee los
   códigos de barras, así que no agrega peso.
 - La **barbería** además muestra un botón a su agenda, que sigue siendo solo suya.
+
+### Promociones al por mayor
+
+El apartado del catálogo para quien compra en cantidad. Se arma en `/panel/portafolio`, en
+**Promociones al por mayor**, y viene **apagado** hasta que el dueño lo encienda.
+
+- **Escalas por cantidad.** Cada escala dice *desde cuántas unidades* arranca y *cuánto se descuenta*
+  a cada una (1% a 90%), con un nombre opcional (*media docena*, *paca*). Hasta 6 escalas, y no se
+  permiten dos con la misma cantidad: si hubiera un «desde 6 con 10%» y otro «desde 6 con 20%», el
+  pedido no sabría cuál cobrar.
+- **El descuento es en porcentaje, no en precio fijo.** Así sirve para todo el catálogo de una vez y
+  no hay que volver a tocarlo cada vez que sube el precio de una prenda.
+- **Se cuentan las unidades del pedido completo**, no las de cada referencia. El mayorista casi
+  siempre surte tallas y colores distintos: tres camisas y tres pantalones son seis prendas y le da
+  la escala de seis.
+- **Al lado de cada escala se ve el precio real.** El panel toma una prenda de verdad de tu catálogo
+  y muestra a cómo queda, para que veas que un 40% te come la utilidad **antes** de publicarlo.
+- **En el catálogo público** sale un bloque con las escalas arriba de las prendas, un botón *Compro
+  al por mayor* en la portada, y debajo del precio de cada prenda el precio de mayorista de entrada.
+- **El pedido lo aplica solo.** Apenas el cliente alcanza una escala se le recalcula cada renglón, se
+  le muestra el total anterior tachado y cuánto se ahorra. Si todavía no llega, se le dice cuántas
+  unidades le faltan para la siguiente. El mensaje de WhatsApp sale con el precio ya descontado: si
+  el negocio viera otra cifra distinta a la que vio el cliente, el descuento se volvería una pelea.
+- **Condiciones del mayorista**: un texto propio para el pedido mínimo, la forma de pago o los
+  despachos a otras ciudades.
+
+Las cuentas viven en [`src/lib/wholesale.ts`](src/lib/wholesale.ts), aparte de la base de datos
+porque las usan el servidor y el navegador, y están cubiertas en
+[`tests/mayoristas.test.ts`](tests/mayoristas.test.ts).
 
 ### Asistente con IA
 

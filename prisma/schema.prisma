@@ -104,6 +104,14 @@ model User {
   /// Si se muestran los precios. Hay negocios que prefieren no publicarlos.
   publicShowPrices Boolean @default(true)
 
+  // Promociones al por mayor: el apartado del catalogo para quien compra en cantidad.
+  /// Si esta encendido, el catalogo publico muestra las escalas por cantidad.
+  wholesaleOpen  Boolean @default(false)
+  /// Condiciones del mayorista (pedido minimo, forma de pago, despachos).
+  wholesaleNote  String?
+  /// Titulo del apartado. Si esta vacio usamos "Precios al por mayor".
+  wholesaleTitle String?
+
   // Avisos por WhatsApp cuando un cliente separa turno
   whatsappNumber   String? // numero que recibe los avisos, solo digitos con indicativo
   whatsappProvider String  @default("enlace") // "enlace", "callmebot" o "meta"
@@ -149,8 +157,34 @@ model User {
   saleItems      SaleItem[]
   workspaces     WorkspaceConfig[]
   moduleEvents   ModuleEvent[]
+  wholesaleTiers WholesaleTier[]
 
   @@index([slug])
+}
+
+/// Una escala de precio al por mayor: desde cuantas unidades y con cuanto descuento.
+///
+/// El descuento se guarda en porcentaje y no en precio fijo a proposito: asi
+/// sirve para todo el catalogo de una vez y no hay que volver a tocarlo cada
+/// vez que sube el precio de una prenda.
+model WholesaleTier {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Desde cuantas unidades en el pedido arranca esta escala.
+  minQty     Int
+  /// Cuanto se le descuenta a cada unidad, de 1 a 90.
+  percentOff Int
+  /// Nombre opcional de la escala ("Media docena", "Paca").
+  label      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Una sola escala por cantidad: dos "desde 6" no sabrian cual gana.
+  @@unique([userId, minQty])
+  @@index([userId])
 }
 
 /// Plata que le deben al negocio. Un fiado, un abono pendiente, una cuota.

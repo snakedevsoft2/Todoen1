@@ -10,7 +10,11 @@ import { APP_NAME } from "@/lib/brand";
 import { Icon } from "@/components/Icon";
 import { ThemeStyle } from "@/components/ThemeStyle";
 import { BrandMark } from "@/components/BrandMark";
-import { PortfolioOrder, type PortfolioItem } from "@/components/PortfolioOrder";
+import {
+  PortfolioOrder,
+  type PortfolioItem,
+  type Wholesale,
+} from "@/components/PortfolioOrder";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +71,25 @@ export default async function PortafolioPage({
       },
     },
   });
+
+  // Escalas del mayorista. Solo se consultan si el negocio encendio el
+  // apartado: quien vende al detal no tiene por que pagar una consulta mas.
+  const tiers = shop.wholesaleOpen
+    ? await db.wholesaleTier.findMany({
+        where: { userId: shop.id },
+        orderBy: { minQty: "asc" },
+        select: { id: true, minQty: true, percentOff: true, label: true },
+      })
+    : [];
+
+  const wholesale: Wholesale | null =
+    tiers.length > 0
+      ? {
+          title: shop.wholesaleTitle || "Precios al por mayor",
+          note: shop.wholesaleNote,
+          tiers,
+        }
+      : null;
 
   const noun = ITEM_NOUN[shop.businessType];
   const esBarberia = shop.businessType === "BARBERIA";
@@ -182,6 +205,12 @@ export default async function PortafolioPage({
                 Separar mi turno
               </Link>
             )}
+            {wholesale && (
+              <a href="#mayoristas" className="btn-ghost">
+                <Icon name="tag" className="h-4 w-4" />
+                Compro al por mayor
+              </a>
+            )}
             {whatsapp && (
               <a
                 href={
@@ -220,6 +249,7 @@ export default async function PortafolioPage({
             showPrices={shop.publicShowPrices}
             itemNoun={noun.plural}
             orderNote={shop.publicOrderNote}
+            wholesale={wholesale}
           />
         )}
       </main>
