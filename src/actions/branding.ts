@@ -16,7 +16,17 @@ import {
 export type BrandingState = { error?: string; ok?: string } | undefined;
 
 const MAX_LOGO_BYTES = 160 * 1024;
-const ALLOWED_LOGO = /^data:image\/(png|jpeg|jpg|webp|svg\+xml);base64,[A-Za-z0-9+/=]+$/;
+
+/**
+ * Formatos de logo que aceptamos.
+ *
+ * SVG NO, y es a proposito: un SVG puede llevar JavaScript dentro. Como el
+ * logo se sirve en /logo/<slug> con su propio tipo, abrir esa direccion en una
+ * pestana ejecutaria ese codigo dentro de nuestro dominio, con la sesion de
+ * quien lo abra. El selector de fotos ya reconvierte todo a webp o jpeg, asi
+ * que aceptar SVG no le servia a nadie salvo a quien quisiera abusarlo.
+ */
+const ALLOWED_LOGO = /^data:image\/(png|jpeg|jpg|webp);base64,[A-Za-z0-9+/=]+$/;
 
 /** Colores, tema, frase y logo del negocio. */
 export async function updateBrandingAction(

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { servirImagen } from "@/lib/imagen-servida";
 
 /**
  * Sirve la foto de una prenda como imagen.
@@ -22,20 +23,7 @@ export async function GET(
     select: { image: true },
   });
 
-  if (!service?.image) return new NextResponse("Sin foto", { status: 404 });
+  if (!service) return new NextResponse("Sin foto", { status: 404 });
 
-  const match = /^data:([^;]+);base64,(.+)$/.exec(service.image);
-  if (!match) return new NextResponse("Foto invalida", { status: 404 });
-
-  const [, mime, base64] = match;
-  const bytes = Buffer.from(base64, "base64");
-
-  return new NextResponse(new Uint8Array(bytes), {
-    headers: {
-      "Content-Type": mime,
-      "Content-Length": String(bytes.length),
-      // La direccion lleva la version, asi que se puede cachear fuerte.
-      "Cache-Control": "public, max-age=31536000, immutable",
-    },
-  });
+  return servirImagen(service.image);
 }
