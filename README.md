@@ -169,6 +169,66 @@ que nunca falla no protege nada.
 
 ---
 
+## Panel de la plataforma (`/admin`)
+
+Para el dueño de Todoen1, no para los clientes. Muestra quién se registró, quién sigue entrando y
+qué se le puede prender o apagar a cada cuenta.
+
+### Quién entra
+
+Tu correo va en la variable `ADMIN_EMAILS` del `.env` (varios separados por coma):
+
+```
+ADMIN_EMAILS="tucorreo@gmail.com"
+```
+
+**Va en una variable de entorno y no en una columna de la base a propósito:** así no hay ninguna
+pantalla, ninguna acción y ninguna consulta que pueda volver administrador a nadie. Para dar ese
+poder hay que entrar al servidor y cambiar la configuración. Si la variable está vacía, no hay
+administrador y el panel no existe para nadie — esa es la posición segura.
+
+Quien no sea administrador y escriba `/admin` no ve un "no tienes permiso": vuelve a su panel,
+como si la dirección no existiera. En Vercel se pone la variable en **Settings → Environment
+Variables**.
+
+### Lo que se ve y lo que NO
+
+| Se ve | No se ve |
+|---|---|
+| Nombre del negocio, tipo, correo, teléfono | Sus ventas, sus clientes, sus deudores |
+| Cuándo se registró y cuándo entró por última vez | Sus precios, sus fotos, su catálogo |
+| Cuántas ventas/gastos/productos tiene | **Qué** vendió, a quién y por cuánto |
+| Qué apartados abre y cuántos días | Nada de su contenido |
+
+A los clientes se les prometió que nadie ve lo suyo. Un panel de administración no es una excusa
+para romper esa promesa: es justo donde más fácil sería romperla sin darse cuenta. Por eso el
+límite está escrito en el código y comprobado con pruebas.
+
+### Lo que se puede hacer
+
+- **Apagarle un apartado a una cuenta.** Desaparece de su menú y no lo puede volver a prender
+  desde adentro. Tres estados: *De fábrica* (lo que le toca por su oficio), *Apagado*, *Prendido*
+  (para estrenarle algo antes que a los demás).
+- **Suspender una cuenta.** Nadie de ese negocio puede entrar, ni el dueño ni sus empleados. **No
+  borra nada** y se deshace cuando quieras. Pide un motivo y escribir el nombre del negocio, para
+  que no pase de un clic distraído. Al cliente se le explica y se le da el WhatsApp de soporte.
+- **Quitarle el acceso a una persona** dentro de una cuenta, sin tocar el resto del negocio.
+
+**Ni el administrador puede saltarse la regla de los oficios:** no se le puede dar la agenda por
+hora a un restaurante desde aquí. Tampoco se pueden apagar Resumen, Ajustes ni Soporte, ni
+suspender tu propia cuenta.
+
+### Cómo se comprueba
+
+- `npm test` — 28 pruebas, 11 de ellas del panel: que apagarle algo a una cuenta no toque a las
+  demás, que el interruptor del administrador mande sobre el del cliente, y que suspender no borre
+  nada.
+- `npm run verificar:admin` — recorre el panel en un navegador de verdad (necesita `npm start`
+  corriendo): que un cliente cualquiera no alcance `/admin` ni la ficha de otro negocio, que una
+  cuenta suspendida quede por fuera y que su sesión abierta se caiga.
+
+---
+
 ## El menú lo arma cada persona
 
 La aplicación tiene veinte apartados porque sirve para negocios muy distintos. Nadie los necesita

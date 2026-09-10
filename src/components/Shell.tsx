@@ -17,6 +17,7 @@ export function Shell({
   logo,
   bookingUrl,
   bookingLabel = "Ver pagina de reservas",
+  admin = false,
   logout,
   children,
 }: {
@@ -31,6 +32,8 @@ export function Shell({
   bookingUrl?: string;
   /** Como se llama esa pagina publica: reservas en la barberia, catalogo en la ropa. */
   bookingLabel?: string;
+  /** Solo para quien administra la plataforma. Para todos los demas no existe. */
+  admin?: boolean;
   logout: ReactNode;
   children: ReactNode;
 }) {
@@ -99,6 +102,14 @@ export function Shell({
         <Icon name="sliders" className="h-4 w-4" />
         Armar mi menu
       </Link>
+      {/* Solo lo ve quien administra la plataforma. Para el resto ni siquiera
+          se pinta, asi que nadie descubre que existe. */}
+      {admin && (
+        <Link href="/admin" className="btn-ghost btn-sm w-full justify-start">
+          <Icon name="users" className="h-4 w-4" />
+          Panel de la plataforma
+        </Link>
+      )}
       {logout}
       <div className="flex items-center gap-2 px-1 pt-1">
         <span

@@ -116,26 +116,35 @@ model User {
   workDays    String  @default("1,2,3,4,5,6") // 1=lunes ... 7=domingo
   bookingOpen Boolean @default(true)
 
+  /**
+   * Cuenta suspendida por el administrador de la plataforma.
+   * Mientras este puesta, nadie de esta cuenta puede entrar. No se borra nada:
+   * suspender es cerrar la puerta, no botar la casa.
+   */
+  suspendedAt     DateTime?
+  suspendedReason String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  staff         Staff[]
-  services      Service[]
-  appointments  Appointment[]
-  sales         Sale[]
-  expenses      Expense[]
-  orders        Order[]
-  cashClosures  CashClosure[]
-  notifications Notification[]
-  variants      ProductVariant[]
-  stockMoves    StockMove[]
-  suppliers     Supplier[]
-  debts         Debt[]
-  debtPayments  DebtPayment[]
-  orderItems    OrderItem[]
-  saleItems     SaleItem[]
-  workspaces    WorkspaceConfig[]
-  moduleEvents  ModuleEvent[]
+  staff          Staff[]
+  accountModules AccountModule[]
+  services       Service[]
+  appointments   Appointment[]
+  sales          Sale[]
+  expenses       Expense[]
+  orders         Order[]
+  cashClosures   CashClosure[]
+  notifications  Notification[]
+  variants       ProductVariant[]
+  stockMoves     StockMove[]
+  suppliers      Supplier[]
+  debts          Debt[]
+  debtPayments   DebtPayment[]
+  orderItems     OrderItem[]
+  saleItems      SaleItem[]
+  workspaces     WorkspaceConfig[]
+  moduleEvents   ModuleEvent[]
 
   @@index([slug])
 }
@@ -249,6 +258,11 @@ model Staff {
 
   /// Cuando lo termino o lo salto. Es lo mismo: ya decidio.
   onboardingDoneAt DateTime?
+
+  /// Ultima vez que se le vio actividad. Se escribe cada tanto, no en cada
+  /// pantalla: sirve para saber quien sigue usando la aplicacion, no para
+  /// cronometrar a nadie.
+  lastSeenAt DateTime?
 
   /**
    * ANTIGUO. La configuracion ahora vive en WorkspaceConfig. Estas dos
@@ -615,6 +629,7 @@ model Module {
   updatedAt DateTime @updatedAt
 
   businessTypes BusinessTypeModule[]
+  accounts      AccountModule[]
 }
 
 /**
@@ -687,4 +702,31 @@ model ModuleEvent {
 
   @@index([userId, moduleKey])
   @@index([userId, createdAt])
+}
+
+/**
+ * Lo que el administrador de la plataforma le prende o le apaga a UNA cuenta.
+ * Es distinto del catalogo (que dice que le toca a cada oficio) y del espacio
+ * de trabajo (que dice que quiso ver cada persona). Esto manda sobre los dos:
+ * si aqui dice que no, el apartado no existe para esa cuenta y no hay boton
+ * que lo devuelva desde adentro.
+ * Sirve para dos cosas: apagarle a alguien algo que le esta dando problemas, y
+ * dejar apagado lo que todavia no se le quiere dar a todo el mundo.
+ */
+model AccountModule {
+  id        String @id @default(cuid())
+  userId    String
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  moduleKey String
+  module    Module @relation(fields: [moduleKey], references: [key], onDelete: Cascade)
+
+  enabled Boolean
+  /// Por que se toco. Es para acordarse en tres meses, no lo ve el cliente.
+  note    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, moduleKey])
+  @@index([userId])
 }

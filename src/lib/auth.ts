@@ -34,7 +34,10 @@ export async function getCurrentUser(): Promise<User | null> {
  */
 export async function requireUser(): Promise<User> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  // Pasa por /salir y no derecho al login: si la cookie sigue firmada pero la
+  // sesion ya no sirve, hay que borrarla o el middleware la devuelve al panel
+  // y se arma un rebote infinito.
+  if (!user) redirect("/salir");
   return user;
 }
 
@@ -64,6 +67,31 @@ export async function ensureOwnerStaff(user: User): Promise<Staff> {
   });
 }
 
+/**
+ * Cada cuanto se vuelve a anotar que alguien sigue por ahi.
+ *
+ * Sin esto habria una escritura en cada pantalla que alguien abre. Con cinco
+ * minutos alcanza de sobra para saber quien esta usando la aplicacion, que es
+ * lo unico para lo que sirve el dato.
+ */
+const MINUTOS_ENTRE_ANOTACIONES = 5;
+
+/**
+ * Deja anotado que esta persona sigue activa.
+ *
+ * Si falla no importa: no vale la pena tumbar una pagina por no poder anotar
+ * una marca de tiempo.
+ */
+async function marcarActividad(staff: Staff) {
+  const corte = Date.now() - MINUTOS_ENTRE_ANOTACIONES * 60 * 1000;
+  if (staff.lastSeenAt && staff.lastSeenAt.getTime() > corte) return;
+  try {
+    await db.staff.update({ where: { id: staff.id }, data: { lastSeenAt: new Date() } });
+  } catch {
+    // a proposito en silencio
+  }
+}
+
 /** Sesion completa (negocio + persona) o null. No redirige. */
 export async function getCurrentSession(): Promise<Session | null> {
   const session = await readSession();
@@ -71,8 +99,16 @@ export async function getCurrentSession(): Promise<Session | null> {
   const user = await db.user.findUnique({ where: { id: session.uid } });
   if (!user) return null;
 
+  // Cuenta suspendida por la plataforma: la sesion deja de valer en la
+  // siguiente peticion, sin tener que esperar a que la cookie caduque.
+  if (user.suspendedAt) return null;
+
   // Sesiones viejas (antes del equipo) no traen sid: eran del dueno.
-  if (!session.sid) return { user, staff: await ensureOwnerStaff(user) };
+  if (!session.sid) {
+    const dueno = await ensureOwnerStaff(user);
+    await marcarActividad(dueno);
+    return { user, staff: dueno };
+  }
 
   // Si el barbero fue borrado o desactivado, la sesion deja de valer.
   // Nunca caemos al dueno aqui: seria darle permisos que no tiene.
@@ -80,13 +116,15 @@ export async function getCurrentSession(): Promise<Session | null> {
     where: { id: session.sid, userId: user.id, active: true },
   });
   if (!staff) return null;
+
+  await marcarActividad(staff);
   return { user, staff };
 }
 
 /** Sesion obligatoria. Si no hay, manda al login. */
 export async function requireSession(): Promise<Session> {
   const session = await getCurrentSession();
-  if (!session) redirect("/login");
+  if (!session) redirect("/salir");
   return session;
 }
 

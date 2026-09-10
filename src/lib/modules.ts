@@ -67,7 +67,7 @@ export function parseKeys(raw: string | null | undefined): string[] {
 export async function modulosDe({ user, staff }: Sesion): Promise<Modulo[]> {
   const esDueno = staff.role === "DUENO";
 
-  const [filas, config] = await Promise.all([
+  const [filas, config, overrides] = await Promise.all([
     db.businessTypeModule.findMany({
       where: { businessType: user.businessType, module: { active: true } },
       include: { module: true },
@@ -76,7 +76,24 @@ export async function modulosDe({ user, staff }: Sesion): Promise<Modulo[]> {
     // El aislamiento va en la consulta: la config se pide por persona Y por
     // negocio, aunque el id de la persona ya sea unico.
     db.workspaceConfig.findFirst({ where: { staffId: staff.id, userId: user.id } }),
+    // Lo que el administrador de la plataforma le prendio o le apago a esta
+    // cuenta en particular.
+    db.accountModule.findMany({ where: { userId: user.id } }),
   ]);
+
+  /**
+   * El interruptor del administrador manda sobre todo lo demas.
+   *
+   * Si dice que no, el apartado se saca de la lista entero, como si el oficio
+   * no lo tuviera: no queda apagado y visible en el configurador, porque
+   * entonces la persona lo prenderia y se preguntaria por que no funciona.
+   */
+  const apagadosPorAdmin = new Set(
+    overrides.filter((o) => !o.enabled).map((o) => o.moduleKey)
+  );
+  const prendidosPorAdmin = new Set(
+    overrides.filter((o) => o.enabled).map((o) => o.moduleKey)
+  );
 
   const escondidos = new Set(parseKeys(config?.hiddenKeys));
   const orden = parseKeys(config?.orderKeys);
@@ -85,15 +102,20 @@ export async function modulosDe({ user, staff }: Sesion): Promise<Modulo[]> {
   const conocidos = new Set([...escondidos, ...orden]);
 
   const modulos: Modulo[] = filas
+    .filter((f) => !apagadosPorAdmin.has(f.module.key))
     .filter((f) => esDueno || !f.module.ownerOnly)
     // Si le falta la credencial, el apartado no se ofrece: mejor que no
     // aparezca a que aparezca y lleve a una pantalla rota.
     .filter((f) => !f.module.requiresEnv || Boolean(process.env[f.module.requiresEnv]))
     .map((f) => {
       const key = f.module.key;
-      const apagado = config
-        ? escondidos.has(key) || (!conocidos.has(key) && !f.enabledByDefault)
-        : !f.enabledByDefault;
+      // Si el administrador lo prendio a mano, entra encendido aunque de
+      // fabrica viniera apagado. Es la forma de estrenarle algo a una cuenta.
+      const apagado = prendidosPorAdmin.has(key)
+        ? escondidos.has(key)
+        : config
+          ? escondidos.has(key) || (!conocidos.has(key) && !f.enabledByDefault)
+          : !f.enabledByDefault;
 
       return {
         key,

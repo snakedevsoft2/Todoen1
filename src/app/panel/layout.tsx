@@ -7,6 +7,7 @@ import { Icon } from "@/components/Icon";
 import { logoutAction } from "@/actions/auth";
 import { ThemeStyle } from "@/components/ThemeStyle";
 import { RegistrarVisita } from "@/components/RegistrarVisita";
+import { correoDeLaSesion, esAdmin } from "@/lib/admin";
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
   const sesion = await requireSession();
@@ -43,6 +44,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
         logo={logoUrl(user.slug, user.logo, user.updatedAt)}
         bookingUrl={publicPath(user.businessType, user.slug)}
         bookingLabel="Ver mi portafolio"
+        admin={esAdmin(correoDeLaSesion(sesion))}
         logout={logout}
       >
         {children}

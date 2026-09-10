@@ -31,7 +31,10 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const logged = await hasValidSession(request);
 
-  if (pathname.startsWith("/panel") && !logged) {
+  // El panel de la plataforma no se puede mirar sin sesion. Quien tiene
+  // sesion pero no es administrador lo decide requireAdmin() en el servidor:
+  // aqui no se puede saber, porque el middleware no habla con la base.
+  if ((pathname.startsWith("/panel") || pathname.startsWith("/admin")) && !logged) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.search = "";
@@ -49,5 +52,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/panel/:path*", "/login", "/registro"],
+  matcher: ["/panel/:path*", "/admin/:path*", "/login", "/registro"],
 };

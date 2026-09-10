@@ -5,10 +5,20 @@ import type { BusinessType } from "@prisma/client";
 import { db } from "@/lib/db";
 import { checkPassword, ensureOwnerStaff, hashPassword, uniqueSlug } from "@/lib/auth";
 import { clearSessionCookie, cookieJar, signSession, writeSessionCookie } from "@/lib/session";
+import { SUPPORT_WHATSAPP_PRETTY } from "@/lib/support";
 
 export type AuthState = { error?: string } | undefined;
 
 const VALID_TYPES: BusinessType[] = ["BARBERIA", "RESTAURANTE", "COMIDAS_RAPIDAS", "ROPA"];
+
+/**
+ * Lo que se le dice a una cuenta suspendida.
+ *
+ * Se le da el telefono de soporte a proposito: quien queda por fuera tiene que
+ * saber a quien reclamar, o solo va a pensar que la aplicacion se dano.
+ */
+const CUENTA_SUSPENDIDA =
+  "Tu cuenta esta suspendida. Escribenos al " + SUPPORT_WHATSAPP_PRETTY + " para reactivarla.";
 
 /** Cada tipo de negocio arranca con un color distinto. Se cambia en Personalizar. */
 const DEFAULT_BRAND: Record<BusinessType, string> = {
@@ -128,6 +138,9 @@ export async function loginAction(_prev: AuthState, formData: FormData): Promise
     if (!checkPassword(password, user.passwordHash)) {
       return { error: "Correo o contrasena incorrectos." };
     }
+    // La cuenta suspendida se avisa despues de comprobar la contrasena, no
+    // antes: si no, cualquiera podria averiguar que correos existen.
+    if (user.suspendedAt) return { error: CUENTA_SUSPENDIDA };
     const owner = await ensureOwnerStaff(user);
     writeSessionCookie(
       jar,
@@ -151,6 +164,7 @@ export async function loginAction(_prev: AuthState, formData: FormData): Promise
   if (!staff.active) {
     return { error: "Tu usuario esta desactivado. Pidele al dueno que lo active." };
   }
+  if (staff.user.suspendedAt) return { error: CUENTA_SUSPENDIDA };
 
   writeSessionCookie(
     jar,

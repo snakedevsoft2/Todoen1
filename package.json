@@ -14,7 +14,8 @@
     "db:down": "docker compose down",
     "test": "vitest run",
     "test:watch": "vitest",
-    "db:modulos": "tsx prisma/sembrar-modulos.ts"
+    "db:modulos": "tsx prisma/sembrar-modulos.ts",
+    "verificar:admin": "node scripts/verificar-admin.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
