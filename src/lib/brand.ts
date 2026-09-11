@@ -13,6 +13,16 @@ export const APP_NAME_UPPER = "TODOEN1";
 export const APP_TAGLINE = "Ventas, inventario y caja de tu negocio";
 
 /**
+ * El logo, en dos recortes del mismo dibujo.
+ *
+ * `APP_LOGO_ICON` es el cuadrado ajustado: sirve para cualquier caja chica,
+ * y es el mismo archivo del icono de la pestana. `APP_LOGO_WIDE` es el
+ * original con su margen, para cuando el logo va suelto y con aire.
+ */
+export const APP_LOGO_ICON = "/LOGO/logo-icono.png";
+export const APP_LOGO_WIDE = "/LOGO/logo.png";
+
+/**
  * Los negocios para los que sirve, con lo que hace por cada uno.
  *
  * Se usa en el ingreso y en el inicio: es la forma mas rapida de que alguien

@@ -22,9 +22,6 @@ export type Canal = {
   logo: string;
 };
 
-/** El logo de la aplicacion en imagen, para donde se ve grande. */
-export const COMPANY_LOGO = "/LOGO/logo.png";
-
 export const CANALES: Canal[] = [
   {
     key: "whatsapp",

@@ -13,7 +13,7 @@ import { Card, PageHeader } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Icon } from "@/components/Icon";
 import { CanalesOficiales } from "@/components/CanalesOficiales";
-import { COMPANY_LOGO } from "@/lib/canales";
+import { Logo } from "@/components/Logo";
 
 export const dynamic = "force-dynamic";
 
@@ -101,8 +101,7 @@ export default async function SoportePage() {
             subtitle="Los unicos por los que escribimos. Si te contactan por otro, no somos nosotros"
           >
             <div className="mb-4 flex items-center gap-3">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={COMPANY_LOGO} alt="" className="h-14 w-auto shrink-0 object-contain" />
+              <Logo className="h-12 w-12 shrink-0" />
               <p className="text-sm text-body">
                 Aqui te respondemos y aqui publicamos lo nuevo de la aplicacion.
               </p>

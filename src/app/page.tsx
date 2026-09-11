@@ -3,7 +3,7 @@ import { APP_NAME, APP_TAGLINE } from "@/lib/brand";
 import { Icon } from "@/components/Icon";
 import { AnimatedBackdrop } from "@/components/AnimatedBackdrop";
 import { CanalesOficiales } from "@/components/CanalesOficiales";
-import { COMPANY_LOGO } from "@/lib/canales";
+import { Logo } from "@/components/Logo";
 
 const FEATURES = [
   {
@@ -50,12 +50,7 @@ export default function LandingPage() {
 
       <header className="animate-entrar flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={COMPANY_LOGO}
-            alt=""
-            className="h-16 w-auto shrink-0 object-contain sm:h-20"
-          />
+          <Logo className="h-14 w-14 shrink-0 sm:h-16 sm:w-16" />
           <div>
           <p className="font-display text-[34px] leading-none tracking-tight text-strong sm:text-[42px]">
             {APP_NAME.slice(0, -1)}

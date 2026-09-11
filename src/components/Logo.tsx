@@ -1,11 +1,19 @@
+import { APP_LOGO_ICON, APP_NAME } from "@/lib/brand";
+
 /**
- * Marca de la aplicacion: un bloque con el 1 adentro.
+ * Marca de la aplicacion.
  *
- * Va dibujada con formas y no con una fuente, asi que se ve igual en el icono
- * de la pestana, en el celular y en el ingreso, sin depender de que la
- * tipografia haya cargado.
+ * Es el logo de verdad, el mismo archivo que se usa en el icono de la pestana
+ * (`src/app/icon.png`), asi que la marca se ve igual en todos lados.
  *
- * El mismo dibujo esta en `src/app/icon.svg` para el icono del navegador.
+ * Antes iba dibujada con formas en un SVG. Se cambio por la imagen para que
+ * haya un solo logo y no dos parecidos; a cambio ya no toma el color de marca
+ * del negocio, pero esto sale solo en las pantallas de entrada, donde el color
+ * es siempre el de la aplicacion.
+ *
+ * La imagen viene recortada a cuadrado a proposito: el archivo grande
+ * (`logo.png`) trae mucho margen transparente a los lados y, dentro de una
+ * caja cuadrada, se encogia hasta casi no verse.
  */
 export function Logo({
   className = "h-12 w-12",
@@ -16,23 +24,14 @@ export function Logo({
   withName?: boolean;
 }) {
   const marca = (
-    <svg viewBox="0 0 64 64" className={className} role="img" aria-label="Todoen1">
-      <rect
-        x="3"
-        y="3"
-        width="58"
-        height="58"
-        rx="14"
-        className="fill-brand-600 stroke-edge"
-        strokeWidth="4"
-      />
-      {/* El 1, en bloques: asta, bandera y base. */}
-      <g className="fill-on-brand">
-        <rect x="28" y="16" width="10" height="32" rx="2" />
-        <rect x="19" y="16" width="10" height="8" rx="2" />
-        <rect x="21" y="44" width="24" height="8" rx="2" />
-      </g>
-    </svg>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={APP_LOGO_ICON}
+      // Con el nombre al lado, repetirlo aqui se lo lee dos veces a quien usa
+      // lector de pantalla.
+      alt={withName ? "" : APP_NAME}
+      className={"object-contain " + className}
+    />
   );
 
   if (!withName) return marca;
@@ -41,8 +40,8 @@ export function Logo({
     <span className="inline-flex items-center gap-3">
       {marca}
       <span className="font-display text-[30px] leading-none tracking-tight text-strong">
-        Todoen
-        <span className="text-brand-600">1</span>
+        {APP_NAME.slice(0, -1)}
+        <span className="text-brand-600">{APP_NAME.slice(-1)}</span>
       </span>
     </span>
   );
