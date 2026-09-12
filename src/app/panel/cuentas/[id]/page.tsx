@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { money } from "@/lib/format";
+import { money, pasoMoneda } from "@/lib/format";
 import { Card, Empty, PageHeader, StatusBadge } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -202,7 +202,14 @@ export default async function CuentaDetallePage({
                 </label>
                 <label className="block">
                   <span className="label">Descuento (opcional)</span>
-                  <input className="input" name="discount" type="number" min={0} step={1} placeholder="0" />
+                  <input
+                    className="input"
+                    name="discount"
+                    type="number"
+                    min={0}
+                    step={pasoMoneda(user.currency)}
+                    placeholder="0"
+                  />
                 </label>
                 <SubmitButton
                   className="btn-success w-full"

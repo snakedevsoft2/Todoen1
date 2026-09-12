@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useCallback, useMemo, useState } from "react";
+import { aCampo, pasoMoneda } from "@/lib/format";
 import { stockMoveAction } from "@/actions/inventory";
 import { SubmitButton } from "./SubmitButton";
 import { ScanButton } from "./ScanButton";
@@ -52,7 +53,9 @@ export function StockMoveForm({
   today,
   defaultVariantId,
   suppliers = [],
+  currency = "COP",
 }: {
+  currency?: string;
   variants: MovableVariant[];
   today: string;
   defaultVariantId?: string;
@@ -191,8 +194,8 @@ export function StockMoveForm({
               type="number"
               name="unitCost"
               min={0}
-              step={1}
-              defaultValue={selected?.cost || ""}
+              step={pasoMoneda(currency)}
+              defaultValue={aCampo(selected?.cost || null, currency)}
               placeholder="0"
               key={"cost-" + variantId}
             />

@@ -36,7 +36,7 @@ export async function createDebtAction(
   const concept = str(formData.get("concept"));
   if (!concept) return { error: "Escribe por que debe." };
 
-  const amount = parseMoney(formData.get("amount"));
+  const amount = parseMoney(formData.get("amount"), user.currency);
   if (amount <= 0) return { error: "El valor debe ser mayor a cero." };
 
   const dayInput = str(formData.get("day"));
@@ -92,7 +92,7 @@ export async function addPaymentAction(
   const pendiente = saldo(debt);
   if (pendiente === 0) return { error: "Esa deuda ya esta pagada." };
 
-  const amount = parseMoney(formData.get("amount"));
+  const amount = parseMoney(formData.get("amount"), user.currency);
   if (amount <= 0) return { error: "El abono debe ser mayor a cero." };
   if (amount > pendiente) {
     return { error: "El abono es mayor que lo que falta. Faltan " + pendiente + "." };

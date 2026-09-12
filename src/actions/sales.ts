@@ -53,7 +53,7 @@ function parseCart(raw: string): CartItem[] {
 export async function createSaleAction(_prev: SaleState, formData: FormData): Promise<SaleState> {
   const { user, staff: me } = await requireSession();
   const items = parseCart(str(formData.get("itemsJson")));
-  const manualTotal = parseMoney(formData.get("manualTotal"));
+  const manualTotal = parseMoney(formData.get("manualTotal"), user.currency);
 
   if (items.length === 0 && manualTotal <= 0) {
     return { error: "Agrega al menos un item o escribe un valor." };

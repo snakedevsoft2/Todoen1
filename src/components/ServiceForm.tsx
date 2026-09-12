@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { saveServiceAction } from "@/actions/services";
 import { SubmitButton } from "./SubmitButton";
 import { PhotoField } from "./PhotoField";
+import { aCampo, pasoMoneda } from "@/lib/format";
 import { Alert, Field } from "./ui";
 
 export type EditableService = {
@@ -32,7 +33,10 @@ export function ServiceForm({
   photo,
   photoLabel = "Foto",
   suppliers = [],
+  /** Moneda del negocio: decide si el precio admite centavos. */
+  currency = "COP",
 }: {
+  currency?: string;
   service?: EditableService;
   categories: string[];
   showDuration: boolean;
@@ -77,9 +81,9 @@ export function ServiceForm({
             name="price"
             type="number"
             min={0}
-            step={1}
+            step={pasoMoneda(currency)}
             required
-            defaultValue={service?.price ?? ""}
+            defaultValue={aCampo(service?.price, currency)}
             placeholder="0"
           />
         </Field>
@@ -90,8 +94,8 @@ export function ServiceForm({
             name="cost"
             type="number"
             min={0}
-            step={1}
-            defaultValue={service?.cost ?? ""}
+            step={pasoMoneda(currency)}
+            defaultValue={aCampo(service?.cost, currency)}
             placeholder="0"
           />
         </Field>

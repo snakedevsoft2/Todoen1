@@ -8,7 +8,7 @@ import {
   toggleVariantAction,
 } from "@/actions/inventory";
 import { COLOR_PRESETS, NUMERIC_SIZES, SIZE_PRESETS, variantLabel } from "@/lib/variants";
-import { money } from "@/lib/format";
+import { aCampo, money, pasoMoneda } from "@/lib/format";
 import { SubmitButton } from "./SubmitButton";
 import { ScanButton } from "./ScanButton";
 import { Alert, Badge, Field } from "./ui";
@@ -79,9 +79,9 @@ export function VariantsPanel({
       )}
 
       {tab === "lote" ? (
-        <BulkForm serviceId={serviceId} />
+        <BulkForm serviceId={serviceId} currency={currency} />
       ) : (
-        <SingleForm serviceId={serviceId} />
+        <SingleForm serviceId={serviceId} currency={currency} />
       )}
     </div>
   );
@@ -147,14 +147,19 @@ function VariantLine({
 
       {open && (
         <div className="mt-2 rounded-xl border border-line bg-panel p-3">
-          <SingleForm serviceId={serviceId} variant={variant} onDone={() => setOpen(false)} />
+          <SingleForm
+            serviceId={serviceId}
+            variant={variant}
+            currency={currency}
+            onDone={() => setOpen(false)}
+          />
         </div>
       )}
     </li>
   );
 }
 
-function BulkForm({ serviceId }: { serviceId: string }) {
+function BulkForm({ serviceId, currency }: { serviceId: string; currency: string }) {
   const [state, formAction] = useActionState(createVariantsBulkAction, undefined);
   const [sizes, setSizes] = useState("S, M, L, XL");
 
@@ -208,7 +213,14 @@ function BulkForm({ serviceId }: { serviceId: string }) {
           <input className="input" type="number" name="stock" min={0} step={1} defaultValue={0} />
         </Field>
         <Field label="Costo unitario">
-          <input className="input" type="number" name="cost" min={0} step={1} placeholder="0" />
+          <input
+            className="input"
+            type="number"
+            name="cost"
+            min={0}
+            step={pasoMoneda(currency)}
+            placeholder="0"
+          />
         </Field>
         <Field label="Minimo" hint="Avisa cuando baje de aqui.">
           <input className="input" type="number" name="minStock" min={0} step={1} defaultValue={1} />
@@ -227,10 +239,12 @@ function SingleForm({
   serviceId,
   variant,
   onDone,
+  currency,
 }: {
   serviceId: string;
   variant?: VariantRow;
   onDone?: () => void;
+  currency: string;
 }) {
   const [state, formAction] = useActionState(saveVariantAction, undefined);
   const [sku, setSku] = useState(variant?.sku ?? "");
@@ -318,8 +332,8 @@ function SingleForm({
             type="number"
             name="cost"
             min={0}
-            step={1}
-            defaultValue={variant?.cost || ""}
+            step={pasoMoneda(currency)}
+            defaultValue={aCampo(variant?.cost || null, currency)}
             placeholder="0"
           />
         </Field>
@@ -329,8 +343,8 @@ function SingleForm({
             type="number"
             name="price"
             min={0}
-            step={1}
-            defaultValue={variant?.price ?? ""}
+            step={pasoMoneda(currency)}
+            defaultValue={aCampo(variant?.price, currency)}
             placeholder="Igual al de la prenda"
           />
         </Field>

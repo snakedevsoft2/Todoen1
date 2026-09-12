@@ -4,7 +4,7 @@ import { useActionState, useEffect, useMemo, useState } from "react";
 import { createSaleAction } from "@/actions/sales";
 import { SubmitButton } from "./SubmitButton";
 import { Alert, Field } from "./ui";
-import { money } from "@/lib/format";
+import { money, pasoMoneda } from "@/lib/format";
 import { Icon } from "./Icon";
 
 export type VariantOption = {
@@ -379,7 +379,14 @@ export function NewSaleForm({
         {cart.length === 0 && (
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="O registra solo el valor" hint="Util cuando no quieres detallar la venta.">
-              <input className="input" name="manualTotal" type="number" min={0} step={1} placeholder="0" />
+              <input
+                className="input"
+                name="manualTotal"
+                type="number"
+                min={0}
+                step={pasoMoneda(currency)}
+                placeholder="0"
+              />
             </Field>
             <Field label="Concepto">
               <input className="input" name="concept" placeholder="Venta del mostrador" />

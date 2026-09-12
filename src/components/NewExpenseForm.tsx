@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { pasoMoneda } from "@/lib/format";
 import { createExpenseAction } from "@/actions/expenses";
 import { SubmitButton } from "./SubmitButton";
 import { Alert, Field } from "./ui";
@@ -17,7 +18,7 @@ const CATEGORIES = [
   "Mantenimiento",
 ];
 
-export function NewExpenseForm({ day }: { day: string }) {
+export function NewExpenseForm({ day, currency = "COP" }: { day: string; currency?: string }) {
   const [state, formAction] = useActionState(createExpenseAction, undefined);
 
   return (
@@ -31,7 +32,15 @@ export function NewExpenseForm({ day }: { day: string }) {
 
       <div className="grid gap-3 sm:grid-cols-3">
         <Field label="Valor">
-          <input className="input" name="amount" type="number" min={1} step={1} required placeholder="0" />
+          <input
+            className="input"
+            name="amount"
+            type="number"
+            min={0}
+            step={pasoMoneda(currency)}
+            required
+            placeholder="0"
+          />
         </Field>
         <Field label="Categoria">
           <select className="input" name="category" defaultValue="General">

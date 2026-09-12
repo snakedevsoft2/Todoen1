@@ -23,8 +23,8 @@ export async function closeCashAction(_prev: CashState, formData: FormData): Pro
     return { error: "No hay movimientos en ese dia para cerrar." };
   }
 
-  const openingAmount = parseMoney(formData.get("openingAmount"));
-  const countedCash = parseMoney(formData.get("countedCash"));
+  const openingAmount = parseMoney(formData.get("openingAmount"), user.currency);
+  const countedCash = parseMoney(formData.get("countedCash"), user.currency);
   const expectedCash = openingAmount + summary.byMethod.EFECTIVO - summary.totalExpenses;
 
   const data = {

@@ -16,7 +16,7 @@ export async function saveServiceAction(_prev: ActionState, formData: FormData):
   const name = str(formData.get("name"));
   if (!name) return { error: "El nombre es obligatorio." };
 
-  const price = parseMoney(formData.get("price"));
+  const price = parseMoney(formData.get("price"), user.currency);
   if (price < 0) return { error: "El precio no puede ser negativo." };
 
   // La foto solo viaja cuando el formulario la trae (tienda de ropa).
@@ -54,7 +54,7 @@ export async function saveServiceAction(_prev: ActionState, formData: FormData):
     name,
     description: str(formData.get("description")) || null,
     price,
-    cost: parseMoney(formData.get("cost")),
+    cost: parseMoney(formData.get("cost"), user.currency),
     durationMin: Math.max(5, parseIntSafe(formData.get("durationMin"), 30)),
     category: str(formData.get("category"), "General"),
     bookable: formData.get("bookable") === "on",

@@ -53,9 +53,9 @@ export async function saveVariantAction(
   const size = cleanSize(formData.get("size"));
   const color = cleanColor(formData.get("color"));
   const minStock = Math.max(0, parseIntSafe(formData.get("minStock"), 0));
-  const cost = parseMoney(formData.get("cost"));
+  const cost = parseMoney(formData.get("cost"), user.currency);
   const rawPrice = str(formData.get("price"));
-  const price = rawPrice ? parseMoney(rawPrice) : null;
+  const price = rawPrice ? parseMoney(rawPrice, user.currency) : null;
   const sku = normalizeCode(str(formData.get("sku"))) || null;
 
   if (price !== null && price < 0) return { error: "El precio no puede ser negativo." };
@@ -143,7 +143,7 @@ export async function createVariantsBulkAction(
 
   const finalColors = colors.length ? colors : ["Unico"];
   const perVariant = Math.max(0, parseIntSafe(formData.get("stock"), 0));
-  const cost = parseMoney(formData.get("cost"));
+  const cost = parseMoney(formData.get("cost"), user.currency);
   const minStock = Math.max(0, parseIntSafe(formData.get("minStock"), 0));
   const day = todayIn(user.timezone);
 
@@ -222,7 +222,7 @@ export async function stockMoveAction(
   const dayInput = str(formData.get("day"));
   const day = isValidDay(dayInput) ? dayInput : todayIn(user.timezone);
   const reason = str(formData.get("reason")) || null;
-  const unitCost = parseMoney(formData.get("unitCost"));
+  const unitCost = parseMoney(formData.get("unitCost"), user.currency);
 
   let delta: number;
   if (rawType === "AJUSTE") {

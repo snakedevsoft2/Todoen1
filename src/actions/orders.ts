@@ -66,7 +66,7 @@ export async function addOrderItemAction(formData: FormData) {
     }
   } else {
     const name = str(formData.get("name"));
-    const unitPrice = parseMoney(formData.get("unitPrice"));
+    const unitPrice = parseMoney(formData.get("unitPrice"), user.currency);
     if (!name || unitPrice <= 0) return;
     await db.orderItem.create({ data: { userId: user.id, orderId: order.id, name, unitPrice, qty } });
   }
@@ -120,7 +120,7 @@ export async function closeOrderAction(formData: FormData) {
   if (order.items.length === 0) return;
 
   const computed = order.items.reduce((sum, i) => sum + i.unitPrice * i.qty, 0);
-  const discount = Math.max(0, parseMoney(formData.get("discount")));
+  const discount = Math.max(0, parseMoney(formData.get("discount"), user.currency));
   const total = Math.max(0, computed - discount);
   const paymentMethod = readPayment(formData.get("paymentMethod"));
 

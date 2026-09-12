@@ -6,7 +6,7 @@ import { ReminderList } from "@/components/ReminderList";
 import { db } from "@/lib/db";
 import { addDays, isValidDay, todayIn } from "@/lib/dates";
 import { buildSlots, isWorkDay, workDaysArray } from "@/lib/slots";
-import { money, pretty12h, prettyDay } from "@/lib/format";
+import { aCampo, money, pasoMoneda, pretty12h, prettyDay } from "@/lib/format";
 import { confirmMessage, toInternational, waLink } from "@/lib/whatsapp";
 import { WEEKDAYS } from "@/lib/timezones";
 import { Card, Empty, PageHeader, Stat, StatusBadge } from "@/components/ui";
@@ -492,8 +492,8 @@ export default async function TurnosPage({
                                 type="number"
                                 name="amount"
                                 min={0}
-                                step={1}
-                                defaultValue={a.price}
+                                step={pasoMoneda(user.currency)}
+                                defaultValue={aCampo(a.price, user.currency)}
                                 required
                               />
                             </label>

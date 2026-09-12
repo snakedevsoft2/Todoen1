@@ -14,7 +14,7 @@ export async function createExpenseAction(
 ): Promise<ExpenseState> {
   const user = await requireUser();
   const description = str(formData.get("description"));
-  const amount = parseMoney(formData.get("amount"));
+  const amount = parseMoney(formData.get("amount"), user.currency);
 
   if (!description) return { error: "Escribe en que gastaste." };
   if (amount <= 0) return { error: "El valor debe ser mayor a cero." };

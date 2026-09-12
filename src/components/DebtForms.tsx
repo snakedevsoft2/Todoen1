@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { addPaymentAction, createDebtAction, updateDueDayAction } from "@/actions/debts";
-import { money } from "@/lib/format";
+import { aCampo, money, pasoMoneda } from "@/lib/format";
 import { SubmitButton } from "./SubmitButton";
 import { Alert, Field } from "./ui";
 import { Icon } from "./Icon";
@@ -31,7 +31,15 @@ export function NewDebtForm({ today, currency }: { today: string; currency: stri
 
       <div className="grid gap-3 sm:grid-cols-3">
         <Field label={"Cuanto debe (" + currency + ")"}>
-          <input className="input" type="number" name="amount" min={1} step={1} required placeholder="0" />
+          <input
+            className="input"
+            type="number"
+            name="amount"
+            min={0}
+            step={pasoMoneda(currency)}
+            required
+            placeholder="0"
+          />
         </Field>
         <Field label="Desde cuando">
           <input className="input" type="date" name="day" defaultValue={today} />
@@ -99,11 +107,11 @@ export function PaymentForm({
             className="input"
             type="number"
             name="amount"
-            min={1}
-            max={pendiente}
-            step={1}
+            min={0}
+            max={aCampo(pendiente, currency)}
+            step={pasoMoneda(currency)}
             required
-            defaultValue={pendiente}
+            defaultValue={aCampo(pendiente, currency)}
           />
         </Field>
         <Field label="Como pago">

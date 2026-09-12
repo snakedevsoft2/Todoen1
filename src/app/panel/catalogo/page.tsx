@@ -91,6 +91,7 @@ export default async function CatalogoPage() {
             clothing={isClothing}
             photoLabel={"Foto (" + noun.singular + ")"}
             suppliers={suppliers}
+            currency={user.currency}
             submitLabel={"Agregar " + noun.singular}
           />
         </Card>
@@ -247,6 +248,7 @@ export default async function CatalogoPage() {
                                 photo={photo}
                                 photoLabel={"Foto (" + noun.singular + ")"}
                                 suppliers={suppliers}
+                                currency={user.currency}
                                 submitLabel="Guardar cambios"
                               />
                             </div>

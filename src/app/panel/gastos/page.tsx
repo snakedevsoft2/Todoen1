@@ -77,7 +77,7 @@ export default async function GastosPage({
 
       <div className="mt-5 grid gap-4 lg:grid-cols-[420px_1fr]">
         <Card title="Anotar un gasto" subtitle="Todo lo que sale de la caja">
-          <NewExpenseForm day={day} />
+          <NewExpenseForm day={day} currency={user.currency} />
         </Card>
 
         <div className="space-y-4">

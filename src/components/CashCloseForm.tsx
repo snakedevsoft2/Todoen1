@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { closeCashAction } from "@/actions/cash";
 import { SubmitButton } from "./SubmitButton";
 import { Alert, Field } from "./ui";
-import { money } from "@/lib/format";
+import { aCampo, money, parseMoney } from "@/lib/format";
 
 export function CashCloseForm({
   day,
@@ -22,11 +22,13 @@ export function CashCloseForm({
   alreadyClosed: boolean;
 }) {
   const [state, formAction] = useActionState(closeCashAction, undefined);
-  const [opening, setOpening] = useState(String(defaultOpening));
+  const [opening, setOpening] = useState(aCampo(defaultOpening, currency));
   const [counted, setCounted] = useState("");
 
-  const openingNum = Number(opening.replace(/[^\d-]/g, "")) || 0;
-  const countedNum = Number(counted.replace(/[^\d-]/g, "")) || 0;
+  // Se leen con las mismas reglas con las que el servidor los va a guardar,
+  // o el "esperado" de la pantalla no coincidiria con el de la caja cerrada.
+  const openingNum = parseMoney(opening, currency);
+  const countedNum = parseMoney(counted, currency);
   const expected = openingNum + cashSales - expenses;
   const diff = counted.trim() === "" ? 0 : countedNum - expected;
 
