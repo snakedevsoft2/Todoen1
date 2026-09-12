@@ -47,7 +47,7 @@ export async function updateBrandingAction(
     logo = null;
   } else if (logoInput) {
     if (!ALLOWED_LOGO.test(logoInput)) {
-      return { error: "El logo debe ser una imagen PNG, JPG, WEBP o SVG." };
+      return { error: "El logo debe ser una imagen PNG, JPG o WEBP." };
     }
     if (logoInput.length > MAX_LOGO_BYTES * 1.4) {
       return { error: "El logo pesa demasiado. Sube una imagen mas liviana." };

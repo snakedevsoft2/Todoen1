@@ -28,7 +28,6 @@ type Demo = {
   brandColor: string;
   theme: string;
   tagline: string;
-  logo: string;
   services: { name: string; price: number; durationMin: number; category: string }[];
 };
 
@@ -45,7 +44,6 @@ const DEMOS: Demo[] = [
     brandColor: "#4f46e5",
     theme: "claro",
     tagline: "Cortes clasicos y barberia moderna",
-    logo: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5NiA5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMjIiIGZpbGw9IiMxMTE4MjciLz48dGV4dCB4PSI0OCIgeT0iNjIiIGZvbnQtZmFtaWx5PSJTZWdvZSBVSSxBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjQyIiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjZjlmYWZiIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5CRTwvdGV4dD48L3N2Zz4=",
     services: [
       { name: "Corte clasico", price: 20000, durationMin: 30, category: "Cortes" },
       { name: "Corte degradado", price: 25000, durationMin: 40, category: "Cortes" },
@@ -63,7 +61,6 @@ const DEMOS: Demo[] = [
     brandColor: "#b91c1c",
     theme: "claro",
     tagline: "Comida casera todos los dias",
-    logo: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5NiA5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMjIiIGZpbGw9IiM3ZjFkMWQiLz48dGV4dCB4PSI0OCIgeT0iNjIiIGZvbnQtZmFtaWx5PSJTZWdvZSBVSSxBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjQyIiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjZmVmMmYyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5EUjwvdGV4dD48L3N2Zz4=",
     services: [
       { name: "Almuerzo del dia", price: 15000, durationMin: 30, category: "Platos" },
       { name: "Bandeja paisa", price: 28000, durationMin: 30, category: "Platos" },
@@ -81,7 +78,6 @@ const DEMOS: Demo[] = [
     brandColor: "#ea580c",
     theme: "oscuro",
     tagline: "Hamburguesas y perros a la plancha",
-    logo: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5NiA5NiI+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMjIiIGZpbGw9IiNjMjQxMGMiLz48dGV4dCB4PSI0OCIgeT0iNjIiIGZvbnQtZmFtaWx5PSJTZWdvZSBVSSxBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjQyIiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjZmZmN2VkIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5FUDwvdGV4dD48L3N2Zz4=",
     services: [
       { name: "Hamburguesa sencilla", price: 14000, durationMin: 30, category: "Hamburguesas" },
       { name: "Hamburguesa doble carne", price: 22000, durationMin: 30, category: "Hamburguesas" },
@@ -112,7 +108,6 @@ async function main() {
         brandColor: demo.brandColor,
         theme: demo.theme,
         tagline: demo.tagline,
-        logo: demo.logo,
         whatsappNumber: DEMO_WHATSAPP,
         whatsappProvider: "enlace",
         notifyOnBooking: true,

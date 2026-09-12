@@ -10,14 +10,17 @@ import { BRAND_PRESETS, isTheme, normalizeHex, themeVars, type ThemeName } from 
 const MAX_SIDE = 320;
 const MAX_BYTES = 150 * 1024;
 
-/** Reduce la imagen en el navegador para no guardar archivos enormes. */
+/**
+ * Reduce la imagen en el navegador para no guardar archivos enormes.
+ *
+ * Aqui no se acepta SVG, y tiene que seguir asi: el logo se sirve en
+ * /logo/<slug>, y un SVG puede llevar JavaScript dentro que se ejecutaria en
+ * nuestro dominio con la sesion de quien abra esa direccion. El servidor ya lo
+ * rechaza (src/actions/branding.ts) y tampoco lo sirve (src/lib/imagen-servida.ts);
+ * dejarlo pasar por aqui solo lograba que la subida fallara al final, o peor,
+ * que quedara guardado un logo que despues no se puede mostrar nunca.
+ */
 async function fileToLogo(file: File): Promise<string> {
-  if (file.type === "image/svg+xml") {
-    const text = await file.text();
-    if (text.length > MAX_BYTES) throw new Error("El SVG es demasiado grande.");
-    return "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(text)));
-  }
-
   const bitmap = await createImageBitmap(file);
   const scale = Math.min(1, MAX_SIDE / Math.max(bitmap.width, bitmap.height));
   const width = Math.max(1, Math.round(bitmap.width * scale));
@@ -182,7 +185,7 @@ export function BrandingForm({
         <section className="divider pt-5">
           <h3 className="mb-1 text-sm font-bold text-strong">Logo</h3>
           <p className="mb-3 text-xs text-muted">
-            Aparece en el menu, en el celular y en tu pagina publica. PNG, JPG, WEBP o SVG.
+            Aparece en el menu, en el celular y en tu pagina publica. PNG, JPG o WEBP.
           </p>
 
           {logoError && (
@@ -229,7 +232,7 @@ export function BrandingForm({
             <input
               ref={fileRef}
               type="file"
-              accept="image/png,image/jpeg,image/webp,image/svg+xml"
+              accept="image/png,image/jpeg,image/webp"
               className="hidden"
               onChange={(e) => onPickFile(e.target.files?.[0])}
             />

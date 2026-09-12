@@ -1,0 +1,12 @@
+-- Borra los logos guardados como SVG.
+--
+-- El SVG dejo de aceptarse porque puede llevar JavaScript dentro y el logo se
+-- sirve en /logo/<slug>, dentro de nuestro dominio. Los que ya estaban
+-- guardados de antes no se pueden mostrar: /logo/<slug> les responde 404, asi
+-- que en pantalla salia una imagen rota en todas las paginas.
+--
+-- Dejarlos en NULL no pierde nada que se estuviera viendo: la aplicacion pinta
+-- las iniciales del negocio cuando no hay logo, que es justo lo que esos SVG
+-- dibujaban. Quien quiera su logo de vuelta lo sube en PNG, JPG o WEBP desde
+-- Personalizar.
+UPDATE "User" SET "logo" = NULL WHERE "logo" LIKE 'data:image/svg+xml%';
