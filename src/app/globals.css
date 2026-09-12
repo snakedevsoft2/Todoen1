@@ -14,43 +14,60 @@
     Arial, sans-serif;
   --font-display: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
 
-  --brand-50: 239 246 255;
-  --brand-100: 219 234 254;
-  --brand-200: 191 219 254;
-  --brand-300: 147 197 253;
-  --brand-400: 96 165 250;
-  --brand-500: 37 99 235;
-  --brand-600: 29 78 216;
-  --brand-700: 30 64 175;
-  --brand-800: 30 58 138;
-  --brand-900: 23 37 84;
+  /*
+    Grises con temperatura, no grises muertos.
+
+    Los neutros llevan una pizca de azul: es lo que hace que un blanco se vea
+    limpio y no amarillento al lado de una foto. Son los mismos escalones que
+    usa iOS, porque estan medidos para leerse en un celular al sol.
+  */
+  --brand-50: 238 238 253;
+  --brand-100: 224 223 250;
+  --brand-200: 199 197 246;
+  --brand-300: 165 162 240;
+  --brand-400: 124 120 232;
+  --brand-500: 88 86 214;
+  --brand-600: 71 69 190;
+  --brand-700: 57 55 158;
+  --brand-800: 45 44 125;
+  --brand-900: 32 31 90;
   --on-brand: 255 255 255;
 
-  --ink: 248 250 252;
+  --ink: 247 247 250;
   --panel: 255 255 255;
-  --surface-2: 241 245 249;
-  --surface-3: 226 232 240;
-  --line: 226 232 240;
-  --line-strong: 203 213 225;
-  --edge: 214 221 230;
-  --text-strong: 15 23 42;
-  --text-body: 51 65 85;
-  --text-muted: 100 116 139;
-  --text-subtle: 148 163 184;
+  --surface-2: 242 242 247;
+  --surface-3: 229 229 234;
+  --line: 230 230 235;
+  --line-strong: 209 209 214;
+  --edge: 219 219 226;
+  --text-strong: 17 17 22;
+  --text-body: 60 60 67;
+  --text-muted: 110 110 120;
+  --text-subtle: 142 142 150;
 
-  --good: 4 120 87;
-  --good-soft: 236 253 245;
-  --good-line: 167 243 208;
-  --good-solid: 16 185 129;
+  --good: 0 122 85;
+  --good-soft: 236 250 244;
+  --good-line: 178 235 214;
+  --good-solid: 0 168 116;
   --on-good: 255 255 255;
-  --bad: 190 24 60;
-  --bad-soft: 255 241 242;
-  --bad-line: 254 205 211;
-  --warn: 146 64 14;
-  --warn-soft: 255 251 235;
-  --warn-line: 253 230 138;
+  --bad: 201 33 51;
+  --bad-soft: 254 242 243;
+  --bad-line: 250 205 210;
+  --warn: 154 82 0;
+  --warn-soft: 255 249 237;
+  --warn-line: 252 225 170;
 
-  --shadow: 215 25% 27%;
+  --shadow: 230 22% 20%;
+
+  /*
+    Curvas del movimiento.
+
+    `suave` es la de iOS: arranca rapido y frena largo, que es lo que hace que
+    algo se sienta liviano. `resorte` se pasa un poquito del destino y vuelve;
+    solo para lo que aparece, nunca para lo que se mueve seguido.
+  */
+  --ease-suave: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-resorte: cubic-bezier(0.34, 1.36, 0.64, 1);
 }
 
 html,
@@ -91,16 +108,21 @@ body {
     herramientas de trabajo seria. Es el mismo lenguaje de la pantalla de
     ingreso, mas abajo.
   */
+  /*
+    La tarjeta ya no se apoya en el borde sino en el aire y una sombra muy
+    baja. Es lo que separa una herramienta de trabajo de un formulario: menos
+    lineas, mas respiro.
+  */
   .card {
-    @apply rounded-2xl border border-line bg-panel p-4 shadow-soft sm:p-5;
+    @apply rounded-2xl border border-line/70 bg-panel p-5 shadow-card sm:p-6;
   }
 
   .card-tight {
-    @apply rounded-xl border border-line bg-panel p-4 shadow-soft;
+    @apply rounded-xl border border-line/70 bg-panel p-4 shadow-card;
   }
 
   .surface-box {
-    @apply rounded-xl border border-line bg-surface;
+    @apply rounded-xl border border-line/70 bg-surface;
   }
 
   /*
@@ -135,12 +157,19 @@ body {
     font-feature-settings: "tnum";
   }
 
+  /*
+    16px de texto y no 15: por debajo de 16, Safari en iPhone hace zoom solo al
+    tocar el campo y la pantalla queda corrida. Es la diferencia entre que se
+    sienta una aplicacion o una pagina.
+  */
   .input {
-    @apply w-full rounded-lg border border-line bg-panel px-3 py-2.5 text-[15px]
-      text-strong shadow-soft outline-none transition duration-150
+    @apply w-full rounded-xl border border-line bg-panel px-3.5 py-3 text-[16px]
+      text-strong outline-none
+      transition-[border-color,box-shadow,background-color] duration-200
       placeholder:text-subtle
       hover:border-line-strong
       focus:border-brand-500 focus:shadow-focus-brand;
+    transition-timing-function: var(--ease-suave);
     font-variant-numeric: tabular-nums;
   }
 
@@ -152,15 +181,20 @@ body {
   }
 
   /*
-    El boton ya no se hunde hacia su sombra: cambia de color y nada mas. El
-    gesto era simpatico, pero en una pantalla que se usa cien veces al dia
-    termina cansando.
+    El boton responde al dedo, no al puntero.
+
+    Se encoge un pelo mientras esta presionado y vuelve: es el gesto del
+    sistema operativo del telefono, y es lo que hace que se sienta que algo
+    paso aunque la red se demore. No lleva sombra propia; el color solido ya lo
+    despega del fondo.
   */
   .btn {
-    @apply inline-flex select-none items-center justify-center gap-2 rounded-lg
-      border border-transparent px-3.5 py-2.5 text-sm font-semibold leading-none
-      shadow-soft transition-colors duration-150
-      disabled:pointer-events-none disabled:opacity-50;
+    @apply inline-flex select-none items-center justify-center gap-2 rounded-xl
+      border border-transparent px-4 py-2.5 text-sm font-semibold leading-none
+      transition-[transform,background-color,border-color,box-shadow,opacity]
+      duration-200 active:scale-[0.97]
+      disabled:pointer-events-none disabled:opacity-40 disabled:active:scale-100;
+    transition-timing-function: var(--ease-suave);
   }
 
   .btn-primary {
@@ -184,7 +218,43 @@ body {
   }
 
   .btn-sm {
-    @apply px-3 py-2 text-[13px];
+    @apply rounded-lg px-3 py-2 text-[13px];
+  }
+
+  /*
+    Barra de progreso.
+
+    Se usa para lo que tiene un techo claro: cuanto lleva pagado de un
+    prestamo, cuanto queda de una meta. La barra se llena al aparecer, y esa
+    animacion es la que hace que se lea sin tener que buscar el numero.
+  */
+  .barra {
+    @apply relative h-2 w-full overflow-hidden rounded-full bg-surface-3;
+  }
+
+  .barra-fill {
+    @apply absolute inset-y-0 left-0 rounded-full;
+    transition: width 700ms var(--ease-suave);
+  }
+
+  /* Deslizador nativo, vestido para que no parezca del navegador. */
+  .slider {
+    @apply h-1.5 w-full cursor-pointer appearance-none rounded-full bg-surface-3 outline-none;
+  }
+
+  .slider::-webkit-slider-thumb {
+    @apply h-5 w-5 appearance-none rounded-full border-2 border-panel bg-brand-600;
+    box-shadow: 0 1px 4px hsl(var(--shadow) / 0.28);
+    transition: transform 160ms var(--ease-resorte);
+  }
+
+  .slider::-webkit-slider-thumb:active {
+    transform: scale(1.18);
+  }
+
+  .slider::-moz-range-thumb {
+    @apply h-5 w-5 rounded-full border-2 border-panel bg-brand-600;
+    box-shadow: 0 1px 4px hsl(var(--shadow) / 0.28);
   }
 
   .badge {
@@ -343,13 +413,33 @@ body {
 }
 
 .animate-entrar {
-  animation: entrar 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: entrar 0.5s var(--ease-suave) both;
 }
+
+/*
+  Aparecer escalonado.
+
+  Cada hijo entra un pelo despues del anterior. Es el detalle que hace que una
+  pantalla se sienta armada y no volcada de golpe. Son 40ms: por debajo no se
+  nota, por encima se siente lenta.
+*/
+.animate-lista > * {
+  animation: entrar 420ms var(--ease-suave) both;
+}
+
+.animate-lista > *:nth-child(1) { animation-delay: 0ms; }
+.animate-lista > *:nth-child(2) { animation-delay: 40ms; }
+.animate-lista > *:nth-child(3) { animation-delay: 80ms; }
+.animate-lista > *:nth-child(4) { animation-delay: 120ms; }
+.animate-lista > *:nth-child(5) { animation-delay: 160ms; }
+.animate-lista > *:nth-child(6) { animation-delay: 200ms; }
+.animate-lista > *:nth-child(n + 7) { animation-delay: 240ms; }
 
 @media (prefers-reduced-motion: reduce) {
   .backdrop-grid,
   .backdrop-bloque,
-  .animate-entrar {
+  .animate-entrar,
+  .animate-lista > * {
     animation: none;
   }
 }

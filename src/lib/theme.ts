@@ -14,19 +14,27 @@ export type ThemeName = "claro" | "oscuro";
 export const DEFAULT_BRAND = "#2563eb";
 export const DEFAULT_THEME: ThemeName = "claro";
 
+/*
+ * Colores de marca.
+ *
+ * Son solidos y de una sola saturacion alta: ninguno es pastel y ninguno es
+ * fluorescente. Esa es la diferencia entre una paleta que se ve cara y una que
+ * se ve de plantilla. Todos estan medidos para que el texto blanco encima pase
+ * el contraste minimo, o el boton se lee mal en la calle.
+ */
 export const BRAND_PRESETS: { name: string; color: string }[] = [
-  { name: "Azul", color: "#2563eb" },
-  { name: "Indigo", color: "#4f46e5" },
+  { name: "Indigo", color: "#5856d6" },
   { name: "Violeta", color: "#7c3aed" },
-  { name: "Fucsia", color: "#c026d3" },
-  { name: "Rojo", color: "#e11d48" },
-  { name: "Naranja", color: "#ea580c" },
-  { name: "Ambar", color: "#d97706" },
-  { name: "Verde", color: "#16a34a" },
-  { name: "Esmeralda", color: "#059669" },
-  { name: "Turquesa", color: "#0891b2" },
-  { name: "Grafito", color: "#475569" },
-  { name: "Cafe", color: "#92400e" },
+  { name: "Azul", color: "#0a6cff" },
+  { name: "Cian", color: "#0e7490" },
+  { name: "Esmeralda", color: "#047857" },
+  { name: "Verde", color: "#15803d" },
+  { name: "Oliva", color: "#4d7c0f" },
+  { name: "Ambar", color: "#b45309" },
+  { name: "Naranja", color: "#c2410c" },
+  { name: "Rojo", color: "#be123c" },
+  { name: "Rosa", color: "#be185d" },
+  { name: "Grafito", color: "#3f3f46" },
 ];
 
 /** Deja el color en formato #rrggbb. Si no es valido devuelve el de por defecto. */
@@ -147,12 +155,15 @@ export function themeVars(brandHex: string, theme: ThemeName): Record<string, st
   for (const [stop, value] of Object.entries(scale)) vars[`--brand-${stop}`] = value;
 
   if (dark) {
-    vars["--ink"] = hslTriplet(h, 20, 7);
-    vars["--panel"] = hslTriplet(h, 17, 11);
-    vars["--surface-2"] = hslTriplet(h, 15, 16);
-    vars["--surface-3"] = hslTriplet(h, 14, 21);
-    vars["--line"] = hslTriplet(h, 14, 20);
-    vars["--line-strong"] = hslTriplet(h, 13, 28);
+    // Oscuro de verdad, no gris azulado. El fondo casi negro y el panel un
+    // punto por encima: asi la tarjeta se despega sin necesitar borde, que es
+    // como se ve el modo oscuro del telefono.
+    vars["--ink"] = hslTriplet(h, 12, 5);
+    vars["--panel"] = hslTriplet(h, 11, 9.5);
+    vars["--surface-2"] = hslTriplet(h, 10, 14);
+    vars["--surface-3"] = hslTriplet(h, 9, 19);
+    vars["--line"] = hslTriplet(h, 10, 18);
+    vars["--line-strong"] = hslTriplet(h, 9, 27);
     // Borde algo mas marcado que --line, para separar lo que lo necesita sin
     // dibujar un recuadro encima del contenido.
     vars["--edge"] = hslTriplet(h, 14, 27);
@@ -174,20 +185,24 @@ export function themeVars(brandHex: string, theme: ThemeName): Record<string, st
     vars["--shadow"] = "0 0% 0%";
     vars["--scheme"] = "dark";
   } else {
-    vars["--ink"] = hslTriplet(h, 30, 98);
+    // El tinte de marca en los neutros baja a la mitad: lo justo para que el
+    // gris acompane al color y no lo suficiente para que se note tenido. Un
+    // gris con demasiado color es lo que hace que una pantalla se vea barata.
+    vars["--ink"] = hslTriplet(h, 14, 97.5);
     vars["--panel"] = "255 255 255";
-    vars["--surface-2"] = hslTriplet(h, 30, 96);
-    vars["--surface-3"] = hslTriplet(h, 26, 92);
-    vars["--line"] = hslTriplet(h, 20, 89);
-    vars["--line-strong"] = hslTriplet(h, 18, 80);
+    vars["--surface-2"] = hslTriplet(h, 14, 95.5);
+    vars["--surface-3"] = hslTriplet(h, 12, 91);
+    vars["--line"] = hslTriplet(h, 10, 90);
+    vars["--line-strong"] = hslTriplet(h, 9, 82);
     // Un punto por debajo de --line. Antes iba casi al nivel de la tinta y
     // cada tarjeta se leia como un bloque recortado; ahora solo insinua el
     // borde y quien manda es el espacio.
     vars["--edge"] = hslTriplet(h, 18, 83);
-    vars["--text-strong"] = hslTriplet(h, 32, 13);
-    vars["--text-body"] = hslTriplet(h, 20, 27);
-    vars["--text-muted"] = hslTriplet(h, 14, 45);
-    vars["--text-subtle"] = hslTriplet(h, 12, 57);
+    // Titulo casi negro, para que el peso lo de la tinta y no la negrita.
+    vars["--text-strong"] = hslTriplet(h, 18, 9);
+    vars["--text-body"] = hslTriplet(h, 10, 26);
+    vars["--text-muted"] = hslTriplet(h, 8, 45);
+    vars["--text-subtle"] = hslTriplet(h, 7, 58);
     vars["--good"] = hslTriplet(158, 74, 26);
     vars["--good-soft"] = hslTriplet(152, 62, 95);
     vars["--good-line"] = hslTriplet(152, 45, 82);

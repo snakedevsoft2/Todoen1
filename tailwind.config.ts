@@ -67,18 +67,37 @@ export default {
           del fondo lo que de verdad flota. Salen de --shadow (un fragmento
           HSL que cambia con el tema) para que en oscuro no se vean sucias.
         */
-        soft: "0 1px 2px 0 hsl(var(--shadow) / 0.06)",
+        soft: "0 1px 2px 0 hsl(var(--shadow) / 0.05)",
         "soft-md":
-          "0 1px 3px 0 hsl(var(--shadow) / 0.08), 0 1px 2px -1px hsl(var(--shadow) / 0.05)",
+          "0 1px 3px 0 hsl(var(--shadow) / 0.07), 0 1px 2px -1px hsl(var(--shadow) / 0.04)",
         "soft-lg":
-          "0 10px 26px -8px hsl(var(--shadow) / 0.14), 0 2px 6px -2px hsl(var(--shadow) / 0.06)",
+          "0 12px 32px -10px hsl(var(--shadow) / 0.16), 0 2px 8px -3px hsl(var(--shadow) / 0.07)",
+        /*
+          La sombra de una tarjeta va en dos capas muy bajas: una pegada, que
+          dibuja el canto, y otra abierta, que la despega del fondo. Una sola
+          sombra fuerte se ve barata; dos suaves se ven caras.
+        */
+        card:
+          "0 1px 1px 0 hsl(var(--shadow) / 0.04), 0 4px 16px -6px hsl(var(--shadow) / 0.08)",
+        "card-hover":
+          "0 1px 1px 0 hsl(var(--shadow) / 0.05), 0 10px 28px -8px hsl(var(--shadow) / 0.13)",
         /** Halo del campo enfocado, como el de la pantalla de ingreso. */
-        "focus-brand": "0 0 0 3px rgb(var(--brand-500) / 0.14)",
+        "focus-brand": "0 0 0 4px rgb(var(--brand-500) / 0.12)",
       },
+      /*
+        Radios mas generosos. Un borde de 8px se lee como formulario; uno de 16
+        se lee como aplicacion. Los controles van mas cerrados que las cajas,
+        que es la proporcion que usa el telefono.
+      */
       borderRadius: {
-        lg: "0.5rem",
-        xl: "0.625rem",
-        "2xl": "0.875rem",
+        lg: "0.625rem",
+        xl: "0.875rem",
+        "2xl": "1.25rem",
+        "3xl": "1.75rem",
+      },
+      transitionTimingFunction: {
+        suave: "var(--ease-suave)",
+        resorte: "var(--ease-resorte)",
       },
     },
   },

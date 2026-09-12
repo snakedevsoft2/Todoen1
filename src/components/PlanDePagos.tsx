@@ -1,5 +1,6 @@
 import { money, shortDay } from "@/lib/format";
 import { estadoPrestamo, etiquetaDe, ganancia, type Cuota, type Frecuencia } from "@/lib/prestamos";
+import { Barra } from "./Barra";
 import { Icon } from "./Icon";
 
 /**
@@ -88,6 +89,17 @@ export function PlanDePagos({
             <p className="text-lg font-bold text-good">Pago todo</p>
           )}
         </div>
+      </div>
+
+      {/* De un vistazo: cuanto lleva cubierto del plan. */}
+      <div className="mt-3">
+        <Barra
+          valor={est.cuotasPagadas}
+          total={plan.length}
+          label="Avance del prestamo"
+          detalle={est.cuotasPagadas + " de " + plan.length + " cuotas"}
+          tono={est.atraso > 0 ? "warn" : "good"}
+        />
       </div>
 
       <details className="mt-3 rounded-xl border border-line bg-surface">
