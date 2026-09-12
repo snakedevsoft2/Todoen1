@@ -97,10 +97,12 @@ try {
 
   const tras = await page.textContent("body");
   ok(/sirve una sola vez/i.test(tras), "muestra el enlace generado");
-  // Con la llave de prueba, Resend rechaza: tiene que decirlo, no callarselo.
+  // Sin correo de verdad (llave falsa o sin llave) el enlace igual sirve, pero
+  // el panel tiene que DECIR que no salio, no callarselo. Se acepta cualquiera
+  // de los dos motivos: sin configurar, o configurado pero fallo.
   ok(
-    /No se pudo mandar el correo/i.test(tras),
-    "avisa que el correo no salio en vez de quedarse callado"
+    /Pasale el enlace por WhatsApp/i.test(tras),
+    "avisa que el correo no salio y que hay que pasar el enlace a mano"
   );
 
   const creados = await db.passwordReset.count({ where: { userId: cuenta.id } });

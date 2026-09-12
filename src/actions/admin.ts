@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin";
 import { str } from "@/lib/format";
-import { sendMail } from "@/lib/mail";
+import { mailEnabled, sendMail } from "@/lib/mail";
 import { correoDeEnlace, crearEnlace, direccionBase, type Destino } from "@/lib/reset";
 
 export type AdminState = { error?: string; ok?: string } | undefined;
@@ -201,19 +201,24 @@ export async function reponerClaveAction(
   const token = await crearEnlace(destino);
   const enlace = (await direccionBase()) + "/recuperar/" + token;
 
-  const enviado = await sendMail({
-    to: destino.email,
-    ...correoDeEnlace({ nombre: destino.nombre, url: enlace, porSoporte: true }),
-  });
+  // Se distingue "no hay correo configurado" de "el correo fallo". Para quien
+  // esta atendiendo no es lo mismo: lo primero se arregla poniendo la llave y
+  // no vale la pena reintentarlo; lo segundo si.
+  const hayCorreo = mailEnabled();
+  const enviado = hayCorreo
+    ? await sendMail({
+        to: destino.email,
+        ...correoDeEnlace({ nombre: destino.nombre, url: enlace, porSoporte: true }),
+      })
+    : false;
 
   refrescar(userId);
 
-  return {
-    enlace,
-    correo: destino.email,
-    ok: enviado
-      ? "Enlace enviado a " + destino.email + "."
-      : "No se pudo mandar el correo. Pasale el enlace por WhatsApp.",
-    enviado,
-  };
+  const aviso = enviado
+    ? "Enlace enviado a " + destino.email + "."
+    : hayCorreo
+      ? "No se pudo mandar el correo. Pasale el enlace por WhatsApp."
+      : "El envio de correos no esta configurado (falta RESEND_API_KEY). Pasale el enlace por WhatsApp.";
+
+  return { enlace, correo: destino.email, ok: aviso, enviado };
 }
