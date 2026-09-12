@@ -359,6 +359,7 @@ export default async function InventarioPage({
                   formulario se vuelva a montar: al escanear se navega sin
                   recargar y, sin esto, React conservaria la talla anterior. */}
               <StockMoveForm
+                currency={user.currency}
                 key={preseleccion ?? "sin-preseleccion"}
                 variants={movable}
                 today={today}
