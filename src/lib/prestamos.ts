@@ -89,17 +89,29 @@ export function planDeCuotas({ total, cuotas, frecuencia, desde }: PlanEntrada):
   if (total <= 0 || cuotas <= 0) return [];
 
   const paso = diasDe(frecuencia);
-  const valor = valorCuota(total, cuotas);
+
+  /*
+   * El plan tiene SIEMPRE tantas cuotas como se pactaron.
+   *
+   * Redondear la cuota hacia arriba puede cubrir el total antes de tiempo: con
+   * 100 en 20 cuotas, la cuota redondeada es 10 y a la decima ya no queda
+   * nada. Antes el plan se cortaba ahi y quedaban diez cuotas contra unas
+   * veinte pactadas que seguian guardadas: la ficha decia "cuota 7 de 10" y el
+   * prestamo decia 20. Cuando el redondeo no cabe, se reparte sin redondear.
+   */
+  let valor = valorCuota(total, cuotas);
+  if (valor * (cuotas - 1) >= total) valor = Math.floor(total / cuotas);
+
   const plan: Cuota[] = [];
   let acumulado = 0;
 
   for (let n = 1; n <= cuotas; n += 1) {
     const esUltima = n === cuotas;
-    const monto = esUltima ? Math.max(0, total - acumulado) : Math.min(valor, total - acumulado);
+    const monto = esUltima
+      ? Math.max(0, total - acumulado)
+      : Math.max(0, Math.min(valor, total - acumulado));
     acumulado += monto;
     plan.push({ n, day: addDays(desde, paso * n), monto });
-    // Si el redondeo ya cubrio el total, las cuotas que sobran no existen.
-    if (acumulado >= total) break;
   }
 
   return plan;

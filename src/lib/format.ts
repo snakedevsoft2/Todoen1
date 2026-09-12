@@ -19,6 +19,15 @@ export function decimalesDe(currency = "COP"): 0 | 2 {
   return SIN_DECIMALES.includes(currency) ? 0 : 2;
 }
 
+/**
+ * Tope de cualquier cifra de plata, en unidades minimas.
+ *
+ * Las columnas de plata son Int de 32 bits, que llega hasta 2.147.483.647.
+ * Se corta un poco antes para que ninguna suma intermedia se pase y reviente
+ * el guardado con un error del motor en vez de un aviso que se entienda.
+ */
+export const TOPE_MONEDA = 2_000_000_000;
+
 /** Cuantas unidades minimas tiene una unidad de la moneda: 1 o 100. */
 export function factorDe(currency = "COP"): 1 | 100 {
   return decimalesDe(currency) === 0 ? 1 : 100;
@@ -72,15 +81,32 @@ export function parseMoney(
     } else {
       const entero = raw.slice(0, corte).replace(/[.,]/g, "");
       const decimal = raw.slice(corte + 1).replace(/[.,]/g, "");
-      // Tres cifras despues del separador son miles, no centavos: "1.500" es
-      // mil quinientos, no uno con cinco.
-      raw = decimal.length === 3 ? entero + decimal : entero + "." + decimal;
+      /*
+       * Tres cifras despues del separador suelen ser miles y no centavos:
+       * "1.500" es mil quinientos, no uno con cinco.
+       *
+       * Pero solo cuando hay algo que multiplicar. "0.999" no puede ser
+       * novecientos noventa y nueve: es un precio con tres decimales, y
+       * leerlo como miles lo multiplicaba por mil. Un snack de $0,999
+       * quedaba en $999.
+       */
+      const pareceMiles = decimal.length === 3 && entero !== "" && entero !== "0";
+      raw = pareceMiles ? entero + decimal : entero + "." + decimal;
     }
   }
 
   const n = Number(raw);
   if (!Number.isFinite(n)) return 0;
-  return Math.round(n * factorDe(currency));
+
+  /*
+   * La plata nunca es negativa ni infinita.
+   *
+   * Un "-" delante convertia un costo en negativo y le daba la vuelta al
+   * margen sin que nada avisara. Y el tope es el del entero de la base de
+   * datos: sin el, pegar dieciocho cifras en un campo tumbaba el guardado con
+   * un error de Postgres en vez de un aviso legible.
+   */
+  return Math.min(TOPE_MONEDA, Math.max(0, Math.round(n * factorDe(currency))));
 }
 
 /** El salto que acepta un campo de plata: 1 peso, o 1 centavo. */
@@ -104,9 +130,26 @@ export function parseIntSafe(input: FormDataEntryValue | null | undefined, fallb
   return Number.isFinite(n) ? Math.trunc(n) : fallback;
 }
 
-export function str(input: FormDataEntryValue | null | undefined, fallback = ""): string {
-  const v = String(input ?? "").trim();
+/**
+ * Texto que escribio el usuario, recortado a un largo razonable.
+ *
+ * El tope existe porque nada impide pegar cinco mil letras en un campo de
+ * nombre: la base lo aguanta, pero la pantalla queda inservible y el PDF
+ * tambien. Doscientos alcanza para el nombre mas largo de verdad; lo que
+ * necesite mas (una nota, una descripcion) pide su propio tope.
+ */
+export function str(
+  input: FormDataEntryValue | null | undefined,
+  fallback = "",
+  max = 200
+): string {
+  const v = String(input ?? "").trim().slice(0, max);
   return v.length ? v : fallback;
+}
+
+/** Para notas y descripciones, donde si tiene sentido escribir un parrafo. */
+export function texto(input: FormDataEntryValue | null | undefined, max = 2000): string {
+  return String(input ?? "").trim().slice(0, max);
 }
 
 const DAY_LABELS = ["domingo", "lunes", "martes", "miercoles", "jueves", "viernes", "sabado"];

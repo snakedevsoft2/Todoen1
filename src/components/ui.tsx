@@ -134,11 +134,18 @@ export function PageHeader({
 }) {
   return (
     <header className="mb-5 flex flex-wrap items-end justify-between gap-3 border-b border-line pb-4">
-      <div>
-        <h1 className="font-display text-[22px] leading-tight tracking-tight text-strong sm:text-[26px]">
+      {/*
+        min-w-0 y break-words: sin los dos, un nombre de cliente sin espacios
+        empuja el ancho de la pagina entera y aparece la barra horizontal. El
+        titulo lo escribe el usuario, asi que puede ser cualquier cosa.
+      */}
+      <div className="min-w-0 flex-1 basis-72">
+        <h1 className="font-display text-[22px] leading-tight tracking-tight text-strong [overflow-wrap:anywhere] sm:text-[26px]">
           {title}
         </h1>
-        {subtitle && <p className="mt-2 text-sm font-medium text-muted">{subtitle}</p>}
+        {subtitle && (
+          <p className="mt-2 text-sm font-medium text-muted [overflow-wrap:anywhere]">{subtitle}</p>
+        )}
       </div>
       {children}
     </header>

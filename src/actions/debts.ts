@@ -5,7 +5,7 @@ import type { PaymentMethod } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireSession, requireUser } from "@/lib/auth";
 import { isValidDay, todayIn } from "@/lib/dates";
-import { parseIntSafe, parseMoney, str } from "@/lib/format";
+import { parseIntSafe, parseMoney, str, texto } from "@/lib/format";
 import { saldo } from "@/lib/debts";
 import {
   esFrecuencia,
@@ -104,7 +104,7 @@ export async function createDebtAction(
       amount,
       day,
       dueDay,
-      notes: str(formData.get("notes")) || null,
+      notes: texto(formData.get("notes")) || null,
       // Si la venta ya se registro, cobrar no vuelve a sumar a la caja.
       alreadyInvoiced: formData.get("alreadyInvoiced") === "on",
       principal,
@@ -157,7 +157,7 @@ export async function addPaymentAction(
   const dayInput = str(formData.get("day"));
   const day = isValidDay(dayInput) ? dayInput : todayIn(user.timezone);
   const method = readPayment(formData.get("method"));
-  const notes = str(formData.get("notes")) || null;
+  const notes = texto(formData.get("notes")) || null;
 
   await db.$transaction(async (tx) => {
     let saleId: string | null = null;
