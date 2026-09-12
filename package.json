@@ -21,6 +21,7 @@
     "verificar:impresion": "node scripts/verificar-impresion.mjs",
     "verificar:centavos": "node scripts/verificar-centavos.mjs",
     "verificar:cartera": "node scripts/verificar-cartera.mjs",
+    "verificar:qa": "node scripts/verificar-qa.mjs",
     "clave": "node scripts/cambiar-clave.mjs"
   },
   "dependencies": {

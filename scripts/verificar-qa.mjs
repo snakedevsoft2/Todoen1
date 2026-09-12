@@ -160,7 +160,7 @@ try {
   const antesGastos = await db.expense.count({ where: { userId: a.id } });
   await page.fill('input[name="description"]', "Gasto doble " + S);
   await page.fill('input[name="amount"]', "1000");
-  const boton = page.getByRole("button", { name: /Anotar|Guardar|Agregar/i }).first();
+  const boton = page.getByRole("button", { name: /Anotar gasto/i }).first();
   await boton.click({ clickCount: 2, delay: 40 });
   await page.waitForTimeout(2500);
   const despuesGastos = await db.expense.count({ where: { userId: a.id } });
@@ -170,18 +170,22 @@ try {
     "se anotaron " + (despuesGastos - antesGastos)
   );
 
-  console.log("\n9. Letras donde va plata");
+  console.log("\n9. Un gasto en cero");
   await page.goto(BASE + "/panel/gastos", { waitUntil: "networkidle" });
-  await page.fill('input[name="description"]', "Letras " + S);
-  const campoPlata = page.locator('input[name="amount"]').first();
-  await campoPlata.evaluate((el) => {
-    el.type = "text";
-    el.value = "abc";
-  });
-  await page.getByRole("button", { name: /Anotar|Guardar|Agregar/i }).first().click();
-  await page.waitForTimeout(1500);
-  const conLetras = await db.expense.findFirst({ where: { userId: a.id, description: "Letras " + S } });
-  ok(!conLetras, "no guarda un gasto sin valor", conLetras ? "guardo " + conLetras.amount : "");
+  await page.fill('input[name="description"]', "Cero " + S);
+  await page.fill('input[name="amount"]', "0");
+  await page.getByRole("button", { name: /Anotar gasto/i }).first().click();
+  await page.waitForTimeout(1800);
+  const enCero = await db.expense.findFirst({ where: { userId: a.id, description: "Cero " + S } });
+  ok(!enCero, "no guarda un gasto de cero", enCero ? "guardo " + enCero.amount : "");
+
+  console.log("\n9b. Un gasto negativo");
+  await page.fill('input[name="description"]', "Negativo " + S);
+  await page.fill('input[name="amount"]', "-5000");
+  await page.getByRole("button", { name: /Anotar gasto/i }).first().click();
+  await page.waitForTimeout(1800);
+  const negativo = await db.expense.findFirst({ where: { userId: a.id, description: "Negativo " + S } });
+  ok(!negativo, "no guarda un gasto negativo", negativo ? "guardo " + negativo.amount : "");
 
   console.log("\n10. Errores de consola durante todo el recorrido");
   ok(errores.length === 0, "ninguna excepcion ni error 500", errores.slice(0, 3).join(" | "));

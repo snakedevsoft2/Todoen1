@@ -2,15 +2,21 @@ import { describe, expect, it } from "vitest";
 import { planDeCuotas, valorCuota, estadoPrestamo } from "../src/lib/prestamos";
 import { parseMoney, money, aCampo } from "../src/lib/format";
 
-/** Sondeo de QA: se busca donde se rompe, no donde funciona. */
-describe("QA prestamos: bordes", () => {
+/**
+ * Los bordes: entradas absurdas, hostiles o simplemente raras.
+ *
+ * Cada una de estas pruebas nacio de un fallo real encontrado haciendo QA, no
+ * de imaginar casos. Van juntas porque todas responden a la misma pregunta:
+ * que pasa cuando llega algo que nadie penso que iba a llegar.
+ */
+describe("Prestamos: bordes", () => {
   it("plan con una sola cuota", () => {
     const p = planDeCuotas({ total: 100000, cuotas: 1, frecuencia: "MENSUAL", desde: "2026-01-01" });
     console.log("1 cuota ->", JSON.stringify(p));
     expect(p).toHaveLength(1);
   });
 
-  it("SOSPECHA: redondeo hacia arriba puede acortar el plan", () => {
+  it("el redondeo no puede acortar el plan: 20 pactadas son 20 cuotas", () => {
     // 100 pesos en 20 cuotas: la cuota redondeada a la decena es 10, y 10
     // cuotas de 10 ya cubren el total. Quedarian 10 cuotas y no 20.
     const p = planDeCuotas({ total: 100, cuotas: 20, frecuencia: "DIARIA", desde: "2026-01-01" });
@@ -36,8 +42,8 @@ describe("QA prestamos: bordes", () => {
   });
 });
 
-describe("QA dinero: entradas hostiles", () => {
-  it("SOSPECHA: acepta negativos", () => {
+describe("Dinero: entradas hostiles", () => {
+  it("la plata nunca queda negativa", () => {
     const n = parseMoney("-5000", "COP");
     console.log("parseMoney('-5000') =", n);
     expect(n).toBeGreaterThanOrEqual(0);
