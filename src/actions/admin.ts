@@ -4,8 +4,18 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin";
 import { str } from "@/lib/format";
+import { sendMail } from "@/lib/mail";
+import { correoDeEnlace, crearEnlace, direccionBase, type Destino } from "@/lib/reset";
 
 export type AdminState = { error?: string; ok?: string } | undefined;
+
+/**
+ * Lo que devuelve reponer la clave. Lleva el enlace porque el administrador
+ * tiene que poder copiarlo aunque el correo no haya salido.
+ */
+export type ReponerState =
+  | { error?: string; ok?: string; enlace?: string; correo?: string; enviado?: boolean }
+  | undefined;
 
 function refrescar(id: string) {
   revalidatePath("/admin");
@@ -124,4 +134,86 @@ export async function toggleStaffAccessAction(formData: FormData): Promise<void>
 
   await db.staff.update({ where: { id: persona.id }, data: { active: !persona.active } });
   refrescar(userId);
+}
+
+/**
+ * Reponerle la clave a una cuenta desde el panel de la plataforma.
+ *
+ * Es la salida para cuando el camino normal no alcanza: el correo no llega, se
+ * equivocaron al escribirlo, o todavia no hay RESEND_API_KEY configurada.
+ *
+ * No se le pone una contrasena nueva y se le dicta: se le genera el MISMO
+ * enlace de un solo uso que manda la pantalla publica, y la persona escribe la
+ * suya. Asi el administrador nunca llega a saber la clave de un cliente, que es
+ * como tiene que ser.
+ *
+ * Se hacen las dos cosas a la vez: se le manda el correo y se le devuelve el
+ * enlace al administrador. Si el correo sale, la persona ya lo tiene; si no
+ * sale, el administrador se lo pasa por WhatsApp y nadie queda trancado.
+ */
+export async function reponerClaveAction(
+  _prev: ReponerState,
+  formData: FormData
+): Promise<ReponerState> {
+  await requireAdmin();
+
+  const userId = str(formData.get("userId"));
+  const staffId = str(formData.get("staffId"));
+
+  const cuenta = await db.user.findUnique({
+    where: { id: userId },
+    select: { id: true, email: true, ownerName: true, suspendedAt: true },
+  });
+  if (!cuenta) return { error: "Esa cuenta ya no existe." };
+
+  // Una cuenta suspendida no puede entrar, asi que un enlace no le sirve de
+  // nada: primero se reactiva. Decirlo es mejor que mandar un correo inutil.
+  if (cuenta.suspendedAt) {
+    return { error: "La cuenta esta suspendida. Reactivala primero y vuelve a intentarlo." };
+  }
+
+  let destino: Destino;
+
+  if (staffId) {
+    // El staffId tiene que ser de ESTA cuenta. Sin esta comprobacion, el
+    // formulario podria pedir el enlace de alguien de otro negocio.
+    const persona = await db.staff.findFirst({
+      where: { id: staffId, userId },
+      select: { id: true, name: true, email: true, active: true, passwordHash: true },
+    });
+    if (!persona) return { error: "Esa persona no esta en esta cuenta." };
+    if (!persona.email || !persona.passwordHash) {
+      return { error: persona.name + " no tiene usuario para entrar, asi que no hay clave que reponer." };
+    }
+    if (!persona.active) {
+      return { error: persona.name + " tiene el acceso quitado. Devuelveselo primero." };
+    }
+    destino = { tipo: "persona", id: persona.id, nombre: persona.name, email: persona.email };
+  } else {
+    destino = {
+      tipo: "negocio",
+      id: cuenta.id,
+      nombre: cuenta.ownerName,
+      email: cuenta.email,
+    };
+  }
+
+  const token = await crearEnlace(destino);
+  const enlace = (await direccionBase()) + "/recuperar/" + token;
+
+  const enviado = await sendMail({
+    to: destino.email,
+    ...correoDeEnlace({ nombre: destino.nombre, url: enlace, porSoporte: true }),
+  });
+
+  refrescar(userId);
+
+  return {
+    enlace,
+    correo: destino.email,
+    ok: enviado
+      ? "Enlace enviado a " + destino.email + "."
+      : "No se pudo mandar el correo. Pasale el enlace por WhatsApp.",
+    enviado,
+  };
 }

@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
+import { headers } from "next/headers";
 import type { PasswordReset } from "@prisma/client";
 import { db } from "./db";
 import { APP_NAME } from "./brand";
@@ -125,6 +126,24 @@ export async function crearEnlace(destino: Destino): Promise<string> {
   return token;
 }
 
+/**
+ * De donde cuelga el enlace que va en el correo.
+ *
+ * Se saca de la peticion como en el ingreso con Google (src/app/auth/google),
+ * asi funciona igual en el computador y en Vercel sin tener que configurar
+ * nada. APP_URL solo hace falta si algun dia la aplicacion queda detras de
+ * algo que cambie el host.
+ */
+export async function direccionBase(): Promise<string> {
+  const fijo = process.env.APP_URL?.trim();
+  if (fijo) return fijo.replace(/\/+$/, "");
+
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
+  const protocolo = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  return protocolo + "://" + host;
+}
+
 /** Por que no sirve un enlace. Cada motivo se le explica distinto a la persona. */
 export type MotivoInvalido = "inexistente" | "usado" | "vencido";
 
@@ -159,19 +178,39 @@ function escapar(valor: string): string {
     .replace(/"/g, "&quot;");
 }
 
-/** El correo que le llega a la persona, en HTML y en texto plano. */
-export function correoDeEnlace({ nombre, url }: { nombre: string; url: string }) {
+/**
+ * El correo que le llega a la persona, en HTML y en texto plano.
+ *
+ * `porSoporte` cambia el motivo: no es lo mismo "pediste cambiarla" que un
+ * enlace que genero soporte desde el panel. Decirle "pediste" a quien no pidio
+ * nada lo unico que logra es que crea que le entraron a la cuenta.
+ */
+export function correoDeEnlace({
+  nombre,
+  url,
+  porSoporte = false,
+}: {
+  nombre: string;
+  url: string;
+  porSoporte?: boolean;
+}) {
+  const motivo = porSoporte
+    ? "Generamos este enlace desde soporte de " + APP_NAME + " para que puedas volver a entrar."
+    : "Pediste cambiar la contraseña de tu cuenta de " + APP_NAME + ".";
+
   const texto = [
     "Hola " + nombre + ",",
     "",
-    "Pediste cambiar la contraseña de tu cuenta de " + APP_NAME + ".",
+    motivo,
     "Entra aquí y escribe la nueva:",
     "",
     url,
     "",
     "El enlace sirve una sola vez y se vence en " + MINUTOS_DE_VIDA + " minutos.",
     "",
-    "Si no fuiste tú, no tienes que hacer nada: tu contraseña sigue igual.",
+    porSoporte
+      ? "Si no lo pediste, escríbenos antes de usarlo."
+      : "Si no fuiste tú, no tienes que hacer nada: tu contraseña sigue igual.",
     "¿Dudas? Escríbenos al " + SUPPORT_WHATSAPP_PRETTY + ".",
   ].join("\n");
 
@@ -187,9 +226,11 @@ export function correoDeEnlace({ nombre, url }: { nombre: string; url: string })
     '<p style="margin:0 0 20px;font-size:19px;font-weight:700">Cambiar tu contraseña</p>',
     '<p style="margin:0 0 14px;font-size:15px;line-height:1.6">Hola ' +
       escapar(nombre) +
-      ", pediste cambiar la contraseña de tu cuenta de " +
-      APP_NAME +
-      ".</p>",
+      ", " +
+      (porSoporte
+        ? "generamos este enlace desde soporte de " + APP_NAME + " para que puedas volver a entrar."
+        : "pediste cambiar la contraseña de tu cuenta de " + APP_NAME + ".") +
+      "</p>",
     '<p style="margin:0 0 26px;font-size:15px;line-height:1.6">Toca el botón y escribe la nueva:</p>',
     '<p style="margin:0 0 26px"><a href="' +
       url +
@@ -199,7 +240,11 @@ export function correoDeEnlace({ nombre, url }: { nombre: string; url: string })
       ' minutos. Si el botón no abre, copia y pega esta dirección:<br><span style="word-break:break-all;color:#2563eb">' +
       url +
       "</span></p>",
-    '<p style="margin:0;border-top:1px solid #e2e8f0;padding-top:20px;font-size:13px;line-height:1.6;color:#64748b">Si no fuiste tú, no tienes que hacer nada: tu contraseña sigue igual.<br>¿Dudas? Escríbenos al ' +
+    '<p style="margin:0;border-top:1px solid #e2e8f0;padding-top:20px;font-size:13px;line-height:1.6;color:#64748b">' +
+      (porSoporte
+        ? "Si no lo pediste, escríbenos antes de usarlo."
+        : "Si no fuiste tú, no tienes que hacer nada: tu contraseña sigue igual.") +
+      '<br>¿Dudas? Escríbenos al ' +
       SUPPORT_WHATSAPP_PRETTY +
       ".</p>",
     "</td></tr></table></body></html>",

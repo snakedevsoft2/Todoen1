@@ -1,6 +1,5 @@
 "use server";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/auth";
@@ -9,6 +8,7 @@ import {
   buscarCuenta,
   correoDeEnlace,
   crearEnlace,
+  direccionBase,
   excedioElLimite,
   MINIMO_CLAVE,
   MINUTOS_DE_VIDA,
@@ -32,24 +32,6 @@ const RESPUESTA_UNICA =
   "Si ese correo tiene una cuenta, ya te mandamos el enlace. Revisa tu bandeja de entrada y la carpeta de spam. El enlace se vence en " +
   MINUTOS_DE_VIDA +
   " minutos.";
-
-/**
- * De donde cuelga el enlace que va en el correo.
- *
- * Se saca de la peticion como en el ingreso con Google (src/app/auth/google),
- * asi funciona igual en el computador y en Vercel sin tener que configurar
- * nada. APP_URL solo hace falta si algun dia la aplicacion queda detras de
- * algo que cambie el host.
- */
-async function direccionBase(): Promise<string> {
-  const fijo = process.env.APP_URL?.trim();
-  if (fijo) return fijo.replace(/\/+$/, "");
-
-  const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
-  const protocolo = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
-  return protocolo + "://" + host;
-}
 
 /** Paso 1: pedir el enlace. */
 export async function pedirEnlaceAction(

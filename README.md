@@ -216,6 +216,17 @@ límite está escrito en el código y comprobado con pruebas.
   borra nada** y se deshace cuando quieras. Pide un motivo y escribir el nombre del negocio, para
   que no pase de un clic distraído. Al cliente se le explica y se le da el WhatsApp de soporte.
 - **Quitarle el acceso a una persona** dentro de una cuenta, sin tocar el resto del negocio.
+- **Reponerle la clave a quien no puede entrar.** Es la salida para cuando el correo de recuperar
+  no llega: se equivocaron al escribirlo, cayó en spam, o todavía no hay `RESEND_API_KEY`. Funciona
+  igual para el dueño y para cada barbero o empleado con usuario propio.
+
+  **No se le pone una contraseña y se le dicta:** se le genera el mismo enlace de un solo uso que
+  manda la pantalla pública, y la persona escribe la suya. Así el administrador nunca llega a saber
+  la clave de un cliente. Se hacen las dos cosas a la vez: le sale el correo a la persona y el
+  enlace queda en pantalla para copiarlo, porque si el correo no salió hay que poder pasárselo por
+  WhatsApp. El correo dice que lo generó soporte y no «pediste cambiarla», que a quien no pidió nada
+  solo lo asustaría. A una cuenta suspendida no se le genera: primero se reactiva, porque un enlace
+  no le serviría de nada.
 
 **Ni el administrador puede saltarse la regla de los oficios:** no se le puede dar la agenda por
 hora a un restaurante desde aquí. Tampoco se pueden apagar Resumen, Ajustes ni Soporte, ni
@@ -229,6 +240,10 @@ suspender tu propia cuenta.
 - `npm run verificar:admin` — recorre el panel en un navegador de verdad (necesita `npm start`
   corriendo): que un cliente cualquiera no alcance `/admin` ni la ficha de otro negocio, que una
   cuenta suspendida quede por fuera y que su sesión abierta se caiga.
+- `npm run verificar:clave-admin` — reponer la clave desde la ficha de una cuenta: que el enlace
+  generado sirva de verdad para volver a entrar, que el de un barbero vaya a su correo y no al del
+  dueño, que una cuenta suspendida no reciba ninguno, y que un cliente cualquiera no alcance nada
+  de esto.
 
 ---
 
@@ -342,7 +357,7 @@ Para apagar la base de datos local: `npm run db:down`.
 
 La contraseña guardada **no se puede recuperar**: en la base solo vive su hash de bcrypt, que va en
 un solo sentido a propósito. Ni tú, ni nadie con acceso a la base, puede leerla. Lo que se hace es
-reemplazarla, y hay tres caminos:
+reemplazarla, y hay cuatro caminos:
 
 **1. Desde la app, con un enlace al correo.** Es el camino normal. En la pantalla de ingreso, en
 *¿Olvidaste tu contraseña?*, se escribe el correo y llega un enlace para poner una nueva. Sirve
@@ -354,7 +369,12 @@ sin esa llave, el enlace de la pantalla sigue mandando al WhatsApp de soporte.
 la actual. El dueño además le puede poner una clave nueva a cualquier barbero desde **Barberos**,
 sin saber la que tenía.
 
-**3. Desde la terminal**, cuando no hay correo configurado o la cuenta quedó trancada. Con la base
+**3. Desde el panel de la plataforma**, si tú administras Todoen1. En la ficha de la cuenta
+(`/admin/<id>`), *Reponer clave* le manda el enlace a la persona y te lo deja en pantalla para
+copiarlo, por si el correo no sale. Sirve para el dueño y para cada empleado con usuario propio, y
+tú nunca ves su contraseña. Está explicado en [Lo que se puede hacer](#lo-que-se-puede-hacer).
+
+**4. Desde la terminal**, cuando no hay correo configurado o la cuenta quedó trancada. Con la base
 prendida:
 
 ```bash

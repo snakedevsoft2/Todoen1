@@ -8,6 +8,7 @@ import { ROLE_LABEL } from "@/lib/staff";
 import { reactivateAccountAction, toggleStaffAccessAction } from "@/actions/admin";
 import { SuspenderForm } from "@/components/admin/SuspenderForm";
 import { InterruptorModulo } from "@/components/admin/InterruptorModulo";
+import { ReponerClave } from "@/components/ReponerClave";
 import { Icon } from "@/components/Icon";
 
 export const dynamic = "force-dynamic";
@@ -92,6 +93,20 @@ export default async function AdminCuentaPage({ params }: { params: Promise<{ id
               <Dato label="Página pública" valor={cuenta.publicOpen ? "Abierta" : "Cerrada"} />
               <Dato label="Dirección" valor={"/catalogo/" + cuenta.slug} />
             </dl>
+
+            {/* La salida para el cliente que no puede entrar y a quien el
+                correo de recuperar no le llego. No muestra ninguna clave: lo
+                que se genera es el enlace, y la escribe la persona. */}
+            <div className="mt-4 border-t border-slate-800 pt-3">
+              <p className="text-[11px] uppercase tracking-wide text-slate-500">
+                No puede entrar
+              </p>
+              <p className="mb-2 mt-1 text-[11px] leading-relaxed text-slate-500">
+                Le manda a {cuenta.email} un enlace para que ponga una contraseña nueva. Tú no ves
+                su contraseña en ningún momento.
+              </p>
+              <ReponerClave userId={cuenta.id} nombre={cuenta.ownerName} />
+            </div>
           </Bloque>
 
           <Bloque titulo="Personas con acceso">
@@ -108,6 +123,9 @@ export default async function AdminCuentaPage({ params }: { params: Promise<{ id
                   <span className="text-[11px] text-slate-500">
                     {p.lastSeenAt ? "visto " + fecha(p.lastSeenAt) : "nunca entró"}
                   </span>
+                  {p.email && p.active && (
+                    <ReponerClave userId={cuenta.id} staffId={p.id} nombre={p.name} chico />
+                  )}
                   {p.role === "DUENO" ? (
                     <span className="text-[11px] text-slate-600">dueño</span>
                   ) : (
