@@ -1,18 +1,36 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { addPaymentAction, createDebtAction, updateDueDayAction } from "@/actions/debts";
 import { aCampo, money, pasoMoneda } from "@/lib/format";
 import { SubmitButton } from "./SubmitButton";
+import { CamposFiador, CamposPrestamo } from "./PrestamoFields";
 import { Alert, Field } from "./ui";
 import { Icon } from "./Icon";
 
-/** Anotar que alguien quedo debiendo. */
-export function NewDebtForm({ today, currency }: { today: string; currency: string }) {
+/**
+ * Anotar que alguien quedo debiendo.
+ *
+ * Tiene dos caras. En una tienda es un fiado: un monto y ya. En un negocio de
+ * cartera es un prestamo: capital, interes y cuotas, y el total NO se escribe
+ * a mano sino que sale de esas tres, para que no pueda quedar un total que no
+ * cuadre con lo que se presto.
+ */
+export function NewDebtForm({
+  today,
+  currency,
+  /** true en el negocio de cartera: pide capital, interes, cuotas y fiador. */
+  prestamos = false,
+}: {
+  today: string;
+  currency: string;
+  prestamos?: boolean;
+}) {
   const [state, formAction] = useActionState(createDebtAction, undefined);
 
   return (
     <form action={formAction} className="space-y-3">
+      <input type="hidden" name="modo" value={prestamos ? "prestamo" : "fiado"} />
       {state?.error && <Alert kind="error">{state.error}</Alert>}
       {state?.ok && <Alert kind="ok">{state.ok}</Alert>}
 
@@ -29,25 +47,31 @@ export function NewDebtForm({ today, currency }: { today: string; currency: stri
         <input className="input" name="concept" required placeholder="Ej: 2 camisas y un jean" />
       </Field>
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Field label={"Cuanto debe (" + currency + ")"}>
-          <input
-            className="input"
-            type="number"
-            name="amount"
-            min={0}
-            step={pasoMoneda(currency)}
-            required
-            placeholder="0"
-          />
-        </Field>
-        <Field label="Desde cuando">
-          <input className="input" type="date" name="day" defaultValue={today} />
-        </Field>
-        <Field label="Vence el" hint="Opcional.">
-          <input className="input" type="date" name="dueDay" />
-        </Field>
-      </div>
+      {prestamos ? (
+        <CamposPrestamo today={today} currency={currency} />
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Field label={"Cuanto debe (" + currency + ")"}>
+            <input
+              className="input"
+              type="number"
+              name="amount"
+              min={0}
+              step={pasoMoneda(currency)}
+              required
+              placeholder="0"
+            />
+          </Field>
+          <Field label="Desde cuando">
+            <input className="input" type="date" name="day" defaultValue={today} />
+          </Field>
+          <Field label="Vence el" hint="Opcional.">
+            <input className="input" type="date" name="dueDay" />
+          </Field>
+        </div>
+      )}
+
+      {prestamos && <CamposFiador />}
 
       <Field label="Nota (opcional)">
         <input className="input" name="notes" placeholder="Ej: queda de pagar el viernes" />
@@ -72,7 +96,7 @@ export function NewDebtForm({ today, currency }: { today: string; currency: stri
 
       <SubmitButton className="btn-primary w-full sm:w-auto" pendingText="Guardando...">
         <Icon name="plus" className="h-4 w-4" />
-        Anotar la deuda
+        {prestamos ? "Anotar el prestamo" : "Anotar la deuda"}
       </SubmitButton>
     </form>
   );

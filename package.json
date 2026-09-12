@@ -20,6 +20,7 @@
     "verificar:clave-admin": "node scripts/verificar-clave-admin.mjs",
     "verificar:impresion": "node scripts/verificar-impresion.mjs",
     "verificar:centavos": "node scripts/verificar-centavos.mjs",
+    "verificar:cartera": "node scripts/verificar-cartera.mjs",
     "clave": "node scripts/cambiar-clave.mjs"
   },
   "dependencies": {

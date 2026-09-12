@@ -5,8 +5,14 @@ import type { PaymentMethod } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireSession, requireUser } from "@/lib/auth";
 import { isValidDay, todayIn } from "@/lib/dates";
-import { parseMoney, str } from "@/lib/format";
+import { parseIntSafe, parseMoney, str } from "@/lib/format";
 import { saldo } from "@/lib/debts";
+import {
+  esFrecuencia,
+  planDeCuotas,
+  totalConInteres,
+  type Frecuencia,
+} from "@/lib/prestamos";
 
 export type DebtState = { error?: string; ok?: string } | undefined;
 
@@ -36,8 +42,41 @@ export async function createDebtAction(
   const concept = str(formData.get("concept"));
   if (!concept) return { error: "Escribe por que debe." };
 
-  const amount = parseMoney(formData.get("amount"), user.currency);
-  if (amount <= 0) return { error: "El valor debe ser mayor a cero." };
+  /**
+   * Un prestamo por cuotas o un fiado suelto.
+   *
+   * El fiado de una tienda solo tiene un monto. El prestamo tiene capital,
+   * interes y cuotas, y de ahi sale el total: no se escribe a mano, para que
+   * nunca pueda quedar un total que no cuadre con lo que se presto.
+   */
+  const esPrestamo = str(formData.get("modo")) === "prestamo";
+
+  let amount = 0;
+  let principal: number | null = null;
+  let interestPct: number | null = null;
+  let installments: number | null = null;
+  let frequency: Frecuencia | null = null;
+
+  if (esPrestamo) {
+    principal = parseMoney(formData.get("principal"), user.currency);
+    if (principal <= 0) return { error: "Escribe cuanto le prestaste." };
+
+    interestPct = Math.max(0, parseIntSafe(formData.get("interestPct"), 0));
+    if (interestPct > 500) return { error: "Ese interes no parece real. Revisalo." };
+
+    installments = parseIntSafe(formData.get("installments"), 0);
+    if (installments <= 0) return { error: "Escribe en cuantas cuotas te va a pagar." };
+    if (installments > 500) return { error: "Son demasiadas cuotas. Maximo 500." };
+
+    const f = str(formData.get("frequency"));
+    if (!esFrecuencia(f)) return { error: "Elige cada cuanto te paga." };
+    frequency = f;
+
+    amount = totalConInteres(principal, interestPct);
+  } else {
+    amount = parseMoney(formData.get("amount"), user.currency);
+    if (amount <= 0) return { error: "El valor debe ser mayor a cero." };
+  }
 
   const dayInput = str(formData.get("day"));
   const dueInput = str(formData.get("dueDay"));
@@ -48,6 +87,14 @@ export async function createDebtAction(
     return { error: "El vencimiento no puede ser antes de la fecha de la deuda." };
   }
 
+  // En un prestamo el vencimiento es el dia de la ultima cuota: no hay que
+  // pedirlo, sale del plan. Asi la lista de vencidas sigue funcionando igual.
+  let dueDay = dueInput || null;
+  if (esPrestamo && frequency && installments) {
+    const plan = planDeCuotas({ total: amount, cuotas: installments, frecuencia: frequency, desde: day });
+    dueDay = plan[plan.length - 1]?.day ?? dueDay;
+  }
+
   await db.debt.create({
     data: {
       userId: user.id,
@@ -56,15 +103,24 @@ export async function createDebtAction(
       concept,
       amount,
       day,
-      dueDay: dueInput || null,
+      dueDay,
       notes: str(formData.get("notes")) || null,
       // Si la venta ya se registro, cobrar no vuelve a sumar a la caja.
       alreadyInvoiced: formData.get("alreadyInvoiced") === "on",
+      principal,
+      interestPct,
+      installments,
+      frequency,
+      // El fiador: quien responde si el deudor no paga.
+      guarantorName: str(formData.get("guarantorName")) || null,
+      guarantorId: str(formData.get("guarantorId")) || null,
+      guarantorPhone: str(formData.get("guarantorPhone")) || null,
+      guarantorAddress: str(formData.get("guarantorAddress")) || null,
     },
   });
 
   refresh();
-  return { ok: "Deuda anotada." };
+  return { ok: esPrestamo ? "Prestamo anotado." : "Deuda anotada." };
 }
 
 /**

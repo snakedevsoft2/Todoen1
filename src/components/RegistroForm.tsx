@@ -11,6 +11,7 @@ const TYPES = [
   { value: "RESTAURANTE", label: "Restaurante", hint: "Cuentas por mesa y caja" },
   { value: "COMIDAS_RAPIDAS", label: "Comidas rapidas", hint: "Venta al mostrador y caja" },
   { value: "ROPA", label: "Tienda de ropa", hint: "Inventario por talla y catalogo" },
+  { value: "CARTERA", label: "Cartera y cobranza", hint: "Prestamos por cuotas y cobros" },
   // Va de ultimo a proposito: primero que intente reconocerse en los de
   // arriba, que le quedan mejor armados. Este es la salida para el resto.
   { value: "OTRO", label: "Otro negocio", hint: "Lo armas tu mismo" },

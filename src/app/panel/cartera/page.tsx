@@ -3,10 +3,12 @@ import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { startOfMonth, todayIn } from "@/lib/dates";
 import { money, prettyDay, shortDay } from "@/lib/format";
-import { collectionMessage, debtState, saldo } from "@/lib/debts";
+import { abonado, collectionMessage, debtState, saldo } from "@/lib/debts";
+import { esPrestamo, estadoPrestamo, planDeDeuda } from "@/lib/prestamos";
 import { toInternational, waLink } from "@/lib/whatsapp";
 import { Badge, Card, Empty, PageHeader, Stat } from "@/components/ui";
 import { NewDebtForm } from "@/components/DebtForms";
+import { CobrosDeHoy, type Cobro } from "@/components/CobrosDeHoy";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Icon } from "@/components/Icon";
 import { markCollectedAction } from "@/actions/debts";
@@ -51,9 +53,81 @@ export default async function CarteraPage({
   }));
 
   const porCobrar = conEstado.filter((r) => r.deuda.status === "PENDIENTE" && r.pendiente > 0);
+
+  /**
+   * El tablero del prestamista.
+   *
+   * Solo se arma en el negocio de cartera: en una tienda, "a quien le toca
+   * pagar hoy" no significa nada porque el fiado no tiene cuotas.
+   */
+  const esCartera = user.businessType === "CARTERA";
+  const cobrosHoy: Cobro[] = [];
+  const cobrosAtrasados: Cobro[] = [];
+
+  if (esCartera) {
+    for (const { deuda, pendiente } of porCobrar) {
+      const plan = planDeDeuda(deuda);
+      const est = plan.length > 0 ? estadoPrestamo(plan, abonado(deuda), hoy) : null;
+
+      const enlaceWhatsapp = deuda.clientPhone
+        ? waLink(
+            toInternational(deuda.clientPhone, user.whatsappNumber),
+            collectionMessage({
+              businessName: user.businessName,
+              clientName: deuda.clientName,
+              concept: deuda.concept,
+              saldo: pendiente,
+              currency: user.currency,
+              estado: debtState(deuda, hoy),
+              prettyDue: deuda.dueDay ? prettyDay(deuda.dueDay) : null,
+            })
+          )
+        : null;
+
+      const base = { id: deuda.id, clientName: deuda.clientName, enlaceWhatsapp };
+
+      if (est && est.atraso > 0) {
+        cobrosAtrasados.push({
+          ...base,
+          detalle: esPrestamo(deuda)
+            ? "Cuota " + Math.min(est.cuotasPagadas + 1, plan.length) + " de " + plan.length
+            : null,
+          monto: est.atraso,
+          cuotasAtrasadas: est.cuotasAtrasadas,
+        });
+      } else if (est && est.tocaHoy) {
+        cobrosHoy.push({
+          ...base,
+          detalle: "Cuota " + Math.min(est.cuotasPagadas + 1, plan.length) + " de " + plan.length,
+          monto: est.montoDeHoy,
+          cuotasAtrasadas: 0,
+        });
+      }
+    }
+
+    cobrosAtrasados.sort((a, b) => b.monto - a.monto);
+  }
+
   const vencidas = porCobrar.filter((r) => r.estado.key === "vencida");
   const totalPorCobrar = porCobrar.reduce((s, r) => s + r.pendiente, 0);
   const totalVencido = vencidas.reduce((s, r) => s + r.pendiente, 0);
+  /**
+   * Que significa "vencido" en cada oficio.
+   *
+   * En una tienda es la deuda cuya fecha ya paso. En un prestamo por cuotas
+   * eso no sirve: la fecha final puede estar a veinte dias y el cliente llevar
+   * tres cuotas sin pagar. Ahi lo vencido es el atraso contra el plan, o la
+   * pantalla diria "Vencido $0" al lado de "Atrasados $90.000".
+   */
+  const atrasoTotal = cobrosAtrasados.reduce((s, c) => s + c.monto, 0);
+  const vencidoLabel = esCartera ? "Atrasado" : "Vencido";
+  const vencidoValor = esCartera ? atrasoTotal : totalVencido;
+  const vencidoCuantos = esCartera ? cobrosAtrasados.length : vencidas.length;
+
+  /** Lo que tiene prestado en la calle, sin contar el interes. */
+  const enLaCalle = esCartera
+    ? porCobrar.reduce((s, r) => s + (r.deuda.principal ?? 0), 0)
+    : 0;
 
   const visibles =
     filtro === "pendientes"
@@ -66,7 +140,24 @@ export default async function CarteraPage({
 
   return (
     <>
-      <PageHeader title="Cartera" subtitle="Quien te debe, cuanto y desde cuando" />
+      <PageHeader
+        title={esCartera ? "Cuentas por cobrar" : "Cartera"}
+        subtitle={
+          esCartera
+            ? "A quien le toca pagar hoy, quien se atraso y cuanto tienes en la calle"
+            : "Quien te debe, cuanto y desde cuando"
+        }
+      />
+
+      {esCartera && (
+        <div className="mb-4">
+          <CobrosDeHoy
+            atrasados={cobrosAtrasados}
+            deHoy={cobrosHoy}
+            currency={user.currency}
+          />
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat
@@ -76,10 +167,14 @@ export default async function CarteraPage({
           tone={totalPorCobrar > 0 ? "amber" : "good"}
         />
         <Stat
-          label="Vencido"
-          value={money(totalVencido, user.currency)}
-          hint={vencidas.length + (vencidas.length === 1 ? " deuda" : " deudas")}
-          tone={totalVencido > 0 ? "bad" : "good"}
+          label={vencidoLabel}
+          value={money(vencidoValor, user.currency)}
+          hint={
+            esCartera
+              ? vencidoCuantos + (vencidoCuantos === 1 ? " persona" : " personas")
+              : vencidoCuantos + (vencidoCuantos === 1 ? " deuda" : " deudas")
+          }
+          tone={vencidoValor > 0 ? "bad" : "good"}
         />
         <Stat
           label="Cobrado este mes"
@@ -87,17 +182,25 @@ export default async function CarteraPage({
           hint={"Desde el " + shortDay(mes)}
           tone="good"
         />
-        <Stat
-          label="Deuda promedio"
-          value={money(
-            porCobrar.length ? Math.round(totalPorCobrar / porCobrar.length) : 0,
-            user.currency
-          )}
-          hint="Por cliente que debe"
-        />
+        {esCartera ? (
+          <Stat
+            label="En la calle"
+            value={money(enLaCalle, user.currency)}
+            hint="Capital prestado, sin el interes"
+          />
+        ) : (
+          <Stat
+            label="Deuda promedio"
+            value={money(
+              porCobrar.length ? Math.round(totalPorCobrar / porCobrar.length) : 0,
+              user.currency
+            )}
+            hint="Por cliente que debe"
+          />
+        )}
       </div>
 
-      {vencidas.length > 0 && (
+      {!esCartera && vencidas.length > 0 && (
         <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-line bg-bad-soft px-4 py-3 text-sm text-bad">
           <Icon name="alert" className="h-4 w-4 shrink-0" />
           <span>
@@ -245,7 +348,7 @@ export default async function CarteraPage({
 
         <div className="space-y-4">
           <Card title="Anotar una deuda" subtitle="Lo que quedo debiendo un cliente">
-            <NewDebtForm today={hoy} currency={user.currency} />
+            <NewDebtForm today={hoy} currency={user.currency} prestamos={esCartera} />
           </Card>
 
           <Card title="Como funciona la plata">

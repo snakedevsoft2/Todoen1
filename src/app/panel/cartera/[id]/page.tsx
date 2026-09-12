@@ -7,8 +7,10 @@ import { money, prettyDay, shortDay } from "@/lib/format";
 import { logoUrl } from "@/lib/nav";
 import { abonado, collectionMessage, debtState, saldo } from "@/lib/debts";
 import { toInternational, waLink } from "@/lib/whatsapp";
+import { esPrestamo, planDeDeuda, type Frecuencia } from "@/lib/prestamos";
 import { PAYMENT_LABELS, Badge, Card, Empty, PageHeader, Stat } from "@/components/ui";
 import { DueDayForm, PaymentForm } from "@/components/DebtForms";
+import { FichaFiador, PlanDePagos } from "@/components/PlanDePagos";
 import { ReceiptActions } from "@/components/ReceiptActions";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Icon } from "@/components/Icon";
@@ -55,6 +57,10 @@ export default async function DeudaPage({ params }: { params: Promise<{ id: stri
 
   const anulada = deuda.status === "ANULADA";
 
+  // Solo las deudas pactadas por cuotas tienen plan; un fiado suelto no.
+  const plan = planDeDeuda(deuda);
+  const muestraPlan = esPrestamo(deuda) && plan.length > 0;
+
   return (
     <>
       <PageHeader title={deuda.clientName} subtitle={deuda.concept}>
@@ -94,6 +100,30 @@ export default async function DeudaPage({ params }: { params: Promise<{ id: stri
               Reactivar
             </SubmitButton>
           </form>
+        </div>
+      )}
+
+      {(muestraPlan || deuda.guarantorName) && (
+        <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_340px]">
+          {muestraPlan && (
+            <PlanDePagos
+              plan={plan}
+              abonado={pagado}
+              hoy={hoy}
+              currency={user.currency}
+              principal={deuda.principal}
+              interestPct={deuda.interestPct}
+              frecuencia={deuda.frequency as Frecuencia}
+            />
+          )}
+          {deuda.guarantorName && (
+            <FichaFiador
+              nombre={deuda.guarantorName}
+              cedula={deuda.guarantorId}
+              telefono={deuda.guarantorPhone}
+              direccion={deuda.guarantorAddress}
+            />
+          )}
         </div>
       )}
 

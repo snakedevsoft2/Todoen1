@@ -53,9 +53,7 @@ export const TIPOS_ABIERTOS: Tipo[] = [
   "RESTAURANTE",
   "COMIDAS_RAPIDAS",
   "ROPA",
-  // CARTERA entra aqui cuando el formulario de prestamos este listo. Sus
-  // apartados ya estan definidos abajo, pero el oficio promete cuotas e
-  // interes y hoy la pantalla todavia no los pide.
+  "CARTERA",
   "OTRO",
 ];
 
