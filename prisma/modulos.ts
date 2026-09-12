@@ -461,7 +461,9 @@ export const PRESETS: Record<Tipo, Record<string, Preset>> = {
       label: "Quien me presta",
       ejemplo: "El socio o el inversionista que te pone la plata, y a que interes te la pone.",
     },
-    equipo: { label: "Cobradores", on: false, ejemplo: "Cada cobrador con su usuario y su ruta." },
+    // Encendido: un negocio de cobranza casi siempre tiene mas de un cobrador
+    // en la calle, y cada uno necesita su propio usuario.
+    equipo: { label: "Cobradores", ejemplo: "Cada cobrador con su usuario y su ruta." },
     asistente: { on: false, ejemplo: "A quien le tengo que cobrar hoy?" },
     personalizar: { on: false },
     guia: {},

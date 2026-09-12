@@ -18,6 +18,7 @@
     "verificar:admin": "node scripts/verificar-admin.mjs",
     "verificar:recuperar": "node scripts/verificar-recuperar.mjs",
     "verificar:clave-admin": "node scripts/verificar-clave-admin.mjs",
+    "verificar:impresion": "node scripts/verificar-impresion.mjs",
     "clave": "node scripts/cambiar-clave.mjs"
   },
   "dependencies": {

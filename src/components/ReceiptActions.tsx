@@ -3,10 +3,13 @@
 import { useState } from "react";
 import {
   buildReceiptPdf,
+  receiptFileName,
   receiptMessage,
   receiptNumber,
+  receiptTirilla,
   type ReceiptData,
 } from "@/lib/receipt";
+import { BotonImprimir } from "./BotonImprimir";
 import { Icon } from "./Icon";
 
 function download(file: File) {
@@ -83,6 +86,29 @@ export function ReceiptActions({
       };
     });
 
+  const porCorreo = () =>
+    conPdf("mail", async (file) => {
+      if (canShareFile(file)) {
+        await navigator.share({ files: [file], title: titulo, text: receiptMessage(data) });
+        return { kind: "ok", text: "Comprobante enviado." };
+      }
+      // En el computador no existe el menu de compartir, asi que se descarga y
+      // se abre Gmail con el texto escrito para adjuntarlo.
+      download(file);
+      window.open(
+        "https://mail.google.com/mail/?view=cm&fs=1&su=" +
+          encodeURIComponent(titulo) +
+          "&body=" +
+          encodeURIComponent(receiptMessage(data)),
+        "_blank",
+        "noopener"
+      );
+      return {
+        kind: "info",
+        text: "Se abrio el correo con el texto. El PDF quedo descargado: adjuntalo antes de enviar.",
+      };
+    });
+
   const bajar = () =>
     conPdf("pdf", async (file) => {
       download(file);
@@ -95,6 +121,20 @@ export function ReceiptActions({
         <Icon name="whatsapp" className="h-4 w-4" />
         {busy === "wa" ? "Preparando..." : "Mandar comprobante"}
       </button>
+      <button
+        type="button"
+        onClick={porCorreo}
+        disabled={busy !== ""}
+        className="btn-ghost btn-sm"
+      >
+        <Icon name="link" className="h-4 w-4" />
+        {busy === "mail" ? "Preparando..." : "Por correo"}
+      </button>
+      <BotonImprimir
+        tirilla={() => receiptTirilla(data)}
+        hoja={() => buildReceiptPdf(data)}
+        nombreArchivo={receiptFileName(data)}
+      />
       <button type="button" onClick={bajar} disabled={busy !== ""} className="btn-ghost btn-sm">
         <Icon name="download" className="h-4 w-4" />
         {busy === "pdf" ? "Creando..." : "Descargar"}

@@ -1,4 +1,5 @@
 import { money, prettyDay } from "./format";
+import type { Linea } from "./tirilla";
 
 /**
  * Armado de la factura en PDF, en el navegador.
@@ -215,4 +216,50 @@ export async function buildInvoicePdf(data: InvoiceData): Promise<File> {
 
   const blob = doc.output("blob");
   return new File([blob], invoiceFileName(data), { type: "application/pdf" });
+}
+
+/**
+ * La misma factura, en papel de tirilla.
+ *
+ * Cada producto va en dos renglones —el nombre arriba, la cantidad y el valor
+ * abajo— porque en 58mm no caben lado a lado sin que el nombre quede cortado,
+ * y el nombre es justo lo que el cliente revisa.
+ */
+export function invoiceTirilla(data: InvoiceData): Linea[] {
+  const lineas: Linea[] = [{ t: "titulo", text: data.businessName }];
+
+  if (data.businessAddress) lineas.push({ t: "centro", text: data.businessAddress, tenue: true });
+  if (data.businessPhone) lineas.push({ t: "centro", text: "Tel " + data.businessPhone, tenue: true });
+
+  lineas.push(
+    { t: "sep" },
+    { t: "centro", text: "FACTURA DE VENTA", fuerte: true },
+    { t: "centro", text: "No. " + invoiceNumber(data.saleId), tenue: true },
+    { t: "centro", text: prettyDay(data.day), tenue: true },
+    { t: "sep" }
+  );
+
+  if (data.clientName) lineas.push({ t: "par", label: "Cliente", value: data.clientName });
+  if (data.staffName) lineas.push({ t: "par", label: "Atendio", value: data.staffName });
+  if (data.clientName || data.staffName) lineas.push({ t: "sep" });
+
+  for (const item of data.items) {
+    lineas.push({ t: "texto", text: item.name });
+    lineas.push({
+      t: "par",
+      label: item.qty + " x " + money(item.unitPrice, data.currency),
+      value: money(item.qty * item.unitPrice, data.currency),
+    });
+  }
+
+  lineas.push(
+    { t: "total", label: "TOTAL", value: money(data.total, data.currency) },
+    { t: "par", label: "Forma de pago", value: PAYMENT_LABEL[data.paymentMethod] ?? data.paymentMethod }
+  );
+
+  if (data.notes) lineas.push({ t: "espacio" }, { t: "texto", text: data.notes, tenue: true });
+
+  lineas.push({ t: "sep" }, { t: "centro", text: "Gracias por su compra", tenue: true }, { t: "espacio" });
+
+  return lineas;
 }

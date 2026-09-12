@@ -1,4 +1,5 @@
 import { money, prettyDay } from "./format";
+import type { Linea } from "./tirilla";
 
 /**
  * Comprobante de abono en PDF.
@@ -227,4 +228,54 @@ export async function buildReceiptPdf(data: ReceiptData): Promise<File> {
 
   const blob = doc.output("blob");
   return new File([blob], receiptFileName(data), { type: "application/pdf" });
+}
+
+/**
+ * El mismo comprobante, en papel de tirilla.
+ *
+ * No lleva logo: en 58mm una imagen se come medio papel y no se distingue.
+ * Lo que se agranda es lo que el cliente mira de verdad, que es cuanto abono y
+ * cuanto le queda debiendo.
+ */
+export function receiptTirilla(data: ReceiptData): Linea[] {
+  const lineas: Linea[] = [
+    { t: "titulo", text: data.businessName },
+  ];
+
+  if (data.businessAddress) lineas.push({ t: "centro", text: data.businessAddress, tenue: true });
+  if (data.businessPhone) lineas.push({ t: "centro", text: "Tel " + data.businessPhone, tenue: true });
+
+  lineas.push(
+    { t: "sep" },
+    { t: "centro", text: "COMPROBANTE DE ABONO", fuerte: true },
+    { t: "centro", text: "No. " + receiptNumber(data.paymentId), tenue: true },
+    { t: "centro", text: prettyDay(data.day), tenue: true },
+    { t: "sep" },
+    { t: "par", label: "Cliente", value: data.clientName },
+    { t: "texto", text: data.concept, tenue: true },
+    { t: "espacio" },
+    { t: "par", label: "Forma de pago", value: PAYMENT_LABEL[data.method] ?? data.method },
+    { t: "total", label: "ABONA", value: money(data.amount, data.currency) },
+    { t: "par", label: "Deuda total", value: money(data.total, data.currency) },
+    { t: "par", label: "Saldo", value: money(data.saldo, data.currency), fuerte: true }
+  );
+
+  if (data.historial.length > 0) {
+    lineas.push({ t: "sep" }, { t: "texto", text: "Abonos anteriores", tenue: true });
+    for (const h of data.historial) {
+      lineas.push({ t: "par", label: prettyDay(h.day), value: money(h.amount, data.currency) });
+    }
+  }
+
+  lineas.push(
+    { t: "sep" },
+    {
+      t: "centro",
+      text: data.saldo > 0 ? "Gracias por su abono" : "Queda a paz y salvo. Gracias.",
+      tenue: true,
+    },
+    { t: "espacio" }
+  );
+
+  return lineas;
 }

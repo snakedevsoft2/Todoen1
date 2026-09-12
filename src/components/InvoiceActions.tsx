@@ -1,7 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { buildInvoicePdf, invoiceMessage, invoiceNumber, type InvoiceData } from "@/lib/invoice";
+import {
+  buildInvoicePdf,
+  invoiceFileName,
+  invoiceMessage,
+  invoiceNumber,
+  invoiceTirilla,
+  type InvoiceData,
+} from "@/lib/invoice";
+import { BotonImprimir } from "./BotonImprimir";
 import { Icon } from "./Icon";
 
 /** Baja el archivo al dispositivo, para poder adjuntarlo a mano. */
@@ -172,13 +180,18 @@ export function InvoiceActions({
           <Icon name="link" className="h-4 w-4" />
           {busy === "mail" ? "Preparando..." : "Enviar por correo"}
         </button>
+        <BotonImprimir
+          tirilla={() => invoiceTirilla(data)}
+          hoja={() => buildInvoicePdf(data)}
+          nombreArchivo={invoiceFileName(data)}
+        />
         <button
           type="button"
           onClick={onDownload}
           disabled={busy !== ""}
           className="btn-ghost btn-sm"
         >
-          <Icon name="print" className="h-4 w-4" />
+          <Icon name="download" className="h-4 w-4" />
           {busy === "pdf" ? "Creando..." : "Descargar PDF"}
         </button>
       </div>
