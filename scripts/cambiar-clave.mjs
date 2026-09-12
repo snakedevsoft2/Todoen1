@@ -1,10 +1,14 @@
 /**
  * Le pone una contrasena nueva a una cuenta, desde la terminal.
  *
- * Es la salida cuando el dueno olvido la suya: la app no tiene "olvide mi
- * contrasena", y la que estaba guardada no se puede recuperar porque en la
- * base solo vive su hash de bcrypt, que va en un solo sentido a proposito.
- * Aqui no se lee la vieja: se reemplaza.
+ * El camino normal para el que olvido la suya es la propia aplicacion:
+ * "Olvidaste tu contrasena?" en la pantalla de ingreso le manda un enlace al
+ * correo. Esto es la salida de atras, para cuando ese camino no esta: sin
+ * RESEND_API_KEY configurada, o cuando la cuenta quedo trancada por algo mas.
+ *
+ * En los dos casos la clave que estaba guardada no se puede recuperar, porque
+ * en la base solo vive su hash de bcrypt, que va en un solo sentido a
+ * proposito. Aqui tampoco se lee la vieja: se reemplaza.
  *
  * Uso:
  *   node scripts/cambiar-clave.mjs correo@ejemplo.com "la-clave-nueva"

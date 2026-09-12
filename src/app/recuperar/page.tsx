@@ -1,35 +1,36 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
-import { googleEnabled } from "@/lib/google";
-import { mailEnabled } from "@/lib/mail";
 import { APP_NAME } from "@/lib/brand";
 import { Logo } from "@/components/Logo";
 import { CanalesOficiales } from "@/components/CanalesOficiales";
-import { LoginForm } from "@/components/LoginForm";
+import { PedirEnlaceForm } from "@/components/PedirEnlaceForm";
 import { AuthVisual } from "@/components/AuthVisual";
 
 export const dynamic = "force-dynamic";
 
-export default async function LoginPage({
+export const metadata = { title: "Recuperar contraseña" };
+
+/**
+ * Pedir el enlace para cambiar la contrasena olvidada.
+ *
+ * Se deja abierta aunque haya sesion: en el computador del local puede estar
+ * abierta la cuenta de otro, y mandar a la persona al panel del companero en
+ * vez de dejarla recuperar la suya no le sirve de nada.
+ */
+export default async function RecuperarPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; cambiada?: string }>;
+  searchParams: Promise<{ email?: string }>;
 }) {
-  // Si ya hay sesion no tiene sentido mostrar el formulario.
-  if (await getCurrentUser()) redirect("/panel");
-  const { error, cambiada } = await searchParams;
+  const { email } = await searchParams;
 
   return (
     <div className="auth-page lg:grid lg:grid-cols-[1fr_minmax(0,540px)] xl:grid-cols-[1.15fr_minmax(0,560px)]">
-      {/* Lado visual. En celular no aparece: ahi lo unico que importa es entrar. */}
       <aside className="hidden border-r border-slate-200 bg-slate-50/60 lg:block">
         <AuthVisual />
       </aside>
 
       <main className="flex min-h-dvh flex-col justify-center px-5 py-10 sm:px-10 lg:px-14">
         <div className="mx-auto w-full max-w-[400px]">
-          {/* La marca va aqui solo cuando no hay panel al lado. */}
           <div className="mb-9 flex items-center gap-3 lg:hidden">
             <Logo className="h-9 w-9" />
             <span className="text-[19px] font-bold tracking-[-0.01em] text-slate-900">
@@ -38,12 +39,7 @@ export default async function LoginPage({
             </span>
           </div>
 
-          <LoginForm
-            googleReady={googleEnabled()}
-            resetReady={mailEnabled()}
-            error={error}
-            cambiada={cambiada === "1"}
-          />
+          <PedirEnlaceForm defaultEmail={email} />
         </div>
 
         <div className="mx-auto mt-10 w-full max-w-[400px]">
@@ -54,11 +50,9 @@ export default async function LoginPage({
             Volver al inicio
           </Link>
 
-          {/* Quien no logra entrar necesita por donde escribirnos, y este es
-              el sitio donde ya esta atascado. */}
           <div className="mt-6 border-t border-slate-200 pt-5">
             <p className="text-center text-[12px] text-slate-400">
-              Escribenos por nuestros canales oficiales
+              Escríbenos por nuestros canales oficiales
             </p>
             <CanalesOficiales className="mt-3" />
           </div>

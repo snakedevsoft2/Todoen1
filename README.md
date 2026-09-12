@@ -223,9 +223,9 @@ suspender tu propia cuenta.
 
 ### Cómo se comprueba
 
-- `npm test` — 28 pruebas, 11 de ellas del panel: que apagarle algo a una cuenta no toque a las
+- `npm test` — 56 pruebas, 11 de ellas del panel: que apagarle algo a una cuenta no toque a las
   demás, que el interruptor del administrador mande sobre el del cliente, y que suspender no borre
-  nada.
+  nada. Otras 14 son de recuperar la contraseña (`tests/recuperar.test.ts`).
 - `npm run verificar:admin` — recorre el panel en un navegador de verdad (necesita `npm start`
   corriendo): que un cliente cualquiera no alcance `/admin` ni la ficha de otro negocio, que una
   cuenta suspendida quede por fuera y que su sesión abierta se caiga.
@@ -340,16 +340,51 @@ Para apagar la base de datos local: `npm run db:down`.
 
 ### Si olvidaste tu contraseña
 
-La app no tiene «olvidé mi contraseña», y la que está guardada **no se puede recuperar**: en la
-base solo vive su hash de bcrypt, que va en un solo sentido a propósito. Lo que sí se puede es
-reemplazarla desde la terminal, con la base prendida:
+La contraseña guardada **no se puede recuperar**: en la base solo vive su hash de bcrypt, que va en
+un solo sentido a propósito. Ni tú, ni nadie con acceso a la base, puede leerla. Lo que se hace es
+reemplazarla, y hay tres caminos:
+
+**1. Desde la app, con un enlace al correo.** Es el camino normal. En la pantalla de ingreso, en
+*¿Olvidaste tu contraseña?*, se escribe el correo y llega un enlace para poner una nueva. Sirve
+igual para el dueño del negocio y para un barbero o empleado con usuario propio. Necesita
+`RESEND_API_KEY` (ver [Correo para recuperar la contraseña](#correo-para-recuperar-la-contraseña));
+sin esa llave, el enlace de la pantalla sigue mandando al WhatsApp de soporte.
+
+**2. Si la recuerdas y solo quieres cambiarla**, se hace en **Ajustes** dentro del panel, que pide
+la actual. El dueño además le puede poner una clave nueva a cualquier barbero desde **Barberos**,
+sin saber la que tenía.
+
+**3. Desde la terminal**, cuando no hay correo configurado o la cuenta quedó trancada. Con la base
+prendida:
 
 ```bash
 node scripts/cambiar-clave.mjs tucorreo@gmail.com "la-clave-nueva"
 ```
 
-Sirve igual para la cuenta del negocio y para el usuario de un empleado o barbero. Si la recuerdas
-y solo quieres cambiarla, se hace en **Ajustes** dentro del panel, que pide la actual.
+Sirve igual para la cuenta del negocio y para el usuario de un empleado o barbero.
+
+#### Cómo funciona el enlace del correo
+
+Vale la pena saberlo, porque es la única puerta de la aplicación que se abre sin saber la contraseña:
+
+- El enlace lleva un token de 32 bytes al azar. **En la base solo queda su huella SHA-256**, no el
+  token: quien alcance a leer la tabla `PasswordReset` no puede entrar con lo que ve. Va con SHA-256
+  y no con bcrypt porque el token lo generamos nosotros —no hay nada que adivinar a fuerza bruta— y
+  hace falta poder buscarlo de una por su huella.
+- **Dura una hora y sirve una sola vez.** Al usarlo queda marcado, y pedir uno nuevo tumba el
+  anterior: así no queda ninguno suelto en el correo de nadie.
+- **La respuesta es la misma exista o no el correo.** Si dijéramos «ese correo no está registrado»,
+  cualquiera podría averiguar desde una pantalla pública quién tiene cuenta.
+- **Máximo tres enlaces por correo cada quince minutos**, para que nadie use la pantalla pública
+  para llenarle el buzón a otro.
+- **Al barbero desactivado no le llega enlace**: si no puede entrar, no hay clave que reponerle.
+- Al guardar la clave nueva **no se abre la sesión sola**: se vuelve a la pantalla de ingreso, que
+  es la forma de que quede seguro de cuál puso.
+
+Las reglas de arriba están fijadas en `tests/recuperar.test.ts` (14 pruebas, con `npm test`). El
+recorrido completo en un navegador de verdad —el enlace de la pantalla de ingreso, el enlace muerto,
+guardar la clave nueva y entrar con ella, y la vista de celular— se comprueba con
+`npm run verificar:recuperar`, que necesita `npm start` corriendo.
 
 **El panel de la plataforma (`/admin`) no tiene contraseña propia**: se entra con la cuenta de
 siempre, y aparece solo si ese correo está en `ADMIN_EMAILS`. Para dar o quitar ese permiso hay que
@@ -428,17 +463,19 @@ prisma/
   migrations/          Migraciones de PostgreSQL
   seed.ts              Datos de ejemplo
 src/
-  actions/             Server Actions: auth, catálogo, turnos, cuentas, ventas, gastos, caja,
-                       ajustes, marca y avisos
+  actions/             Server Actions: auth, recuperar clave, catálogo, turnos, cuentas, ventas,
+                       gastos, caja, ajustes, marca y avisos
   app/
     page.tsx           Presentación
     login, registro    Acceso
+    recuperar/         Recuperar la contraseña olvidada (pedir enlace y ponerla nueva)
     panel/             Panel privado de cada negocio (incluye personalizar y avisos)
     reservar/[slug]/   Página pública de reservas (solo barbería)
     catalogo/[slug]/   Catálogo público con fotos (solo tienda de ropa)
     logo/[slug]/       Sirve el logo del negocio como imagen cacheada
   components/          Interfaz reutilizable
-  lib/                 Sesión, fechas, dinero, horarios, consultas, equipo, temas y WhatsApp
+  lib/                 Sesión, fechas, dinero, horarios, consultas, equipo, temas, WhatsApp,
+                       correo (Resend) y enlaces de recuperación
   middleware.ts        Protección de rutas
 ```
 
@@ -603,8 +640,51 @@ entrada busca lo contrario — sobria, con aire, bordes de un píxel y sombras q
   desaparece y manda el formulario.
 - **"Recordarme" hace algo de verdad**: sin marcar, la cookie no lleva `maxAge` y el navegador la
   borra al cerrarse. Es lo que se espera en el computador del local, donde entra más de una persona.
-- **"¿Olvidaste tu contraseña?"** va al WhatsApp de soporte con el correo ya escrito. Todavía no hay
-  recuperación por correo (haría falta un servicio de envío), y un enlace muerto sería peor.
+- **"¿Olvidaste tu contraseña?"** lleva a `/recuperar`, con el correo ya escrito si alcanzó a
+  escribirlo. Si no hay `RESEND_API_KEY`, ese mismo enlace cae al WhatsApp de soporte: preferimos
+  eso a un botón que promete un correo que nunca llega.
+
+### Correo para recuperar la contraseña
+
+Es lo que hace que quien olvidó su clave se destranque solo, sin escribirle a nadie. Se manda con
+**Resend**, con `fetch` contra su API y sin instalar el paquete: es una sola petición con un JSON, y
+no valía la pena una dependencia más por diez líneas.
+
+**Sin `RESEND_API_KEY` no se manda nada** y el botón *¿Olvidaste tu contraseña?* sigue cayendo al
+WhatsApp de soporte. Nada se rompe: simplemente no está esa puerta.
+
+#### Cómo sacar la llave (gratis)
+
+1. Entra a <https://resend.com> y crea la cuenta. El plan gratis da 3.000 correos al mes y 100 al
+   día, de sobra para esto.
+2. En *API Keys*, **Create API Key**. Permiso *Sending access* es suficiente.
+3. Cópiala en ese momento: empieza por `re_` y después no se vuelve a mostrar.
+
+#### Cómo poner el remitente
+
+Aquí está el único paso que no es de un minuto. Resend presta `onboarding@resend.dev` para probar,
+pero **con ese remitente solo deja mandarle al correo con el que abriste la cuenta**. Sirve para ver
+que todo funciona; no sirve para tus clientes.
+
+Para escribirle a cualquiera hay que **verificar un dominio propio**: en *Domains → Add Domain* se
+pone el dominio y Resend da unos registros DNS (SPF y DKIM) que se copian donde lo compraste. Cuando
+quede verificado, el remitente va en `MAIL_FROM`:
+
+```bash
+RESEND_API_KEY=re_...tu-llave
+MAIL_FROM="Todoen1 <hola@tudominio.com>"
+```
+
+**En Vercel**, en *Settings → Environment Variables*, las mismas dos. No hace falta `APP_URL`: la
+dirección del enlace se saca de la misma petición, así que funciona igual en tu computador y en
+producción.
+
+#### Qué hacer si los correos no llegan
+
+El motivo queda en los registros del servidor: cuando Resend responde con error, se anota el código
+y el texto que devolvió. Los dos casos de siempre son **dominio sin verificar** (con
+`onboarding@resend.dev` solo llega a tu propio correo) y **llave mala o vencida**. Del lado de quien
+espera, lo primero es mirar en *spam*.
 
 ### Ingresar con Google
 

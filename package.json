@@ -16,6 +16,7 @@
     "test:watch": "vitest",
     "db:modulos": "tsx prisma/sembrar-modulos.ts",
     "verificar:admin": "node scripts/verificar-admin.mjs",
+    "verificar:recuperar": "node scripts/verificar-recuperar.mjs",
     "clave": "node scripts/cambiar-clave.mjs"
   },
   "dependencies": {

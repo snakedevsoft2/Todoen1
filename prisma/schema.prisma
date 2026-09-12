@@ -158,6 +158,7 @@ model User {
   workspaces     WorkspaceConfig[]
   moduleEvents   ModuleEvent[]
   wholesaleTiers WholesaleTier[]
+  passwordResets PasswordReset[]
 
   @@index([slug])
 }
@@ -321,6 +322,8 @@ model Staff {
   appointments Appointment[]
   sales        Sale[]
   workspace    WorkspaceConfig?
+
+  passwordResets PasswordReset[]
 
   @@index([userId, active])
 }
@@ -767,4 +770,44 @@ model AccountModule {
 
   @@unique([userId, moduleKey])
   @@index([userId])
+}
+
+/// Un enlace de un solo uso para reponer la contrasena que alguien olvido.
+///
+/// Existe esta tabla y no una columna en User porque el enlace tambien sirve
+/// para los barberos (Staff), y porque hace falta guardar cuando vence y si ya
+/// se uso: un enlace que sirva dos veces es un enlace que quedo suelto en el
+/// correo de alguien.
+model PasswordReset {
+  id String @id @default(cuid())
+
+  /// Huella del token que viaja en el enlace, no el token.
+  ///
+  /// Va con SHA-256 y no con bcrypt a proposito: el token lo generamos
+  /// nosotros con 32 bytes al azar, asi que no hay nada que adivinar a fuerza
+  /// bruta, y necesitamos poder buscarlo de una por su huella. Guardar el
+  /// token tal cual seria dejar en la base la llave de todas las cuentas.
+  tokenHash String @unique
+
+  /// Correo al que se mando, en minusculas. Se guarda aparte de la cuenta para
+  /// poder contar cuantos enlaces se pidieron aunque el correo no exista.
+  email String
+
+  /// A quien le repone la clave. Solo uno de los dos viene lleno.
+  userId  String?
+  user    User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  staffId String?
+  staff   Staff?  @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  /// Hasta cuando sirve. Pasada esta hora el enlace no vale, aunque nadie lo
+  /// haya usado.
+  expiresAt DateTime
+
+  /// Cuando se uso. Si esta puesto, el enlace ya no sirve.
+  usedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt])
+  @@index([expiresAt])
 }

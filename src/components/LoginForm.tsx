@@ -58,12 +58,18 @@ function BotonEntrar() {
 
 export function LoginForm({
   googleReady = false,
+  resetReady = false,
   error,
+  cambiada = false,
 }: {
   /** true si estan puestas las credenciales de Google. */
   googleReady?: boolean;
+  /** true si hay servicio de correo para mandar el enlace de recuperar. */
+  resetReady?: boolean;
   /** Motivo que vino de vuelta de Google, si algo fallo. */
   error?: string;
+  /** true si acaba de cambiar su contrasena con el enlace del correo. */
+  cambiada?: boolean;
 }) {
   const [state, formAction] = useActionState(loginAction, undefined);
   const [verClave, setVerClave] = useState(false);
@@ -87,6 +93,18 @@ export function LoginForm({
         Bienvenido de nuevo
       </h1>
       <p className="mt-2 text-[15px] text-slate-500">Ingresa a tu cuenta para continuar.</p>
+
+      {/* Viene de /recuperar/[token]. Se muestra hasta que intente entrar: si
+          la accion devuelve un error, ese manda. */}
+      {cambiada && !aviso && (
+        <div
+          role="status"
+          className="mt-6 flex items-start gap-2.5 rounded-[10px] border border-emerald-200 bg-emerald-50 px-3.5 py-3 text-[13px] leading-relaxed text-emerald-700"
+        >
+          <Icon name="check" className="mt-px h-4 w-4 shrink-0" />
+          <span>Listo, tu contraseña quedó cambiada. Entra con la nueva.</span>
+        </div>
+      )}
 
       {aviso && (
         <div
@@ -124,11 +142,26 @@ export function LoginForm({
             <label htmlFor="password" className="auth-label mb-0">
               Contraseña
             </label>
-            {/* Todavia no hay recuperacion por correo: lo resuelve soporte,
-                que es honesto y funciona hoy. */}
-            <a href={ayuda} target="_blank" rel="noopener noreferrer" className="auth-link text-[13px]">
-              ¿Olvidaste tu contraseña?
-            </a>
+            {/* Con correo configurado la persona se destranca sola. Sin el, el
+                boton mandaria a una pantalla que no puede mandar nada, asi que
+                se cae a soporte, que es lo que funciona ese dia. */}
+            {resetReady ? (
+              <Link
+                href={"/recuperar" + (email ? "?email=" + encodeURIComponent(email) : "")}
+                className="auth-link text-[13px]"
+              >
+                ¿Olvidaste tu contraseña?
+              </Link>
+            ) : (
+              <a
+                href={ayuda}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="auth-link text-[13px]"
+              >
+                ¿Olvidaste tu contraseña?
+              </a>
+            )}
           </div>
 
           <div className="relative">
