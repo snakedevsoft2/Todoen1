@@ -26,6 +26,12 @@ const TITULOS = [
 
 /** Lo primero que vale la pena hacer, segun el oficio. */
 const PRIMER_PASO: Record<string, { texto: string; href: string; boton: string }> = {
+  CARTERA: {
+    texto:
+      "Anota tu primer prestamo: cuanto entregaste, el interes y en cuantas cuotas. La aplicacion arma el plan y te avisa a quien cobrarle cada dia.",
+    href: "/panel/cartera",
+    boton: "Anotar un prestamo",
+  },
   BARBERIA: {
     texto:
       "Sube tus cortes con su precio. Es lo que ve el cliente cuando separa turno, así que es lo que más rinde el primer día.",

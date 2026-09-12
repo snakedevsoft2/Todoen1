@@ -15,6 +15,12 @@ const SUGERENCIAS: Record<BusinessType, string[]> = {
     "Como cierro la caja del dia?",
     "Como le mando el recordatorio a un cliente?",
   ],
+  CARTERA: [
+    "A quien le tengo que cobrar hoy?",
+    "Quien esta atrasado y cuanto debe?",
+    "Cuanta plata tengo prestada en la calle?",
+    "Como registro un abono y le doy el recibo?",
+  ],
   RESTAURANTE: [
     "Como voy este mes?",
     "Que plato me esta dejando mas?",

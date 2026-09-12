@@ -38,6 +38,7 @@ export const TIPOS = [
   "RESTAURANTE",
   "COMIDAS_RAPIDAS",
   "ROPA",
+  "CARTERA",
   "OTRO",
   "DISTRIBUIDORA",
   "SERVICIOS",
@@ -52,6 +53,9 @@ export const TIPOS_ABIERTOS: Tipo[] = [
   "RESTAURANTE",
   "COMIDAS_RAPIDAS",
   "ROPA",
+  // CARTERA entra aqui cuando el formulario de prestamos este listo. Sus
+  // apartados ya estan definidos abajo, pero el oficio promete cuotas e
+  // interes y hoy la pantalla todavia no los pide.
   "OTRO",
 ];
 
@@ -429,6 +433,42 @@ export const PRESETS: Record<Tipo, Record<string, Preset>> = {
    *
    * Lo unico que no lleva es la agenda por hora. Esa sigue siendo de barberia.
    */
+  /**
+   * Presta plata y la cobra por cuotas.
+   *
+   * Es el unico oficio que no vende nada, y por eso su menu es distinto: no
+   * lleva catalogo, ni cuentas por mesa, ni pagina publica. Lo que hace todo
+   * el dia es cobrar, asi que Cuentas por cobrar entra encendida y de primera,
+   * y los avisos por WhatsApp tambien: recordar la cuota del dia es el trabajo,
+   * no un extra.
+   *
+   * El inventario entra apagado: quien solo presta plata no tiene que contar
+   * nada. Queda disponible por si tambien fia mercancia.
+   */
+  CARTERA: {
+    resumen: {},
+    cartera: {
+      label: "Cuentas por cobrar",
+      ejemplo: "Juan debe $600.000 en 20 cuotas diarias de $30.000. Va en la 7 y esta al dia.",
+    },
+    ventas: { ejemplo: "Lo que recogiste hoy de todos los cobros." },
+    gastos: { ejemplo: "Gasolina de la ruta, papeleria, telefono." },
+    caja: { ejemplo: "Cuadrar al final del dia lo recogido contra lo que tienes en mano." },
+    reportes: { ejemplo: "Cuanto prestaste, cuanto recogiste y cuanto te falta por recuperar." },
+    avisos: { ejemplo: "Don Juan, hoy le toca la cuota de $30.000." },
+    inventario: { on: false, ejemplo: "Solo si tambien fias mercancia." },
+    proveedores: {
+      label: "Quien me presta",
+      ejemplo: "El socio o el inversionista que te pone la plata, y a que interes te la pone.",
+    },
+    equipo: { label: "Cobradores", on: false, ejemplo: "Cada cobrador con su usuario y su ruta." },
+    asistente: { on: false, ejemplo: "A quien le tengo que cobrar hoy?" },
+    personalizar: { on: false },
+    guia: {},
+    espacio: {},
+    ajustes: {},
+    soporte: {},
+  },
   OTRO: {
     resumen: {},
     catalogo: {

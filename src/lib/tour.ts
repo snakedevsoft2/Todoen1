@@ -51,6 +51,13 @@ const FINAL: TourStep = {
 };
 
 const PRIMERO: Record<BusinessType, TourStep> = {
+  CARTERA: {
+    icon: "handshake",
+    title: "Tus prestamos y a quien le toca hoy",
+    text: "Anotas cuanto prestaste, el interes y en cuantas cuotas. La aplicacion arma el plan de pagos, te dice a quien le toca pagar hoy y quien se atraso, y le entregas el recibo de cada abono.",
+    href: "/panel/cartera",
+    action: "Ver cuentas por cobrar",
+  },
   BARBERIA: {
     icon: "calendar",
     title: "Tus clientes separan el turno solos",
@@ -92,6 +99,13 @@ const PRIMERO: Record<BusinessType, TourStep> = {
 };
 
 const SEGUNDO: Record<BusinessType, TourStep> = {
+  CARTERA: {
+    icon: "wallet",
+    title: "Cuadra lo que recogiste",
+    text: "Al final del dia, Caja te dice cuanto recogiste de todos los cobros y lo comparas con la plata que tienes en mano. Si no cuadra, te muestra la diferencia.",
+    href: "/panel/caja",
+    action: "Ver la caja",
+  },
   BARBERIA: {
     icon: "tag",
     title: "Primero, tus cortes y sus precios",

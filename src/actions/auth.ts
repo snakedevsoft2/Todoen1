@@ -14,6 +14,7 @@ const VALID_TYPES: BusinessType[] = [
   "RESTAURANTE",
   "COMIDAS_RAPIDAS",
   "ROPA",
+  "CARTERA",
   "OTRO",
 ];
 
@@ -32,6 +33,7 @@ const DEFAULT_BRAND: Record<BusinessType, string> = {
   RESTAURANTE: "#b91c1c",
   COMIDAS_RAPIDAS: "#ea580c",
   ROPA: "#0f766e",
+  CARTERA: "#166534",
   OTRO: "#0369a1",
 };
 
@@ -60,6 +62,9 @@ const DEFAULT_CATALOG: Record<BusinessType, { name: string; price: number; durat
     { name: "Buzo con capota", price: 79000, durationMin: 0, category: "Buzos" },
     { name: "Vestido casual", price: 95000, durationMin: 0, category: "Vestidos" },
   ],
+  // Quien presta plata no vende nada, asi que no hay catalogo que sembrar.
+  // Dejarlo vacio es lo honesto: su trabajo empieza en Cuentas por cobrar.
+  CARTERA: [],
   // Aqui no podemos adivinar el oficio, asi que en vez de inventar productos
   // que no van a servirle a nadie, dejamos dos marcados como ejemplo para que
   // se vea de una que hay que cambiarlos.

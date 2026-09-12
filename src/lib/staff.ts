@@ -32,6 +32,10 @@ export const ROLE_LABEL: Record<string, string> = {
 export const TEAM_NOUN: Record<string, { title: string; singular: string; plural: string; role: string }> = {
   BARBERIA: { title: "Barberos", singular: "barbero", plural: "barberos", role: "BARBERO" },
   ROPA: { title: "Empleados", singular: "empleado", plural: "empleados", role: "VENDEDOR" },
+  // Quien sale a la ruta a recoger. Se guarda con el rol VENDEDOR, que es el
+  // de empleado sin acceso a la configuracion: lo que cambia es como se llama,
+  // no lo que puede hacer.
+  CARTERA: { title: "Cobradores", singular: "cobrador", plural: "cobradores", role: "VENDEDOR" },
 };
 
 /** Negocios que trabajan con equipo propio dentro de la aplicacion. */

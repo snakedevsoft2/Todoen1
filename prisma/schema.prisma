@@ -15,10 +15,21 @@ enum BusinessType {
   RESTAURANTE
   COMIDAS_RAPIDAS
   ROPA
-  /// Para el negocio que no encaja en los otros cuatro. Arranca con todo lo
-  /// que no depende de un oficio en particular y el dueno apaga lo que le
-  /// sobre desde "Armar mi menu".
+  /// Presta plata y la cobra por cuotas. No vende nada: su dia es saber a
+  /// quien le toca pagar hoy y quien se atraso.
+  CARTERA
+  /// Para el negocio que no encaja en los otros. Arranca con todo lo que no
+  /// depende de un oficio en particular y el dueno apaga lo que le sobre
+  /// desde "Armar mi menu".
   OTRO
+}
+
+/// Cada cuanto se cobra una cuota del prestamo.
+enum LoanFrequency {
+  DIARIA
+  SEMANAL
+  QUINCENAL
+  MENSUAL
 }
 
 enum StaffRole {
@@ -216,6 +227,36 @@ model Debt {
 
   /// Cuando se le mando el ultimo cobro, para no acosar al cliente.
   lastReminderAt DateTime?
+
+  /**
+   * Datos del prestamo, para el negocio de cartera.
+   * Van aqui y no en una tabla aparte a proposito: una deuda con cuotas sigue
+   * siendo una deuda, y asi los abonos, la caja, los reportes y los
+   * recordatorios que ya existen le sirven igual sin tocarlos.
+   * OJO con `amount`: sigue siendo el TOTAL a pagar (capital + interes). Es lo
+   * que se cobra y de lo que se restan los abonos. `principal` es solo cuanto
+   * salio del bolsillo, que es otra cosa y sirve para saber que se gano.
+   * Van todos opcionales porque un fiado de tienda no tiene ni interes ni
+   * cuotas: ahi solo se llena `amount`.
+   */
+  /// Cuanto se le presto, sin el interes.
+  principal    Int?
+  /// Interes sobre el capital, en porcentaje. 20 = 20%.
+  interestPct  Int?
+  /// En cuantas cuotas se pactó.
+  installments Int?
+  /// Cada cuanto cae una cuota.
+  frequency    LoanFrequency?
+
+  /**
+   * El fiador: quien responde si el deudor no paga.
+   * Se guarda con cedula y direccion porque sin eso no se le puede ubicar, que
+   * es justo para lo que existe la figura.
+   */
+  guarantorName    String?
+  guarantorId      String?
+  guarantorPhone   String?
+  guarantorAddress String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

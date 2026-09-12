@@ -16,6 +16,7 @@ export const BUSINESS_LABEL: Record<BusinessType, string> = {
   RESTAURANTE: "Restaurante",
   COMIDAS_RAPIDAS: "Comidas rapidas",
   ROPA: "Tienda de ropa",
+  CARTERA: "Cartera y cobranza",
   OTRO: "Otro negocio",
 };
 
@@ -24,6 +25,9 @@ export const ITEM_NOUN: Record<BusinessType, { singular: string; plural: string 
   RESTAURANTE: { singular: "plato / producto", plural: "platos y productos" },
   COMIDAS_RAPIDAS: { singular: "producto", plural: "productos" },
   ROPA: { singular: "prenda", plural: "prendas" },
+  // No vende cosas: lo que "maneja" son prestamos. Igual necesita el par,
+  // porque hay pantallas comunes que lo piden.
+  CARTERA: { singular: "prestamo", plural: "prestamos" },
   // Sirve para cualquier oficio, asi que no se casa con ninguno.
   OTRO: { singular: "producto / servicio", plural: "productos y servicios" },
 };
