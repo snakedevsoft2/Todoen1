@@ -5,6 +5,7 @@ import { Card, PageHeader } from "@/components/ui";
 import { BusinessSettingsForm, PasswordForm } from "@/components/SettingsForms";
 import { StaffPasswordForm } from "@/components/StaffForms";
 import { CopyLink } from "@/components/CopyLink";
+import { PreguntaSeguridadForm } from "@/components/PreguntaSeguridadForm";
 import { logoutAction } from "@/actions/auth";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Icon } from "@/components/Icon";
@@ -74,6 +75,15 @@ export default async function AjustesPage() {
             </p>
           </Card>
         )}
+
+        {/* Para dueno y empleados por igual: es lo que les permite recuperar
+            su clave solos si el correo no llega. */}
+        <Card
+          title="Pregunta de seguridad"
+          subtitle="Para recuperar tu contraseña sin depender del correo"
+        >
+          <PreguntaSeguridadForm actual={isOwner ? user.securityQuestion : staff.securityQuestion} />
+        </Card>
 
         {publicLink && (
           <Card

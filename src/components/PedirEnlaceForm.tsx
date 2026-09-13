@@ -128,7 +128,17 @@ export function PedirEnlaceForm({
         <BotonEnviar />
       </form>
 
-      <p className="mt-8 text-center text-[14px] text-slate-500">
+      <p className="mt-6 text-center text-[14px] text-slate-500">
+        ¿No te llega el correo?{" "}
+        <Link
+          href={"/recuperar/pregunta" + (email ? "?email=" + encodeURIComponent(email) : "")}
+          className="auth-link"
+        >
+          Responde tu pregunta de seguridad
+        </Link>
+      </p>
+
+      <p className="mt-4 text-center text-[14px] text-slate-500">
         ¿Ya te acordaste?{" "}
         <Link href="/login" className="auth-link">
           Volver a ingresar

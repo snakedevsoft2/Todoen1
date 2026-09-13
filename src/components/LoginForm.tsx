@@ -4,7 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
 import { useFormStatus } from "react-dom";
 import { loginAction } from "@/actions/auth";
-import { SUPPORT_WHATSAPP } from "@/lib/support";
+import { SUPPORT_WHATSAPP_PRETTY } from "@/lib/support";
 import { Icon } from "./Icon";
 
 /** La G de Google, tal como pide su guia de marca. */
@@ -28,9 +28,26 @@ function GoogleMark() {
   );
 }
 
+/** La f de Facebook, en su azul. */
+function FacebookMark() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" aria-hidden="true">
+      <circle cx="12" cy="12" r="12" fill="#1877F2" />
+      <path
+        fill="#fff"
+        d="M13.4 19.5v-6.2h2.1l.3-2.4h-2.4V9.4c0-.7.2-1.2 1.2-1.2h1.3V6c-.2 0-1-.1-1.9-.1-1.9 0-3.2 1.2-3.2 3.3v1.8H8.7v2.4h2.1v6.2h2.6Z"
+      />
+    </svg>
+  );
+}
+
 const ERRORES: Record<string, string> = {
   google: "El ingreso con Google no está disponible por ahora. Entra con tu correo y contraseña.",
-  cancelado: "Cancelaste el ingreso con Google.",
+  facebook: "El ingreso con Facebook no está disponible por ahora. Entra con tu correo y contraseña.",
+  sincorreo:
+    "Tu cuenta de Facebook no tiene un correo confirmado, así que no hay con qué buscar tu negocio. Entra con tu correo y contraseña.",
+  suspendida: "Tu cuenta está suspendida. Escríbenos al " + SUPPORT_WHATSAPP_PRETTY + " para reactivarla.",
+  cancelado: "Cancelaste el ingreso.",
   state: "El ingreso se venció. Inténtalo otra vez.",
   sinverificar: "Ese correo de Google no está verificado.",
   desactivado: "Tu usuario está desactivado. Pídele al dueño que lo active.",
@@ -58,12 +75,15 @@ function BotonEntrar() {
 
 export function LoginForm({
   googleReady = false,
+  facebookReady = false,
   resetReady = false,
   error,
   cambiada = false,
 }: {
   /** true si estan puestas las credenciales de Google. */
   googleReady?: boolean;
+  /** true si estan puestas las credenciales de Facebook. */
+  facebookReady?: boolean;
   /** true si hay servicio de correo para mandar el enlace de recuperar. */
   resetReady?: boolean;
   /** Motivo que vino de vuelta de Google, si algo fallo. */
@@ -89,17 +109,9 @@ export function LoginForm({
       .catch(() => {});
   }, []);
 
-  const aviso = state?.error ?? (error ? (ERRORES[error] ?? "No pudimos entrar con Google.") : null);
+  const aviso = state?.error ?? (error ? (ERRORES[error] ?? "No pudimos completar el ingreso.") : null);
   // El error viene del correo o de la contrasena, asi que se marcan los dos.
   const conError = Boolean(state?.error);
-
-  const ayuda =
-    "https://wa.me/" +
-    SUPPORT_WHATSAPP +
-    "?text=" +
-    encodeURIComponent(
-      "Hola, olvidé mi contraseña de Todoen1." + (email ? "\n\nMi correo es: " + email : "")
-    );
 
   return (
     <div className="w-full">
@@ -159,23 +171,18 @@ export function LoginForm({
             {/* Con correo configurado la persona se destranca sola. Sin el, el
                 boton mandaria a una pantalla que no puede mandar nada, asi que
                 se cae a soporte, que es lo que funciona ese dia. */}
-            {resetReady ? (
-              <Link
-                href={"/recuperar" + (email ? "?email=" + encodeURIComponent(email) : "")}
-                className="auth-link text-[13px]"
-              >
-                ¿Olvidaste tu contraseña?
-              </Link>
-            ) : (
-              <a
-                href={ayuda}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="auth-link text-[13px]"
-              >
-                ¿Olvidaste tu contraseña?
-              </a>
-            )}
+            {/* Con correo configurado va al enlace por correo. Sin correo va a
+                la pregunta de seguridad, que no depende de ningun servicio: la
+                persona siempre tiene un camino propio antes de escribirnos. */}
+            <Link
+              href={
+                (resetReady ? "/recuperar" : "/recuperar/pregunta") +
+                (email ? "?email=" + encodeURIComponent(email) : "")
+              }
+              className="auth-link text-[13px]"
+            >
+              ¿Olvidaste tu contraseña?
+            </Link>
           </div>
 
           <div className="relative">
@@ -213,7 +220,7 @@ export function LoginForm({
         <BotonEntrar />
       </form>
 
-      {googleReady && (
+      {(googleReady || facebookReady) && (
         <>
           <div className="my-6 flex items-center gap-4">
             <span className="h-px flex-1 bg-slate-200" />
@@ -221,10 +228,20 @@ export function LoginForm({
             <span className="h-px flex-1 bg-slate-200" />
           </div>
 
-          <a href="/auth/google" className="auth-btn-outline">
-            <GoogleMark />
-            Google
-          </a>
+          <div className={googleReady && facebookReady ? "grid grid-cols-2 gap-3" : ""}>
+            {googleReady && (
+              <a href="/auth/google" className="auth-btn-outline">
+                <GoogleMark />
+                Google
+              </a>
+            )}
+            {facebookReady && (
+              <a href="/auth/facebook" className="auth-btn-outline">
+                <FacebookMark />
+                Facebook
+              </a>
+            )}
+          </div>
         </>
       )}
 

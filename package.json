@@ -26,6 +26,7 @@
     "verificar:sin-conexion": "node scripts/verificar-sin-conexion.mjs",
     "verificar:informes": "node scripts/verificar-informes.mjs",
     "uso": "node scripts/reporte-uso.mjs",
+    "verificar:acceso": "node scripts/verificar-acceso.mjs",
     "clave": "node scripts/cambiar-clave.mjs"
   },
   "dependencies": {

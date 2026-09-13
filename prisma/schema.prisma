@@ -150,6 +150,15 @@ model User {
   suspendedAt     DateTime?
   suspendedReason String?
 
+  /**
+   * Pregunta de seguridad, para recuperar la clave sin depender del correo.
+   * La respuesta se guarda con bcrypt, igual que la contrasena, y normalizada
+   * (sin tildes, sin mayusculas, sin espacios de sobra): "  Bogotá" y "bogota"
+   * son la misma respuesta, porque nadie recuerda como la escribio.
+   */
+  securityQuestion   String?
+  securityAnswerHash String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -319,25 +328,34 @@ model Supplier {
 /// Persona que atiende en el negocio (barberos). Puede tener su propio usuario
 /// para entrar a la aplicacion, pero siempre trabaja dentro del mismo negocio.
 model Staff {
-  id            String    @id @default(cuid())
-  userId        String
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name          String
+  id           String  @id @default(cuid())
+  userId       String
+  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
   /// Correo con el que entra a la aplicacion. Si esta vacio, no tiene acceso.
-  email         String?   @unique
-  passwordHash  String?
-  phone         String?
-  role          StaffRole @default(BARBERO)
+  email        String? @unique
+  passwordHash String?
+
+  /**
+   * Pregunta de seguridad, para recuperar la clave sin depender del correo.
+   * La respuesta se guarda con bcrypt, igual que la contrasena, y normalizada
+   * (sin tildes, sin mayusculas, sin espacios de sobra): "  Bogotá" y "bogota"
+   * son la misma respuesta, porque nadie recuerda como la escribio.
+   */
+  securityQuestion   String?
+  securityAnswerHash String?
+  phone              String?
+  role               StaffRole @default(BARBERO)
   /// Color para reconocerlo de un vistazo en la agenda.
-  color         String    @default("#0ea5e9")
+  color              String    @default("#0ea5e9")
   /// Porcentaje que se lleva de lo que cobra. Solo para el reporte.
-  commissionPct Int       @default(0)
+  commissionPct      Int       @default(0)
   /// Aparece en la pagina publica para que el cliente lo elija.
-  bookable      Boolean   @default(true)
-  active        Boolean   @default(true)
+  bookable           Boolean   @default(true)
+  active             Boolean   @default(true)
   /// Cuando termino (o salto) el instructivo de bienvenida. Va por persona y
   /// no por negocio: cada empleado nuevo lo ve la primera vez que entra.
-  tourDoneAt    DateTime?
+  tourDoneAt         DateTime?
 
   /// Hasta que paso llego el asistente de bienvenida, para poder retomarlo
   /// donde lo dejo en vez de volver a empezar.
@@ -1003,4 +1021,19 @@ model VisitPhoto {
   createdAt DateTime @default(now())
 
   @@index([reportId, sort])
+}
+
+/// Cada intento de responder la pregunta de seguridad.
+///
+/// Existe para frenar la fuerza bruta: una respuesta como "el nombre de tu
+/// primera mascota" tiene pocas opciones, y sin tope alguien podria probar
+/// cien seguidas. Se cuenta por correo y no por cuenta, para que tambien frene
+/// a quien prueba correos que no existen.
+model SecurityAttempt {
+  id        String   @id @default(cuid())
+  email     String
+  success   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt])
 }
