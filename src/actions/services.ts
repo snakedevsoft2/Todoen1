@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { parseIntSafe, parseMoney, str } from "@/lib/format";
+import { crudo, parseIntSafe, parseMoney, str, texto } from "@/lib/format";
 
 export type ActionState = { error?: string; ok?: string } | undefined;
 
@@ -20,7 +20,7 @@ export async function saveServiceAction(_prev: ActionState, formData: FormData):
   if (price < 0) return { error: "El precio no puede ser negativo." };
 
   // La foto solo viaja cuando el formulario la trae (tienda de ropa).
-  const photoInput = str(formData.get("image"));
+  const photoInput = crudo(formData.get("image"));
   let image: string | null | undefined;
   if (photoInput === "__borrar__") {
     image = null;
@@ -52,7 +52,7 @@ export async function saveServiceAction(_prev: ActionState, formData: FormData):
 
   const data = {
     name,
-    description: str(formData.get("description")) || null,
+    description: texto(formData.get("description"), 500) || null,
     price,
     cost: parseMoney(formData.get("cost"), user.currency),
     durationMin: Math.max(5, parseIntSafe(formData.get("durationMin"), 30)),

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireOwner } from "@/lib/auth";
-import { parseIntSafe, str } from "@/lib/format";
+import { parseIntSafe, str, texto } from "@/lib/format";
 import { MAX_PERCENT, MAX_QTY, MAX_TIERS, MIN_PERCENT, MIN_QTY } from "@/lib/wholesale";
 
 export type WholesaleState = { error?: string; ok?: string } | undefined;
@@ -30,7 +30,7 @@ export async function updateWholesaleAction(
     data: {
       wholesaleOpen: formData.get("wholesaleOpen") === "on",
       wholesaleTitle: str(formData.get("wholesaleTitle")).slice(0, 60) || null,
-      wholesaleNote: str(formData.get("wholesaleNote")).slice(0, 300) || null,
+      wholesaleNote: texto(formData.get("wholesaleNote"), 300) || null,
     },
   });
 

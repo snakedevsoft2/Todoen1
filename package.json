@@ -30,6 +30,7 @@
     "verificar:miniatura": "node scripts/verificar-miniatura.mjs",
     "verificar:fondos": "node scripts/verificar-fondos.mjs",
     "verificar:crm": "node scripts/verificar-crm.mjs",
+    "verificar:imagenes": "node scripts/verificar-imagenes.mjs",
     "clave": "node scripts/cambiar-clave.mjs"
   },
   "dependencies": {

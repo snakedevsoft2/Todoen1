@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireOwner } from "@/lib/auth";
-import { str } from "@/lib/format";
+import { crudo, str, texto } from "@/lib/format";
 import { esFondo } from "@/lib/fondos";
 
 export type PortfolioState = { error?: string; ok?: string } | undefined;
@@ -22,7 +22,7 @@ export async function updatePortfolioAction(
 ): Promise<PortfolioState> {
   const { user } = await requireOwner();
 
-  const coverInput = str(formData.get("publicCover"));
+  const coverInput = crudo(formData.get("publicCover"));
   let publicCover: string | null | undefined;
   if (coverInput === "__borrar__") {
     publicCover = null;
@@ -42,7 +42,7 @@ export async function updatePortfolioAction(
       publicOpen: formData.get("publicOpen") === "on",
       publicShowPrices: formData.get("publicShowPrices") === "on",
       publicHeadline: str(formData.get("publicHeadline")).slice(0, 80) || null,
-      publicAbout: str(formData.get("publicAbout")).slice(0, 400) || null,
+      publicAbout: texto(formData.get("publicAbout"), 400) || null,
       publicOrderNote: str(formData.get("publicOrderNote")).slice(0, 200) || null,
       // Solo un fondo de la lista: un valor inventado deja la pagina clasica.
       publicBackground: esFondo(str(formData.get("publicBackground")))

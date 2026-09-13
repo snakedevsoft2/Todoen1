@@ -147,6 +147,19 @@ export function str(
   return v.length ? v : fallback;
 }
 
+/**
+ * El valor completo, sin tope.
+ *
+ * Para lo que nunca es texto escrito a mano: una imagen como data URL, un
+ * carrito en JSON, un token. OJO: pasarlos por str() los corta a doscientos
+ * caracteres, y una imagen cortada pasa la validacion (sigue siendo base64) y
+ * queda guardada rota. Asi se perdieron portadas, logos y fotos. Cada uno de
+ * estos campos tiene que validar su propio tamano.
+ */
+export function crudo(input: FormDataEntryValue | null | undefined): string {
+  return typeof input === "string" ? input.trim() : "";
+}
+
 /** Para notas y descripciones, donde si tiene sentido escribir un parrafo. */
 export function texto(input: FormDataEntryValue | null | undefined, max = 2000): string {
   return String(input ?? "").trim().slice(0, max);

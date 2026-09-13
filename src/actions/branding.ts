@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireOwner } from "@/lib/auth";
-import { str } from "@/lib/format";
+import { crudo, str } from "@/lib/format";
 import { isTheme, normalizeHex } from "@/lib/theme";
 import {
   isProvider,
@@ -40,7 +40,7 @@ export async function updateBrandingAction(
   const theme = isTheme(themeInput) ? themeInput : "claro";
   const tagline = str(formData.get("tagline")).slice(0, 120);
 
-  const logoInput = str(formData.get("logo"));
+  const logoInput = crudo(formData.get("logo"));
   let logo: string | null | undefined;
 
   if (logoInput === "__borrar__") {
@@ -85,7 +85,8 @@ export async function updateWhatsappAction(
 
   const providerInput = str(formData.get("whatsappProvider"), "enlace");
   const provider: WhatsappProvider = isProvider(providerInput) ? providerInput : "enlace";
-  const apiKey = str(formData.get("whatsappApiKey"));
+  // Los tokens de Meta pasan de doscientos caracteres.
+  const apiKey = str(formData.get("whatsappApiKey"), "", 1000);
   const phoneId = str(formData.get("whatsappPhoneId"));
 
   if (provider === "callmebot" && !apiKey) {

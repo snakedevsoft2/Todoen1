@@ -5,7 +5,7 @@ import type { PaymentMethod } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireSession, requireUser } from "@/lib/auth";
 import { isValidDay, todayIn } from "@/lib/dates";
-import { parseMoney, str } from "@/lib/format";
+import { crudo, parseMoney, str } from "@/lib/format";
 import { applyStockMove, variantLabel } from "@/lib/inventory";
 
 export type SaleState = { error?: string; ok?: string } | undefined;
@@ -52,7 +52,8 @@ function parseCart(raw: string): CartItem[] {
  */
 export async function createSaleAction(_prev: SaleState, formData: FormData): Promise<SaleState> {
   const { user, staff: me } = await requireSession();
-  const items = parseCart(str(formData.get("itemsJson")));
+  // Completo: un carrito de cuatro productos ya pasa de doscientos caracteres.
+  const items = parseCart(crudo(formData.get("itemsJson")).slice(0, 200_000));
   const manualTotal = parseMoney(formData.get("manualTotal"), user.currency);
 
   if (items.length === 0 && manualTotal <= 0) {
