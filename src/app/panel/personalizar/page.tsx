@@ -66,6 +66,8 @@ export default async function PersonalizarPage() {
                   whatsappProvider: user.whatsappProvider,
                   whatsappApiKey: user.whatsappApiKey,
                   whatsappPhoneId: user.whatsappPhoneId,
+                  whatsappTemplate: user.whatsappTemplate,
+                  whatsappTemplateLang: user.whatsappTemplateLang,
                   notifyOnBooking: user.notifyOnBooking,
                 }}
               />

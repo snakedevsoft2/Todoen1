@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireOwner } from "@/lib/auth";
 import { str, texto } from "@/lib/format";
+import { probarIa } from "@/lib/ai";
 
 export type AgenteState = { error?: string; ok?: string } | undefined;
 
@@ -36,4 +37,10 @@ export async function guardarAgenteAction(_prev: AgenteState, formData: FormData
   revalidatePath("/catalogo/" + user.slug);
   revalidatePath("/reservar/" + user.slug);
   return { ok: "Listo, el agente quedó guardado." };
+}
+
+/** El boton "Probar conexion con la IA": dice que falla, si algo falla. */
+export async function diagnosticarIaAction() {
+  await requireOwner();
+  return probarIa();
 }

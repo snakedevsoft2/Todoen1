@@ -249,7 +249,7 @@ export const MODULOS: ModuloDef[] = [
   {
     key: "asistente",
     href: "/panel/asistente",
-    label: "Asistente",
+    label: "IA Snake",
     icon: "sparkle",
     group: "CRECIMIENTO",
     requiresEnv: "GEMINI_API_KEY",

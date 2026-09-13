@@ -389,9 +389,14 @@ export async function responderAgente(opciones: {
     maxOutputTokens: 600,
   });
 
+  if (!r.ok) console.error("El agente de IA no pudo responder:", r.error);
+  // Al cliente, una disculpa. En la prueba del panel, el motivo real: es el
+  // dueño el que tiene que arreglarlo, y sin el motivo no sabe que tocar.
   const texto = r.ok
     ? r.text.slice(0, 2000)
-    : "Disculpa, en este momento no puedo responder. Escríbele directamente al negocio" + contactoDelNegocio(shop) + ".";
+    : prueba
+      ? "(Prueba) No pude responder. Motivo: " + r.error
+      : "Disculpa, en este momento no puedo responder. Escríbele directamente al negocio" + contactoDelNegocio(shop) + ".";
 
   await db.agentMessage.create({
     data: {
@@ -399,7 +404,8 @@ export async function responderAgente(opciones: {
       conversationId: conversacion.id,
       role: "agente",
       text: texto,
-      action: acciones.join(" · ").slice(0, 500) || null,
+      // Si no pudo responder, queda el motivo: el dueño lo ve en Conversaciones.
+      action: (acciones.join(" · ") || (r.ok ? "" : "No respondió: " + r.error)).slice(0, 500) || null,
     },
   });
   await db.agentConversation.update({

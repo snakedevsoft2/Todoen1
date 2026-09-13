@@ -75,13 +75,30 @@ type Pedido = {
  * Nunca lanza: cualquier problema vuelve como un mensaje que se le puede
  * mostrar a la persona.
  */
-async function pedir(p: Pedido): Promise<{ ok: true; parts: Parte[] } | { ok: false; error: string }> {
+type Respuesta = { ok: true; parts: Parte[] } | { ok: false; error: string; status?: number };
+
+/** El modelo al que se vuelve si Google no reconoce el configurado. */
+const MODELO_DE_RESPALDO = "gemini-flash-latest";
+
+async function pedir(p: Pedido): Promise<Respuesta> {
+  const primero = await pedirUnaVez(p, modelo(), true);
+  if (primero.ok) return primero;
+  // Si Google no reconoce el modelo o algo de la configuracion (400/404), se
+  // reintenta una vez con lo mas compatible: el modelo de respaldo y sin la
+  // opcion de "pensar". Asi un modelo retirado no deja mudo al agente.
+  if ((primero.status === 400 || primero.status === 404) && modelo() !== MODELO_DE_RESPALDO) {
+    const segundo = await pedirUnaVez(p, MODELO_DE_RESPALDO, false);
+    if (segundo.ok) return segundo;
+  }
+  return primero;
+}
+
+async function pedirUnaVez(p: Pedido, m: string, conPensamiento: boolean): Promise<Respuesta> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) return { ok: false, error: "El asistente no está configurado." };
 
   const control = new AbortController();
   const timer = setTimeout(() => control.abort(), p.timeoutMs ?? 25000);
-  const m = modelo();
 
   try {
     const response = await fetch(base() + m + ":generateContent", {
@@ -106,7 +123,7 @@ async function pedir(p: Pedido): Promise<{ ok: true; parts: Parte[] } | { ok: fa
           // El flash 2.5 "piensa" antes de contestar si no se le dice nada, y
           // eso se come los tokens de la respuesta y la vuelve lenta. Para
           // contestar a un cliente no hace falta.
-          ...(/2\.5-flash/.test(m) ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+          ...(conPensamiento && /2\.5-flash/.test(m) ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
         },
       }),
     });
@@ -114,13 +131,18 @@ async function pedir(p: Pedido): Promise<{ ok: true; parts: Parte[] } | { ok: fa
     const data = (await response.json().catch(() => ({}))) as GeminiResponse;
 
     if (!response.ok) {
-      if (response.status === 429) {
-        return { ok: false, error: "Se acabaron las consultas gratuitas por hoy. Intenta más tarde." };
+      // El motivo que da Google, tal cual: sin el no hay forma de saber si es
+      // la clave, la cuota o el modelo. La clave nunca va en el mensaje.
+      const motivo = (data.error?.message ?? "").slice(0, 300);
+      console.error("Gemini respondio " + response.status + " (" + m + "): " + motivo);
+      const s = response.status;
+      if (s === 429) {
+        return { ok: false, status: s, error: "Se acabaron las consultas gratuitas de Gemini por ahora (límite por minuto o por día). " + motivo };
       }
-      if (response.status === 400 || response.status === 403) {
-        return { ok: false, error: "La clave del asistente no es válida. Revísala en Vercel." };
+      if (s === 401 || s === 403 || /API key/i.test(motivo)) {
+        return { ok: false, status: s, error: "Google rechazó la clave de Gemini. Revisa GEMINI_API_KEY en Vercel. " + motivo };
       }
-      return { ok: false, error: data.error?.message ?? "No pudimos consultar al asistente." };
+      return { ok: false, status: s, error: "Gemini respondió " + s + " con el modelo " + m + ": " + (motivo || "sin detalle") };
     }
 
     if (data.promptFeedback?.blockReason) {
@@ -136,7 +158,8 @@ async function pedir(p: Pedido): Promise<{ ok: true; parts: Parte[] } | { ok: fa
     if (error instanceof Error && error.name === "AbortError") {
       return { ok: false, error: "El asistente se demoró demasiado. Intenta otra vez." };
     }
-    return { ok: false, error: "No pudimos conectar con el asistente." };
+    console.error("No se pudo conectar con Gemini:", error);
+    return { ok: false, error: "No pudimos conectar con Gemini: " + String(error).slice(0, 160) };
   } finally {
     clearTimeout(timer);
   }
@@ -223,4 +246,44 @@ export async function conversarConHerramientas(opciones: {
   }
 
   return { ok: false, error: "El asistente no alcanzó a responder.", llamadas };
+}
+
+export type Prueba = { ok: boolean; detalle: string };
+
+/**
+ * Prueba la conexion con Gemini: una pregunta simple y otra con funciones,
+ * que es lo que usa el agente. Para el boton de diagnostico del panel: dice
+ * exactamente que falla (la clave, la cuota, el modelo) sin tener que ir a
+ * buscar en los registros del servidor.
+ */
+export async function probarIa(): Promise<{ clave: boolean; modelo: string; simple: Prueba; herramientas: Prueba }> {
+  const vacio = { ok: false, detalle: "Sin probar." };
+  if (!aiEnabled()) return { clave: false, modelo: modelo(), simple: vacio, herramientas: vacio };
+
+  const simple = await pedir({
+    system: "Responde solo con la palabra: listo.",
+    contents: [{ role: "user", parts: [{ text: "Di listo." }] }],
+    maxOutputTokens: 20,
+    timeoutMs: 20000,
+  });
+  const herramientas = await pedir({
+    system: "Eres un asistente de prueba. Saluda en una frase.",
+    contents: [{ role: "user", parts: [{ text: "hola" }] }],
+    herramientas: [
+      {
+        name: "ver_horarios",
+        description: "Consulta las horas libres de un dia.",
+        parameters: { type: "object", properties: { dia: { type: "string", description: "AAAA-MM-DD" } }, required: ["dia"] },
+      },
+    ],
+    maxOutputTokens: 60,
+    timeoutMs: 20000,
+  });
+
+  return {
+    clave: true,
+    modelo: modelo(),
+    simple: simple.ok ? { ok: true, detalle: "Respondió bien." } : { ok: false, detalle: simple.error },
+    herramientas: herramientas.ok ? { ok: true, detalle: "Respondió bien." } : { ok: false, detalle: herramientas.error },
+  };
 }

@@ -135,6 +135,11 @@ model User {
   whatsappProvider String  @default("enlace") // "enlace", "callmebot" o "meta"
   whatsappApiKey   String? // clave de CallMeBot o token de Meta
   whatsappPhoneId  String? // identificador del numero en Meta
+  /// Plantilla aprobada en Meta para escribirle primero a un cliente: Meta no
+  /// deja mandar texto libre a quien no ha escrito en las ultimas 24 horas.
+  /// Se espera con dos variables: {{1}} el nombre y {{2}} el mensaje.
+  whatsappTemplate     String?
+  whatsappTemplateLang String  @default("es")
   notifyOnBooking  Boolean @default(true)
 
   // Configuracion de agenda / caja
@@ -201,6 +206,7 @@ model User {
   novelties          Novelty[]
   visitAttachments   VisitAttachment[]
   scanDocuments      ScanDocument[]
+  scheduledMessages  ScheduledMessage[]
 
   @@index([slug])
 }
@@ -1134,6 +1140,7 @@ model Customer {
   followUps    FollowUp[]
   interactions Interaction[]
   agentConversations AgentConversation[]
+  scheduledMessages  ScheduledMessage[]
 
   @@unique([userId, phoneKey])
   @@index([userId, name])
@@ -1393,4 +1400,48 @@ model ScanDocument {
   createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
+}
+
+// ------------------------------------------------ MENSAJES A LOS CLIENTES
+
+enum ScheduledStatus {
+  /// Espera su hora.
+  PENDIENTE
+  /// Apartado por un envio en curso: nadie mas lo toma.
+  ENVIANDO
+  ENVIADO
+  /// No salio y no hay telefono para mandarlo a mano.
+  FALLIDO
+  /// No hubo canal automatico: queda para mandarlo con un toque.
+  MANUAL
+  CANCELADO
+}
+
+/// Un mensaje programado para un cliente: un recordatorio de pago, de cita,
+/// una promocion. Sale solo a su hora por WhatsApp (Meta) o por correo.
+model ScheduledMessage {
+  id               String          @id @default(cuid())
+  userId           String
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customerId       String
+  customer         Customer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  /// "auto", "whatsapp" o "correo".
+  channel          String          @default("auto")
+  /// El texto con {nombre} y {negocio} sin llenar: se llena al enviar.
+  text             String
+  sendAt           DateTime
+  status           ScheduledStatus @default(PENDIENTE)
+  sentAt           DateTime?
+  /// Por donde salio ("whatsapp", "correo", "enlace") o por que no.
+  via              String?
+  detail           String?
+  createdByStaffId String?
+  /// Los que se programaron juntos para un segmento.
+  batchId          String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([userId, status, sendAt])
+  @@index([status, sendAt])
+  @@index([customerId])
 }

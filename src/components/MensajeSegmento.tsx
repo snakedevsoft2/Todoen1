@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import { registrarEnvioAction } from "@/actions/crm";
-import { aplicarPlantilla, telefonoVisible } from "@/lib/crm";
+import { CANALES_MENSAJE, aplicarPlantilla, telefonoVisible } from "@/lib/crm";
+import { programarSegmentoAction } from "@/actions/mensajes";
 import { Icon } from "./Icon";
 
 export type Destinatario = {
@@ -31,6 +32,11 @@ export function MensajeSegmento({
   const [plantilla, setPlantilla] = useState("Hola {nombre}, te escribimos de {negocio}. ");
   const [enviados, setEnviados] = useState<Set<string>>(new Set());
   const [copiado, setCopiado] = useState(false);
+  const [cuando, setCuando] = useState("ahora");
+  const [fecha, setFecha] = useState("");
+  const [canal, setCanal] = useState("auto");
+  const [programando, setProgramando] = useState(false);
+  const [resultado, setResultado] = useState<{ ok?: string; error?: string } | null>(null);
 
   const conTelefono = destinatarios.filter((d) => d.phone);
   const ejemplo = destinatarios[0]
@@ -90,6 +96,70 @@ export function MensajeSegmento({
           {copiado ? "Copiados" : "Copiar teléfonos"}
         </button>
       </div>
+
+      <details className="rounded-xl border border-line bg-surface px-3 py-2.5" data-programar-segmento>
+        <summary className="cursor-pointer text-sm font-semibold text-strong">
+          Programar para todos (sale solo)
+        </summary>
+        <div className="mt-3 space-y-2">
+          <div className="flex flex-wrap gap-1.5">
+            {[
+              { key: "ahora", label: "Ahora" },
+              { key: "manana", label: "Mañana 9 a. m." },
+              { key: "semana", label: "En una semana" },
+              { key: "fecha", label: "Otra fecha" },
+            ].map((c) => (
+              <button
+                key={c.key}
+                type="button"
+                aria-pressed={cuando === c.key}
+                onClick={() => setCuando(c.key)}
+                className={
+                  "rounded-full border px-3 py-1 text-[13px] font-semibold " +
+                  (cuando === c.key ? "border-brand-600 bg-brand-600 text-white" : "border-line-strong bg-panel text-body")
+                }
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+          {cuando === "fecha" && (
+            <input className="input" type="datetime-local" value={fecha} onChange={(e) => setFecha(e.target.value)} aria-label="Fecha y hora" />
+          )}
+          <div className="flex flex-wrap items-center gap-2">
+            <select className="input h-9 w-auto py-1 text-sm" value={canal} onChange={(e) => setCanal(e.target.value)} aria-label="Por dónde">
+              {CANALES_MENSAJE.map((c) => (
+                <option key={c.key} value={c.key}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="btn-primary btn-sm"
+              disabled={programando || destinatarios.length === 0}
+              onClick={async () => {
+                setProgramando(true);
+                setResultado(null);
+                try {
+                  setResultado(await programarSegmentoAction(destinatarios.map((d) => d.id), plantilla, canal, cuando, fecha));
+                } catch {
+                  setResultado({ error: "No se pudo programar. Revisa tu conexión." });
+                } finally {
+                  setProgramando(false);
+                }
+              }}
+            >
+              {programando ? "Programando…" : "Programar para " + destinatarios.length}
+            </button>
+          </div>
+          {resultado?.ok && <p className="text-[13px] font-semibold text-good">{resultado.ok}</p>}
+          {resultado?.error && <p className="text-[13px] text-bad">{resultado.error}</p>}
+          <p className="text-[11px] text-muted">
+            Sale por WhatsApp o correo según lo que tengas conectado. Lo que no pueda salir solo queda en Clientes › Mensajes.
+          </p>
+        </div>
+      </details>
 
       <ul className="animate-lista">
         {destinatarios.map((d) => {

@@ -9,6 +9,7 @@ const PESTANAS: { href: string; label: string; corto?: string; icon: string }[] 
   { href: "/panel/clientes/embudo", label: "Embudo", icon: "trend" },
   // "Seguimientos" no cabe en una cuarta parte de un celular.
   { href: "/panel/clientes/seguimientos", label: "Seguimientos", corto: "Pendientes", icon: "check" },
+  { href: "/panel/clientes/mensajes", label: "Mensajes", icon: "whatsapp" },
   { href: "/panel/clientes/segmentos", label: "Segmentos", icon: "tag" },
 ];
 
@@ -30,7 +31,7 @@ export function CrmTabs({ pendientes }: { pendientes: number }) {
       // En celular las cuatro caben a lo ancho con el icono encima: una barra
       // que hay que deslizar para encontrar la ultima pestaña es una pestaña
       // que nadie encuentra.
-      className="mb-5 grid grid-cols-4 gap-1 rounded-xl border border-line bg-surface p-1 sm:flex"
+      className="mb-5 grid grid-cols-5 gap-1 rounded-xl border border-line bg-surface p-1 sm:flex"
     >
       {PESTANAS.map((p) => {
         const on = p.href === activa;

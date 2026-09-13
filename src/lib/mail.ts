@@ -48,7 +48,8 @@ export async function sendMail(mail: Mail): Promise<boolean> {
   if (!key) return false;
 
   try {
-    const response = await fetch(ENDPOINT, {
+    // RESEND_BASE_URL solo se usa en las pruebas, para no mandar correos de verdad.
+    const response = await fetch(process.env.RESEND_BASE_URL || ENDPOINT, {
       method: "POST",
       headers: {
         Authorization: "Bearer " + key,

@@ -16,6 +16,10 @@ import {
   textoUltimoContacto,
 } from "@/lib/crm-filas";
 import { borrarClienteAction, borrarInteraccionAction, borrarOportunidadAction } from "@/actions/crm";
+import { cancelarMensajeAction } from "@/actions/mensajes";
+import { canalesDe } from "@/lib/envios-crm";
+import { ESTADOS_MENSAJE } from "@/lib/crm";
+import { ProgramarMensaje } from "@/components/ProgramarMensaje";
 import { Badge, Card, Empty } from "@/components/ui";
 import { EditarCliente } from "@/components/ClienteForm";
 import { EtiquetasCliente, Pastilla } from "@/components/EtiquetasCliente";
@@ -79,6 +83,14 @@ export default async function ClientePage({ params }: { params: Promise<{ id: st
     personasDe(user.id),
     opcionesDeClientes(user.id),
   ]);
+
+  const mensajes = await db.scheduledMessage.findMany({
+    where: { userId: user.id, customerId: cliente.id },
+    orderBy: { sendAt: "desc" },
+    take: 10,
+    select: { id: true, text: true, sendAt: true, status: true, detail: true },
+  });
+  const canales = canalesDe(user);
 
   const telefono = cliente.phone ? toInternational(cliente.phone, user.whatsappNumber) : null;
   const whatsapp = telefono ? waLink(telefono, "Hola " + primerNombre(cliente.name) + ", ") : null;
@@ -393,6 +405,41 @@ export default async function ClientePage({ params }: { params: Promise<{ id: st
                 />
               </div>
             </details>
+          </Card>
+
+          <Card title="Mensajes y recordatorios" subtitle="Prográmalo y sale solo a su hora">
+            <ProgramarMensaje
+              customerId={cliente.id}
+              nombre={cliente.name}
+              negocio={user.businessName}
+              tieneTelefono={Boolean(telefono)}
+              tieneCorreo={Boolean(cliente.email)}
+              canales={canales}
+            />
+            {mensajes.length > 0 && (
+              <ul className="mt-4 divide-y divide-line border-t border-line" data-mensajes-cliente>
+                {mensajes.map((m) => (
+                  <li key={m.id} className="flex items-start gap-2 py-2">
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px] text-body">{m.text}</span>
+                      <span className="block text-[11px] text-muted [overflow-wrap:anywhere]">
+                        {shortDay(dayIn(m.sendAt, user.timezone))} · {pretty12h(timeIn(m.sendAt, user.timezone))}
+                        {m.detail && m.status !== "ENVIADO" ? " · " + m.detail : ""}
+                      </span>
+                    </span>
+                    <Badge tone={ESTADOS_MENSAJE[m.status].tone}>{ESTADOS_MENSAJE[m.status].label}</Badge>
+                    {(m.status === "PENDIENTE" || m.status === "MANUAL") && (
+                      <form action={cancelarMensajeAction}>
+                        <input type="hidden" name="id" value={m.id} />
+                        <SubmitButton className="btn-ghost btn-sm px-1.5 text-subtle" pendingText="..." ariaLabel="Cancelar mensaje">
+                          <Icon name="x" className="h-3.5 w-3.5" />
+                        </SubmitButton>
+                      </form>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
           </Card>
 
           <Card title="Etiquetas" subtitle="Toca una para ponerla o quitarla">

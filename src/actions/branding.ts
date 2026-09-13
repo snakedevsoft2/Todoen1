@@ -104,6 +104,15 @@ export async function updateWhatsappAction(
       whatsappApiKey: apiKey || null,
       whatsappPhoneId: phoneId || null,
       notifyOnBooking: formData.get("notifyOnBooking") === "on",
+      // La plantilla solo viaja cuando se eligio Meta: con otro proveedor el
+      // campo no esta en el formulario y no se toca lo guardado.
+      ...(formData.has("whatsappTemplate")
+        ? {
+            whatsappTemplate:
+              str(formData.get("whatsappTemplate"), "", 120).replace(/[^a-z0-9_]/gi, "").toLowerCase() || null,
+            whatsappTemplateLang: str(formData.get("whatsappTemplateLang"), "es", 10).replace(/[^a-zA-Z_]/g, "") || "es",
+          }
+        : {}),
     },
   });
 

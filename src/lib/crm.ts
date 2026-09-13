@@ -175,3 +175,45 @@ export function tasaDeCierre(resumen: Record<Etapa, ResumenEtapa>): number | nul
   if (cerradas === 0) return null;
   return Math.round((ganadas / cerradas) * 100);
 }
+
+/** Por donde sale un mensaje programado. */
+export type CanalMensaje = "auto" | "whatsapp" | "correo";
+
+export const CANALES_MENSAJE: { key: CanalMensaje; label: string }[] = [
+  { key: "auto", label: "Automático" },
+  { key: "whatsapp", label: "Solo WhatsApp" },
+  { key: "correo", label: "Solo correo" },
+];
+
+export function esCanalMensaje(v: unknown): v is CanalMensaje {
+  return v === "auto" || v === "whatsapp" || v === "correo";
+}
+
+/** Textos listos para no escribir desde cero. Llevan {nombre} y {negocio}. */
+export const PLANTILLAS_RAPIDAS: { label: string; texto: string }[] = [
+  {
+    label: "Recordatorio de pago",
+    texto: "Hola {nombre}, te recordamos que tienes un pago pendiente con {negocio}. Si ya pagaste, ignora este mensaje.",
+  },
+  {
+    label: "Recordatorio de cita",
+    texto: "Hola {nombre}, te recordamos tu cita con {negocio}. Si no puedes venir, avísanos por aquí.",
+  },
+  {
+    label: "Seguimiento",
+    texto: "Hola {nombre}, ¿cómo te fue con lo que compraste en {negocio}? Cualquier cosa, aquí estamos.",
+  },
+  {
+    label: "Promoción",
+    texto: "Hola {nombre}, esta semana tenemos una promoción especial en {negocio}. ¡Te esperamos!",
+  },
+];
+
+export const ESTADOS_MENSAJE: Record<string, { label: string; tone: Tono }> = {
+  PENDIENTE: { label: "Programado", tone: "blue" },
+  ENVIANDO: { label: "Enviando", tone: "slate" },
+  ENVIADO: { label: "Enviado", tone: "green" },
+  FALLIDO: { label: "No salió", tone: "red" },
+  MANUAL: { label: "Para enviar a mano", tone: "amber" },
+  CANCELADO: { label: "Cancelado", tone: "slate" },
+};

@@ -15,10 +15,13 @@ import { Icon } from "./Icon";
 export function AssistantChat({
   sugerencias,
   listo,
+  alto = "h-[calc(100dvh-14rem)] min-h-[440px]",
 }: {
   sugerencias: string[];
   /** false si falta la clave en el servidor. */
   listo: boolean;
+  /** El alto del chat: en su pantalla ocupa casi todo; en el boton flotante, su caja. */
+  alto?: string;
 }) {
   // El tercer valor de useActionState nos dice si esta pensando, sin tener que
   // meter useFormStatus dentro del formulario.
@@ -47,14 +50,14 @@ export function AssistantChat({
   }
 
   return (
-    <div className="flex h-[calc(100dvh-14rem)] min-h-[440px] flex-col">
+    <div className={"flex flex-col " + alto}>
       <div className="flex-1 space-y-3 overflow-y-auto rounded-2xl border border-line bg-surface p-4">
         {turns.length === 0 && !pensando && (
           <div className="py-6 text-center">
             <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl border border-line bg-brand-600 text-on-brand shadow-soft">
               <Icon name="chart" className="h-6 w-6" />
             </span>
-            <p className="mt-3 font-display text-lg text-strong">Preguntame por tu negocio</p>
+            <p className="mt-3 font-display text-lg text-strong">Hola, soy Snake. Pregúntame por tu negocio</p>
             <p className="mx-auto mt-1 max-w-sm text-sm text-muted">
               Veo tus cifras de hoy, las del mes y tu inventario. Preguntame como vas, que reponer
               o como se hace algo en la aplicacion.

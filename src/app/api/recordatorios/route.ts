@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { enviarProgramados } from "@/lib/envios-crm";
 import { addDays, todayIn } from "@/lib/dates";
 import { collectionMessage, debtState, saldo } from "@/lib/debts";
 import { pretty12h, prettyDay } from "@/lib/format";
@@ -190,7 +191,11 @@ export async function GET(request: Request) {
     }
   }
 
+  // Los mensajes programados del CRM que ya llegaron a su hora.
+  const crm = await enviarProgramados({ limite: 1000 });
+
   return Response.json({
+    crm,
     negocios: negocios.length,
     turnos: { enviados, fallidos, sinConfigurar },
     cartera: { cobros },

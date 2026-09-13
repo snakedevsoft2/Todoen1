@@ -15,6 +15,8 @@ export function WhatsappForm({
     whatsappProvider: string;
     whatsappApiKey: string | null;
     whatsappPhoneId: string | null;
+    whatsappTemplate?: string | null;
+    whatsappTemplateLang?: string | null;
     notifyOnBooking: boolean;
   };
 }) {
@@ -138,6 +140,25 @@ export function WhatsappForm({
                 name="whatsappPhoneId"
                 defaultValue={initial.whatsappPhoneId ?? ""}
                 placeholder="1234567890"
+              />
+            </Field>
+            <Field
+              label="Plantilla para escribirle a tus clientes (opcional)"
+              hint="Meta solo deja escribirle primero a un cliente con una plantilla aprobada. Créala con dos variables: {{1}} el nombre y {{2}} el mensaje."
+            >
+              <input
+                className="input font-mono text-sm"
+                name="whatsappTemplate"
+                defaultValue={initial.whatsappTemplate ?? ""}
+                placeholder="mensaje_cliente"
+              />
+            </Field>
+            <Field label="Idioma de la plantilla">
+              <input
+                className="input w-28 font-mono text-sm"
+                name="whatsappTemplateLang"
+                defaultValue={initial.whatsappTemplateLang ?? "es"}
+                placeholder="es"
               />
             </Field>
           </div>

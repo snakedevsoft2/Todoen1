@@ -248,3 +248,47 @@ export function reminderMessage(input: {
     "Si no puedes venir, avisanos y te lo cambiamos.",
   ].join("\n");
 }
+
+/**
+ * Manda una plantilla aprobada de Meta.
+ *
+ * Es la unica forma de escribirle primero a un cliente que no ha escrito en
+ * las ultimas 24 horas: Meta rechaza el texto libre fuera de esa ventana. Los
+ * parametros no pueden llevar saltos de linea ni tabulaciones.
+ */
+export async function sendWhatsappTemplate(options: {
+  to: string;
+  template: string;
+  lang: string;
+  params: string[];
+  apiKey?: string | null;
+  phoneId?: string | null;
+}): Promise<SendResult> {
+  const apiKey = (options.apiKey ?? "").trim();
+  const phoneId = (options.phoneId ?? "").trim();
+  if (!apiKey || !phoneId) {
+    return { status: "SIN_CONFIGURAR", detail: "Faltan el token o el identificador del número de Meta." };
+  }
+  const limpio = (t: string) => t.replace(/[\r\n\t]+/g, " · ").replace(/ {4,}/g, "   ").slice(0, 1000);
+  try {
+    const res = await fetchWithTimeout(graphBase() + encodeURIComponent(phoneId) + "/messages", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + apiKey, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to: options.to,
+        type: "template",
+        template: {
+          name: options.template,
+          language: { code: options.lang || "es" },
+          components: [{ type: "body", parameters: options.params.map((p) => ({ type: "text", text: limpio(p) })) }],
+        },
+      }),
+    });
+    const body = (await res.text()).slice(0, 300);
+    if (!res.ok) return { status: "FALLIDO", detail: "Meta respondio " + res.status + ": " + body };
+    return { status: "ENVIADO", detail: "Enviado con la plantilla " + options.template + "." };
+  } catch (error) {
+    return { status: "FALLIDO", detail: "No se pudo contactar a Meta: " + String(error).slice(0, 160) };
+  }
+}

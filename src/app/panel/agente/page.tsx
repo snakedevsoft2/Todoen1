@@ -10,6 +10,7 @@ import { MAX_POR_NEGOCIO_DIA } from "@/lib/agente-reglas";
 import { Alert, Badge, Card, Empty, PageHeader, Stat } from "@/components/ui";
 import { AgenteForm } from "@/components/AgenteForm";
 import { ChatAgente } from "@/components/ChatAgente";
+import { DiagnosticoIa } from "@/components/DiagnosticoIa";
 import { Icon } from "@/components/Icon";
 
 export const dynamic = "force-dynamic";
@@ -200,6 +201,10 @@ export default async function AgentePage() {
             ) : (
               <p className="text-sm text-muted">Disponible cuando se conecte el modelo de IA.</p>
             )}
+          </Card>
+
+          <Card title="¿No responde?" subtitle="Prueba la conexión con Gemini y te decimos exactamente qué falla">
+            <DiagnosticoIa />
           </Card>
 
           <Card title="Conectar WhatsApp" subtitle="Solo una vez. Necesitas la API oficial de WhatsApp Business de Meta.">

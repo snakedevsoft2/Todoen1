@@ -1,4 +1,9 @@
 import { headers } from "next/headers";
+import { after } from "next/server";
+import { enviarProgramados } from "@/lib/envios-crm";
+import { aiEnabled } from "@/lib/ai";
+import { SUGERENCIAS_IA } from "@/lib/sugerencias-ia";
+import { AsistenteFlotante } from "@/components/AsistenteFlotante";
 import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/auth";
 import { BUSINESS_LABEL, logoUrl, publicPath } from "@/lib/nav";
@@ -48,6 +53,11 @@ export default async function PanelLayout({ children }: { children: React.ReactN
 
   const conPagina = tienePaginaPublica(user.businessType) && !empleado;
 
+  // Los mensajes programados que ya llegaron a su hora salen cuando alguien usa
+  // el panel, sin esperar al envio diario. Corre despues de responder: la
+  // pagina no espera a WhatsApp ni al correo.
+  after(() => enviarProgramados({ userId: user.id, limite: 20 }).then(() => undefined, () => undefined));
+
   return (
     <>
       <ThemeStyle brandColor={user.brandColor} theme={user.theme} />
@@ -69,6 +79,9 @@ export default async function PanelLayout({ children }: { children: React.ReactN
       >
         {children}
       </Shell>
+      {/* La IA Snake flotante: solo si el servidor tiene la clave del modelo, y
+          no para el empleado del gestor, que solo tiene sus pantallas. */}
+      {aiEnabled() && !empleado && <AsistenteFlotante sugerencias={SUGERENCIAS_IA[user.businessType]} />}
     </>
   );
 }
