@@ -22,6 +22,7 @@
     "verificar:centavos": "node scripts/verificar-centavos.mjs",
     "verificar:cartera": "node scripts/verificar-cartera.mjs",
     "verificar:qa": "node scripts/verificar-qa.mjs",
+    "verificar:asistencia": "node scripts/verificar-asistencia.mjs",
     "clave": "node scripts/cambiar-clave.mjs"
   },
   "dependencies": {

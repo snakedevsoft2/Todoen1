@@ -51,6 +51,13 @@ const FINAL: TourStep = {
 };
 
 const PRIMERO: Record<BusinessType, TourStep> = {
+  ASISTENCIA: {
+    icon: "clock",
+    title: "Tu gente marca desde su propio telefono",
+    text: "Cada empleado entra con su usuario y marca entrada y salida. Queda la hora y la coordenada exacta, y funciona sin senal: el marcaje espera en el telefono y se manda solo cuando vuelve.",
+    href: "/panel/marcar",
+    action: "Ver el marcador",
+  },
   CARTERA: {
     icon: "handshake",
     title: "Tus prestamos y a quien le toca hoy",
@@ -99,6 +106,13 @@ const PRIMERO: Record<BusinessType, TourStep> = {
 };
 
 const SEGUNDO: Record<BusinessType, TourStep> = {
+  ASISTENCIA: {
+    icon: "users",
+    title: "Primero, agrega a tu gente",
+    text: "Cada persona con su correo y su clave. Con eso ya puede marcar desde su telefono y aparecer en la planilla.",
+    href: "/panel/equipo",
+    action: "Agregar personal",
+  },
   CARTERA: {
     icon: "wallet",
     title: "Cuadra lo que recogiste",

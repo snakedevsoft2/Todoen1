@@ -36,6 +36,7 @@ export const TEAM_NOUN: Record<string, { title: string; singular: string; plural
   // de empleado sin acceso a la configuracion: lo que cambia es como se llama,
   // no lo que puede hacer.
   CARTERA: { title: "Cobradores", singular: "cobrador", plural: "cobradores", role: "VENDEDOR" },
+  ASISTENCIA: { title: "Personal", singular: "empleado", plural: "empleados", role: "VENDEDOR" },
 };
 
 /** Negocios que trabajan con equipo propio dentro de la aplicacion. */

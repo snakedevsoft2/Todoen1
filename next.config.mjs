@@ -27,11 +27,17 @@ const CABECERAS = [
     value: "strict-origin-when-cross-origin",
   },
   {
-    // Nadie necesita la camara ni el microfono ni la ubicacion desde una
-    // pagina que este dentro de la nuestra. El escaner de codigo de barras usa
-    // la camara, asi que esa se permite pero solo a nosotros mismos.
+    // Nadie necesita la camara ni la ubicacion desde una pagina incrustada
+    // dentro de la nuestra, asi que las dos se permiten solo a nosotros mismos.
+    // El escaner de codigo de barras usa la camara y el marcador de asistencia
+    // usa la ubicacion.
+    //
+    // OJO: "geolocation=()" no significa "nadie de afuera": significa NADIE,
+    // tampoco la propia aplicacion. Asi estuvo, y cada marcaje llegaba sin
+    // coordenada sin que nada avisara. Tiene que ser "(self)", igual que la
+    // camara.
     key: "Permissions-Policy",
-    value: "camera=(self), microphone=(), geolocation=(), payment=()",
+    value: "camera=(self), microphone=(), geolocation=(self), payment=()",
   },
   {
     // Obliga a usar HTTPS durante un ano. Solo tiene efecto en produccion, que

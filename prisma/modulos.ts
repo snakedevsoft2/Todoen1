@@ -39,6 +39,7 @@ export const TIPOS = [
   "COMIDAS_RAPIDAS",
   "ROPA",
   "CARTERA",
+  "ASISTENCIA",
   "OTRO",
   "DISTRIBUIDORA",
   "SERVICIOS",
@@ -54,6 +55,7 @@ export const TIPOS_ABIERTOS: Tipo[] = [
   "COMIDAS_RAPIDAS",
   "ROPA",
   "CARTERA",
+  "ASISTENCIA",
   "OTRO",
 ];
 
@@ -272,6 +274,44 @@ export const MODULOS: ModuloDef[] = [
 
   // -------------------------------------------------------- CONFIGURACION
   {
+    key: "marcar",
+    href: "/panel/marcar",
+    label: "Marcar",
+    icon: "clock",
+    group: "NUCLEO",
+    sortOrder: 5,
+    shortDescription:
+      "El boton con el que cada persona marca su entrada y su salida, con la hora y el lugar exactos.",
+    longDescription:
+      "Cada quien marca desde su propio telefono. Queda la hora, la coordenada y a cuantos metros estaba del sitio. Funciona sin senal: el marcaje espera guardado en el telefono y se manda solo cuando vuelve la cobertura, asi que una zona sin cobertura no le borra la jornada a nadie. Lo que se marca no se puede editar ni borrar despues, ni siquiera por el dueno: si hubo un error se anula escribiendo por que, y quedan los dos a la vista.",
+  },
+  {
+    key: "planilla",
+    href: "/panel/planilla",
+    label: "Planilla",
+    icon: "table",
+    group: "NUCLEO",
+    ownerOnly: true,
+    sortOrder: 10,
+    shortDescription:
+      "Quien marco hoy, a que hora entro y salio, cuantas horas lleva y quien no ha llegado.",
+    longDescription:
+      "La vista del dia completa: quien esta adentro, quien ya salio y quien no ha marcado. De cada marcaje ves la hora, el sitio y el mapa, y si alguno quedo lejos del sitio sale senalado. Desde aqui se anula un marcaje equivocado, siempre dejando el motivo escrito.",
+  },
+  {
+    key: "sitios",
+    href: "/panel/sitios",
+    label: "Sitios",
+    icon: "map",
+    group: "CONFIGURACION",
+    ownerOnly: true,
+    sortOrder: 135,
+    shortDescription:
+      "Las sedes o los sitios de trabajo, con su ubicacion, para saber desde donde marco cada quien.",
+    longDescription:
+      "Cada sitio guarda su direccion, su coordenada y un radio. Cuando alguien marca, la aplicacion calcula a cuantos metros estaba y lo deja anotado. No impide marcar a quien este lejos: un GPS impreciso o un sotano sin senal dejarian a esa persona sin poder registrar su jornada. Lo que hace es dejarlo senalado para que lo revises.",
+  },
+  {
     key: "equipo",
     href: "/panel/equipo",
     label: "Equipo",
@@ -443,6 +483,31 @@ export const PRESETS: Record<Tipo, Record<string, Preset>> = {
    * El inventario entra apagado: quien solo presta plata no tiene que contar
    * nada. Queda disponible por si tambien fia mercancia.
    */
+  /**
+   * Gestor de asistencia y reportes.
+   *
+   * No vende nada, asi que no lleva catalogo, ni ventas, ni caja, ni cuentas.
+   * Su dia es saber quien marco y quien no, y mandarle el reporte al cliente.
+   *
+   * "Marcar" es el unico apartado de este oficio que NO es solo del dueno:
+   * tiene que verlo el empleado, que es justamente quien lo usa.
+   */
+  ASISTENCIA: {
+    resumen: {},
+    marcar: { ejemplo: "Juan marco entrada a las 8:02 en la Sede Norte, a 12 metros." },
+    planilla: { ejemplo: "Hoy entraron 14 de 16. Rosa marco a 2,4 km del sitio: revisar." },
+    sitios: { ejemplo: "Sede Norte, Edificio Los Cedros, la obra de la 80." },
+    equipo: { label: "Personal", ejemplo: "Cada persona con su usuario para marcar." },
+    reportes: { ejemplo: "Horas trabajadas por persona esta semana." },
+    gastos: { on: false, ejemplo: "Transporte, dotacion, herramienta." },
+    avisos: { on: false },
+    asistente: { on: false, ejemplo: "Quien no ha marcado entrada hoy?" },
+    personalizar: { on: false },
+    guia: {},
+    espacio: {},
+    ajustes: {},
+    soporte: {},
+  },
   CARTERA: {
     resumen: {},
     cartera: {

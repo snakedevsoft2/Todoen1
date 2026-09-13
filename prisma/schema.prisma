@@ -18,6 +18,9 @@ enum BusinessType {
   /// Presta plata y la cobra por cuotas. No vende nada: su dia es saber a
   /// quien le toca pagar hoy y quien se atraso.
   CARTERA
+  /// No vende: administra personal. Los empleados marcan entrada y salida
+  /// desde su propio telefono y el dueno saca la planilla y los reportes.
+  ASISTENCIA
   /// Para el negocio que no encaja en los otros. Arranca con todo lo que no
   /// depende de un oficio en particular y el dueno apaga lo que le sobre
   /// desde "Armar mi menu".
@@ -170,6 +173,10 @@ model User {
   moduleEvents   ModuleEvent[]
   wholesaleTiers WholesaleTier[]
   passwordResets PasswordReset[]
+  sites          WorkSite[]
+  attendance     Attendance[]
+  visitReports   VisitReport[]
+  visitPhotos    VisitPhoto[]
 
   @@index([slug])
 }
@@ -365,6 +372,7 @@ model Staff {
   workspace    WorkspaceConfig?
 
   passwordResets PasswordReset[]
+  marks          Attendance[]    @relation("MarcajesDeLaPersona")
 
   @@index([userId, active])
 }
@@ -851,4 +859,148 @@ model PasswordReset {
 
   @@index([email, createdAt])
   @@index([expiresAt])
+}
+
+/// Entrada o salida de la jornada.
+enum MarkKind {
+  ENTRADA
+  SALIDA
+}
+
+/// Donde se trabaja: una sede, un edificio, la obra de un cliente.
+///
+/// Tener coordenadas es opcional. Si las tiene, cada marcaje guarda a cuantos
+/// metros quedo, y el que quedo lejos sale marcado. Nunca impide marcar: un
+/// GPS impreciso o un sotano sin senal dejarian a la persona sin poder
+/// registrar su jornada, y ese problema termina siendo del dueno.
+model WorkSite {
+  id      String  @id @default(cuid())
+  userId  String
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name    String
+  address String?
+
+  lat Float?
+  lng Float?
+
+  /// Radio en metros dentro del cual se considera que marco "en el sitio".
+  radiusM Int @default(150)
+
+  active Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  marks   Attendance[]
+  reports VisitReport[]
+
+  @@index([userId, active])
+}
+
+/// Un marcaje de entrada o salida.
+///
+/// NO SE EDITA NI SE BORRA NUNCA. Es lo que le da valor: si se pudiera
+/// cambiar la hora despues, no serviria de prueba ante un reclamo, que suele
+/// ser justo el motivo de llevarlo. Un marcaje equivocado se anula con un
+/// motivo escrito, y quedan los dos a la vista: el original y su anulacion,
+/// como en un libro contable.
+model Attendance {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Quien marco.
+  staffId String
+  staff   Staff  @relation("MarcajesDeLaPersona", fields: [staffId], references: [id], onDelete: Cascade)
+
+  siteId String?
+  site   WorkSite? @relation(fields: [siteId], references: [id], onDelete: SetNull)
+
+  kind MarkKind
+
+  /**
+   * Dos relojes, a proposito.
+   * `markedAt` es cuando la persona toco el boton, segun el reloj de su
+   * telefono. `receivedAt` es cuando el marcaje llego al servidor. Cuando se
+   * marca sin senal los dos se separan, y esa diferencia es justo lo que hay
+   * que poder ver: dice que el registro viajo en la cola del telefono.
+   */
+  markedAt   DateTime
+  receivedAt DateTime @default(now())
+
+  /// Donde estaba. Puede faltar si nego el permiso o no habia senal de GPS.
+  lat       Float?
+  lng       Float?
+  /// Cuanto se puede fiar uno de esa coordenada, en metros.
+  accuracyM Int?
+  /// Metros hasta el sitio, cuando el sitio tiene coordenadas.
+  distanceM Int?
+
+  /**
+   * La llave que manda el telefono, unica por marcaje.
+   * Es lo que impide que la cola duplique: si el envio se corta despues de
+   * guardar pero antes de confirmar, el telefono reintenta y el servidor
+   * reconoce que ese marcaje ya entro. Sin esto, una mala senal convierte una
+   * entrada en cinco.
+   */
+  clientKey String @unique
+
+  note String?
+
+  /// Anulacion. El marcaje no se borra: se tacha y se dice por que.
+  voidedAt        DateTime?
+  voidedReason    String?
+  voidedByStaffId String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, markedAt])
+  @@index([staffId, markedAt])
+}
+
+/// Reporte de una visita, con fotos, para mandarle al cliente.
+model VisitReport {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  siteId String?
+  site   WorkSite? @relation(fields: [siteId], references: [id], onDelete: SetNull)
+
+  /// "YYYY-MM-DD" del dia del trabajo.
+  day   String
+  title String
+  /// Que se hizo, en palabras.
+  body  String?
+
+  /// A quien se le manda. Se guarda suelto y no como relacion: el cliente de
+  /// un reporte no siempre es una cuenta de la aplicacion.
+  clientName  String?
+  clientPhone String?
+
+  createdByStaffId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  photos VisitPhoto[]
+
+  @@index([userId, day])
+}
+
+/// Una foto del reporte. Se guarda como data URL, igual que el logo.
+model VisitPhoto {
+  id       String      @id @default(cuid())
+  userId   String
+  user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reportId String
+  report   VisitReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  image   String
+  caption String?
+  sort    Int     @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([reportId, sort])
 }
