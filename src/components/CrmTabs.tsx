@@ -4,10 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "./Icon";
 
-const PESTANAS = [
+const PESTANAS: { href: string; label: string; corto?: string; icon: string }[] = [
   { href: "/panel/clientes", label: "Clientes", icon: "users" },
   { href: "/panel/clientes/embudo", label: "Embudo", icon: "trend" },
-  { href: "/panel/clientes/seguimientos", label: "Seguimientos", icon: "check" },
+  // "Seguimientos" no cabe en una cuarta parte de un celular.
+  { href: "/panel/clientes/seguimientos", label: "Seguimientos", corto: "Pendientes", icon: "check" },
   { href: "/panel/clientes/segmentos", label: "Segmentos", icon: "tag" },
 ];
 
@@ -44,7 +45,8 @@ export function CrmTabs({ pendientes }: { pendientes: number }) {
             }
           >
             <Icon name={p.icon} className="h-4 w-4 shrink-0" />
-            <span className="max-w-full truncate">{p.label}</span>
+            <span className="max-w-full truncate sm:hidden">{p.corto ?? p.label}</span>
+            <span className="hidden sm:inline">{p.label}</span>
             {p.href === "/panel/clientes/seguimientos" && pendientes > 0 && (
               <span className="absolute right-1 top-0.5 rounded-full bg-bad px-1.5 text-[11px] font-bold leading-5 text-white num sm:static">
                 {pendientes > 99 ? "99+" : pendientes}

@@ -195,6 +195,9 @@ model User {
   deals          Deal[]
   followUps      FollowUp[]
   interactions   Interaction[]
+  agentConfig        AgentConfig?
+  agentConversations AgentConversation[]
+  agentMessages      AgentMessage[]
 
   @@index([slug])
 }
@@ -1108,6 +1111,7 @@ model Customer {
   deals        Deal[]
   followUps    FollowUp[]
   interactions Interaction[]
+  agentConversations AgentConversation[]
 
   @@unique([userId, phoneKey])
   @@index([userId, name])
@@ -1211,5 +1215,68 @@ model Interaction {
   createdAt  DateTime        @default(now())
 
   @@index([customerId, createdAt])
+  @@index([userId, createdAt])
+}
+
+// ------------------------------------------------------------ AGENTE IA
+
+/// Lo que el dueño configura del agente que contesta solo.
+model AgentConfig {
+  userId     String   @id
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Contesta en el chat de la pagina publica.
+  webOn      Boolean  @default(false)
+  /// Contesta los WhatsApp que llegan al numero conectado con Meta.
+  whatsappOn Boolean  @default(false)
+  /// Lo primero que ve el cliente al abrir el chat.
+  greeting   String?
+  /// Lo que el agente debe saber y no esta en la aplicacion: domicilios,
+  /// formas de pago, garantias, parqueadero.
+  notes      String?
+  updatedAt  DateTime @updatedAt
+}
+
+/// Una conversacion con alguien que le escribio al agente.
+///
+/// Se guarda en la base y no solo en el navegador por dos razones: WhatsApp no
+/// tiene navegador donde guardarla, y el dueño tiene que poder leer que le
+/// dijo el agente a sus clientes.
+model AgentConversation {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// "web", "whatsapp" o "prueba".
+  channel       String
+  /// Quien escribe: el numero en WhatsApp, o la llave que guarda el navegador.
+  contactKey    String
+  contactName   String?
+  customerId    String?
+  customer      Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  lastMessageAt DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+
+  messages AgentMessage[]
+
+  @@unique([userId, channel, contactKey])
+  @@index([userId, lastMessageAt])
+}
+
+model AgentMessage {
+  id             String            @id @default(cuid())
+  userId         String
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversationId String
+  conversation   AgentConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  /// "cliente" o "agente".
+  role           String
+  text           String
+  /// Lo que el agente hizo con este mensaje, si hizo algo: "Turno agendado...".
+  action         String?
+  /// El id del mensaje en WhatsApp. Meta reenvia el mismo mensaje si no le
+  /// contestamos a tiempo; con esto no se responde dos veces.
+  externalId     String?           @unique
+  createdAt      DateTime          @default(now())
+
+  @@index([conversationId, createdAt])
   @@index([userId, createdAt])
 }
