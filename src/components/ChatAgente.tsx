@@ -125,7 +125,7 @@ export function ChatAgente({
       className={
         "flex flex-col overflow-hidden border border-line bg-panel " +
         (flotante
-          ? "fixed inset-x-3 bottom-3 top-16 z-50 animate-lista rounded-3xl shadow-card-hover sm:inset-auto sm:bottom-24 sm:right-5 sm:h-[560px] sm:w-[380px]"
+          ? "fixed inset-x-3 bottom-3 top-16 z-50 rounded-3xl shadow-card-hover sm:inset-auto sm:bottom-24 sm:right-5 sm:h-[560px] sm:w-[380px]"
           : "h-[520px] rounded-2xl")
       }
     >
@@ -206,7 +206,10 @@ export function ChatAgente({
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-600 text-white transition-all duration-150 active:scale-90 disabled:opacity-40"
           aria-label="Enviar"
         >
-          <Icon name="arrowIn" className="h-5 w-5 -rotate-90" />
+          {/* Flecha hacia arriba, como en los chats del telefono. */}
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M12 19V5M5 12l7-7 7 7" />
+          </svg>
         </button>
       </form>
       <p className="bg-panel pb-2 text-center text-[10px] text-subtle">Respuestas generadas con IA. Pueden tener errores.</p>
