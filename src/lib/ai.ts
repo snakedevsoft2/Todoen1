@@ -10,7 +10,7 @@
 
 /** Se puede cambiar por env si el modelo cambia de nombre. */
 function modelo(): string {
-  return process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  return process.env.GEMINI_MODEL || "gemini-3.6-flash";
 }
 
 /**
@@ -77,20 +77,56 @@ type Pedido = {
  */
 type Respuesta = { ok: true; parts: Parte[] } | { ok: false; error: string; status?: number };
 
-/** El modelo al que se vuelve si Google no reconoce el configurado. */
-const MODELO_DE_RESPALDO = "gemini-flash-latest";
+/**
+ * Los modelos a los que se vuelve si Google no reconoce el configurado.
+ *
+ * Google retira modelos sin aviso: en septiembre de 2026 gemini-2.5-flash dejo
+ * de estar disponible para cuentas nuevas y el agente quedo mudo. Por eso no
+ * se depende de un solo nombre.
+ */
+const MODELOS_DE_RESPALDO = ["gemini-3.6-flash", "gemini-flash-latest", "gemini-flash-lite-latest"];
+
+/**
+ * Si vale la pena probar con otro modelo.
+ *
+ * Si: el modelo no existe o esta retirado (400/404), no esta incluido en el
+ * plan de la clave (403 que no es de la clave), o su cuota gratuita es cero
+ * (429 con "limit: 0"). No: la clave es invalida o se acabo la cuota normal,
+ * que con otro modelo tampoco se arregla.
+ */
+function probarOtroModelo(r: { status?: number; error: string }): boolean {
+  if (r.status === 400 || r.status === 404) return true;
+  if (r.status === 403) return !/API key/i.test(r.error);
+  if (r.status === 429) return /limit:\s*0|free.?tier|not available/i.test(r.error);
+  return false;
+}
+
+/** El modelo que Google recomienda en su mensaje de error, si recomienda uno. */
+export function modeloRecomendado(motivo: string): string | null {
+  // El nombre lleva puntos ("gemini-3.6-flash"): se toma completo y solo se
+  // quita la puntuacion que haya quedado pegada al final de la frase.
+  const m = /use\s+(?:models\/)?(gemini-[\w.-]+)/i.exec(motivo);
+  return m ? m[1].replace(/[.-]+$/, "") : null;
+}
 
 async function pedir(p: Pedido): Promise<Respuesta> {
   const primero = await pedirUnaVez(p, modelo(), true);
   if (primero.ok) return primero;
   // Si Google no reconoce el modelo o algo de la configuracion (400/404), se
-  // reintenta una vez con lo mas compatible: el modelo de respaldo y sin la
-  // opcion de "pensar". Asi un modelo retirado no deja mudo al agente.
-  if ((primero.status === 400 || primero.status === 404) && modelo() !== MODELO_DE_RESPALDO) {
-    const segundo = await pedirUnaVez(p, MODELO_DE_RESPALDO, false);
-    if (segundo.ok) return segundo;
+  // reintenta con el modelo que Google recomienda y luego con los de respaldo,
+  // sin la opcion de "pensar". Asi un modelo retirado no deja mudo al agente.
+  if (!probarOtroModelo(primero)) return primero;
+
+  const intentos = [modeloRecomendado(primero.error), ...MODELOS_DE_RESPALDO].filter(
+    (m, i, lista): m is string => Boolean(m) && m !== modelo() && lista.indexOf(m) === i
+  );
+  let ultimo: Respuesta = primero;
+  for (const m of intentos) {
+    ultimo = await pedirUnaVez(p, m, false);
+    if (ultimo.ok) return ultimo;
+    if (!probarOtroModelo(ultimo)) break;
   }
-  return primero;
+  return ultimo;
 }
 
 async function pedirUnaVez(p: Pedido, m: string, conPensamiento: boolean): Promise<Respuesta> {
@@ -119,10 +155,13 @@ async function pedirUnaVez(p: Pedido, m: string, conPensamiento: boolean): Promi
           // Bajo a proposito: aqui se habla de plata y de horarios, no
           // queremos invenciones.
           temperature: p.temperature ?? 0.3,
-          maxOutputTokens: p.maxOutputTokens ?? 800,
-          // El flash 2.5 "piensa" antes de contestar si no se le dice nada, y
-          // eso se come los tokens de la respuesta y la vuelve lenta. Para
-          // contestar a un cliente no hace falta.
+          // Los modelos que "piensan" gastan parte de este tope razonando antes
+          // de contestar. Al flash 2.5 se le apaga eso; a los demas se les da
+          // mas espacio, para que el razonamiento no deje la respuesta cortada.
+          maxOutputTokens:
+            conPensamiento && /2\.5-flash/.test(m)
+              ? (p.maxOutputTokens ?? 800)
+              : Math.max((p.maxOutputTokens ?? 800) * 4, 2048),
           ...(conPensamiento && /2\.5-flash/.test(m) ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
         },
       }),
@@ -139,8 +178,15 @@ async function pedirUnaVez(p: Pedido, m: string, conPensamiento: boolean): Promi
       if (s === 429) {
         return { ok: false, status: s, error: "Se acabaron las consultas gratuitas de Gemini por ahora (límite por minuto o por día). " + motivo };
       }
-      if (s === 401 || s === 403 || /API key/i.test(motivo)) {
+      if (s === 401 || /API key/i.test(motivo)) {
         return { ok: false, status: s, error: "Google rechazó la clave de Gemini. Revisa GEMINI_API_KEY en Vercel. " + motivo };
+      }
+      if (s === 403) {
+        return {
+          ok: false,
+          status: s,
+          error: "Google no deja usar el modelo " + m + " con esta clave: activa la facturación del proyecto en Google AI Studio. " + motivo,
+        };
       }
       return { ok: false, status: s, error: "Gemini respondió " + s + " con el modelo " + m + ": " + (motivo || "sin detalle") };
     }
