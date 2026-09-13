@@ -11,6 +11,9 @@ import { DayPicker } from "@/components/DayPicker";
 import { Icon } from "@/components/Icon";
 import { ThemeStyle } from "@/components/ThemeStyle";
 import { BrandMark } from "@/components/BrandMark";
+import { ChatAgente } from "@/components/ChatAgente";
+import { aiEnabled } from "@/lib/ai";
+import { configDe, saludoDe } from "@/lib/agente";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +70,7 @@ export default async function ReservarPage({
     }),
   ]);
 
+  const agente = aiEnabled() ? await configDe(shop.id) : null;
   const slots = buildSlots(shop);
   const taken = appointments.map((a) => ({ staffId: a.staffId, startTime: a.startTime }));
 
@@ -186,6 +190,14 @@ export default async function ReservarPage({
       <p className="mt-6 text-center text-xs text-subtle">
         Si necesitas cambiar o cancelar tu turno, llama al negocio.
       </p>
+      {agente?.webOn && (
+        <ChatAgente
+          endpoint={"/api/agente/" + shop.slug}
+          negocio={shop.businessName}
+          saludo={saludoDe(shop, agente)}
+          almacen={shop.slug}
+        />
+      )}
     </div>
   );
 }

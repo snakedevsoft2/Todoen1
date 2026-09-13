@@ -86,6 +86,14 @@ export type SendResult = {
   detail: string;
 };
 
+/**
+ * La direccion de la API de Meta. Solo se cambia en las pruebas, para que los
+ * mensajes lleguen a un servidor de mentira y no a WhatsApp.
+ */
+function graphBase(): string {
+  return process.env.WHATSAPP_GRAPH_URL || "https://graph.facebook.com/v21.0/";
+}
+
 async function fetchWithTimeout(url: string, init: RequestInit = {}, ms = 8000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ms);
@@ -148,7 +156,7 @@ export async function sendWhatsapp(options: {
   }
   try {
     const res = await fetchWithTimeout(
-      "https://graph.facebook.com/v21.0/" + encodeURIComponent(phoneId) + "/messages",
+      graphBase() + encodeURIComponent(phoneId) + "/messages",
       {
         method: "POST",
         headers: {

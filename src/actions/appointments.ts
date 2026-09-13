@@ -4,17 +4,12 @@ import { revalidatePath } from "next/cache";
 import type { AppointmentStatus, PaymentMethod } from "@prisma/client";
 import { db } from "@/lib/db";
 import { anotarCliente } from "@/lib/clientes";
+import { reservarTurno } from "@/lib/reservas";
 import { requireSession, requireUser } from "@/lib/auth";
-import { isValidDay, timeIn, todayIn } from "@/lib/dates";
-import { buildSlots, endTimeFor, isWorkDay } from "@/lib/slots";
-import { money, parseIntSafe, prettyDay, pretty12h, str } from "@/lib/format";
-import {
-  bookingMessage,
-  isProvider,
-  normalizePhone,
-  sendWhatsapp,
-  waLink,
-} from "@/lib/whatsapp";
+import { isValidDay } from "@/lib/dates";
+import { endTimeFor } from "@/lib/slots";
+import { parseIntSafe, str } from "@/lib/format";
+import { waLink } from "@/lib/whatsapp";
 
 export type BookingState =
   | {
@@ -79,151 +74,38 @@ export async function bookAppointmentAction(
   formData: FormData
 ): Promise<BookingState> {
   const slug = str(formData.get("slug"));
-  const day = str(formData.get("day"));
-  const startTime = str(formData.get("startTime"));
-  const serviceId = str(formData.get("serviceId"));
-  const clientName = str(formData.get("clientName"));
-  const clientPhone = str(formData.get("clientPhone"));
-  const notes = str(formData.get("notes"));
-
   const shop = await db.user.findUnique({ where: { slug } });
   if (!shop) return { error: "No encontramos este negocio." };
-  // Separar turno es solo de la barberia. La comprobacion va aqui y no solo en
-  // la pagina: el servicio es opcional, asi que sin esto se podria crear un
-  // turno "por definir" en un restaurante o en una tienda de ropa.
-  if (shop.businessType !== "BARBERIA") {
-    return { error: "Este negocio no recibe reservas por hora." };
-  }
-  if (!shop.bookingOpen) return { error: "Las reservas estan cerradas por ahora." };
-  if (!clientName) return { error: "Escribe tu nombre." };
-  if (clientPhone.replace(/\D/g, "").length < 7) return { error: "Escribe un telefono valido." };
-  if (!isValidDay(day)) return { error: "Elige una fecha valida." };
 
-  const today = todayIn(shop.timezone);
-  if (day < today) return { error: "No puedes reservar en una fecha que ya paso." };
-  if (!isWorkDay(day, shop.workDays)) return { error: "Ese dia no atendemos. Elige otro dia." };
+  // Las reglas viven en lib/reservas.ts: el agente de IA separa turnos con
+  // exactamente las mismas.
+  const r = await reservarTurno(
+    shop,
+    {
+      day: str(formData.get("day")),
+      startTime: str(formData.get("startTime")),
+      serviceId: str(formData.get("serviceId")) || null,
+      staffId: str(formData.get("staffId")) || null,
+      clientName: str(formData.get("clientName")),
+      clientPhone: str(formData.get("clientPhone")),
+      notes: str(formData.get("notes")) || null,
+      // Lo eligio el cliente al reservar. Si no manda el campo, no quiere.
+      wantsReminder: formData.get("wantsReminder") === "on",
+    },
+    "reserva"
+  );
+  if (!r.ok) return { error: r.error };
 
-  const slots = buildSlots(shop);
-  if (!slots.includes(startTime)) return { error: "Esa hora no esta disponible." };
-  if (day === today && startTime <= timeIn(new Date(), shop.timezone)) {
-    return { error: "Esa hora ya paso. Elige una mas tarde." };
-  }
-
-  const service = serviceId
-    ? await db.service.findFirst({ where: { id: serviceId, userId: shop.id, active: true } })
-    : null;
-  if (serviceId && !service) return { error: "Elige un servicio de la lista." };
-
-  // Quien atiende. El cliente puede elegir barbero o dejar "el que este libre".
-  const team = await db.staff.findMany({
-    where: { userId: shop.id, active: true, bookable: true },
-    orderBy: { createdAt: "asc" },
-  });
-  const requestedStaffId = str(formData.get("staffId"));
-
-  const ocupados = await db.appointment.findMany({
-    where: { userId: shop.id, day, startTime, status: { not: "CANCELADO" } },
-    select: { staffId: true },
-  });
-  const ocupadosIds = new Set(ocupados.map((a) => a.staffId));
-
-  let staff = null as (typeof team)[number] | null;
-  if (team.length > 0) {
-    if (requestedStaffId) {
-      staff = team.find((t) => t.id === requestedStaffId) ?? null;
-      if (!staff) return { error: "Elige un barbero de la lista." };
-      if (ocupadosIds.has(staff.id)) {
-        return { error: "Ese barbero ya tiene turno a esa hora. Elige otra hora u otro barbero." };
-      }
-    } else {
-      staff = team.find((t) => !ocupadosIds.has(t.id)) ?? null;
-      if (!staff) return { error: "Alguien acaba de tomar esa hora. Elige otra." };
-    }
-  } else if (ocupados.length > 0) {
-    return { error: "Alguien acaba de tomar esa hora. Elige otra." };
-  }
-
-  try {
-    const created = await db.appointment.create({
-      data: {
-        userId: shop.id,
-        serviceId: service?.id ?? null,
-        serviceName: service?.name ?? "Servicio por definir",
-        staffId: staff?.id ?? null,
-        staffName: staff?.name ?? null,
-        price: service?.price ?? 0,
-        clientName,
-        clientPhone,
-        day,
-        startTime,
-        endTime: endTimeFor(startTime, service?.durationMin ?? shop.slotMinutes),
-        notes: notes || null,
-        // Lo eligio el cliente al reservar. Si no manda el campo, no quiere.
-        wantsReminder: formData.get("wantsReminder") === "on",
-        status: "PENDIENTE",
-      },
-    });
-    // Quien reserva queda con su ficha de cliente, sin que nadie la escriba.
-    await anotarCliente(shop.id, { name: clientName, phone: clientPhone, source: "reserva" });
-
-    const aviso = bookingMessage({
-      businessName: shop.businessName,
-      clientName,
-      clientPhone,
-      serviceName: created.serviceName,
-      price: money(created.price, shop.currency),
-      prettyDay: prettyDay(day),
-      time: pretty12h(startTime),
-      staffName: created.staffName,
-      notes: notes || null,
-    });
-
-    // El aviso nunca puede tumbar la reserva: si falla, lo dejamos anotado.
-    const destino = normalizePhone(shop.whatsappNumber);
-    if (shop.notifyOnBooking && destino) {
-      const provider = isProvider(shop.whatsappProvider) ? shop.whatsappProvider : "enlace";
-      let resultado;
-      try {
-        resultado = await sendWhatsapp({
-          provider,
-          to: destino,
-          message: aviso,
-          apiKey: shop.whatsappApiKey,
-          phoneId: shop.whatsappPhoneId,
-        });
-      } catch {
-        resultado = { status: "FALLIDO" as const, detail: "Error inesperado al enviar el aviso." };
-      }
-      try {
-        await db.notification.create({
-          data: {
-            userId: shop.id,
-            provider,
-            toNumber: destino,
-            message: aviso,
-            status: resultado.status,
-            detail: resultado.detail,
-            appointmentId: created.id,
-          },
-        });
-      } catch {
-        // Si ni siquiera se puede guardar el historial, seguimos: el turno ya quedo.
-      }
-      revalidatePath("/panel/avisos");
-    }
-
-    revalidatePath("/reservar/" + slug);
-    revalidatePath("/panel/turnos");
-    revalidatePath("/panel");
-    return {
-      ok: "Turno separado",
-      ref: created.id.slice(-6).toUpperCase(),
-      waLink: destino ? waLink(destino, aviso) : null,
-      staffName: created.staffName,
-    };
-  } catch {
-    return { error: "Esa hora ya fue tomada. Elige otra." };
-  }
+  if (r.avisoIntentado) revalidatePath("/panel/avisos");
+  revalidatePath("/reservar/" + slug);
+  revalidatePath("/panel/turnos");
+  revalidatePath("/panel");
+  return {
+    ok: "Turno separado",
+    ref: r.ref,
+    waLink: r.destino ? waLink(r.destino, r.aviso) : null,
+    staffName: r.staffName,
+  };
 }
 
 /** El barbero agrega un turno a mano desde el panel (cliente que llego sin reserva). */

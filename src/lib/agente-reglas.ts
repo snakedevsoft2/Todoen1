@@ -90,6 +90,28 @@ export function totalPedido(lineas: LineaPedido[]): number {
   return lineas.reduce((s, l) => s + l.unitPrice * l.qty, 0);
 }
 
+/**
+ * Lleva una hora a "HH:mm".
+ *
+ * Se le pide al modelo en 24 horas, pero a veces devuelve "3:00 p.m." porque
+ * asi la dijo el cliente. Mejor entenderla que rechazar el turno.
+ */
+export function normalizarHora(v: unknown): string | null {
+  const m = String(v ?? "")
+    .trim()
+    .toLowerCase()
+    .match(/^(\d{1,2})(?::(\d{2}))?\s*(a\.?\s*m\.?|p\.?\s*m\.?)?$/);
+  if (!m) return null;
+  let h = Number(m[1]);
+  const min = Number(m[2] ?? "0");
+  const sufijo = m[3]?.startsWith("p") ? "pm" : m[3]?.startsWith("a") ? "am" : null;
+  if (sufijo && (h < 1 || h > 12)) return null;
+  if (sufijo === "pm" && h !== 12) h += 12;
+  if (sufijo === "am" && h === 12) h = 0;
+  if (h > 23 || min > 59) return null;
+  return String(h).padStart(2, "0") + ":" + String(min).padStart(2, "0");
+}
+
 /** Texto corto del pedido: "2 × Hamburguesa, 1 × Papas". */
 export function resumenPedido(lineas: LineaPedido[]): string {
   return lineas.map((l) => l.qty + " × " + l.name).join(", ");

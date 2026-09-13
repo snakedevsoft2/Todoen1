@@ -8,6 +8,9 @@ import { variantLabel } from "@/lib/variants";
 import { normalizePhone } from "@/lib/whatsapp";
 import { APP_NAME } from "@/lib/brand";
 import { resolverFondo } from "@/lib/fondos";
+import { aiEnabled } from "@/lib/ai";
+import { configDe, saludoDe } from "@/lib/agente";
+import { ChatAgente } from "@/components/ChatAgente";
 import { Icon } from "@/components/Icon";
 import { ThemeStyle } from "@/components/ThemeStyle";
 import { BrandMark } from "@/components/BrandMark";
@@ -160,6 +163,10 @@ export default async function PortafolioPage({
   // todo, y ponerla dos veces duplicaria la foto dentro de la pagina.
   const franja = cover && fondo.key !== "foto";
 
+  // El agente de IA sale solo si el dueño lo prendio y el servidor tiene la
+  // clave del modelo: una burbuja que contesta "no disponible" es peor que nada.
+  const agente = aiEnabled() ? await configDe(shop.id) : null;
+
   return (
     <div
       className="relative min-h-dvh"
@@ -307,6 +314,14 @@ export default async function PortafolioPage({
       </footer>
       </div>
       </div>
+      {agente?.webOn && (
+        <ChatAgente
+          endpoint={"/api/agente/" + shop.slug}
+          negocio={shop.businessName}
+          saludo={saludoDe(shop, agente)}
+          almacen={shop.slug}
+        />
+      )}
     </div>
   );
 }
