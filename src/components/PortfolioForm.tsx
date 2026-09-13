@@ -83,7 +83,7 @@ export function PortfolioForm({
           className="btn-ghost btn-sm w-full lg:hidden"
         >
           <Icon name="image" className="h-4 w-4" />
-          {verPreview ? "Volver a editar" : "Ver como queda"}
+          {verPreview ? "Volver a editar" : "Ver cómo queda"}
         </button>
 
         {verPreview && <div className="lg:hidden">{vista}</div>}
@@ -94,7 +94,7 @@ export function PortfolioForm({
             currentUrl={initial.publicCover}
             onChange={setCover}
             label="Foto de portada"
-            hint="La franja de arriba de tu pagina. Se ve mejor una foto ancha del local."
+            hint="La franja de arriba de tu página. Se ve mejor una foto ancha del local."
           />
 
           {/* El fondo va justo despues de la portada porque "Mi portada" la
@@ -144,7 +144,7 @@ export function PortfolioForm({
             )}
           </fieldset>
 
-          <Field label="Titular" hint={"Si lo dejas vacio usamos " + businessName + "."}>
+          <Field label="Titular" hint={"Si lo dejas vacío usamos " + businessName + "."}>
             <input
               className="input"
               name="publicHeadline"
@@ -156,8 +156,8 @@ export function PortfolioForm({
           </Field>
 
           <Field
-            label="Presentacion"
-            hint="Dos o tres lineas contando quien eres y que haces. Es lo primero que lee el cliente."
+            label="Presentación"
+            hint="Dos o tres líneas contando quién eres y qué haces. Es lo primero que lee el cliente."
           >
             <textarea
               className="input min-h-[92px] resize-y"
@@ -166,14 +166,14 @@ export function PortfolioForm({
               value={about}
               onChange={(e) => setAbout(e.target.value)}
               placeholder={
-                "Ej: Llevamos 8 anos vendiendo " + itemPlural + " en el centro. Domicilios a toda la ciudad."
+                "Ej: Llevamos 8 años vendiendo " + itemPlural + " en el centro. Domicilios a toda la ciudad."
               }
             />
           </Field>
 
           <Field
             label="Nota del pedido"
-            hint="Sale junto al boton de pedir: horarios, domicilios, formas de pago."
+            hint="Sale junto al botón de pedir: horarios, domicilios, formas de pago."
           >
             <input
               className="input"
@@ -194,7 +194,7 @@ export function PortfolioForm({
                 onChange={(e) => setOpen(e.target.checked)}
                 className="h-4 w-4 rounded border-line bg-panel accent-brand-600"
               />
-              Mi pagina esta publicada
+              Mi página está publicada
             </label>
             <label className="flex items-center gap-2 text-sm text-body">
               <input
@@ -214,7 +214,7 @@ export function PortfolioForm({
 
         <SubmitButton className="btn-primary w-full sm:w-auto" pendingText="Guardando...">
           <Icon name="check" className="h-4 w-4" />
-          Guardar mi pagina
+          Guardar mi página
         </SubmitButton>
       </form>
 

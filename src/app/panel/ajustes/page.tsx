@@ -102,13 +102,13 @@ export default async function AjustesPage() {
             </div>
             <p className="mt-3 text-xs text-subtle">
               El cliente ve lo que marcaste para tu portafolio, con foto y precio, y arma su pedido.
-              Lo editas en <strong className="text-body">Mi portafolio</strong>, donde tambien esta
+              Lo editas en <strong className="text-body">Mi portafolio</strong>, donde también está
               tu codigo QR.
             </p>
           </Card>
         )}
 
-        <Card title="Seguridad" subtitle="Cambia tu contrasena">
+        <Card title="Seguridad" subtitle="Cambia tu contraseña">
           {isOwner ? <PasswordForm /> : <StaffPasswordForm />}
           <div className="mt-4 border-t border-line pt-4">
             <p className="mb-2 text-xs text-subtle">
@@ -118,7 +118,7 @@ export default async function AjustesPage() {
             <form action={logoutAction}>
               <SubmitButton className="btn-danger btn-sm" pendingText="Saliendo...">
                 <Icon name="logout" className="h-4 w-4" />
-                Cerrar sesion
+                Cerrar sesión
               </SubmitButton>
             </form>
           </div>

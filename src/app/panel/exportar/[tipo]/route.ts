@@ -27,7 +27,7 @@ export async function GET(
   { params }: { params: Promise<{ tipo: string }> }
 ) {
   const user = await getCurrentUser();
-  if (!user) return new Response("Necesitas iniciar sesion.", { status: 401 });
+  if (!user) return new Response("Necesitas iniciar sesión.", { status: 401 });
 
   const { tipo: rawTipo } = await params;
   if (!TIPOS.includes(rawTipo as Tipo)) {

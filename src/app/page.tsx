@@ -19,26 +19,26 @@ const FEATURES = [
   {
     icon: "receipt",
     title: "Comidas rapidas al mostrador",
-    text: "Registra la venta en dos toques desde el celular y lleva el total del dia sin cuadernos.",
+    text: "Registra la venta en dos toques desde el celular y lleva el total del día sin cuadernos.",
   },
   {
     icon: "shirt",
     title: "Tienda de ropa con inventario",
-    text: "Cada prenda con su foto, sus tallas y sus colores. La venta descuenta el stock sola, te avisa cuando una talla se esta acabando y publica tu catalogo en un enlace.",
+    text: "Cada prenda con su foto, sus tallas y sus colores. La venta descuenta el stock sola, te avisa cuando una talla se está acabando y publica tu catálogo en un enlace.",
   },
   {
     icon: "wallet",
     title: "Gastos y ganancia real",
-    text: "Anota lo que gastaste en el dia y la aplicacion te muestra cuanto te queda limpio.",
+    text: "Anota lo que gastaste en el día y la aplicación te muestra cuánto te queda limpio.",
   },
   {
     icon: "lock",
     title: "Cierre de caja",
-    text: "Cierra el dia con el total por efectivo, tarjeta y transferencia, y compara con la plata contada a mano.",
+    text: "Cierra el día con el total por efectivo, tarjeta y transferencia, y compara con la plata contada a mano.",
   },
   {
     icon: "tag",
-    title: "Tu propio catalogo",
+    title: "Tu propio catálogo",
     text: "Cada negocio agrega, edita y desactiva sus servicios o productos con su precio y duracion.",
   },
 ];

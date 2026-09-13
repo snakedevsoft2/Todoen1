@@ -20,7 +20,7 @@ export type AnchoTirilla = 58 | 80;
 export type Formato = "58" | "80" | "a4";
 
 export const FORMATOS: { value: Formato; label: string; hint: string }[] = [
-  { value: "58", label: "Tirilla 58 mm", hint: "La impresora termica pequena, la mas comun." },
+  { value: "58", label: "Tirilla 58 mm", hint: "La impresora térmica pequeña, la más común." },
   { value: "80", label: "Tirilla 80 mm", hint: "Termica ancha, la de los puntos de venta grandes." },
   { value: "a4", label: "Hoja carta / A4", hint: "La impresora normal de oficina." },
 ];

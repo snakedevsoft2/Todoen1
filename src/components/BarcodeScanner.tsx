@@ -10,17 +10,17 @@ const INTERVALO_MS = 140;
 const ANCHO_LECTURA = 720;
 
 /**
- * Pantalla de escaneo con la camara.
+ * Pantalla de escaneo con la cámara.
  *
- * Se abre encima de todo, lee, avisa con un pito y se cierra sola. Si la camara
+ * Se abre encima de todo, lee, avisa con un pito y se cierra sola. Si la cámara
  * no se puede usar (permiso negado, computador sin camara, navegador viejo)
- * deja escribir el codigo a mano, que es lo que hay que hacer igual cuando la
+ * deja escribir el código a mano, que es lo que hay que hacer igual cuando la
  * etiqueta esta rota.
  */
 export function BarcodeScanner({
   onDetect,
   onClose,
-  title = "Escanear codigo",
+  title = "Escanear código",
 }: {
   onDetect: (code: string) => void;
   onClose: () => void;
@@ -39,7 +39,7 @@ export function BarcodeScanner({
 
     async function arrancar() {
       if (!navigator.mediaDevices?.getUserMedia) {
-        setError("Este navegador no deja usar la camara. Escribe el codigo a mano.");
+        setError("Este navegador no deja usar la cámara. Escribe el código a mano.");
         return;
       }
 
@@ -53,10 +53,10 @@ export function BarcodeScanner({
         const nombre = e instanceof DOMException ? e.name : "";
         setError(
           nombre === "NotAllowedError"
-            ? "No diste permiso para la camara. Puedes escribir el codigo a mano."
+            ? "No diste permiso para la cámara. Puedes escribir el código a mano."
             : nombre === "NotFoundError"
-              ? "No encontramos camara en este dispositivo. Escribe el codigo a mano."
-              : "No pudimos abrir la camara. Escribe el codigo a mano."
+              ? "No encontramos cámara en este dispositivo. Escribe el código a mano."
+              : "No pudimos abrir la cámara. Escribe el código a mano."
         );
         return;
       }
@@ -81,7 +81,7 @@ export function BarcodeScanner({
       try {
         decoder = await createDecoder();
       } catch {
-        setError("No pudimos preparar el lector. Escribe el codigo a mano.");
+        setError("No pudimos preparar el lector. Escribe el código a mano.");
         return;
       }
 
@@ -161,7 +161,7 @@ export function BarcodeScanner({
 
           {!ready && !error && (
             <p className="absolute inset-0 flex items-center justify-center text-sm text-white/80">
-              Abriendo la camara...
+              Abriendo la cámara...
             </p>
           )}
         </div>
@@ -182,7 +182,7 @@ export function BarcodeScanner({
               className="input py-1.5 text-sm"
               value={manual}
               onChange={(e) => setManual(e.target.value)}
-              placeholder="O escribe el codigo"
+              placeholder="O escribe el código"
               inputMode="text"
               autoFocus={Boolean(error)}
             />

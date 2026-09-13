@@ -63,11 +63,11 @@ export default async function CuentaDetallePage({
       <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
         <div className="space-y-4">
           {isOpen && (
-            <Card title="Agregar del catalogo" subtitle="Un toque agrega una unidad">
+            <Card title="Agregar del catálogo" subtitle="Un toque agrega una unidad">
               {services.length === 0 ? (
                 <Empty
-                  title="Tu catalogo esta vacio"
-                  hint="Crea tus platos o productos en la seccion de productos y servicios."
+                  title="Tu catálogo está vacío"
+                  hint="Crea tus platos o productos en la sección de productos y servicios."
                 />
               ) : (
                 <div className="space-y-4">
@@ -128,7 +128,7 @@ export default async function CuentaDetallePage({
 
           <Card title="Detalle de la cuenta" subtitle={units + " items cargados"}>
             {order.items.length === 0 ? (
-              <Empty title="La cuenta esta vacia" hint="Agrega productos del catalogo para cobrarla." />
+              <Empty title="La cuenta está vacía" hint="Agrega productos del catálogo para cobrarla." />
             ) : (
               <ul className="divide-y divide-line">
                 {order.items.map((item) => (

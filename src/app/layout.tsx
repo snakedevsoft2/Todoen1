@@ -46,7 +46,7 @@ export const metadata: Metadata = {
   metadataBase: direccionPublica(),
   title: "Todoen1 - Ventas, inventario y caja",
   description:
-    "Aplicacion para barberias, restaurantes, comidas rapidas y tiendas de ropa: turnos, inventario, ventas del dia, gastos y cierre de caja.",
+    "Aplicación para barberías, restaurantes, comidas rápidas y tiendas de ropa: turnos, inventario, ventas del día, gastos y cierre de caja.",
 };
 
 export const viewport: Viewport = {

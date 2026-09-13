@@ -71,7 +71,7 @@ export function BookingForm({
       <div className="space-y-4">
         <Alert kind="ok">
           Tu turno quedo separado
-          {state.staffName ? " con " + state.staffName : ""}. Codigo {state.ref}. Te esperamos
+          {state.staffName ? " con " + state.staffName : ""}. Código {state.ref}. Te esperamos
           puntual.
         </Alert>
         {state.waLink && (
@@ -98,7 +98,7 @@ export function BookingForm({
   }
 
   if (disabled) {
-    return <Alert kind="info">{disabledReason ?? "No hay horarios disponibles este dia."}</Alert>;
+    return <Alert kind="info">{disabledReason ?? "No hay horarios disponibles este día."}</Alert>;
   }
 
   const isPast = (s: string) => Boolean(minTime) && s <= (minTime as string);
@@ -192,8 +192,8 @@ export function BookingForm({
         {free.length === 0 ? (
           <Alert kind="info">
             {staffId
-              ? "Ese barbero no tiene horas libres este dia. Prueba con otro barbero u otra fecha."
-              : "Ya no quedan horas libres este dia. Prueba con otra fecha."}
+              ? "Ese barbero no tiene horas libres este día. Prueba con otro barbero u otra fecha."
+              : "Ya no quedan horas libres este día. Prueba con otra fecha."}
           </Alert>
         ) : (
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
@@ -273,7 +273,7 @@ export function BookingForm({
         <Field label="Tu nombre">
           <input className="input" name="clientName" required placeholder="Nombre y apellido" />
         </Field>
-        <Field label="Tu telefono">
+        <Field label="Tu teléfono">
           <input
             className="input"
             name="clientPhone"

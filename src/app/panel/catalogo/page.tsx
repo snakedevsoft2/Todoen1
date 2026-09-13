@@ -97,7 +97,7 @@ export default async function CatalogoPage() {
         </Card>
 
         <Card
-          title="Catalogo"
+          title="Catálogo"
           subtitle={
             isClothing
               ? "Toca Tallas para cargar el inventario de cada prenda"
@@ -150,7 +150,7 @@ export default async function CatalogoPage() {
                                     <Badge tone="blue">Reservable</Badge>
                                   )}
                                   {isClothing && s.showcase && s.active && (
-                                    <Badge tone="blue">En catalogo</Badge>
+                                    <Badge tone="blue">En catálogo</Badge>
                                   )}
                                   {isClothing && s.trackStock && (
                                     <Badge tone={stock > 0 ? "green" : "red"}>
@@ -186,7 +186,7 @@ export default async function CatalogoPage() {
                                   confirm={
                                     "Borrar " +
                                     s.name +
-                                    " del catalogo" +
+                                    " del catálogo" +
                                     (stock > 0 ? ". Tiene " + stock + " prendas en stock." : "")
                                   }
                                 >

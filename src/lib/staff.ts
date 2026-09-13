@@ -18,7 +18,7 @@ export const STAFF_COLORS = [
 ];
 
 export const ROLE_LABEL: Record<string, string> = {
-  DUENO: "Dueno",
+  DUENO: "Dueño",
   BARBERO: "Barbero",
   VENDEDOR: "Vendedor",
 };

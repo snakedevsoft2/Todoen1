@@ -143,7 +143,7 @@ export default async function PortafolioPage({
         />
         <h1 className="mt-4 font-display text-2xl text-strong">{shop.businessName}</h1>
         <p className="mt-2 text-sm text-muted">
-          El portafolio no esta disponible por ahora. Escribenos directamente.
+          El portafolio no está disponible por ahora. Escríbenos directamente.
         </p>
         {shop.phone && (
           <p className="mt-2 text-sm font-semibold text-brand-600">{shop.phone}</p>
@@ -181,8 +181,8 @@ export default async function PortafolioPage({
         <div className="sticky top-0 z-40 border-b border-line bg-warn-soft px-4 py-2.5">
           <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-x-3 gap-y-1 text-xs text-warn">
             <Icon name="alert" className="h-4 w-4 shrink-0" />
-            <span className="font-bold">Asi se vera tu pagina.</span>
-            <span>Todavia no esta lanzada: solo tu la ves.</span>
+            <span className="font-bold">Así se verá tu página.</span>
+            <span>Todavía no está lanzada: solo tú la ves.</span>
             <Link href="/panel/portafolio" className="link ml-auto font-bold">
               Lanzarla
             </Link>
@@ -202,7 +202,11 @@ export default async function PortafolioPage({
         )}
 
         <div className="mx-auto w-full max-w-5xl px-4 py-7 text-center">
-          <div className={"mx-auto flex justify-center " + (franja ? "-mt-16 sm:-mt-20" : "")}>
+          {/* relative z-10: la franja de portada es "relative", y sin esto se
+              pinta ENCIMA del logo y le tapa la mitad de arriba. */}
+          <div
+            className={"relative z-10 mx-auto flex justify-center " + (franja ? "-mt-16 sm:-mt-20" : "")}
+          >
             <BrandMark
               name={shop.businessName}
               logo={logoUrl(shop.slug, shop.logo, shop.updatedAt)}
@@ -273,10 +277,10 @@ export default async function PortafolioPage({
       <main className="mx-auto w-full max-w-5xl px-4 py-8">
         {items.length === 0 ? (
           <div className="card text-center">
-            <p className="font-display text-base text-body">
-              Todavia no hay {noun.plural} publicados.
-            </p>
-            <p className="mt-1 text-xs text-subtle">Vuelve pronto o escribenos directamente.</p>
+            {/* Sin "publicados" pegado al sustantivo: con "prendas" o "cortes"
+                el genero no concuerda para todos los oficios. */}
+            <p className="font-display text-base text-body">Todavía no hay nada publicado aquí.</p>
+            <p className="mt-1 text-xs text-subtle">Vuelve pronto o escríbenos directamente.</p>
           </div>
         ) : (
           <PortfolioOrder

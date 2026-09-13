@@ -92,7 +92,7 @@ export function NewStaffForm({ businessType = "BARBERIA" }: { businessType?: str
         <Field label={"Nombre del " + noun.singular}>
           <input className="input" name="name" required placeholder="Ej: Andres Lopez" />
         </Field>
-        <Field label="Telefono (opcional)">
+        <Field label="Teléfono (opcional)">
           <input className="input" name="phone" inputMode="tel" placeholder="300 000 0000" />
         </Field>
       </div>
@@ -109,7 +109,7 @@ export function NewStaffForm({ businessType = "BARBERIA" }: { businessType?: str
       </Field>
 
       <Field
-        label="Comision (%)"
+        label="Comisión (%)"
         hint="Cuanto se lleva de lo que vende. Solo se usa para el reporte. Dejalo en 0 si no aplica."
       >
         <input
@@ -142,8 +142,8 @@ export function NewStaffForm({ businessType = "BARBERIA" }: { businessType?: str
         </label>
         <p className="mt-1 text-xs text-muted">
           {agenda
-            ? "Con esto el barbero entra con su correo y su contrasena, y ve la agenda y las ventas del negocio."
-            : "Con esto el empleado entra con su correo y su contrasena, y puede vender, ver el inventario y los reportes."}{" "}
+            ? "Con esto el barbero entra con su correo y su contraseña, y ve la agenda y las ventas del negocio."
+            : "Con esto el empleado entra con su correo y su contraseña, y puede vender, ver el inventario y los reportes."}{" "}
           No puede cambiar los ajustes ni el equipo.
         </p>
 
@@ -158,7 +158,7 @@ export function NewStaffForm({ businessType = "BARBERIA" }: { businessType?: str
                 autoComplete="off"
               />
             </Field>
-            <Field label="Contrasena" hint="Minimo 6 caracteres. Despues la puede cambiar.">
+            <Field label="Contraseña" hint="Mínimo 6 caracteres. Después la puede cambiar.">
               <input
                 className="input"
                 type="text"
@@ -201,8 +201,8 @@ function AccessForm({ staff }: { staff: StaffRow }) {
           />
         </Field>
         <Field
-          label={staff.hasPassword ? "Nueva contrasena" : "Contrasena"}
-          hint={staff.hasPassword ? "Dejala vacia si no la quieres cambiar." : "Minimo 6 caracteres."}
+          label={staff.hasPassword ? "Nueva contraseña" : "Contraseña"}
+          hint={staff.hasPassword ? "Déjala vacía si no la quieres cambiar." : "Mínimo 6 caracteres."}
         >
           <input
             className="input"
@@ -253,7 +253,7 @@ export function StaffCard({
             <p className="flex flex-wrap items-center gap-2 text-sm font-bold text-strong">
               {staff.name}
               {isOwner ? (
-                <Badge tone="blue">Dueno</Badge>
+                <Badge tone="blue">Dueño</Badge>
               ) : (
                 <Badge>{ROLE_LABEL[staff.role] ?? "Empleado"}</Badge>
               )}
@@ -279,7 +279,7 @@ export function StaffCard({
                 : staff.active
                   ? "Puede vender en la tienda"
                   : "Sin acceso a la tienda"}
-              {staff.commissionPct > 0 ? " - Comision " + staff.commissionPct + "%" : ""}
+              {staff.commissionPct > 0 ? " - Comisión " + staff.commissionPct + "%" : ""}
             </p>
           </div>
         </div>
@@ -373,7 +373,7 @@ export function StaffCard({
             <Field label="Nombre">
               <input className="input" name="name" defaultValue={staff.name} required />
             </Field>
-            <Field label="Telefono">
+            <Field label="Teléfono">
               <input className="input" name="phone" defaultValue={staff.phone ?? ""} inputMode="tel" />
             </Field>
           </div>
@@ -381,7 +381,7 @@ export function StaffCard({
             <ColorPicker name="color" defaultValue={staff.color} />
           </Field>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label={"Comision (%) en " + currency}>
+            <Field label={"Comisión (%) en " + currency}>
               <input
                 className="input w-28"
                 type="number"
@@ -431,7 +431,7 @@ export function StaffPasswordForm() {
       {state?.error && <Alert kind="error">{state.error}</Alert>}
       {state?.ok && <Alert kind="ok">{state.ok}</Alert>}
 
-      <Field label="Contrasena actual">
+      <Field label="Contraseña actual">
         <input
           className="input"
           type="password"
@@ -440,7 +440,7 @@ export function StaffPasswordForm() {
           autoComplete="current-password"
         />
       </Field>
-      <Field label="Nueva contrasena" hint="Minimo 6 caracteres.">
+      <Field label="Nueva contraseña" hint="Mínimo 6 caracteres.">
         <input
           className="input"
           type="password"

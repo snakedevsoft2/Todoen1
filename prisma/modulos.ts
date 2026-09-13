@@ -64,7 +64,7 @@ export const MODULOS: ModuloDef[] = [
   {
     key: "resumen",
     href: "/panel",
-    label: "Resumen del dia",
+    label: "Resumen del día",
     icon: "home",
     group: "FIJO",
     fixed: true,
@@ -72,7 +72,7 @@ export const MODULOS: ModuloDef[] = [
     shortDescription:
       "Lo primero que ves al entrar: cuanto llevas vendido hoy, cuanto gastaste y que te falta por hacer.",
     longDescription:
-      "Es la pantalla de arranque. Te dice como va el dia sin que tengas que buscar nada: la plata que entro, la que salio, lo que queda pendiente y los avisos que necesitan tu atencion. No se puede esconder porque es a donde siempre se vuelve.",
+      "Es la pantalla de arranque. Te dice cómo va el día sin que tengas que buscar nada: la plata que entró, la que salió, lo que queda pendiente y los avisos que necesitan tu atención. No se puede esconder porque es a donde siempre se vuelve.",
   },
   {
     key: "ajustes",
@@ -263,7 +263,7 @@ export const MODULOS: ModuloDef[] = [
   {
     key: "guia",
     href: "/panel/guia",
-    label: "Guia",
+    label: "Guía",
     icon: "book",
     group: "CRECIMIENTO",
     sortOrder: 120,
@@ -352,7 +352,7 @@ export const MODULOS: ModuloDef[] = [
   {
     key: "espacio",
     href: "/panel/espacio",
-    label: "Armar mi menu",
+    label: "Armar mi menú",
     icon: "sliders",
     group: "CONFIGURACION",
     fixed: true,
@@ -533,7 +533,7 @@ export const PRESETS: Record<Tipo, Record<string, Preset>> = {
     avisos: { ejemplo: "Don Juan, hoy le toca la cuota de $30.000." },
     inventario: { on: false, ejemplo: "Solo si tambien fias mercancia." },
     proveedores: {
-      label: "Quien me presta",
+      label: "Quién me presta",
       ejemplo: "El socio o el inversionista que te pone la plata, y a que interes te la pone.",
     },
     // Encendido: un negocio de cobranza casi siempre tiene mas de un cobrador

@@ -67,7 +67,7 @@ export default async function CuentasPage() {
 
         <Card title="En curso" subtitle="Toca una cuenta para cargarle productos y cobrarla">
           {openOrders.length === 0 ? (
-            <Empty title="No hay cuentas abiertas" hint="Abre la primera cuenta del dia arriba." />
+            <Empty title="No hay cuentas abiertas" hint="Abre la primera cuenta del día arriba." />
           ) : (
             <ul className="grid gap-3 sm:grid-cols-2">
               {openOrders.map((o) => {
@@ -98,7 +98,7 @@ export default async function CuentasPage() {
                           <SubmitButton
                             className="btn-ghost btn-sm"
                             pendingText="..."
-                            confirm="Borrar esta cuenta vacia"
+                            confirm="Borrar esta cuenta vacía"
                           >
                             Borrar
                           </SubmitButton>
@@ -125,7 +125,7 @@ export default async function CuentasPage() {
 
         <Card title="Cuentas cerradas hoy">
           {closedToday.length === 0 ? (
-            <Empty title="Todavia no has cerrado cuentas hoy" />
+            <Empty title="Todavía no has cerrado cuentas hoy" />
           ) : (
             <div className="table-wrap">
               <table className="tbl">

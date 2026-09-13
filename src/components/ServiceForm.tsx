@@ -100,7 +100,7 @@ export function ServiceForm({
           />
         </Field>
 
-        <Field label="Categoria">
+        <Field label="Categoría">
           <input
             className="input"
             name="category"
@@ -140,7 +140,7 @@ export function ServiceForm({
         )}
 
         {clothing && suppliers.length > 0 && (
-          <Field label="A quien se la compras" hint="Se usa en el reporte de proveedores.">
+          <Field label="A quién se la compras" hint="Se usa en el reporte de proveedores.">
             <select className="input" name="supplierId" defaultValue={service?.supplierId ?? ""}>
               <option value="">Sin proveedor</option>
               {suppliers.map((s) => (

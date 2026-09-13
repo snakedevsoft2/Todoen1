@@ -82,7 +82,7 @@ export function StockMoveForm({
       const encontrada = variants.find((v) => v.sku && v.sku.toUpperCase() === code);
       if (!encontrada) {
         setScanAviso(
-          "Ninguna talla tiene el codigo " + code + ". Ponselo desde Productos, en la talla."
+          "Ninguna talla tiene el código " + code + ". Ponselo desde Productos, en la talla."
         );
         return;
       }
@@ -201,7 +201,7 @@ export function StockMoveForm({
             />
           </Field>
         ) : (
-          <Field label="Dia del movimiento">
+          <Field label="Día del movimiento">
             <input className="input" type="date" name="day" defaultValue={today} />
           </Field>
         )}
@@ -209,11 +209,11 @@ export function StockMoveForm({
 
       {type === "ENTRADA" && (
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Dia del movimiento">
+          <Field label="Día del movimiento">
             <input className="input" type="date" name="day" defaultValue={today} />
           </Field>
           {suppliers.length > 0 && (
-            <Field label="A quien le compraste" hint="Alimenta el reporte de proveedores.">
+            <Field label="A quién le compraste" hint="Alimenta el reporte de proveedores.">
               <select className="input" name="supplierId" defaultValue="">
                 <option value="">Sin proveedor</option>
                 {suppliers.map((s) => (

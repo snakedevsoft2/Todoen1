@@ -45,7 +45,7 @@ export function NewSaleForm({
   itemLabel,
   team = [],
   defaultStaffId,
-  staffLabel = "Quien atendio",
+  staffLabel = "Quién atendió",
 }: {
   services: ServiceRow[];
   currency: string;
@@ -360,10 +360,10 @@ export function NewSaleForm({
         )}
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Dia de la venta">
+          <Field label="Día de la venta">
             <input className="input" type="date" name="day" defaultValue={today} />
           </Field>
-          <Field label="Metodo de pago">
+          <Field label="Método de pago">
             <select className="input" name="paymentMethod" defaultValue="EFECTIVO">
               <option value="EFECTIVO">Efectivo</option>
               <option value="TARJETA">Tarjeta</option>

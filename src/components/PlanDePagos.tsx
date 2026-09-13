@@ -65,7 +65,7 @@ export function PlanDePagos({
         >
           <p className="text-[11px] uppercase tracking-wide text-subtle">Atraso</p>
           <p className={"text-lg font-bold " + (est.atraso > 0 ? "text-bad" : "text-good")}>
-            {est.atraso > 0 ? money(est.atraso, currency) : "Al dia"}
+            {est.atraso > 0 ? money(est.atraso, currency) : "Al día"}
           </p>
           {est.atraso > 0 && (
             <p className="text-xs text-bad">
@@ -181,8 +181,8 @@ export function FichaFiador({
       <dl className="mt-3 grid grid-cols-2 gap-3">
         <Dato label="Nombre" valor={nombre} />
         <Dato label="Cedula" valor={cedula ?? "-"} />
-        <Dato label="Telefono" valor={telefono ?? "-"} />
-        <Dato label="Direccion" valor={direccion ?? "-"} />
+        <Dato label="Teléfono" valor={telefono ?? "-"} />
+        <Dato label="Dirección" valor={direccion ?? "-"} />
       </dl>
     </section>
   );

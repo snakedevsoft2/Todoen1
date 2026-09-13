@@ -55,7 +55,7 @@ export default async function PersonalizarPage() {
           <p className="mb-3 text-sm text-muted">
             {isBarber
               ? "Recibe un mensaje cada vez que un cliente separe un turno."
-              : "Configura el numero de tu negocio para recibir avisos."}
+              : "Configura el número de tu negocio para recibir avisos."}
           </p>
 
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)]">
@@ -72,7 +72,7 @@ export default async function PersonalizarPage() {
             </Card>
 
             <Card
-              title="Ultimos avisos"
+              title="Últimos avisos"
               action={
                 <Link href="/panel/avisos" className="btn-ghost btn-sm">
                   Ver todos

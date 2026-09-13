@@ -55,10 +55,10 @@ export default async function CajaPage({
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Ventas del dia" value={money(summary.totalSales, user.currency)} tone="brand" />
-        <Stat label="Gastos del dia" value={money(summary.totalExpenses, user.currency)} tone="bad" />
+        <Stat label="Ventas del día" value={money(summary.totalSales, user.currency)} tone="brand" />
+        <Stat label="Gastos del día" value={money(summary.totalExpenses, user.currency)} tone="bad" />
         <Stat
-          label="Neto del dia"
+          label="Neto del día"
           value={money(summary.netTotal, user.currency)}
           tone={summary.netTotal >= 0 ? "good" : "bad"}
         />
@@ -78,7 +78,7 @@ export default async function CajaPage({
           subtitle={
             closure
               ? "Puedes actualizarlo o reabrirlo si te falto algo"
-              : "Cuenta el efectivo y guarda el resultado del dia"
+              : "Cuenta el efectivo y guarda el resultado del día"
           }
         >
           {closure && (
@@ -122,7 +122,7 @@ export default async function CajaPage({
                 <SubmitButton
                   className="btn-ghost btn-sm w-full"
                   pendingText="..."
-                  confirm="Reabrir la caja de este dia"
+                  confirm="Reabrir la caja de este día"
                 >
                   Reabrir la caja
                 </SubmitButton>
@@ -147,10 +147,10 @@ export default async function CajaPage({
           )}
         </Card>
 
-        <Card title="Cierres anteriores" subtitle="Los ultimos 14 dias cerrados">
+        <Card title="Cierres anteriores" subtitle="Los últimos 14 días cerrados">
           {history.length === 0 ? (
             <Empty
-              title="Todavia no has cerrado ningun dia"
+              title="Todavía no has cerrado ningún día"
               hint="Cierra la caja al final de la jornada para tener el historial."
             />
           ) : (
@@ -158,7 +158,7 @@ export default async function CajaPage({
               <table className="tbl">
                 <thead>
                   <tr>
-                    <th>Dia</th>
+                    <th>Día</th>
                     <th className="text-right">Ventas</th>
                     <th className="text-right">Gastos</th>
                     <th className="text-right">Neto</th>

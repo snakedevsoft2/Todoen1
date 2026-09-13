@@ -71,7 +71,7 @@ export async function askAi(
       if (response.status === 429) {
         return {
           ok: false,
-          error: "Se acabaron las consultas gratuitas por hoy. Intenta mas tarde.",
+          error: "Se acabaron las consultas gratuitas por hoy. Intenta más tarde.",
         };
       }
       if (response.status === 400 || response.status === 403) {

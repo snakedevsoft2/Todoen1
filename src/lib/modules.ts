@@ -162,7 +162,7 @@ export function menuDe(modulos: Modulo[]): NavItem[] {
 export type PresetKey = "esencial" | "fabrica" | "todo";
 
 export const PRESETS: { key: PresetKey; label: string; hint: string }[] = [
-  { key: "esencial", label: "Lo esencial", hint: "Tu oficio y la plata del dia" },
+  { key: "esencial", label: "Lo esencial", hint: "Tu oficio y la plata del día" },
   { key: "fabrica", label: "Recomendado", hint: "Lo que traia al empezar" },
   { key: "todo", label: "Todo", hint: "Todos los apartados que tienes" },
 ];

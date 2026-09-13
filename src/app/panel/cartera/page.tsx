@@ -144,8 +144,8 @@ export default async function CarteraPage({
         title={esCartera ? "Cuentas por cobrar" : "Cartera"}
         subtitle={
           esCartera
-            ? "A quien le toca pagar hoy, quien se atraso y cuanto tienes en la calle"
-            : "Quien te debe, cuanto y desde cuando"
+            ? "A quién le toca pagar hoy, quién se atrasó y cuánto tienes en la calle"
+            : "Quién te debe, cuánto y desde cuándo"
         }
       />
 

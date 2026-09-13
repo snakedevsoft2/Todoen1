@@ -33,7 +33,7 @@ export default async function SoportePage() {
     <>
       <PageHeader
         title="Soporte tecnico"
-        subtitle="Te respondemos por WhatsApp, en el mismo dia"
+        subtitle="Te respondemos por WhatsApp, en el mismo día"
       />
 
       <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
@@ -125,7 +125,7 @@ export default async function SoportePage() {
           {/* Tres capas, de la mas guiada a la mas suelta: el asistente arma el
               menu, el instructivo explica pantalla por pantalla, y la guia
               responde una duda suelta cuando ya se esta trabajando. */}
-          <Card title="Volver a armar tu menu" subtitle="El asistente de bienvenida">
+          <Card title="Volver a armar tu menú" subtitle="El asistente de bienvenida">
             <p className="mb-3 text-sm text-body">
               Si te sobran o te faltan apartados, el asistente te vuelve a preguntar que necesitas
               y te deja el menu como lo quieras. No borra nada de lo que ya tienes cargado.

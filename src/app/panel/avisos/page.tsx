@@ -39,8 +39,8 @@ export default async function AvisosPage() {
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat
-          label="Numero configurado"
-          value={user.whatsappNumber ? prettyPhone(user.whatsappNumber) : "Sin numero"}
+          label="Número configurado"
+          value={user.whatsappNumber ? prettyPhone(user.whatsappNumber) : "Sin número"}
           tone={user.whatsappNumber ? "brand" : "amber"}
         />
         <Stat label="Enviados" value={String(enviados)} tone="good" />
@@ -69,8 +69,8 @@ export default async function AvisosPage() {
         >
           {avisos.length === 0 ? (
             <Empty
-              title="Todavia no hay avisos"
-              hint="Cuando un cliente separe un turno, el aviso aparece aqui."
+              title="Todavía no hay avisos"
+              hint="Cuando un cliente separe un turno, el aviso aparece aquí."
             />
           ) : (
             <ul className="space-y-3">

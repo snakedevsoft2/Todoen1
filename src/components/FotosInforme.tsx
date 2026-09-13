@@ -47,7 +47,7 @@ export function FotosInforme({
         if (r?.error) {
           setError(r.error);
           fallidas += 1;
-          if (/maximo/.test(r.error)) break;
+          if (/m[aá]ximo/.test(r.error)) break;
         }
       } catch (e) {
         fallidas += 1;
@@ -96,7 +96,7 @@ export function FotosInforme({
         }
       >
         <Icon name="image" className="h-5 w-5 text-muted" />
-        {progreso ?? (fotos.length === 0 ? "Agregar fotos" : "Agregar mas fotos")}
+        {progreso ?? (fotos.length === 0 ? "Agregar fotos" : "Agregar más fotos")}
         <input
           ref={entrada}
           id="fotos-informe"

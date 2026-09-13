@@ -52,7 +52,7 @@ export function SupplierForm({
       </Field>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Con quien hablas (opcional)">
+        <Field label="Con quién hablas (opcional)">
           <input
             className="input"
             name="contact"
@@ -60,7 +60,7 @@ export function SupplierForm({
             placeholder="Ej: Marcela"
           />
         </Field>
-        <Field label="Telefono (opcional)">
+        <Field label="Teléfono (opcional)">
           <input
             className="input"
             name="phone"
@@ -71,7 +71,7 @@ export function SupplierForm({
         </Field>
       </div>
 
-      <Field label="Nota (opcional)" hint="Ej: entrega los martes, pago a 30 dias.">
+      <Field label="Nota (opcional)" hint="Ej: entrega los martes, pago a 30 días.">
         <input
           className="input"
           name="notes"
@@ -123,7 +123,7 @@ export function SupplierCard({
           <p className="font-display text-lg leading-none text-strong num">{stats.comprado}</p>
           <p className="mt-1 text-[11px] text-subtle">
             {stats.unidades} prendas
-            {stats.ultima ? " - ultima " + stats.ultima : ""}
+            {stats.ultima ? " - última " + stats.ultima : ""}
           </p>
         </div>
       </div>

@@ -91,11 +91,11 @@ export default async function ReservarPage({
   const quickDays = [0, 1, 2, 3, 4, 5, 6].map((offset) => addDays(today, offset));
 
   let disabledReason: string | undefined;
-  if (!shop.bookingOpen) disabledReason = "Las reservas estan cerradas por ahora. Escribenos directamente.";
-  else if (services.length === 0) disabledReason = "El negocio todavia no publico sus servicios.";
-  else if (!dayOpen) disabledReason = "Este dia no atendemos. Elige otro dia del horario.";
+  if (!shop.bookingOpen) disabledReason = "Las reservas están cerradas por ahora. Escríbenos directamente.";
+  else if (services.length === 0) disabledReason = "El negocio todavía no publicó sus servicios.";
+  else if (!dayOpen) disabledReason = "Este día no atendemos. Elige otro día del horario.";
   else if (appointments.length >= cuposDelDia) {
-    disabledReason = "Este dia ya se lleno. Elige otro dia.";
+    disabledReason = "Este día ya se llenó. Elige otro día.";
   }
 
   return (
@@ -125,7 +125,7 @@ export default async function ReservarPage({
       </header>
 
       <div className="card mt-6">
-        <h2 className="text-base font-semibold text-strong">1. Elige el dia</h2>
+        <h2 className="text-base font-semibold text-strong">1. Elige el día</h2>
         <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
           {quickDays.map((d) => {
             const [, m, dd] = d.split("-");
@@ -165,7 +165,7 @@ export default async function ReservarPage({
         <h2 className="text-base font-semibold text-strong">2. Separa tu cupo</h2>
         <p className="mb-4 mt-1 text-sm text-muted">
           {team.length > 1
-            ? "Elige con quien te quieres atender, la hora libre y el servicio. El cupo queda guardado a tu nombre."
+            ? "Elige con quién te quieres atender, la hora libre y el servicio. El cupo queda guardado a tu nombre."
             : "Elige la hora libre y el servicio. El cupo queda guardado a tu nombre."}
         </p>
 

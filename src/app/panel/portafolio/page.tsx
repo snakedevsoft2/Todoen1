@@ -41,7 +41,7 @@ export default async function PortafolioPage() {
     <>
       <PageHeader
         title="Mi portafolio"
-        subtitle="La pagina que compartes con tus clientes por enlace o por QR"
+        subtitle="La página que compartes con tus clientes por enlace o por QR"
       >
         {/* Sin lanzar, la pagina completa la ve solo el dueno: sirve de
             ensayo antes de compartir el enlace. */}
@@ -92,7 +92,7 @@ export default async function PortafolioPage() {
 
       <div className="mt-5">
         <Card
-          title="Arma tu pagina"
+          title="Arma tu página"
           subtitle="Lo que escribas se ve al instante en el celular de al lado"
         >
           <PortfolioForm
@@ -129,7 +129,7 @@ export default async function PortafolioPage() {
       <div className="mt-5">
         <Card
           title="Promociones al por mayor"
-          subtitle="El apartado del catalogo para quien te compra en cantidad"
+          subtitle="El apartado del catálogo para quien te compra en cantidad"
         >
           <WholesaleForm
             initial={{
@@ -163,14 +163,14 @@ export default async function PortafolioPage() {
             </p>
         </Card>
 
-        <Card title="Tu codigo QR" subtitle="Para la vitrina, el mostrador o una tarjeta">
+        <Card title="Tu código QR" subtitle="Para la vitrina, el mostrador o una tarjeta">
             <div className="flex justify-center rounded-xl border border-line bg-white p-4">
               {/* El QR se arma en el servidor y sale como vector: se puede
                   imprimir del tamano que sea sin que se pixele. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={"/qr/" + user.slug}
-                alt={"Codigo QR de " + user.businessName}
+                alt={"Código QR de " + user.businessName}
                 className="h-44 w-44"
               />
             </div>

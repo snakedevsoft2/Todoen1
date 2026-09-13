@@ -49,7 +49,7 @@ export function VariantsPanel({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-muted">
           {variants.length === 0
-            ? "Esta prenda todavia no tiene tallas."
+            ? "Esta prenda todavía no tiene tallas."
             : variants.length + (variants.length === 1 ? " talla - " : " tallas - ") + total + " en stock"}
         </p>
         <div className="flex gap-1.5">
@@ -199,7 +199,7 @@ function BulkForm({ serviceId, currency }: { serviceId: string; currency: string
         </button>
       </div>
 
-      <Field label="Colores (opcional)" hint="Dejalo vacio si la prenda viene en un solo color.">
+      <Field label="Colores (opcional)" hint="Déjalo vacío si la prenda viene en un solo color.">
         <input className="input" name="colors" placeholder="Negro, Blanco" list="colores-sugeridos" />
         <datalist id="colores-sugeridos">
           {COLOR_PRESETS.map((c) => (
@@ -222,7 +222,7 @@ function BulkForm({ serviceId, currency }: { serviceId: string; currency: string
             placeholder="0"
           />
         </Field>
-        <Field label="Minimo" hint="Avisa cuando baje de aqui.">
+        <Field label="Mínimo" hint="Avisa cuando baje de aquí.">
           <input className="input" type="number" name="minStock" min={0} step={1} defaultValue={1} />
         </Field>
       </div>
@@ -294,7 +294,7 @@ function SingleForm({
 
       <div className="grid gap-3 sm:grid-cols-2">
         <Field
-          label="Codigo de barras (opcional)"
+          label="Código de barras (opcional)"
           hint="Escanea la etiqueta y despues la encuentras con el lector."
         >
           <div className="flex gap-2">
@@ -308,12 +308,12 @@ function SingleForm({
             <ScanButton
               onScan={setSku}
               label=""
-              title="Escanear el codigo de la etiqueta"
+              title="Escanear el código de la etiqueta"
               className="btn-ghost shrink-0 px-3"
             />
           </div>
         </Field>
-        <Field label="Minimo" hint="Avisa cuando baje de aqui.">
+        <Field label="Mínimo" hint="Avisa cuando baje de aquí.">
           <input
             className="input"
             type="number"

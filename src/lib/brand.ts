@@ -58,7 +58,7 @@ export const NEGOCIOS: NegocioDemo[] = [
     titular: "Una cuenta por cada mesa",
     stat: "6 mesas abiertas",
     detalle: "Sin cobrar $ 285.000",
-    puntos: ["Cuentas por mesa", "Se cierra y se vuelve venta", "Cierre de caja del dia"],
+    puntos: ["Cuentas por mesa", "Se cierra y se vuelve venta", "Cierre de caja del día"],
   },
   {
     key: "COMIDAS_RAPIDAS",
@@ -68,7 +68,7 @@ export const NEGOCIOS: NegocioDemo[] = [
     titular: "Cobra en dos toques",
     stat: "$ 780.000 hoy",
     detalle: "38 ventas - ticket $ 20.500",
-    puntos: ["Venta al mostrador", "Gastos del dia", "Cuanto te queda limpio"],
+    puntos: ["Venta al mostrador", "Gastos del día", "Cuánto te queda limpio"],
   },
   {
     key: "ROPA",
@@ -78,6 +78,6 @@ export const NEGOCIOS: NegocioDemo[] = [
     titular: "Tu ropa contada por talla",
     stat: "146 prendas",
     detalle: "3 tallas por acabarse",
-    puntos: ["Inventario por talla y color", "Escanea el codigo de barras", "Catalogo con fotos"],
+    puntos: ["Inventario por talla y color", "Escanea el código de barras", "Catálogo con fotos"],
   },
 ];

@@ -31,7 +31,7 @@ export function WhatsappForm({
         {state?.ok && <Alert kind="ok">{state.ok}</Alert>}
 
         <Field
-          label="Numero que recibe los avisos"
+          label="Número que recibe los avisos"
           hint="Con indicativo del pais. Ejemplo: +57 317 448 5643"
         >
           <input
@@ -132,7 +132,7 @@ export function WhatsappForm({
                 placeholder="EAAG..."
               />
             </Field>
-            <Field label="Identificador del numero">
+            <Field label="Identificador del número">
               <input
                 className="input font-mono text-sm"
                 name="whatsappPhoneId"

@@ -34,10 +34,10 @@ export function NewAppointmentForm({
         <Field label="Cliente">
           <input className="input" name="clientName" required placeholder="Nombre del cliente" />
         </Field>
-        <Field label="Telefono">
+        <Field label="Teléfono">
           <input className="input" name="clientPhone" inputMode="tel" placeholder="300 000 0000" />
         </Field>
-        <Field label="Dia">
+        <Field label="Día">
           <input className="input" type="date" name="day" defaultValue={day} required />
         </Field>
         <Field label="Hora">

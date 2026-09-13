@@ -48,7 +48,7 @@ export function CashCloseForm({
             onChange={(e) => setOpening(e.target.value)}
           />
         </Field>
-        <Field label="Efectivo contado a mano" hint="Cuenta la plata fisica y escribela aqui.">
+        <Field label="Efectivo contado a mano" hint="Cuenta la plata física y escríbela aquí.">
           <input
             className="input"
             name="countedCash"
@@ -70,7 +70,7 @@ export function CashCloseForm({
           <span className="text-good">+{money(cashSales, currency)}</span>
         </div>
         <div className="flex justify-between py-1">
-          <span className="text-muted">Gastos del dia</span>
+          <span className="text-muted">Gastos del día</span>
           <span className="text-bad">-{money(expenses, currency)}</span>
         </div>
         <div className="mt-1 flex justify-between border-t border-line pt-2 font-semibold">
@@ -93,7 +93,7 @@ export function CashCloseForm({
       </Field>
 
       <SubmitButton className="btn-success w-full" pendingText="Cerrando caja...">
-        {alreadyClosed ? "Actualizar el cierre" : "Cerrar la caja del dia"}
+        {alreadyClosed ? "Actualizar el cierre" : "Cerrar la caja del día"}
       </SubmitButton>
     </form>
   );

@@ -100,7 +100,7 @@ export async function POST(request: Request) {
       continue;
     }
     if (markedAt.getTime() > techo) {
-      rechazar("El reloj del telefono esta adelantado.");
+      rechazar("El reloj del teléfono está adelantado.");
       continue;
     }
     if (markedAt.getTime() < piso) {

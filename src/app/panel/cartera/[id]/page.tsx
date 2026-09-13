@@ -132,7 +132,7 @@ export default async function DeudaPage({ params }: { params: Promise<{ id: stri
           <Card title="Historial de pagos" subtitle="Cada abono con su comprobante">
             {deuda.payments.length === 0 ? (
               <Empty
-                title="Todavia no ha abonado nada"
+                title="Todavía no ha abonado nada"
                 hint="Cuando te pague, registralo a la derecha."
               />
             ) : (
@@ -198,7 +198,7 @@ export default async function DeudaPage({ params }: { params: Promise<{ id: stri
                             confirm={
                               "Borrar este abono de " +
                               money(pago.amount, user.currency) +
-                              (pago.saleId ? ". Tambien se borra de las ventas del dia." : "")
+                              (pago.saleId ? ". También se borra de las ventas del día." : "")
                             }
                           >
                             <Icon name="trash" className="h-4 w-4" />
@@ -319,7 +319,7 @@ export default async function DeudaPage({ params }: { params: Promise<{ id: stri
                   pendingText="..."
                   confirm={
                     deuda.payments.length > 0
-                      ? "Esta deuda tiene abonos, asi que se anula en vez de borrarse."
+                      ? "Esta deuda tiene abonos, así que se anula en vez de borrarse."
                       : "Borrar la deuda de " + deuda.clientName + "."
                   }
                 >

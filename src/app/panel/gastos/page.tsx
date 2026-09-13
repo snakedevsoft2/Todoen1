@@ -61,8 +61,8 @@ export default async function GastosPage({
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Gasto del dia" value={money(summary.totalExpenses, user.currency)} tone="bad" />
-        <Stat label="Ventas del dia" value={money(summary.totalSales, user.currency)} tone="brand" />
+        <Stat label="Gasto del día" value={money(summary.totalExpenses, user.currency)} tone="bad" />
+        <Stat label="Ventas del día" value={money(summary.totalSales, user.currency)} tone="brand" />
         <Stat
           label="Te queda limpio"
           value={money(summary.netTotal, user.currency)}
@@ -81,9 +81,9 @@ export default async function GastosPage({
         </Card>
 
         <div className="space-y-4">
-          <Card title="Gastos del dia">
+          <Card title="Gastos del día">
             {expenses.length === 0 ? (
-              <Empty title="No hay gastos en este dia" hint="Anota insumos, compras o pagos." />
+              <Empty title="No hay gastos en este día" hint="Anota insumos, compras o pagos." />
             ) : (
               <ul className="divide-y divide-line">
                 {expenses.map((e) => (
@@ -114,7 +114,7 @@ export default async function GastosPage({
           </Card>
 
           {Object.keys(byCategory).length > 0 && (
-            <Card title="Por categoria" subtitle="Como se reparte el gasto del dia">
+            <Card title="Por categoría" subtitle="Cómo se reparte el gasto del día">
               <ul className="space-y-2">
                 {Object.entries(byCategory)
                   .sort((a, b) => b[1] - a[1])

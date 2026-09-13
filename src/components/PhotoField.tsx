@@ -14,7 +14,7 @@ export function PhotoField({
   name = "image",
   currentUrl,
   label = "Foto de la prenda",
-  hint = "Se ve en el catalogo, en el inventario y al vender.",
+  hint = "Se ve en el catálogo, en el inventario y al vender.",
   onChange,
 }: {
   name?: string;

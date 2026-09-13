@@ -57,8 +57,8 @@ export default async function EquipoPage() {
         title={noun.title}
         subtitle={
           agenda
-            ? "Quien atiende en la barberia y quien puede entrar a la aplicacion"
-            : "Quien vende en la tienda y quien puede entrar a la aplicacion"
+            ? "Quién atiende en la barbería y quién puede entrar a la aplicación"
+            : "Quién vende en la tienda y quién puede entrar a la aplicación"
         }
       >
         <Link href="/panel/reportes" className="btn-ghost btn-sm">
@@ -100,7 +100,7 @@ export default async function EquipoPage() {
         <Card title="Tu equipo" subtitle="Toca Editar para cambiar sus datos o darle acceso">
           {rows.length === 0 ? (
             <Empty
-              title={"Todavia no tienes " + noun.plural}
+              title={"Todavía no tienes " + noun.plural}
               hint="Agrega el primero a la derecha."
             />
           ) : (

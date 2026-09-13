@@ -94,7 +94,7 @@ function piePaginas(doc: any, ancho: number, alto: number) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(140);
-    doc.text("Pagina " + i + " de " + total, ancho / 2, alto - 8, { align: "center" });
+    doc.text("Página " + i + " de " + total, ancho / 2, alto - 8, { align: "center" });
   }
   doc.setTextColor(0);
 }
@@ -402,7 +402,7 @@ export async function construirPlanillaPdf(d: PlanillaDatos): Promise<File> {
     tabla(
       [
         { titulo: "Persona", w: 58 },
-        { titulo: "Dia", w: 36 },
+        { titulo: "Día", w: 36 },
         { titulo: "Entradas", w: 42 },
         { titulo: "Salidas", w: 42 },
         { titulo: "Horas", w: 30 },
@@ -460,7 +460,7 @@ export async function construirPlanillaPdf(d: PlanillaDatos): Promise<File> {
     tabla(
       [
         { titulo: "Persona", w: 58 },
-        { titulo: "Dia", w: 36 },
+        { titulo: "Día", w: 36 },
         { titulo: "Hora", w: 26 },
         { titulo: "Tipo", w: 26 },
         { titulo: "Motivo", w: ANCHO - M * 2 - 146 },

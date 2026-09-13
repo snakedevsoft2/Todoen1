@@ -80,7 +80,7 @@ try {
   ok((await page.locator('[data-fondo="oscuro"]').count()) > 0, "la vista previa cambia al instante, sin guardar");
   if (DIR) await page.screenshot({ path: DIR + "/fondos-editor.png" });
 
-  await page.getByRole("button", { name: /Guardar mi pagina/i }).click();
+  await page.getByRole("button", { name: /Guardar mi p[aá]gina/i }).click();
   await page.waitForTimeout(2000);
   const guardado = await db.user.findUnique({ where: { id: cuenta.id }, select: { publicBackground: true } });
   ok(guardado.publicBackground === "oscuro", "se guarda", guardado.publicBackground);

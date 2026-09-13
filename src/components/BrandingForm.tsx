@@ -136,7 +136,7 @@ export function BrandingForm({
               value={color}
               onChange={(e) => setColor(e.target.value)}
               onBlur={(e) => setColor(normalizeHex(e.target.value))}
-              aria-label="Codigo del color"
+              aria-label="Código del color"
             />
           </div>
         </section>
@@ -243,7 +243,7 @@ export function BrandingForm({
         </section>
 
         <section className="divider pt-5">
-          <Field label="Frase de tu pagina publica" hint="Opcional. Sale debajo del nombre del negocio.">
+          <Field label="Frase de tu página pública" hint="Opcional. Sale debajo del nombre del negocio.">
             <input
               className="input"
               name="tagline"

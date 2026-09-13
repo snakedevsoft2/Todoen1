@@ -14,7 +14,7 @@ import { Icon } from "./Icon";
 export function ScanButton({
   onScan,
   label = "Escanear",
-  title = "Escanear codigo",
+  title = "Escanear código",
   className = "btn-ghost btn-sm",
 }: {
   onScan: (code: string) => void;

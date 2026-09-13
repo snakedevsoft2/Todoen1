@@ -35,7 +35,7 @@ export function NewDebtForm({
       {state?.ok && <Alert kind="ok">{state.ok}</Alert>}
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Quien debe">
+        <Field label="Quién debe">
           <input className="input" name="clientName" required placeholder="Ej: Ana Torres" />
         </Field>
         <Field label="WhatsApp (opcional)" hint="Sin el no se le puede cobrar por chat.">
@@ -149,7 +149,7 @@ export function PaymentForm({
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Dia del abono">
+        <Field label="Día del abono">
           <input className="input" type="date" name="day" defaultValue={today} />
         </Field>
         <Field label="Nota (opcional)">
@@ -159,7 +159,7 @@ export function PaymentForm({
 
       <p className="text-xs text-subtle">
         {entraACaja
-          ? "Este abono se suma a las ventas del dia, porque la venta no se habia registrado."
+          ? "Este abono se suma a las ventas del día, porque la venta no se había registrado."
           : "Este abono no se suma a las ventas: esa venta ya se conto cuando la registraste."}
       </p>
 

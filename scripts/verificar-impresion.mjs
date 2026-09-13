@@ -111,7 +111,7 @@ try {
   const menu = await page.textContent("body");
   ok(/Cuentas por cobrar/i.test(menu), "el apartado se llama Cuentas por cobrar");
   ok(/Cobradores/i.test(menu), "se puede agregar usuarios: Cobradores esta en el menu");
-  ok(/Quien me presta/i.test(menu), "Quien me presta esta en el menu");
+  ok(/Qui[eé]n me presta/i.test(menu), "Quien me presta esta en el menu");
 
   console.log("\n2. Se pueden agregar usuarios (cobradores)");
   await page.goto(BASE + "/panel/equipo", { waitUntil: "networkidle" });

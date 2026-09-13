@@ -10,7 +10,7 @@ const TYPES = [
   { value: "BARBERIA", label: "Barberia", hint: "Turnos, cortes y caja" },
   { value: "RESTAURANTE", label: "Restaurante", hint: "Cuentas por mesa y caja" },
   { value: "COMIDAS_RAPIDAS", label: "Comidas rapidas", hint: "Venta al mostrador y caja" },
-  { value: "ROPA", label: "Tienda de ropa", hint: "Inventario por talla y catalogo" },
+  { value: "ROPA", label: "Tienda de ropa", hint: "Inventario por talla y catálogo" },
   { value: "CARTERA", label: "Cartera y cobranza", hint: "Prestamos por cuotas y cobros" },
   {
     value: "ASISTENCIA",
@@ -73,7 +73,7 @@ export function RegistroForm({
         <input className="input" name="ownerName" required defaultValue={defaultName} placeholder="Luis Ramirez" />
       </Field>
 
-      <Field label="Telefono (opcional)">
+      <Field label="Teléfono (opcional)">
         <input className="input" name="phone" inputMode="tel" placeholder="300 000 0000" />
       </Field>
 
@@ -90,7 +90,7 @@ export function RegistroForm({
         />
       </Field>
 
-      <Field label="Contrasena" hint="Minimo 6 caracteres.">
+      <Field label="Contraseña" hint="Mínimo 6 caracteres.">
         <input
           className="input"
           type="password"

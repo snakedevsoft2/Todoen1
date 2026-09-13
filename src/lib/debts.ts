@@ -68,16 +68,16 @@ export function debtState(debt: DebtLike, hoy: string): DebtState {
     const cuantos = Math.abs(dias);
     return {
       key: "vencida",
-      label: "Vencida hace " + cuantos + (cuantos === 1 ? " dia" : " dias"),
+      label: "Vencida hace " + cuantos + (cuantos === 1 ? " día" : " días"),
       tone: "bad",
       dias,
     };
   }
   if (dias === 0) return { key: "vencehoy", label: "Vence hoy", tone: "amber", dias };
   if (dias <= 3) {
-    return { key: "vencepronto", label: "Vence en " + dias + (dias === 1 ? " dia" : " dias"), tone: "amber", dias };
+    return { key: "vencepronto", label: "Vence en " + dias + (dias === 1 ? " día" : " días"), tone: "amber", dias };
   }
-  return { key: "aldia", label: "Vence en " + dias + " dias", tone: "slate", dias };
+  return { key: "aldia", label: "Vence en " + dias + " días", tone: "slate", dias };
 }
 
 /** El texto del cobro. Cambia el tono segun este vencida o no. */

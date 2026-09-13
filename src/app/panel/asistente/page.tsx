@@ -12,44 +12,44 @@ const SUGERENCIAS: Record<BusinessType, string[]> = {
   BARBERIA: [
     "Como voy este mes?",
     "Que corte deberia promocionar?",
-    "Como cierro la caja del dia?",
+    "¿Cómo cierro la caja del día?",
     "Como le mando el recordatorio a un cliente?",
   ],
   ASISTENCIA: [
-    "Quien no ha marcado entrada hoy?",
+    "¿Quién no ha marcado entrada hoy?",
     "Cuantas horas trabajo el equipo esta semana?",
     "Como saco la planilla del mes?",
     "Como le mando el reporte al cliente?",
   ],
   CARTERA: [
-    "A quien le tengo que cobrar hoy?",
-    "Quien esta atrasado y cuanto debe?",
+    "¿A quién le tengo que cobrar hoy?",
+    "¿Quién está atrasado y cuánto debe?",
     "Cuanta plata tengo prestada en la calle?",
     "Como registro un abono y le doy el recibo?",
   ],
   RESTAURANTE: [
     "Como voy este mes?",
-    "Que plato me esta dejando mas?",
+    "¿Qué plato me está dejando más?",
     "Como cierro una cuenta de mesa?",
     "Como bajo mis gastos?",
   ],
   COMIDAS_RAPIDAS: [
     "Como voy este mes?",
-    "Que producto me deja mas?",
+    "¿Qué producto me deja más?",
     "Como registro una venta rapida?",
     "Como subo mi ticket promedio?",
   ],
   ROPA: [
     "Como voy este mes?",
     "Que tallas deberia reponer?",
-    "Como uso el escaner de codigo de barras?",
+    "¿Cómo uso el escáner de código de barras?",
     "Como cobro un fiado que se vencio?",
   ],
   OTRO: [
     "Como voy este mes?",
-    "Que me esta dejando mas plata?",
+    "¿Qué me está dejando más plata?",
     "Que apartados me sirven para mi negocio?",
-    "Como cierro la caja del dia?",
+    "¿Cómo cierro la caja del día?",
   ],
 };
 
@@ -61,7 +61,7 @@ export default async function AsistentePage() {
     <>
       <PageHeader
         title="Asistente"
-        subtitle="Pregunta por tu negocio o por como se hace algo aqui"
+        subtitle="Pregunta por tu negocio o por cómo se hace algo aquí"
       />
 
       {!listo && (

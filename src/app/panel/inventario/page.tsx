@@ -189,7 +189,7 @@ export default async function InventarioPage({
           {sinTallas.length > 0 && !filtering && (
             <Card
               title="Prendas sin tallas"
-              subtitle="Ya estan en tu catalogo, pero todavia no tienen stock que contar"
+              subtitle="Ya están en tu catálogo, pero todavía no tienen stock que contar"
               action={
                 <Link href="/panel/catalogo" className="btn-primary btn-sm">
                   Agregar tallas
@@ -218,17 +218,17 @@ export default async function InventarioPage({
               <Empty
                 title={
                   services.length === 0
-                    ? "Todavia no tienes prendas con inventario"
+                    ? "Todavía no tienes prendas con inventario"
                     : filtering
-                      ? "Nada coincide con esa busqueda"
-                      : "Tus prendas todavia no tienen tallas"
+                      ? "Nada coincide con esa búsqueda"
+                      : "Tus prendas todavía no tienen tallas"
                 }
                 hint={
                   services.length === 0
                     ? "Crea una prenda en Productos, marcala para llevar inventario y agregale sus tallas."
                     : filtering
                       ? "Prueba con otro nombre, otra talla o quita los filtros."
-                      : "Agregales las tallas desde Productos y aqui las cargas con su stock."
+                      : "Agregales las tallas desde Productos y aquí las cargas con su stock."
                 }
               />
             </Card>
@@ -369,9 +369,9 @@ export default async function InventarioPage({
             </Card>
           </div>
 
-          <Card title="Ultimos movimientos" subtitle="Todo queda anotado con su motivo">
+          <Card title="Últimos movimientos" subtitle="Todo queda anotado con su motivo">
             {moves.length === 0 ? (
-              <Empty title="Todavia no hay movimientos" hint="Carga la mercancia que ya tienes." />
+              <Empty title="Todavía no hay movimientos" hint="Carga la mercancía que ya tienes." />
             ) : (
               <ul className="divide-y divide-line">
                 {moves.map((m) => (

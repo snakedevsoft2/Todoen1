@@ -174,13 +174,13 @@ export default async function VentasPage({
             itemLabel={ITEM_NOUN[user.businessType].plural}
             team={team}
             defaultStaffId={me.id}
-            staffLabel={isClothing ? "Quien vendio" : "Quien atendio"}
+            staffLabel={isClothing ? "Quién vendió" : "Quién atendió"}
           />
         </Card>
 
-        <Card title="Ventas del dia" subtitle={sales.length + " movimientos"}>
+        <Card title="Ventas del día" subtitle={sales.length + " movimientos"}>
           {sales.length === 0 ? (
-            <Empty title="No hay ventas en este dia" hint="Registra la primera venta a la izquierda." />
+            <Empty title="No hay ventas en este día" hint="Registra la primera venta a la izquierda." />
           ) : (
             <ul className="space-y-2">
               {sales.map((s) => (
@@ -245,7 +245,7 @@ export default async function VentasPage({
                           pendingText="..."
                           ariaLabel="Borrar venta"
                           confirm={
-                            "Borrar esta venta del dia" +
+                            "Borrar esta venta del día" +
                             (s.items.some((i) => i.variantId)
                               ? ". Las prendas vuelven al inventario."
                               : "")

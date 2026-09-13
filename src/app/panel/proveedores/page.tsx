@@ -74,7 +74,7 @@ export default async function ProveedoresPage() {
     <>
       <PageHeader
         title="Proveedores"
-        subtitle="A quien le compras cada prenda y cuanto llevas comprado"
+        subtitle="A quién le compras cada prenda y cuánto llevas comprado"
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -102,7 +102,7 @@ export default async function ProveedoresPage() {
         <Card title="Tus proveedores" subtitle="Toca Editar para cambiar sus datos">
           {rows.length === 0 ? (
             <Empty
-              title="Todavia no tienes proveedores"
+              title="Todavía no tienes proveedores"
               hint="Agrega el primero a la derecha y despues asignale sus prendas desde Productos."
             />
           ) : (

@@ -34,7 +34,7 @@ export default async function RegistroPage({
             {desdeGoogle || desdeFacebook
               ? "Tu correo de " +
                 (desdeGoogle ? "Google" : "Facebook") +
-                " todavia no tiene un negocio. Cuentanos cual es y lo creamos."
+                " todavía no tiene un negocio. Cuéntanos cuál es y lo creamos."
               : "Tu negocio queda separado del de los demas usuarios."}
           </p>
         </div>
@@ -44,7 +44,7 @@ export default async function RegistroPage({
         </div>
 
         <div className="mt-8 border-t border-line pt-6 text-center">
-          <p className="text-xs text-subtle">Cualquier duda, escribenos</p>
+          <p className="text-xs text-subtle">Cualquier duda, escríbenos</p>
           <CanalesOficiales className="mt-3" />
         </div>
       </div>

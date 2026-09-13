@@ -28,13 +28,13 @@ const TITULOS = [
 const PRIMER_PASO: Record<string, { texto: string; href: string; boton: string }> = {
   ASISTENCIA: {
     texto:
-      "Agrega a tu gente con su correo y su clave. Apenas los tengas, cada uno puede marcar entrada y salida desde su propio telefono.",
+      "Agrega a tu gente con su correo y su clave. Apenas los tengas, cada uno puede marcar entrada y salida desde su propio teléfono.",
     href: "/panel/equipo",
     boton: "Agregar personal",
   },
   CARTERA: {
     texto:
-      "Anota tu primer prestamo: cuanto entregaste, el interes y en cuantas cuotas. La aplicacion arma el plan y te avisa a quien cobrarle cada dia.",
+      "Anota tu primer préstamo: cuánto entregaste, el interés y en cuántas cuotas. La aplicación arma el plan y te avisa a quién cobrarle cada día.",
     href: "/panel/cartera",
     boton: "Anotar un prestamo",
   },

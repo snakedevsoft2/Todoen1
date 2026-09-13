@@ -82,7 +82,7 @@ export function WholesaleForm({
         <div className="grid gap-3 sm:grid-cols-2">
           <Field
             label="Titulo del apartado"
-            hint={"Si lo dejas vacio ponemos: " + WHOLESALE_TITLE + "."}
+            hint={"Si lo dejas vacío ponemos: " + WHOLESALE_TITLE + "."}
           >
             <input
               className="input"
@@ -94,7 +94,7 @@ export function WholesaleForm({
           </Field>
           <Field
             label="Condiciones del mayorista"
-            hint="Pedido minimo, forma de pago, despachos a otras ciudades."
+            hint="Pedido mínimo, forma de pago, despachos a otras ciudades."
           >
             <input
               className="input"
@@ -122,7 +122,7 @@ export function WholesaleForm({
         {ordenadas.length === 0 ? (
           <div className="mt-3">
             <Empty
-              title="Todavia no tienes escalas"
+              title="Todavía no tienes escalas"
               hint={"Empieza con una: desde 6 " + itemPlural + ", 10% menos."}
             />
           </div>

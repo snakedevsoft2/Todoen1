@@ -16,7 +16,7 @@ export function Shell({
   staffColor,
   logo,
   bookingUrl,
-  bookingLabel = "Ver pagina de reservas",
+  bookingLabel = "Ver página de reservas",
   admin = false,
   logout,
   children,
@@ -111,7 +111,7 @@ export function Shell({
           pantalla es tener menos botones, no uno mas. */}
       <Link href="/panel/espacio" className="btn-ghost btn-sm w-full justify-start">
         <Icon name="sliders" className="h-4 w-4" />
-        Armar mi menu
+        Armar mi menú
       </Link>
       {/* Solo lo ve quien administra la plataforma. Para el resto ni siquiera
           se pinta, asi que nadie descubre que existe. */}
@@ -143,7 +143,7 @@ export function Shell({
           type="button"
           onClick={() => setOpen(true)}
           className="btn-ghost btn-sm px-2.5"
-          aria-label="Abrir menu"
+          aria-label="Abrir menú"
         >
           <Icon name="menu" className="h-5 w-5" />
         </button>
@@ -170,7 +170,7 @@ export function Shell({
         <div className="fixed inset-0 z-40 lg:hidden">
           <button
             type="button"
-            aria-label="Cerrar menu"
+            aria-label="Cerrar menú"
             className="absolute inset-0 bg-black/45 backdrop-blur-sm"
             onClick={() => setOpen(false)}
           />

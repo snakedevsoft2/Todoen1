@@ -55,10 +55,10 @@ export function BusinessSettingsForm({
         <Field label="Tu nombre">
           <input className="input" name="ownerName" defaultValue={settings.ownerName} required />
         </Field>
-        <Field label="Telefono">
+        <Field label="Teléfono">
           <input className="input" name="phone" defaultValue={settings.phone ?? ""} inputMode="tel" />
         </Field>
-        <Field label="Direccion">
+        <Field label="Dirección">
           <input className="input" name="address" defaultValue={settings.address ?? ""} />
         </Field>
         <Field label="Moneda">
@@ -70,7 +70,7 @@ export function BusinessSettingsForm({
             ))}
           </select>
         </Field>
-        <Field label="Zona horaria" hint="Define a que hora cambia el dia en tus reportes.">
+        <Field label="Zona horaria" hint="Define a qué hora cambia el día en tus reportes.">
           <select className="input" name="timezone" defaultValue={settings.timezone}>
             {TIMEZONES.map((t) => (
               <option key={t} value={t}>
@@ -140,10 +140,10 @@ export function BusinessSettingsForm({
       {(isBarber || isClothing) && (
         <div className="rounded-xl border border-line bg-surface p-3">
           <p className="mb-3 text-sm font-semibold text-strong">
-            {isClothing ? "Catalogo en linea" : "Reservas en linea"}
+            {isClothing ? "Catálogo en línea" : "Reservas en línea"}
           </p>
           <Field
-            label={isClothing ? "Enlace de tu catalogo" : "Enlace de tu pagina de reservas"}
+            label={isClothing ? "Enlace de tu catálogo" : "Enlace de tu página de reservas"}
             hint="Solo letras, numeros y guiones. Si lo cambias, el enlace anterior deja de servir."
           >
             <div className="flex items-center gap-2">
@@ -182,11 +182,11 @@ export function PasswordForm() {
       {state?.error && <Alert kind="error">{state.error}</Alert>}
       {state?.ok && <Alert kind="ok">{state.ok}</Alert>}
 
-      <Field label="Contrasena actual">
+      <Field label="Contraseña actual">
         <input className="input" type="password" name="currentPassword" required autoComplete="current-password" />
       </Field>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Nueva contrasena">
+        <Field label="Nueva contraseña">
           <input
             className="input"
             type="password"

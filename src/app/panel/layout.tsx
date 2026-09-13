@@ -25,7 +25,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
     <form action={logoutAction}>
       <button type="submit" className="btn-ghost btn-sm w-full justify-start">
         <Icon name="logout" className="h-4 w-4" />
-        Cerrar sesion
+        Cerrar sesión
       </button>
     </form>
   );

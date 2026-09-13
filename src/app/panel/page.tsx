@@ -99,7 +99,7 @@ export default async function PanelHomePage() {
       )}
 
       <PageHeader
-        title="Resumen del dia"
+        title="Resumen del día"
         subtitle={prettyDay(today) + " - " + BUSINESS_LABEL[user.businessType]}
       >
         <div className="flex gap-2">
@@ -127,8 +127,8 @@ export default async function PanelHomePage() {
       </PageHeader>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Ventas del dia" value={money(summary.totalSales, user.currency)} hint={summary.salesCount + " ventas cerradas"} tone="brand" />
-        <Stat label="Gastos del dia" value={money(summary.totalExpenses, user.currency)} hint="Lo que salio de caja" tone="bad" />
+        <Stat label="Ventas del día" value={money(summary.totalSales, user.currency)} hint={summary.salesCount + " ventas cerradas"} tone="brand" />
+        <Stat label="Gastos del día" value={money(summary.totalExpenses, user.currency)} hint="Lo que salió de caja" tone="bad" />
         <Stat
           label="Te queda limpio"
           value={money(summary.netTotal, user.currency)}
@@ -157,7 +157,7 @@ export default async function PanelHomePage() {
             hint={
               stock.lowCount + stock.outCount > 0
                 ? stock.lowCount + stock.outCount + " tallas en rojo"
-                : "Inventario al dia"
+                : "Inventario al día"
             }
             tone={stock.lowCount + stock.outCount > 0 ? "amber" : "brand"}
           />
@@ -222,7 +222,7 @@ export default async function PanelHomePage() {
           >
             {appointments.length === 0 ? (
               <Empty
-                title="Todavia no hay turnos para hoy"
+                title="Todavía no hay turnos para hoy"
                 hint="Comparte tu enlace de reservas para que los clientes separen el cupo."
               />
             ) : (
@@ -260,7 +260,7 @@ export default async function PanelHomePage() {
         ) : isClothing ? (
           <Card
             title="Se te esta acabando"
-            subtitle="Tallas agotadas o por debajo del minimo"
+            subtitle="Tallas agotadas o por debajo del mínimo"
             action={
               <Link href="/panel/inventario" className="btn-ghost btn-sm">
                 Abrir inventario
@@ -270,7 +270,7 @@ export default async function PanelHomePage() {
             {lowStock.length === 0 ? (
               <Empty
                 title="Todo el inventario esta bien"
-                hint="Ninguna talla llego a su minimo. Sigue vendiendo."
+                hint="Ninguna talla llegó a su mínimo. Sigue vendiendo."
               />
             ) : (
               <ul className="space-y-2">
@@ -336,7 +336,7 @@ export default async function PanelHomePage() {
         )}
 
         <Card
-          title="Ultimas ventas"
+          title="Últimas ventas"
           subtitle={"Movimientos de " + ITEM_NOUN[user.businessType].plural}
           action={
             <Link href="/panel/ventas" className="btn-ghost btn-sm">
@@ -345,7 +345,7 @@ export default async function PanelHomePage() {
           }
         >
           {recentSales.length === 0 ? (
-            <Empty title="Aun no has cerrado ventas hoy" hint="Registra la primera venta del dia." />
+            <Empty title="Aún no has cerrado ventas hoy" hint="Registra la primera venta del día." />
           ) : (
             <ul className="space-y-2">
               {recentSales.map((s) => (
@@ -381,7 +381,7 @@ export default async function PanelHomePage() {
           }
         >
           {expenses.length === 0 ? (
-            <Empty title="Sin gastos anotados hoy" hint="Anota insumos, domicilios o compras del dia." />
+            <Empty title="Sin gastos anotados hoy" hint="Anota insumos, domicilios o compras del día." />
           ) : (
             <ul className="divide-y divide-line">
               {expenses.map((e) => (

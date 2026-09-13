@@ -19,7 +19,7 @@ export const WHATSAPP_PROVIDERS: { value: WhatsappProvider; label: string; hint:
   {
     value: "enlace",
     label: "Solo enlace",
-    hint: "El cliente toca un boton y te manda el aviso desde su WhatsApp. No hay que configurar nada.",
+    hint: "El cliente toca un botón y te manda el aviso desde su WhatsApp. No hay que configurar nada.",
   },
   {
     value: "callmebot",
@@ -144,7 +144,7 @@ export async function sendWhatsapp(options: {
 
   // Meta (WhatsApp Business API oficial)
   if (!apiKey || !phoneId) {
-    return { status: "SIN_CONFIGURAR", detail: "Faltan el token o el identificador del numero de Meta." };
+    return { status: "SIN_CONFIGURAR", detail: "Faltan el token o el identificador del número de Meta." };
   }
   try {
     const res = await fetchWithTimeout(
@@ -188,7 +188,7 @@ export function bookingMessage(input: {
     "",
     "Cliente: " + input.clientName,
     "Telefono: " + input.clientPhone,
-    "Dia: " + input.prettyDay,
+    "Día: " + input.prettyDay,
     "Hora: " + input.time,
     "Servicio: " + input.serviceName + " (" + input.price + ")",
   ];
@@ -209,7 +209,7 @@ export function confirmMessage(input: {
   return [
     "Hola " + input.clientName + ", te confirmamos tu turno en " + input.businessName + ".",
     "",
-    "Dia: " + input.prettyDay,
+    "Día: " + input.prettyDay,
     "Hora: " + input.time,
     "Servicio: " + input.serviceName,
     ...(input.staffName ? ["Te atiende: " + input.staffName] : []),
@@ -231,7 +231,7 @@ export function reminderMessage(input: {
   return [
     "Hola " + input.clientName + ", te recordamos tu turno en " + input.businessName + ".",
     "",
-    "Dia: " + input.prettyDay,
+    "Día: " + input.prettyDay,
     "Hora: " + input.time,
     "Servicio: " + input.serviceName,
     ...(input.staffName ? ["Te atiende: " + input.staffName] : []),

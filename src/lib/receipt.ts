@@ -62,7 +62,7 @@ export function receiptMessage(data: ReceiptData): string {
     "",
     data.saldo > 0
       ? "Te queda un saldo de " + money(data.saldo, data.currency) + "."
-      : "Con este abono quedas al dia. Gracias.",
+      : "Con este abono quedas al día. Gracias.",
   ].join("\n");
 }
 

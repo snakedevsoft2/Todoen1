@@ -42,7 +42,7 @@ export function NewExpenseForm({ day, currency = "COP" }: { day: string; currenc
             placeholder="0"
           />
         </Field>
-        <Field label="Categoria">
+        <Field label="Categoría">
           <select className="input" name="category" defaultValue="General">
             {CATEGORIES.map((c) => (
               <option key={c} value={c}>
@@ -51,7 +51,7 @@ export function NewExpenseForm({ day, currency = "COP" }: { day: string; currenc
             ))}
           </select>
         </Field>
-        <Field label="Dia">
+        <Field label="Día">
           <input className="input" type="date" name="day" defaultValue={day} />
         </Field>
       </div>

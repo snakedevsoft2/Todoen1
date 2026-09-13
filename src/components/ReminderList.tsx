@@ -47,7 +47,7 @@ export function ReminderList({
       title="Recordatorios de manana"
       subtitle={
         autoOn
-          ? "Se mandan solos de madrugada. Aqui puedes adelantarte."
+          ? "Se mandan solos de madrugada. Aquí puedes adelantarte."
           : "Un toque y se abre WhatsApp con el mensaje escrito"
       }
     >
@@ -118,7 +118,7 @@ export function ReminderList({
                           Recordar
                         </Link>
                       ) : (
-                        <span className="text-xs text-subtle">Telefono invalido</span>
+                        <span className="text-xs text-subtle">Teléfono inválido</span>
                       )}
                       <form action={markReminderSentAction}>
                         <input type="hidden" name="id" value={row.id} />

@@ -54,8 +54,8 @@ export default async function ReportesPage({
 
   const presets = [
     { label: "Hoy", from: today, to: today },
-    { label: "Ultimos 7 dias", from: addDays(today, -6), to: today },
-    { label: "Ultimos 30 dias", from: addDays(today, -29), to: today },
+    { label: "Últimos 7 días", from: addDays(today, -6), to: today },
+    { label: "Últimos 30 días", from: addDays(today, -29), to: today },
     { label: "Este mes", from: startOfMonth(today), to: today },
   ];
 
@@ -124,7 +124,7 @@ export default async function ReportesPage({
           tone={totals.netTotal >= 0 ? "good" : "bad"}
         />
         <Stat
-          label="Promedio por dia"
+          label="Promedio por día"
           value={money(Math.round(totals.totalSales / days), user.currency)}
           hint={totals.salesCount + " ventas en total"}
         />
@@ -147,7 +147,7 @@ export default async function ReportesPage({
             title={isClothing ? "Medicion por empleado" : "Medicion por barbero"}
             subtitle={
               isClothing
-                ? "Cuanto vendio cada uno en este periodo y que comision le queda"
+                ? "Cuánto vendió cada uno en este periodo y qué comisión le queda"
                 : "Cuanto atendio y cuanto entro por cada uno en este periodo"
             }
           >
@@ -283,7 +283,7 @@ export default async function ReportesPage({
           )}
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <Card title="Tallas que mas salen" subtitle="Para saber que reponer primero">
+            <Card title="Tallas que más salen" subtitle="Para saber qué reponer primero">
               {clothing.topSizes.length === 0 ? (
                 <Empty title="Aun no hay prendas vendidas por talla" />
               ) : (
@@ -309,7 +309,7 @@ export default async function ReportesPage({
               )}
             </Card>
 
-            <Card title="Categorias que mas facturan" subtitle="En que se te va y de que vives">
+            <Card title="Categorías que más facturan" subtitle="En qué se te va y de qué vives">
               {clothing.topCategories.length === 0 ? (
                 <Empty title="Aun no hay ventas en este periodo" />
               ) : (
@@ -333,7 +333,7 @@ export default async function ReportesPage({
       )}
 
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
-        <Card title="Dia por dia" subtitle="Ventas, gastos y lo que quedo limpio">
+        <Card title="Día por día" subtitle="Ventas, gastos y lo que quedó limpio">
           {totals.rows.length === 0 ? (
             <Empty title="No hay movimientos en este periodo" />
           ) : (
@@ -370,9 +370,9 @@ export default async function ReportesPage({
           )}
         </Card>
 
-        <Card title={"Lo mas vendido"} subtitle={"Tus " + ITEM_NOUN[user.businessType].plural + " top"}>
+        <Card title={"Lo más vendido"} subtitle={"Tus " + ITEM_NOUN[user.businessType].plural + " top"}>
           {topItems.length === 0 ? (
-            <Empty title="Sin datos todavia" hint="Registra ventas para ver este ranking." />
+            <Empty title="Sin datos todavía" hint="Registra ventas para ver este ranking." />
           ) : (
             <div className="table-wrap">
               <table className="tbl">
@@ -425,7 +425,7 @@ function Comparativa({
       subtitle={
         "Comparado con los " +
         dias +
-        (dias === 1 ? " dia anterior" : " dias anteriores") +
+        (dias === 1 ? " día anterior" : " días anteriores") +
         " (del " +
         shortDay(comparison.prevFrom) +
         " al " +

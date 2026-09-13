@@ -74,12 +74,12 @@ export function InventorySearch({
             className="input"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Prenda, talla, color o codigo"
+            placeholder="Prenda, talla, color o código"
           />
           <ScanButton
             onScan={escaneado}
             className="btn-primary shrink-0"
-            title="Escanear codigo de barras"
+            title="Escanear código de barras"
           />
         </div>
 
@@ -108,7 +108,7 @@ export function InventorySearch({
 
       {ultimo && (
         <p className="mt-2 text-xs text-muted">
-          Codigo leido: <strong className="text-strong">{ultimo}</strong>
+          Código leído: <strong className="text-strong">{ultimo}</strong>
         </p>
       )}
 

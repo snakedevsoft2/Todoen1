@@ -22,7 +22,7 @@ const COMUNES: TourStep[] = [
   {
     icon: "receipt",
     title: "Registra la venta en dos toques",
-    text: "Tocas lo que vendiste, eliges como te pagaron y listo. Queda sumado al dia al instante, y puedes mandarle la factura al cliente por WhatsApp.",
+    text: "Tocas lo que vendiste, eliges como te pagaron y listo. Queda sumado al día al instante, y puedes mandarle la factura al cliente por WhatsApp.",
     href: "/panel/ventas",
     action: "Ver ventas",
   },
@@ -35,8 +35,8 @@ const COMUNES: TourStep[] = [
   },
   {
     icon: "lock",
-    title: "Cierra el dia sin cuadernos",
-    text: "Al final del dia comparas la plata que contaste con la que registro la aplicacion. Si hay diferencia, te la muestra.",
+    title: "Cierra el día sin cuadernos",
+    text: "Al final del día comparas la plata que contaste con la que registró la aplicación. Si hay diferencia, te la muestra.",
     href: "/panel/caja",
     action: "Ver cierre de caja",
   },
@@ -44,7 +44,7 @@ const COMUNES: TourStep[] = [
 
 const FINAL: TourStep = {
   icon: "whatsapp",
-  title: "Si te trabas, escribenos",
+  title: "Si te trabas, escríbenos",
   text: "En Soporte tienes el WhatsApp directo. No hay pregunta boba: preferimos que preguntes a que dejes de usarlo.",
   href: "/panel/soporte",
   action: "Ver soporte",
@@ -53,43 +53,43 @@ const FINAL: TourStep = {
 const PRIMERO: Record<BusinessType, TourStep> = {
   ASISTENCIA: {
     icon: "clock",
-    title: "Tu gente marca desde su propio telefono",
-    text: "Cada empleado entra con su usuario y marca entrada y salida. Queda la hora y la coordenada exacta, y funciona sin senal: el marcaje espera en el telefono y se manda solo cuando vuelve.",
+    title: "Tu gente marca desde su propio teléfono",
+    text: "Cada empleado entra con su usuario y marca entrada y salida. Queda la hora y la coordenada exacta, y funciona sin señal: el marcaje espera en el teléfono y se manda solo cuando vuelve.",
     href: "/panel/marcar",
     action: "Ver el marcador",
   },
   CARTERA: {
     icon: "handshake",
-    title: "Tus prestamos y a quien le toca hoy",
-    text: "Anotas cuanto prestaste, el interes y en cuantas cuotas. La aplicacion arma el plan de pagos, te dice a quien le toca pagar hoy y quien se atraso, y le entregas el recibo de cada abono.",
+    title: "Tus préstamos y a quién le toca hoy",
+    text: "Anotas cuánto prestaste, el interés y en cuántas cuotas. La aplicación arma el plan de pagos, te dice a quién le toca pagar hoy y quién se atrasó, y le entregas el recibo de cada abono.",
     href: "/panel/cartera",
     action: "Ver cuentas por cobrar",
   },
   BARBERIA: {
     icon: "calendar",
     title: "Tus clientes separan el turno solos",
-    text: "Tienes un enlace propio para compartir por WhatsApp. El cliente elige el dia, la hora libre y el corte, y a ti te aparece en la agenda con su nombre y su telefono.",
+    text: "Tienes un enlace propio para compartir por WhatsApp. El cliente elige el día, la hora libre y el corte, y a ti te aparece en la agenda con su nombre y su teléfono.",
     href: "/panel/turnos",
     action: "Ver los turnos",
   },
   RESTAURANTE: {
     icon: "table",
     title: "Una cuenta por cada mesa",
-    text: "Abres la cuenta cuando llega el cliente, le vas cargando los platos y la cierras cuando paga. Ahi mismo se convierte en la venta del dia.",
+    text: "Abres la cuenta cuando llega el cliente, le vas cargando los platos y la cierras cuando paga. Ahí mismo se convierte en la venta del día.",
     href: "/panel/cuentas",
     action: "Ver cuentas",
   },
   COMIDAS_RAPIDAS: {
     icon: "table",
     title: "Cuentas rapidas o venta al mostrador",
-    text: "Abre una cuenta para el domicilio o cobra directo en el mostrador. Como te sirva mas rapido segun el momento.",
+    text: "Abre una cuenta para el domicilio o cobra directo en el mostrador. Como te sirva más rápido según el momento.",
     href: "/panel/cuentas",
     action: "Ver cuentas",
   },
   ROPA: {
     icon: "box",
     title: "Tu ropa contada por talla y color",
-    text: "Cada prenda lleva sus tallas con su stock. Al vender se descuenta sola, y te avisa cuando una talla se esta acabando. Puedes escanear el codigo de barras con la camara.",
+    text: "Cada prenda lleva sus tallas con su stock. Al vender se descuenta sola, y te avisa cuando una talla se está acabando. Puedes escanear el código de barras con la cámara.",
     href: "/panel/inventario",
     action: "Ver inventario",
   },
@@ -99,9 +99,9 @@ const PRIMERO: Record<BusinessType, TourStep> = {
   OTRO: {
     icon: "sliders",
     title: "Deja solo lo que uses",
-    text: "Como no sabemos a que te dedicas, te dimos casi todo. Entra a Armar mi menu y apaga lo que no necesites: no se borra nada y lo puedes volver a prender cuando quieras.",
+    text: "Como no sabemos a que te dedicas, te dimos casi todo. Entra a Armar mi menú y apaga lo que no necesites: no se borra nada y lo puedes volver a prender cuando quieras.",
     href: "/panel/espacio",
-    action: "Armar mi menu",
+    action: "Armar mi menú",
   },
 };
 
@@ -109,14 +109,14 @@ const SEGUNDO: Record<BusinessType, TourStep> = {
   ASISTENCIA: {
     icon: "users",
     title: "Primero, agrega a tu gente",
-    text: "Cada persona con su correo y su clave. Con eso ya puede marcar desde su telefono y aparecer en la planilla.",
+    text: "Cada persona con su correo y su clave. Con eso ya puede marcar desde su teléfono y aparecer en la planilla.",
     href: "/panel/equipo",
     action: "Agregar personal",
   },
   CARTERA: {
     icon: "wallet",
     title: "Cuadra lo que recogiste",
-    text: "Al final del dia, Caja te dice cuanto recogiste de todos los cobros y lo comparas con la plata que tienes en mano. Si no cuadra, te muestra la diferencia.",
+    text: "Al final del día, Caja te dice cuánto recogiste de todos los cobros y lo comparas con la plata que tienes en mano. Si no cuadra, te muestra la diferencia.",
     href: "/panel/caja",
     action: "Ver la caja",
   },
@@ -144,7 +144,7 @@ const SEGUNDO: Record<BusinessType, TourStep> = {
   ROPA: {
     icon: "shirt",
     title: "Primero, sube tus prendas",
-    text: "Con su foto, su precio y sus tallas. Puedes crear S, M, L y XL de una sola vez, y la prenda sale publicada en tu catalogo con un enlace para compartir.",
+    text: "Con su foto, su precio y sus tallas. Puedes crear S, M, L y XL de una sola vez, y la prenda sale publicada en tu catálogo con un enlace para compartir.",
     href: "/panel/catalogo",
     action: "Ver mis prendas",
   },

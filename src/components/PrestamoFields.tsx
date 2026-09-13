@@ -182,7 +182,7 @@ export function CamposFiador() {
             </Field>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Telefono">
+            <Field label="Teléfono">
               <input
                 className="input"
                 name="guarantorPhone"
@@ -190,7 +190,7 @@ export function CamposFiador() {
                 placeholder="300 000 0000"
               />
             </Field>
-            <Field label="Direccion">
+            <Field label="Dirección">
               <input className="input" name="guarantorAddress" placeholder="Ej: Carrera 8 #12-30" />
             </Field>
           </div>

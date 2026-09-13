@@ -181,7 +181,7 @@ export default async function TurnosPage({
         <Stat
           label="Plata cobrada"
           value={money(collected, user.currency)}
-          hint={"Esperado del dia " + money(expected, user.currency)}
+          hint={"Esperado del día " + money(expected, user.currency)}
           tone="good"
         />
       </div>
@@ -226,7 +226,7 @@ export default async function TurnosPage({
       <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_360px]">
         <div className="space-y-4">
           <Card
-            title="Agenda del dia"
+            title="Agenda del día"
             subtitle={
               "Atiendes de " +
               pretty12h(String(user.openHour).padStart(2, "0") + ":00") +
@@ -345,14 +345,14 @@ export default async function TurnosPage({
 
           <Card
             title="Detalle de los turnos"
-            subtitle="Hora, cliente, quien atiende y cierre de venta"
+            subtitle="Hora, cliente, quién atiende y cierre de venta"
           >
             {visible.length === 0 ? (
               <Empty
                 title={
                   filterId
-                    ? "Este barbero no tiene turnos este dia"
-                    : "Nadie ha separado turno este dia"
+                    ? "Este barbero no tiene turnos este día"
+                    : "Nadie ha separado turno este día"
                 }
                 hint="Comparte tu enlace de reservas por WhatsApp para que te separen el cupo."
               />

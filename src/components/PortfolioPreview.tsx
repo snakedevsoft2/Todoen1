@@ -125,7 +125,7 @@ export function PortfolioPreview({
       <div className="border-t border-line p-3">
         {items.length === 0 ? (
           <p className="py-6 text-center text-[10px] text-subtle">
-            Marca tus items con <strong>Mostrar en mi portafolio</strong> para que salgan aqui.
+            Marca tus items con <strong>Mostrar en mi portafolio</strong> para que salgan aquí.
           </p>
         ) : (
           <div className="grid grid-cols-2 gap-2">
@@ -193,7 +193,7 @@ export function PortfolioPreview({
                 {businessName}
               </p>
               <p className={"mt-2 text-[11px] " + (fondo.oscuro ? "text-white/80" : "text-muted")}>
-                El portafolio no esta disponible por ahora.
+                El portafolio no está disponible por ahora.
               </p>
             </div>
           ) : fondo.enTarjeta ? (
@@ -207,7 +207,7 @@ export function PortfolioPreview({
       </div>
 
       <p className="mt-2 text-center text-[11px] text-subtle">
-        Asi se ve en el celular, que es por donde la va a abrir casi todo el mundo.
+        Así se ve en el celular, que es por donde la va a abrir casi todo el mundo.
       </p>
     </div>
   );
