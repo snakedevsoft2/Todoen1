@@ -11,6 +11,7 @@ import {
 } from "@/lib/cola-marcajes";
 import { prettyDistancia } from "@/lib/geo";
 import { Icon } from "./Icon";
+import { RegistrarSW } from "./RegistrarSW";
 
 /**
  * El marcador de entrada y salida.
@@ -194,6 +195,8 @@ export function Marcador({
 
   return (
     <div className="space-y-4">
+      {/* Guarda esta pantalla en el telefono para poder abrirla sin senal. */}
+      <RegistrarSW guardarEstaPagina />
       {/* El estado de la conexion se dice siempre, no solo cuando falla: la
           persona tiene que saber si su marcaje ya viajo o sigue esperando. */}
       <div

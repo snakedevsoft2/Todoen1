@@ -23,6 +23,9 @@
     "verificar:cartera": "node scripts/verificar-cartera.mjs",
     "verificar:qa": "node scripts/verificar-qa.mjs",
     "verificar:asistencia": "node scripts/verificar-asistencia.mjs",
+    "verificar:sin-conexion": "node scripts/verificar-sin-conexion.mjs",
+    "verificar:informes": "node scripts/verificar-informes.mjs",
+    "uso": "node scripts/reporte-uso.mjs",
     "clave": "node scripts/cambiar-clave.mjs"
   },
   "dependencies": {

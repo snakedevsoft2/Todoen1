@@ -312,6 +312,18 @@ export const MODULOS: ModuloDef[] = [
       "Cada sitio guarda su direccion, su coordenada y un radio. Cuando alguien marca, la aplicacion calcula a cuantos metros estaba y lo deja anotado. No impide marcar a quien este lejos: un GPS impreciso o un sotano sin senal dejarian a esa persona sin poder registrar su jornada. Lo que hace es dejarlo senalado para que lo revises.",
   },
   {
+    key: "informes",
+    href: "/panel/informes",
+    label: "Reportes",
+    icon: "image",
+    group: "NUCLEO",
+    sortOrder: 15,
+    shortDescription:
+      "El reporte de cada visita con fotos, listo en PDF para mandarselo al cliente por WhatsApp.",
+    longDescription:
+      "Anotas que se hizo, en que sitio y para que cliente, y le agregas las fotos desde el telefono. El PDF sale con las fotos, el personal que estuvo ese dia en el sitio con sus horas de entrada y salida, y se comparte por WhatsApp o se imprime. La planilla de asistencia tambien se exporta en PDF desde Planilla.",
+  },
+  {
     key: "equipo",
     href: "/panel/equipo",
     label: "Equipo",
@@ -498,7 +510,7 @@ export const PRESETS: Record<Tipo, Record<string, Preset>> = {
     planilla: { ejemplo: "Hoy entraron 14 de 16. Rosa marco a 2,4 km del sitio: revisar." },
     sitios: { ejemplo: "Sede Norte, Edificio Los Cedros, la obra de la 80." },
     equipo: { label: "Personal", ejemplo: "Cada persona con su usuario para marcar." },
-    reportes: { ejemplo: "Horas trabajadas por persona esta semana." },
+    informes: { ejemplo: "Visita a Edificio Los Cedros: fachada limpia, 6 fotos, en PDF." },
     gastos: { on: false, ejemplo: "Transporte, dotacion, herramienta." },
     avisos: { on: false },
     asistente: { on: false, ejemplo: "Quien no ha marcado entrada hoy?" },

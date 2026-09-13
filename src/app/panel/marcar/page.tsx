@@ -1,6 +1,6 @@
 import { requireSession } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { todayIn } from "@/lib/dates";
+import { addDays, inicioDelDiaEn, todayIn } from "@/lib/dates";
 import { enlaceMapa, prettyDistancia } from "@/lib/geo";
 import { Card, PageHeader } from "@/components/ui";
 import { Marcador } from "@/components/Marcador";
@@ -18,9 +18,10 @@ export default async function MarcarPage() {
   const { user, staff } = await requireSession();
   const hoy = todayIn(user.timezone);
 
-  // El dia va de medianoche a medianoche en la zona del negocio.
-  const desde = new Date(hoy + "T00:00:00");
-  const hasta = new Date(hoy + "T23:59:59.999");
+  // El dia va de medianoche a medianoche en la zona del NEGOCIO, no del
+  // servidor: en Vercel el servidor esta en UTC y el dia se correria 5 horas.
+  const desde = inicioDelDiaEn(hoy, user.timezone);
+  const hasta = new Date(inicioDelDiaEn(addDays(hoy, 1), user.timezone).getTime() - 1);
 
   const [sitios, mios] = await Promise.all([
     db.workSite.findMany({
@@ -38,8 +39,15 @@ export default async function MarcarPage() {
   const vigentes = mios.filter((m) => !m.voidedAt);
   const ultimo = vigentes[0]?.kind ?? null;
 
+  // Con la zona del negocio, o en Vercel una entrada de las 8 a. m. se veria
+  // como de la 1 p. m.
   const hora = (d: Date) =>
-    d.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: true });
+    d.toLocaleTimeString("es-CO", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: user.timezone,
+    });
 
   return (
     <>

@@ -77,3 +77,43 @@ export function timeToMinutes(time: string): number {
   const [h, m] = time.split(":").map(Number);
   return (h || 0) * 60 + (m || 0);
 }
+
+/** Minutos que la zona horaria le lleva a UTC en ese instante. Bogota da -300. */
+function desfaseMin(date: Date, timezone: string): number {
+  const partes = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(date);
+  const v = (t: string) => Number(partes.find((p) => p.type === t)?.value);
+  const comoUTC = Date.UTC(v("year"), v("month") - 1, v("day"), v("hour"), v("minute"), v("second"));
+  return Math.round((comoUTC - date.getTime()) / 60000);
+}
+
+/**
+ * El instante en que empieza un dia "YYYY-MM-DD" en la zona del negocio.
+ *
+ * Hace falta para consultar la base por dia. `new Date(dia + "T00:00:00")`
+ * usa la zona del SERVIDOR, y en Vercel el servidor esta en UTC: la medianoche
+ * de Bogota caeria a las 7 p. m. del dia anterior y todo lo marcado despues de
+ * esa hora se iria al dia siguiente.
+ *
+ * Se calcula dos veces por los paises con cambio de hora: el desfase de la
+ * medianoche puede no ser el mismo que el de la hora que se uso de primera
+ * aproximacion.
+ */
+export function inicioDelDiaEn(day: string, timezone = "America/Bogota"): Date {
+  const base = Date.parse(day + "T00:00:00Z");
+  try {
+    let t = base - desfaseMin(new Date(base), timezone) * 60000;
+    t = base - desfaseMin(new Date(t), timezone) * 60000;
+    return new Date(t);
+  } catch {
+    return new Date(base);
+  }
+}

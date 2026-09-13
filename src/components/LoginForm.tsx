@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
 import { useFormStatus } from "react-dom";
 import { loginAction } from "@/actions/auth";
@@ -74,6 +74,20 @@ export function LoginForm({
   const [state, formAction] = useActionState(loginAction, undefined);
   const [verClave, setVerClave] = useState(false);
   const [email, setEmail] = useState("");
+
+  /*
+   * Al llegar al ingreso se borran las paginas guardadas para abrir sin senal.
+   * Llevan el nombre y los marcajes de quien estaba adentro, y el siguiente
+   * que entre en este telefono no tiene por que verlos. La cola de marcajes
+   * pendientes NO se toca: esos todavia tienen que salir.
+   */
+  useEffect(() => {
+    if (typeof caches === "undefined") return;
+    caches
+      .keys()
+      .then((ks) => Promise.all(ks.filter((k) => k.startsWith("ten-paginas")).map((k) => caches.delete(k))))
+      .catch(() => {});
+  }, []);
 
   const aviso = state?.error ?? (error ? (ERRORES[error] ?? "No pudimos entrar con Google.") : null);
   // El error viene del correo o de la contrasena, asi que se marcan los dos.
