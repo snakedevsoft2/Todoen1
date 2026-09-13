@@ -190,6 +190,11 @@ model User {
   attendance     Attendance[]
   visitReports   VisitReport[]
   visitPhotos    VisitPhoto[]
+  customers      Customer[]
+  customerTags   CustomerTag[]
+  deals          Deal[]
+  followUps      FollowUp[]
+  interactions   Interaction[]
 
   @@index([slug])
 }
@@ -395,6 +400,8 @@ model Staff {
 
   passwordResets PasswordReset[]
   marks          Attendance[]    @relation("MarcajesDeLaPersona")
+  deals          Deal[]          @relation("OportunidadesDeLaPersona")
+  followUps      FollowUp[]      @relation("SeguimientosDeLaPersona")
 
   @@index([userId, active])
 }
@@ -1040,4 +1047,169 @@ model SecurityAttempt {
   createdAt DateTime @default(now())
 
   @@index([email, createdAt])
+}
+
+// ------------------------------------------------------------------ CRM
+
+/// En que va una oportunidad de venta. Ver lib/crm.ts.
+enum DealStage {
+  NUEVO
+  CONTACTADO
+  PROPUESTA
+  NEGOCIACION
+  GANADO
+  PERDIDO
+}
+
+/// Como se hablo con el cliente. NOTA es un apunte interno, no un contacto.
+enum InteractionKind {
+  NOTA
+  LLAMADA
+  WHATSAPP
+  VISITA
+  CORREO
+  CHAT
+}
+
+/// La ficha unica del cliente.
+///
+/// Antes cada apartado guardaba su propio nombre y telefono suelto (el turno,
+/// la deuda, la venta, el reporte), y la misma persona era cuatro personas.
+/// Aqui queda una sola, y su historial se arma buscando esos registros por
+/// telefono y por nombre (lib/clientes.ts). No se les agrego una columna
+/// customerId a esas tablas a proposito: lo que ya esta guardado seguiria sin
+/// ella, y el historial viejo es justo el que mas interesa ver.
+model Customer {
+  id       String  @id @default(cuid())
+  userId   String
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name     String
+  phone    String?
+  /// Los ultimos diez digitos del telefono. Es con lo que se reconoce que dos
+  /// registros son la misma persona aunque el numero se haya escrito distinto.
+  phoneKey String?
+  email    String?
+  /// Cedula o NIT.
+  document String?
+  address  String?
+  notes    String?
+  /// De donde salio: manual, importado, reserva, turno, cartera, reporte, chat
+  /// o whatsapp. Solo informativo.
+  source   String  @default("manual")
+
+  /// La ultima vez que alguien le hablo. Lo mueven las interacciones que son
+  /// contacto, no las notas.
+  lastContactAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tags         CustomerTagLink[]
+  deals        Deal[]
+  followUps    FollowUp[]
+  interactions Interaction[]
+
+  @@unique([userId, phoneKey])
+  @@index([userId, name])
+  @@index([userId, lastContactAt])
+}
+
+model CustomerTag {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  color     String   @default("#2563eb")
+  createdAt DateTime @default(now())
+
+  links CustomerTagLink[]
+
+  @@unique([userId, name])
+}
+
+model CustomerTagLink {
+  customerId String
+  customer   Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  tagId      String
+  tag        CustomerTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  /// Repetido a proposito: toda consulta del CRM filtra por negocio, tambien
+  /// esta.
+  userId     String
+  createdAt  DateTime    @default(now())
+
+  @@id([customerId, tagId])
+  @@index([userId, tagId])
+}
+
+/// Una oportunidad de venta: lo que este cliente podria comprar y en que va.
+model Deal {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customerId  String
+  customer    Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  title       String
+  /// Cuanto vale, en unidades minimas de la moneda, igual que el resto.
+  value       Int       @default(0)
+  stage       DealStage @default(NUEVO)
+  /// Quien la lleva.
+  staffId     String?
+  staff       Staff?    @relation("OportunidadesDeLaPersona", fields: [staffId], references: [id], onDelete: SetNull)
+  /// Cuando se espera cerrar, "YYYY-MM-DD".
+  expectedDay String?
+  lostReason  String?
+  /// Cuando paso a ganada o perdida. Vuelve a vacio si se reabre.
+  closedAt    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  followUps FollowUp[]
+
+  @@index([userId, stage])
+  @@index([customerId])
+}
+
+/// Algo que hay que hacer con un cliente en un dia: llamar, mandar la
+/// cotizacion, pasar a cobrar.
+model FollowUp {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customerId  String?
+  customer    Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  dealId      String?
+  deal        Deal?     @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  title       String
+  /// "YYYY-MM-DD" en la zona del negocio, como el resto de fechas del dia.
+  dueDay      String
+  /// "HH:mm", opcional.
+  dueTime     String?
+  /// A quien le toca.
+  staffId     String?
+  staff       Staff?    @relation("SeguimientosDeLaPersona", fields: [staffId], references: [id], onDelete: SetNull)
+  createdById String?
+  doneAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId, doneAt, dueDay])
+  @@index([userId, staffId, doneAt])
+  @@index([customerId])
+}
+
+/// Lo que paso con el cliente: una llamada, un WhatsApp, una visita, una nota.
+model Interaction {
+  id         String          @id @default(cuid())
+  userId     String
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customerId String
+  customer   Customer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  kind       InteractionKind
+  text       String
+  staffId    String?
+  /// Copia del nombre, por si la persona se borra: el historial no pierde autor.
+  staffName  String?
+  createdAt  DateTime        @default(now())
+
+  @@index([customerId, createdAt])
+  @@index([userId, createdAt])
 }

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import type { PaymentMethod } from "@prisma/client";
 import { db } from "@/lib/db";
+import { anotarCliente } from "@/lib/clientes";
 import { requireSession, requireUser } from "@/lib/auth";
 import { isValidDay, todayIn } from "@/lib/dates";
 import { parseIntSafe, parseMoney, str, texto } from "@/lib/format";
@@ -117,6 +118,12 @@ export async function createDebtAction(
       guarantorPhone: str(formData.get("guarantorPhone")) || null,
       guarantorAddress: str(formData.get("guarantorAddress")) || null,
     },
+  });
+
+  await anotarCliente(user.id, {
+    name: clientName,
+    phone: str(formData.get("clientPhone")) || null,
+    source: "cartera",
   });
 
   refresh();

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import type { AppointmentStatus, PaymentMethod } from "@prisma/client";
 import { db } from "@/lib/db";
+import { anotarCliente } from "@/lib/clientes";
 import { requireSession, requireUser } from "@/lib/auth";
 import { isValidDay, timeIn, todayIn } from "@/lib/dates";
 import { buildSlots, endTimeFor, isWorkDay } from "@/lib/slots";
@@ -162,6 +163,9 @@ export async function bookAppointmentAction(
         status: "PENDIENTE",
       },
     });
+    // Quien reserva queda con su ficha de cliente, sin que nadie la escriba.
+    await anotarCliente(shop.id, { name: clientName, phone: clientPhone, source: "reserva" });
+
     const aviso = bookingMessage({
       businessName: shop.businessName,
       clientName,
@@ -275,6 +279,12 @@ export async function createAppointmentAction(
   } catch {
     return { error: "No se pudo guardar. Revisa que la hora este libre." };
   }
+
+  await anotarCliente(user.id, {
+    name: clientName,
+    phone: clientPhone === "-" ? null : clientPhone,
+    source: "turno",
+  });
 
   revalidatePath("/panel/turnos");
   revalidatePath("/panel");

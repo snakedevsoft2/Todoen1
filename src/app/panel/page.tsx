@@ -4,7 +4,8 @@ import { requireSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { todayIn } from "@/lib/dates";
 import { getDaySummary } from "@/lib/queries";
-import { money, pretty12h, prettyDay } from "@/lib/format";
+import { money, pretty12h, prettyDay, shortDay } from "@/lib/format";
+import { filtroDeSeguimientos } from "@/lib/crm-filas";
 import { BUSINESS_LABEL, ITEM_NOUN } from "@/lib/nav";
 import { getInventorySummary, getLowStock } from "@/lib/inventory";
 import { variantLabel } from "@/lib/variants";
@@ -86,6 +87,19 @@ export default async function PanelHomePage() {
     0
   );
 
+  // Lo que hay que hacer hoy con los clientes. Sale solo si hay algo: quien no
+  // usa el CRM no tiene por que ver un cuadro vacio.
+  const deQuien = { userId: user.id, doneAt: null, dueDay: { lte: today }, ...filtroDeSeguimientos(me) };
+  const [seguimientosHoy, cuantosSeguimientos] = await Promise.all([
+    db.followUp.findMany({
+      where: deQuien,
+      orderBy: [{ dueDay: "asc" }, { dueTime: { sort: "asc", nulls: "last" } }],
+      take: 5,
+      select: { id: true, title: true, dueDay: true, dueTime: true, customer: { select: { id: true, name: true } } },
+    }),
+    db.followUp.count({ where: deQuien }),
+  ]);
+
   return (
     <>
       {/* El instructivo va despues del asistente: primero se arma el menu, y
@@ -125,6 +139,42 @@ export default async function PanelHomePage() {
           </Link>
         </div>
       </PageHeader>
+
+      {cuantosSeguimientos > 0 && (
+        <section data-seguimientos-hoy className="mb-4 rounded-2xl border border-warn-line bg-warn-soft p-4">
+          <h2 className="flex flex-wrap items-center gap-2 text-sm font-bold text-strong">
+            <Icon name="bell" className="h-4 w-4 text-warn" />
+            {cuantosSeguimientos === 1
+              ? "1 seguimiento para hoy"
+              : cuantosSeguimientos + " seguimientos para hoy"}
+            <Link
+              href="/panel/clientes/seguimientos"
+              className="ml-auto text-[13px] font-semibold text-brand-700 hover:underline"
+            >
+              Ver todos
+            </Link>
+          </h2>
+          <ul className="mt-2">
+            {seguimientosHoy.map((s) => (
+              <li key={s.id} className="flex flex-wrap items-center gap-x-2 border-t border-warn-line/60 py-2 text-sm first:border-0">
+                <span className="font-semibold text-strong [overflow-wrap:anywhere]">{s.title}</span>
+                {s.customer && (
+                  <Link href={"/panel/clientes/" + s.customer.id} className="text-muted hover:underline">
+                    {s.customer.name}
+                  </Link>
+                )}
+                <span className={"ml-auto text-xs font-semibold " + (s.dueDay < today ? "text-bad" : "text-warn")}>
+                  {s.dueDay < today
+                    ? "Atrasado · " + shortDay(s.dueDay)
+                    : s.dueTime
+                      ? pretty12h(s.dueTime)
+                      : "Hoy"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Ventas del día" value={money(summary.totalSales, user.currency)} hint={summary.salesCount + " ventas cerradas"} tone="brand" />

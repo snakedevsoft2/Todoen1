@@ -1,5 +1,7 @@
 "use server";
 
+import { anotarCliente } from "@/lib/clientes";
+
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
@@ -53,6 +55,10 @@ export async function crearInformeAction(
       createdByStaffId: staff.id,
     },
   });
+
+  if (informe.clientName) {
+    await anotarCliente(user.id, { name: informe.clientName, phone: informe.clientPhone, source: "reporte" });
+  }
 
   revalidatePath("/panel/informes");
   redirect("/panel/informes/" + informe.id);
