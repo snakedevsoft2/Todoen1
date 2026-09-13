@@ -38,6 +38,14 @@ export type ReportePendiente = {
   fotosSubidas: number;
   /** Si el servidor lo rechazo, por que. Ese no se reintenta solo. */
   error: string | null;
+  /** La descripcion de cada foto, en el mismo orden. */
+  leyendas?: string[];
+  /** Observaciones y recomendaciones. */
+  observaciones?: string;
+  /** PDF de evidencia, como data URL. */
+  adjuntos?: { name: string; data: string }[];
+  /** Cuantos PDF ya subieron. */
+  adjuntosSubidos?: number;
 };
 
 export type NovedadPendiente = {
@@ -187,6 +195,7 @@ export const subirReportes = unaALaVez(async (alAvanzar) => {
         siteId: r.siteId,
         clientName: r.clientName,
         clientPhone: r.clientPhone,
+        observations: r.observaciones ?? "",
       });
       if (!p.ok) {
         if (p.reintentar) return parar(enviados, p);
@@ -203,11 +212,26 @@ export const subirReportes = unaALaVez(async (alAvanzar) => {
       const p = await enviar("/api/informes/" + r.reportId + "/fotos", {
         clientKey: r.clientKey + ":" + i,
         image: r.fotos[i],
+        caption: r.leyendas?.[i] ?? "",
       });
       // Una foto que el servidor no acepta (formato raro, se paso del maximo)
       // no frena el resto del reporte: se sigue con la siguiente.
       if (!p.ok && p.reintentar) return parar(enviados, p);
       r.fotosSubidas = i + 1;
+      await guardarReporte(r);
+      alAvanzar?.();
+    }
+
+    const adjuntos = r.adjuntos ?? [];
+    for (let i = r.adjuntosSubidos ?? 0; i < adjuntos.length; i++) {
+      const p = await enviar("/api/informes/" + r.reportId + "/adjuntos", {
+        clientKey: r.clientKey + ":a" + i,
+        name: adjuntos[i].name,
+        data: adjuntos[i].data,
+      });
+      // Igual que con las fotos: uno rechazado no frena lo demas.
+      if (!p.ok && p.reintentar) return parar(enviados, p);
+      r.adjuntosSubidos = i + 1;
       await guardarReporte(r);
       alAvanzar?.();
     }

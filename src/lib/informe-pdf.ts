@@ -23,6 +23,10 @@ export type InformeDatos = {
   /** Quien marco en el sitio ese dia, con sus horas ya en la zona del negocio. */
   personal: { name: string; entrada: string | null; salida: string | null }[];
   fotos: { url: string; caption: string | null }[];
+  /** Observaciones y recomendaciones. */
+  observaciones: string | null;
+  /** PDF de evidencia: sus paginas se pegan al final. */
+  anexos: { url: string; name: string }[];
 };
 
 export type FilaPlanilla = {
@@ -111,6 +115,7 @@ export function mensajeInforme(d: InformeDatos): string {
     "Fecha: " + prettyDay(d.day),
     d.siteName ? "Sitio: " + d.siteName : "",
     d.fotos.length > 0 ? "Incluye " + d.fotos.length + (d.fotos.length === 1 ? " foto." : " fotos.") : "",
+    d.anexos.length > 0 ? "Con " + d.anexos.length + (d.anexos.length === 1 ? " anexo al final." : " anexos al final.") : "",
   ]
     .filter((l, i, arr) => l !== "" || (i > 0 && arr[i - 1] !== ""))
     .join("\n")
@@ -185,7 +190,7 @@ export async function construirInformePdf(d: InformeDatos): Promise<File> {
   // Datos del trabajo.
   const datos: [string, string | null][] = [
     ["Sitio", d.siteName],
-    ["Direccion", d.siteAddress],
+    ["Dirección", d.siteAddress],
     ["Cliente", d.clientName],
     ["Elaborado por", d.createdBy],
   ];
@@ -245,13 +250,30 @@ export async function construirInformePdf(d: InformeDatos): Promise<File> {
     }
   }
 
+  // Observaciones y recomendaciones.
+  if (d.observaciones) {
+    y += 3;
+    salto(14);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("Observaciones y recomendaciones", M, y);
+    y += 6;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    for (const linea of doc.splitTextToSize(d.observaciones, UTIL) as string[]) {
+      salto(5);
+      doc.text(linea, M, y);
+      y += 5;
+    }
+  }
+
   // Registro fotografico, en dos columnas y sin deformar ninguna foto.
   if (d.fotos.length > 0) {
     y += 4;
     salto(20);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
-    doc.text("Registro fotografico (" + d.fotos.length + ")", M, y);
+    doc.text("Registro fotográfico (" + d.fotos.length + ")", M, y);
     y += 5;
 
     const GAP = 6;
@@ -308,8 +330,57 @@ export async function construirInformePdf(d: InformeDatos): Promise<File> {
     }
   }
 
+  // La lista de anexos: quien lee el reporte sabe que hay mas paginas al final
+  // y de donde salen.
+  if (d.anexos.length > 0) {
+    y += 4;
+    salto(16 + d.anexos.length * 5);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("Anexos (" + d.anexos.length + ")", M, y);
+    y += 6;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    d.anexos.forEach((a, i) => {
+      salto(5);
+      doc.text((doc.splitTextToSize("Anexo " + (i + 1) + ": " + a.name, UTIL) as string[])[0], M, y);
+      y += 5;
+    });
+    doc.setFontSize(8);
+    doc.setTextColor(110);
+    doc.text("Los anexos van al final de este documento.", M, y + 1);
+    doc.setTextColor(0);
+  }
+
   piePaginas(doc, ANCHO, ALTO);
-  return new File([doc.output("blob")], nombreInforme(d), { type: "application/pdf" });
+  const base = doc.output("arraybuffer") as ArrayBuffer;
+  if (d.anexos.length === 0) return new File([base], nombreInforme(d), { type: "application/pdf" });
+  const unido = await unirAnexos(base, d.anexos);
+  return new File([unido as BlobPart], nombreInforme(d), { type: "application/pdf" });
+}
+
+/**
+ * Pega al final las paginas de los PDF de evidencia.
+ *
+ * Se hace aqui, en el navegador, con pdf-lib: el reporte nunca pasa por el
+ * servidor. Un anexo que no se pueda leer (danado, o con clave) no tumba el
+ * reporte: se salta y el resto sale igual.
+ */
+async function unirAnexos(base: ArrayBuffer, anexos: { url: string }[]): Promise<Uint8Array> {
+  const { PDFDocument } = await import("pdf-lib");
+  const final = await PDFDocument.load(base);
+  for (const a of anexos) {
+    try {
+      const r = await fetch(a.url, { credentials: "same-origin" });
+      if (!r.ok) continue;
+      const fuente = await PDFDocument.load(await r.arrayBuffer(), { ignoreEncryption: true });
+      const paginas = await final.copyPages(fuente, fuente.getPageIndices());
+      paginas.forEach((p) => final.addPage(p));
+    } catch {
+      // Sigue con el siguiente anexo.
+    }
+  }
+  return final.save({ useObjectStreams: false });
 }
 
 export function nombrePlanilla(d: PlanillaDatos): string {

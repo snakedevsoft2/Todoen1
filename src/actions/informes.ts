@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireOwner, requireSession } from "@/lib/auth";
 import { crudo, str } from "@/lib/format";
-import { agregarFoto } from "@/lib/informes";
+import { agregarFoto, borrarAdjunto } from "@/lib/informes";
 
 export type InformeState = { error?: string; ok?: string } | undefined;
 
@@ -50,4 +50,11 @@ export async function borrarInformeAction(formData: FormData): Promise<void> {
   await db.visitReport.deleteMany({ where: { id, userId: user.id } });
   revalidatePath("/panel/informes");
   redirect("/panel/informes");
+}
+
+/** Quita un PDF de evidencia. Lo hace el administrador o quien hizo el reporte. */
+export async function borrarAdjuntoAction(formData: FormData): Promise<void> {
+  const sesion = await requireSession();
+  const reportId = await borrarAdjunto(sesion, str(formData.get("id")));
+  if (reportId) revalidatePath("/panel/informes/" + reportId);
 }

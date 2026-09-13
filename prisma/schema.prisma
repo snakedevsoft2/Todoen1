@@ -199,6 +199,8 @@ model User {
   agentConversations AgentConversation[]
   agentMessages      AgentMessage[]
   novelties          Novelty[]
+  visitAttachments   VisitAttachment[]
+  scanDocuments      ScanDocument[]
 
   @@index([slug])
 }
@@ -1026,11 +1028,14 @@ model VisitReport {
   sentAt    DateTime?
   /// Cuando el administrador lo abrio. El empleado ve que ya se lo miraron.
   seenAt    DateTime?
+  /// Observaciones y recomendaciones, aparte de lo que se hizo.
+  observations String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  photos VisitPhoto[]
+  photos      VisitPhoto[]
+  attachments VisitAttachment[]
 
   @@index([userId, day])
 }
@@ -1348,4 +1353,44 @@ model Novelty {
 
   @@index([userId, status])
   @@index([staffId, fromDay])
+}
+
+/// Un PDF de evidencia pegado a un reporte: un acta, una factura, un documento
+/// escaneado. Al exportar el reporte, sus paginas van al final.
+model VisitAttachment {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reportId  String
+  report    VisitReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  name      String
+  /// El PDF como data URL. Tope de 3 MB: mas que eso no pasa por el limite de
+  /// lo que se puede subir de una vez.
+  data      String
+  size      Int
+  /// Llave del telefono: el reporte se puede armar sin senal.
+  clientKey String?     @unique
+  createdAt DateTime    @default(now())
+
+  @@index([reportId])
+}
+
+/// Un documento escaneado con el telefono: las fotos de sus paginas vueltas
+/// PDF y, si se pidio, el texto que se leyo de ellas.
+model ScanDocument {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Quien lo escaneo. El administrador ve los de todos; cada quien, los suyos.
+  staffId   String?
+  title     String
+  /// El PDF como data URL. Tope de 3 MB.
+  pdf       String
+  size      Int
+  pages     Int
+  /// El texto reconocido en las paginas, si se paso a texto.
+  text      String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
 }

@@ -105,7 +105,12 @@ export async function ResumenAsistencia({ user, staff }: { user: User; staff: St
         <Stat
           label="Por revisar"
           value={String(cuantasPorRevisar + cuantosReportes)}
-          hint={cuantasPorRevisar + " novedades · " + cuantosReportes + " reportes"}
+          hint={
+            cuantasPorRevisar +
+            (cuantasPorRevisar === 1 ? " novedad · " : " novedades · ") +
+            cuantosReportes +
+            (cuantosReportes === 1 ? " reporte" : " reportes")
+          }
           tone={cuantasPorRevisar + cuantosReportes > 0 ? "amber" : "default"}
         />
       </div>

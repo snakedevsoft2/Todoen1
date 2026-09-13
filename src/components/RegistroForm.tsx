@@ -22,6 +22,17 @@ const TYPES = [
   { value: "OTRO", label: "Otro negocio", hint: "Lo armas tú mismo" },
 ];
 
+/** Un nombre de ejemplo que se parezca al negocio que eligio. */
+const EJEMPLO_NOMBRE: Record<string, string> = {
+  BARBERIA: "Ej: Barbería El Estilo",
+  RESTAURANTE: "Ej: Restaurante La Sazón",
+  COMIDAS_RAPIDAS: "Ej: Perros y Hamburguesas Don Pepe",
+  ROPA: "Ej: Boutique Valentina",
+  CARTERA: "Ej: Inversiones La Confianza",
+  ASISTENCIA: "Ej: Servicios de Aseo Total",
+  OTRO: "Ej: Mi negocio",
+};
+
 export function RegistroForm({
   defaultEmail,
   defaultName,
@@ -74,7 +85,7 @@ export function RegistroForm({
       </div>
 
       <Field label="Nombre del negocio">
-        <input className="input" name="businessName" required placeholder="Barberia El Estilo" />
+        <input className="input" name="businessName" required placeholder={EJEMPLO_NOMBRE[type] ?? "Ej: Mi negocio"} />
       </Field>
 
       <Field label="Tu nombre">

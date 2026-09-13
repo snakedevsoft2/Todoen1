@@ -25,6 +25,22 @@ export const FOTO_VALIDA = /^data:image\/(png|jpeg|jpg|webp);base64,[A-Za-z0-9+/
 
 export const LLAVE_VALIDA = /^[A-Za-z0-9-]{8,64}$/;
 const LLAVE_FOTO = /^[A-Za-z0-9-]{8,64}:\d{1,2}$/;
+const LLAVE_ADJUNTO = /^[A-Za-z0-9-]{8,64}:a\d{1,2}$/;
+
+/** Evidencias en PDF por reporte, y cuanto puede pesar cada una. */
+export const MAX_ADJUNTOS = 5;
+export const MAX_BYTES_PDF = 3 * 1024 * 1024;
+export const PDF_VALIDO = /^data:application\/pdf;base64,[A-Za-z0-9+/=]+$/;
+
+/**
+ * Que de verdad sea un PDF y no otra cosa con la etiqueta cambiada: todo PDF
+ * empieza por "%PDF".
+ */
+export function esPdfDeVerdad(dataUrl: string): boolean {
+  const coma = dataUrl.indexOf(",");
+  if (coma < 0) return false;
+  return Buffer.from(dataUrl.slice(coma + 1, coma + 9), "base64").toString("latin1").startsWith("%PDF");
+}
 
 export type Sesion = { user: User; staff: Staff };
 export type Resultado<T> = { ok: true; datos: T } | { ok: false; error: string; status: number };
@@ -75,6 +91,7 @@ export async function crearInforme(s: Sesion, d: Record<string, unknown>): Promi
         day,
         title,
         body: textoDe(d.body, 4000) || null,
+        observations: textoDe(d.observations, 4000) || null,
         clientName: textoDe(d.clientName, 200) || null,
         clientPhone: textoDe(d.clientPhone, 40) || null,
         createdByStaffId: s.staff.id,
@@ -104,7 +121,7 @@ async function informeVisible(s: Sesion, reportId: string) {
       sentAt: true,
       createdByStaffId: true,
       site: { select: { name: true } },
-      _count: { select: { photos: true } },
+      _count: { select: { photos: true, attachments: true } },
     },
   });
   return informe && puedeVerInforme(s.staff, informe) ? informe : null;
@@ -189,4 +206,64 @@ export async function enviarInforme(s: Sesion, reportId: string): Promise<Result
     });
   }
   return { ok: true, datos: { yaEstaba: marcado.count === 0 } };
+}
+
+/**
+ * Pega un PDF de evidencia al reporte.
+ *
+ * Llega con su llave desde la cola del telefono, o sin llave desde la ficha.
+ * Se revisa que sea un PDF de verdad (empieza por %PDF) y no un archivo con la
+ * extension cambiada, porque despues se sirve y se pega dentro del reporte.
+ */
+export async function agregarAdjunto(
+  s: Sesion,
+  reportId: string,
+  d: Record<string, unknown>
+): Promise<Resultado<{ id: string; repetido: boolean }>> {
+  const informe = await informeVisible(s, reportId);
+  if (!informe) return falla("Ese reporte no existe.", 404);
+
+  const clientKey = typeof d.clientKey === "string" && LLAVE_ADJUNTO.test(d.clientKey) ? d.clientKey : null;
+  if (clientKey) {
+    const ya = await db.visitAttachment.findUnique({ where: { clientKey }, select: { id: true, reportId: true } });
+    if (ya) {
+      return ya.reportId === informe.id ? { ok: true, datos: { id: ya.id, repetido: true } } : falla("Ese PDF no se puede recibir.", 409);
+    }
+  }
+
+  if (informe._count.attachments >= MAX_ADJUNTOS) {
+    return falla("El reporte ya tiene " + MAX_ADJUNTOS + " PDF de evidencia, que es el máximo.");
+  }
+  const data = typeof d.data === "string" ? d.data : "";
+  if (!PDF_VALIDO.test(data) || !esPdfDeVerdad(data)) return falla("Eso no es un PDF válido.");
+  const size = Math.floor(((data.length - data.indexOf(",") - 1) * 3) / 4);
+  if (size > MAX_BYTES_PDF) return falla("El PDF pesa más de 3 MB. Comprímelo o divídelo en partes.");
+
+  let name = textoDe(d.name, 120).replace(/[\/:*?"<>|]+/g, " ").trim() || "evidencia.pdf";
+  if (!/\.pdf$/i.test(name)) name += ".pdf";
+
+  try {
+    const adjunto = await db.visitAttachment.create({
+      data: { userId: s.user.id, reportId: informe.id, name, data, size, clientKey },
+      select: { id: true },
+    });
+    return { ok: true, datos: { id: adjunto.id, repetido: false } };
+  } catch (e) {
+    if ((e as { code?: string })?.code === "P2002" && clientKey) {
+      const ya = await db.visitAttachment.findUnique({ where: { clientKey }, select: { id: true } });
+      if (ya) return { ok: true, datos: { id: ya.id, repetido: true } };
+    }
+    throw e;
+  }
+}
+
+/** Lo quita el administrador o quien hizo el reporte. Devuelve el reporte, o null. */
+export async function borrarAdjunto(s: Sesion, id: string): Promise<string | null> {
+  const adjunto = await db.visitAttachment.findFirst({
+    where: { id, userId: s.user.id },
+    select: { id: true, reportId: true, report: { select: { createdByStaffId: true } } },
+  });
+  if (!adjunto || !puedeVerInforme(s.staff, adjunto.report)) return null;
+  await db.visitAttachment.delete({ where: { id: adjunto.id } });
+  return adjunto.reportId;
 }

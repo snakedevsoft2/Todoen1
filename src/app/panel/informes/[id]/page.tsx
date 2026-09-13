@@ -6,7 +6,8 @@ import { addDays, inicioDelDiaEn } from "@/lib/dates";
 import { prettyDay } from "@/lib/format";
 import { logoUrl } from "@/lib/nav";
 import type { InformeDatos } from "@/lib/informe-pdf";
-import { puedeVerInforme } from "@/lib/informes";
+import { MAX_ADJUNTOS, puedeVerInforme } from "@/lib/informes";
+import { AdjuntosInforme } from "@/components/AdjuntosInforme";
 import { Card, PageHeader } from "@/components/ui";
 import { FotosInforme } from "@/components/FotosInforme";
 import { AccionesInforme } from "@/components/CompartirPdf";
@@ -26,6 +27,7 @@ export default async function InformePage({ params }: { params: Promise<{ id: st
       // Sin la imagen: solo el id. La foto se pide aparte por su direccion, o
       // la pagina cargaria varios megas de texto.
       photos: { orderBy: { sort: "asc" }, select: { id: true, caption: true } },
+      attachments: { orderBy: { createdAt: "asc" }, select: { id: true, name: true, size: true } },
     },
   });
   // El empleado solo abre los suyos; un id ajeno responde como si no existiera.
@@ -98,6 +100,8 @@ export default async function InformePage({ params }: { params: Promise<{ id: st
     createdBy: creador?.name ?? null,
     personal,
     fotos: informe.photos.map((f) => ({ url: "/foto-reporte/" + f.id, caption: f.caption })),
+    observaciones: informe.observations,
+    anexos: informe.attachments.map((a) => ({ url: "/adjunto-reporte/" + a.id, name: a.name })),
   };
 
   return (
@@ -120,6 +124,14 @@ export default async function InformePage({ params }: { params: Promise<{ id: st
               <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-body [overflow-wrap:anywhere]">
                 {informe.body}
               </p>
+            )}
+            {informe.observations && (
+              <div className="mt-4 rounded-xl bg-surface px-3.5 py-3">
+                <p className="eyebrow">Observaciones y recomendaciones</p>
+                <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-body [overflow-wrap:anywhere]">
+                  {informe.observations}
+                </p>
+              </div>
             )}
           </Card>
 
@@ -155,14 +167,36 @@ export default async function InformePage({ params }: { params: Promise<{ id: st
               puedeBorrar={puedeBorrarFotos}
             />
           </Card>
+
+          <Card>
+            <h2 className="mb-3 text-sm font-bold text-strong">
+              Evidencias en PDF ({informe.attachments.length})
+            </h2>
+            <AdjuntosInforme
+              reportId={informe.id}
+              adjuntos={informe.attachments}
+              puedeEditar={puedeBorrarFotos}
+              maximo={MAX_ADJUNTOS}
+            />
+          </Card>
         </div>
 
         <div className="space-y-4">
           <Card>
             <h2 className="text-sm font-bold text-strong">Compartir</h2>
             <p className="mb-3 mt-1 text-[13px] text-muted">
-              El PDF lleva las fotos, el personal con sus horas y lo que se hizo.
+              El PDF lleva tu logo, lo que se hizo, el personal con sus horas, las fotos con su descripción, las
+              observaciones y, al final, los PDF de evidencia.
             </p>
+            {esDueno && !user.logo && (
+              <p className="mb-3 text-[12px] text-muted">
+                Todavía no tienes logo.{" "}
+                <Link href="/panel/personalizar" className="font-semibold text-brand-700 underline">
+                  Súbelo aquí
+                </Link>{" "}
+                para que salga en el encabezado.
+              </p>
+            )}
             <AccionesInforme datos={datos} telefono={informe.clientPhone} />
           </Card>
 

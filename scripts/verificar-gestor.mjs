@@ -138,8 +138,8 @@ try {
   }
   const enlaces = await tel.evaluate(() => [...new Set([...document.querySelectorAll("nav a")].map((a) => a.getAttribute("href")))]);
   ok(
-    enlaces.every((h) => ["/panel/marcar", "/panel/novedades", "/panel/informes", "/panel/perfil"].includes(h)),
-    "su menu es Marcar, Novedades, Mis reportes y Mi perfil",
+    enlaces.every((h) => ["/panel/marcar", "/panel/novedades", "/panel/informes", "/panel/escaner", "/panel/perfil"].includes(h)),
+    "su menu es Marcar, Novedades, Reportes, Escáner y Perfil",
     enlaces.join(" ")
   );
 

@@ -19,8 +19,10 @@ export function esEmpleadoDeAsistencia(
 export const MENU_EMPLEADO_ASISTENCIA: NavItem[] = [
   { href: "/panel/marcar", label: "Marcar", icon: "clock" },
   { href: "/panel/novedades", label: "Novedades", icon: "bell" },
-  { href: "/panel/informes", label: "Mis reportes", icon: "image" },
-  { href: "/panel/perfil", label: "Mi perfil", icon: "user" },
+  // Una palabra: el menu de abajo del celular solo muestra la primera.
+  { href: "/panel/informes", label: "Reportes", icon: "image" },
+  { href: "/panel/escaner", label: "Escáner", icon: "scan" },
+  { href: "/panel/perfil", label: "Perfil", icon: "user" },
 ];
 
 export function rutaDeEmpleadoAsistencia(ruta: string): boolean {
