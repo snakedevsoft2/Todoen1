@@ -198,6 +198,7 @@ model User {
   agentConfig        AgentConfig?
   agentConversations AgentConversation[]
   agentMessages      AgentMessage[]
+  novelties          Novelty[]
 
   @@index([slug])
 }
@@ -357,6 +358,9 @@ model Staff {
   securityQuestion   String?
   securityAnswerHash String?
   phone              String?
+  /// Foto de perfil, achicada en el telefono y guardada como data URL. Se
+  /// sirve en /foto-perfil/[id], solo a gente del mismo negocio.
+  photo              String?
   role               StaffRole @default(BARBERO)
   /// Color para reconocerlo de un vistazo en la agenda.
   color              String    @default("#0ea5e9")
@@ -405,6 +409,7 @@ model Staff {
   marks          Attendance[]    @relation("MarcajesDeLaPersona")
   deals          Deal[]          @relation("OportunidadesDeLaPersona")
   followUps      FollowUp[]      @relation("SeguimientosDeLaPersona")
+  novelties      Novelty[]       @relation("NovedadesDeLaPersona")
 
   @@index([userId, active])
 }
@@ -1012,6 +1017,16 @@ model VisitReport {
 
   createdByStaffId String?
 
+  /// La llave que invento el telefono al guardar el reporte sin senal. Si el
+  /// envio se corta y se reintenta, el servidor reconoce que ya lo tenia y no
+  /// crea otro.
+  clientKey String?   @unique
+  /// Cuando quien lo hizo lo termino de subir con sus fotos: desde ahi le
+  /// aparece al administrador como nuevo.
+  sentAt    DateTime?
+  /// Cuando el administrador lo abrio. El empleado ve que ya se lo miraron.
+  seenAt    DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1031,6 +1046,8 @@ model VisitPhoto {
   image   String
   caption String?
   sort    Int     @default(0)
+  /// Llave del telefono para esta foto: reintentar la subida no la repite.
+  clientKey String? @unique
 
   createdAt DateTime @default(now())
 
@@ -1279,4 +1296,56 @@ model AgentMessage {
 
   @@index([conversationId, createdAt])
   @@index([userId, createdAt])
+}
+
+// ------------------------------------------------- NOVEDADES DEL PERSONAL
+
+/// Que tipo de novedad avisa el empleado. Ver lib/novedades.ts.
+enum NoveltyKind {
+  PERMISO
+  INCAPACIDAD
+  CALAMIDAD
+  LLEGADA_TARDE
+  SALIDA_TEMPRANO
+  VACACIONES
+  OTRO
+}
+
+enum NoveltyStatus {
+  PENDIENTE
+  APROBADA
+  RECHAZADA
+}
+
+/// Lo que un empleado le avisa al administrador y no es un marcaje: un
+/// permiso, una incapacidad, que va a llegar tarde.
+///
+/// Va aparte de los marcajes a proposito: el marcaje es lo que paso y no se
+/// toca; la novedad es una explicacion que el administrador aprueba o no.
+model Novelty {
+  id                String        @id @default(cuid())
+  userId            String
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  staffId           String
+  staff             Staff         @relation("NovedadesDeLaPersona", fields: [staffId], references: [id], onDelete: Cascade)
+  kind              NoveltyKind
+  /// Dias que cubre, "YYYY-MM-DD". Un permiso de una tarde es de un solo dia.
+  fromDay           String
+  toDay             String
+  /// Horas, "HH:mm", solo si es por horas (permiso, llegada tarde).
+  fromTime          String?
+  toTime            String?
+  reason            String
+  /// Foto del soporte (la incapacidad, la cita), como data URL.
+  photo             String?
+  status            NoveltyStatus @default(PENDIENTE)
+  /// Llave del telefono: la novedad se puede avisar sin senal.
+  clientKey         String?       @unique
+  reviewedAt        DateTime?
+  reviewedByStaffId String?
+  reviewNote        String?
+  createdAt         DateTime      @default(now())
+
+  @@index([userId, status])
+  @@index([staffId, fromDay])
 }

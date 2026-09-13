@@ -48,6 +48,16 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Le pasa la ruta al layout del panel: ahi se decide que puede abrir un
+  // empleado del gestor de asistencia, y un layout no tiene otra forma de
+  // saber en que pagina esta. Se escribe siempre, asi que no se puede fingir
+  // desde afuera.
+  if (pathname.startsWith("/panel")) {
+    const cabeceras = new Headers(request.headers);
+    cabeceras.set("x-ruta", pathname);
+    return NextResponse.next({ request: { headers: cabeceras } });
+  }
+
   return NextResponse.next();
 }
 

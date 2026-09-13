@@ -6,6 +6,7 @@ import { addDays, inicioDelDiaEn } from "@/lib/dates";
 import { prettyDay } from "@/lib/format";
 import { logoUrl } from "@/lib/nav";
 import type { InformeDatos } from "@/lib/informe-pdf";
+import { puedeVerInforme } from "@/lib/informes";
 import { Card, PageHeader } from "@/components/ui";
 import { FotosInforme } from "@/components/FotosInforme";
 import { AccionesInforme } from "@/components/CompartirPdf";
@@ -27,7 +28,14 @@ export default async function InformePage({ params }: { params: Promise<{ id: st
       photos: { orderBy: { sort: "asc" }, select: { id: true, caption: true } },
     },
   });
-  if (!informe) notFound();
+  // El empleado solo abre los suyos; un id ajeno responde como si no existiera.
+  if (!informe || !puedeVerInforme(staff, informe)) notFound();
+
+  // El administrador lo abrio: deja de salir como nuevo y el empleado ve que ya
+  // se lo miraron.
+  if (staff.role === "DUENO" && informe.sentAt && !informe.seenAt && informe.createdByStaffId !== staff.id) {
+    await db.visitReport.update({ where: { id: informe.id }, data: { seenAt: new Date() } });
+  }
 
   const tz = user.timezone;
   const hora = (d: Date) =>

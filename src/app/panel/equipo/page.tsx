@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireOwner } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { startOfMonth, todayIn } from "@/lib/dates";
+import { inicioDelDiaEn, startOfMonth, todayIn } from "@/lib/dates";
 import { money, shortDay } from "@/lib/format";
 import { getStaffTotals } from "@/lib/queries";
 import { hasTeam, teamNoun } from "@/lib/staff";
@@ -20,6 +20,8 @@ export default async function EquipoPage() {
 
   const noun = teamNoun(user.businessType);
   const agenda = user.businessType === "BARBERIA";
+  // En el gestor de asistencia nadie vende: se mide la asistencia, no la plata.
+  const asistencia = user.businessType === "ASISTENCIA";
 
   const today = todayIn(user.timezone);
   const from = startOfMonth(today);
@@ -31,6 +33,24 @@ export default async function EquipoPage() {
     }),
     getStaffTotals(user.id, from, today),
   ]);
+
+  const [marcaronHoy, novedadesPendientes] = asistencia
+    ? await Promise.all([
+        db.attendance
+          .findMany({
+            where: {
+              userId: user.id,
+              voidedAt: null,
+              kind: "ENTRADA",
+              markedAt: { gte: inicioDelDiaEn(today, user.timezone) },
+            },
+            select: { staffId: true },
+            distinct: ["staffId"],
+          })
+          .then((filas) => filas.length),
+        db.novelty.count({ where: { userId: user.id, status: "PENDIENTE" } }),
+      ])
+    : [0, 0];
 
   const statsById = new Map(totals.rows.map((row) => [row.staffId, row]));
   const conUsuario = team.filter((s) => Boolean(s.email)).length;
@@ -58,13 +78,22 @@ export default async function EquipoPage() {
         subtitle={
           agenda
             ? "Quién atiende en la barbería y quién puede entrar a la aplicación"
-            : "Quién vende en la tienda y quién puede entrar a la aplicación"
+            : asistencia
+              ? "Quién trabaja contigo, con su usuario para marcar desde el teléfono"
+              : "Quién vende en la tienda y quién puede entrar a la aplicación"
         }
       >
-        <Link href="/panel/reportes" className="btn-ghost btn-sm">
-          <Icon name="chart" className="h-4 w-4" />
-          Ver medicion
-        </Link>
+        {asistencia ? (
+          <Link href="/panel/planilla" className="btn-ghost btn-sm">
+            <Icon name="table" className="h-4 w-4" />
+            Ver planilla
+          </Link>
+        ) : (
+          <Link href="/panel/reportes" className="btn-ghost btn-sm">
+            <Icon name="chart" className="h-4 w-4" />
+            Ver medición
+          </Link>
+        )}
       </PageHeader>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -75,13 +104,25 @@ export default async function EquipoPage() {
           tone="brand"
         />
         <Stat label="Con usuario propio" value={String(conUsuario)} hint="Pueden entrar solos" />
-        <Stat
-          label="Vendido este mes"
-          value={money(mesVendido, user.currency)}
-          hint={"Desde el " + shortDay(from)}
-          tone="good"
-        />
-        {agenda ? (
+        {asistencia ? (
+          <>
+            <Stat label="Marcaron hoy" value={String(marcaronHoy)} hint="Entraron a trabajar" tone="good" />
+            <Stat
+              label="Novedades por revisar"
+              value={String(novedadesPendientes)}
+              hint="Permisos e incapacidades"
+              tone={novedadesPendientes > 0 ? "amber" : "default"}
+            />
+          </>
+        ) : (
+          <Stat
+            label="Vendido este mes"
+            value={money(mesVendido, user.currency)}
+            hint={"Desde el " + shortDay(from)}
+            tone="good"
+          />
+        )}
+        {asistencia ? null : agenda ? (
           <Stat
             label="Sin barbero asignado"
             value={money(totals.unassigned.totalSales, user.currency)}
@@ -114,7 +155,7 @@ export default async function EquipoPage() {
                     currency={user.currency}
                     businessType={user.businessType}
                     stats={
-                      stat
+                      stat && !asistencia
                         ? {
                             totalSales: money(stat.totalSales, user.currency),
                             attended: stat.attended,
@@ -146,35 +187,42 @@ export default async function EquipoPage() {
                 Cada {noun.singular} entra por la misma pagina de ingreso, con su correo y su
                 contrasena.
               </li>
-              <li className="flex gap-2">
-                <Icon name="check" className="mt-0.5 h-4 w-4 shrink-0 text-good" />
-                {agenda
-                  ? "Ve la agenda completa, las ventas, los gastos y los reportes de la barberia."
-                  : "Ve el inventario, registra ventas y consulta gastos y reportes de la tienda."}
-              </li>
-              <li className="flex gap-2">
-                <Icon name="check" className="mt-0.5 h-4 w-4 shrink-0 text-good" />
-                No puede entrar a Personalizar, Avisos ni a esta pagina de {noun.title}.
-              </li>
-              {agenda ? (
-                <li className="flex gap-2">
-                  <Icon name="check" className="mt-0.5 h-4 w-4 shrink-0 text-good" />
-                  Los clientes eligen con quien quieren el turno desde tu enlace de reservas.
-                </li>
+              {asistencia ? (
+                <>
+                  <Punto>Solo ve lo suyo: el botón para marcar entrada y salida, sus novedades, sus reportes y su perfil.</Punto>
+                  <Punto>Marca una entrada y una salida por día, con la hora y la ubicación. Funciona sin señal.</Punto>
+                  <Punto>Avisa permisos e incapacidades en Novedades, y tú los apruebas o los rechazas.</Punto>
+                  <Punto>Lo que marca queda en la Planilla, y de ahí sacas las horas trabajadas en PDF o en Excel.</Punto>
+                </>
               ) : (
-                <li className="flex gap-2">
-                  <Icon name="check" className="mt-0.5 h-4 w-4 shrink-0 text-good" />
-                  Cada venta descuenta el stock de la talla vendida, sin que nadie lo haga a mano.
-                </li>
+                <>
+                  <Punto>
+                    {agenda
+                      ? "Ve la agenda completa, las ventas, los gastos y los reportes de la barbería."
+                      : "Ve el inventario, registra ventas y consulta gastos y reportes de la tienda."}
+                  </Punto>
+                  <Punto>No puede entrar a Personalizar, Avisos ni a esta página de {noun.title}.</Punto>
+                  <Punto>
+                    {agenda
+                      ? "Los clientes eligen con quién quieren el turno desde tu enlace de reservas."
+                      : "Cada venta descuenta el stock de la talla vendida, sin que nadie lo haga a mano."}
+                  </Punto>
+                  <Punto>Cada venta queda a nombre de quien la hizo, y eso se ve en Reportes con su comisión.</Punto>
+                </>
               )}
-              <li className="flex gap-2">
-                <Icon name="check" className="mt-0.5 h-4 w-4 shrink-0 text-good" />
-                Cada venta queda a nombre de quien la hizo, y eso se ve en Reportes con su comision.
-              </li>
             </ul>
           </Card>
         </div>
       </div>
     </>
+  );
+}
+
+function Punto({ children }: { children: React.ReactNode }) {
+  return (
+    <li className="flex gap-2">
+      <Icon name="check" className="mt-0.5 h-4 w-4 shrink-0 text-good" />
+      <span>{children}</span>
+    </li>
   );
 }

@@ -35,7 +35,7 @@ export default async function RegistroPage({
               ? "Tu correo de " +
                 (desdeGoogle ? "Google" : "Facebook") +
                 " todavía no tiene un negocio. Cuéntanos cuál es y lo creamos."
-              : "Tu negocio queda separado del de los demas usuarios."}
+              : "Tu negocio queda separado del de los demás usuarios."}
           </p>
         </div>
 

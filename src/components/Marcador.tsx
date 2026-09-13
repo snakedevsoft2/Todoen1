@@ -23,9 +23,16 @@ import { RegistrarSW } from "./RegistrarSW";
  *
  * Por eso el boton NUNCA se queda esperando a la red. Guarda, confirma en
  * pantalla, y la sincronizacion ocurre aparte.
+ *
+ * Una entrada y una salida por jornada: despues de la salida el boton
+ * desaparece y queda la jornada completa. El servidor aplica la misma regla
+ * (lib/jornada-reglas.ts), por si el telefono se equivoca.
  */
 
 type Sitio = { id: string; name: string };
+
+/** Lo que le toca: marcar entrada, marcar salida, o ya termino por hoy. */
+export type Siguiente = "ENTRADA" | "SALIDA" | "COMPLETA";
 
 type Estado =
   | { fase: "listo" }
@@ -60,28 +67,28 @@ function ubicar(): Promise<GeolocationPosition | null> {
 
 export function Marcador({
   sitios,
-  ultimo,
+  siguienteInicial,
 }: {
   sitios: Sitio[];
-  /** Lo ultimo que marco, para saber si le toca entrada o salida. */
-  ultimo: "ENTRADA" | "SALIDA" | null;
+  /** Lo que le toca segun el servidor al abrir la pantalla. */
+  siguienteInicial: Siguiente;
 }) {
   const router = useRouter();
   const [estado, setEstado] = useState<Estado>({ fase: "listo" });
   /*
-   * Lo ultimo que marco, llevado aqui y no solo leido del servidor.
+   * Lo que le toca, llevado aqui y no solo leido del servidor.
    *
-   * Antes el boton decidia "entrada o salida" solo con lo que trajo la pagina
-   * al abrirse. Al marcar entrada, esa cifra no cambiaba, y a los cuatro
-   * segundos el boton volvia a decir "Marcar entrada": la persona podia marcar
-   * entrada dos veces seguidas. Y sin senal no hay pagina nueva que lo
-   * corrija, asi que tiene que resolverse en el telefono.
+   * Sin senal no hay pagina nueva que diga que ya marco entrada, asi que el
+   * telefono tiene que saberlo por su cuenta: si no, a los cuatro segundos el
+   * boton volveria a decir "Marcar entrada".
    */
-  const [ultimoLocal, setUltimoLocal] = useState<"ENTRADA" | "SALIDA" | null>(ultimo);
+  const [siguiente, setSiguiente] = useState<Siguiente>(siguienteInicial);
   const [sitioId, setSitioId] = useState<string>(sitios[0]?.id ?? "");
   const [enCola, setEnCola] = useState(0);
   const [enLinea, setEnLinea] = useState(true);
   const [aviso, setAviso] = useState<string | null>(null);
+
+  useEffect(() => setSiguiente(siguienteInicial), [siguienteInicial]);
 
   const refrescarCola = useCallback(async () => {
     try {
@@ -115,15 +122,12 @@ export function Marcador({
    *
    * Pedir la pagina sin red no es inofensivo: Next no la consigue, cae a una
    * navegacion completa del navegador, y el telefono queda en la pagina de
-   * error de "sin internet". La aplicacion desaparece de la pantalla justo en
-   * el sotano sin cobertura, que es donde mas tiene que aguantar. Por eso se
-   * exige las dos cosas: que haya red en este momento y que el envio haya
-   * entregado al menos un marcaje. Si no, la pantalla se queda como esta; el
-   * boton ya quedo al dia con el estado local.
+   * error de "sin internet". Por eso se exige que haya red en este momento y
+   * que el envio haya entregado o rechazado al menos un marcaje.
    */
   const enviarYRefrescar = useCallback(async () => {
     const r = await enviar();
-    if (r && r.huboRed && r.enviados > 0 && navigator.onLine) router.refresh();
+    if (r && r.huboRed && (r.enviados > 0 || r.rechazados.length > 0) && navigator.onLine) router.refresh();
   }, [enviar, router]);
 
   useEffect(() => {
@@ -133,8 +137,6 @@ export function Marcador({
 
     const volvio = () => {
       setEnLinea(true);
-      // Aqui si vale la pena refrescar: vuelve la red y lo que estaba en la
-      // cola por fin sale, asi que la lista de hoy tiene que mostrarlo.
       void enviarYRefrescar();
     };
     const cayo = () => setEnLinea(false);
@@ -182,16 +184,12 @@ export function Marcador({
     }
 
     setEstado({ fase: "guardado", kind, conUbicacion: Boolean(pos) });
-    setUltimoLocal(kind);
+    setSiguiente(kind === "ENTRADA" ? "SALIDA" : "COMPLETA");
     await refrescarCola();
-    // Se intenta enviar ya. La pagina solo se pide de nuevo si el envio
-    // entrego algo con red de por medio: ver enviarYRefrescar.
     void enviarYRefrescar();
 
     setTimeout(() => setEstado({ fase: "listo" }), 4000);
   }
-
-  const siguiente: "ENTRADA" | "SALIDA" = ultimoLocal === "ENTRADA" ? "SALIDA" : "ENTRADA";
 
   return (
     <div className="space-y-4">
@@ -214,12 +212,12 @@ export function Marcador({
           {enCola > 0
             ? enCola + (enCola === 1 ? " marcaje esperando señal" : " marcajes esperando señal")
             : enLinea
-              ? "Conectado. Todo lo que marques se envía al momento."
+              ? "Conectado. Lo que marques se envía al momento."
               : "Sin señal. Puedes marcar igual: se envía solo cuando vuelva."}
         </span>
       </div>
 
-      {sitios.length > 0 && (
+      {sitios.length > 0 && siguiente !== "COMPLETA" && (
         <label className="block">
           <span className="label">¿Dónde estás?</span>
           <select
@@ -249,6 +247,14 @@ export function Marcador({
             {estado.conUbicacion ? " · con tu ubicación" : " · sin ubicación"}
           </p>
         </div>
+      ) : siguiente === "COMPLETA" ? (
+        <div data-jornada-completa className="rounded-2xl border border-line bg-surface p-6 text-center">
+          <Icon name="check" className="mx-auto h-10 w-10 text-good" />
+          <p className="mt-3 text-lg font-bold text-strong">Tu jornada de hoy está completa</p>
+          <p className="mt-1 text-[13px] text-muted">
+            Ya marcaste entrada y salida. Mañana vuelves a marcar tu entrada.
+          </p>
+        </div>
       ) : (
         <button
           type="button"
@@ -261,10 +267,7 @@ export function Marcador({
             (siguiente === "ENTRADA" ? "bg-good-solid" : "bg-brand-600")
           }
         >
-          <Icon
-            name={siguiente === "ENTRADA" ? "arrowIn" : "arrowOut"}
-            className="h-10 w-10"
-          />
+          <Icon name={siguiente === "ENTRADA" ? "arrowIn" : "arrowOut"} className="h-10 w-10" />
           <span className="text-xl font-bold">
             {estado.fase === "ubicando"
               ? "Tomando tu ubicación…"

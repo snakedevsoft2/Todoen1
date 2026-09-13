@@ -12,9 +12,9 @@ import type { BusinessType } from "@prisma/client";
 export type NavItem = { href: string; label: string; icon: string };
 
 export const BUSINESS_LABEL: Record<BusinessType, string> = {
-  BARBERIA: "Barberia",
+  BARBERIA: "Barbería",
   RESTAURANTE: "Restaurante",
-  COMIDAS_RAPIDAS: "Comidas rapidas",
+  COMIDAS_RAPIDAS: "Comidas rápidas",
   ROPA: "Tienda de ropa",
   CARTERA: "Cartera y cobranza",
   ASISTENCIA: "Gestor de asistencia",

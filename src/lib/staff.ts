@@ -39,6 +39,25 @@ export const TEAM_NOUN: Record<string, { title: string; singular: string; plural
   ASISTENCIA: { title: "Personal", singular: "empleado", plural: "empleados", role: "VENDEDOR" },
 };
 
+/**
+ * Como se llama el rol en pantalla, con la palabra de cada negocio.
+ *
+ * En la base el empleado del gestor de asistencia se guarda como VENDEDOR
+ * (es el rol sin acceso a la configuracion), pero ahi nadie vende: tiene que
+ * decir "Empleado", y el dueño es el "Administrador".
+ */
+export function etiquetaDeRol(role: string, businessType: string): string {
+  if (role === "DUENO") return businessType === "ASISTENCIA" ? "Administrador" : "Dueño";
+  const n = TEAM_NOUN[businessType];
+  if (!n) return ROLE_LABEL[role] ?? "Empleado";
+  return n.singular.charAt(0).toUpperCase() + n.singular.slice(1);
+}
+
+/** Direccion de la foto de perfil, con version para poder cachearla. */
+export function fotoPerfil(s: { id: string; photo?: string | null; updatedAt: Date | string }): string | null {
+  return s.photo ? "/foto-perfil/" + s.id + "?v=" + new Date(s.updatedAt).getTime() : null;
+}
+
 /** Negocios que trabajan con equipo propio dentro de la aplicacion. */
 export function hasTeam(businessType: string): boolean {
   return businessType in TEAM_NOUN;

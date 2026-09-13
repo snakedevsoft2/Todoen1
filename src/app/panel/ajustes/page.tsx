@@ -55,24 +55,17 @@ export default async function AjustesPage() {
         )}
 
         {!isOwner && (
-          <Card title="Tus datos" subtitle="Asi te ve el resto del equipo" className="lg:col-span-2">
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-xl border border-line bg-surface px-3 py-2.5">
-                <p className="text-[11px] uppercase tracking-wide text-muted">Nombre</p>
-                <p className="mt-0.5 text-sm font-semibold text-strong">{staff.name}</p>
-              </div>
-              <div className="rounded-xl border border-line bg-surface px-3 py-2.5">
-                <p className="text-[11px] uppercase tracking-wide text-muted">Correo</p>
-                <p className="mt-0.5 truncate text-sm font-semibold text-strong">{staff.email}</p>
-              </div>
-              <div className="rounded-xl border border-line bg-surface px-3 py-2.5">
-                <p className="text-[11px] uppercase tracking-wide text-muted">Comision</p>
-                <p className="mt-0.5 text-sm font-semibold text-strong">{staff.commissionPct}%</p>
-              </div>
+          <Card title="Tus datos" subtitle="Así te ve el resto del equipo" className="lg:col-span-2">
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="min-w-0 flex-1 text-sm text-body">
+                <strong className="text-strong">{staff.name}</strong>
+                {staff.email ? " · " + staff.email : ""}
+              </p>
+              <Link href="/panel/perfil" className="btn-ghost btn-sm">
+                <Icon name="user" className="h-4 w-4" />
+                Editar mi perfil y mi foto
+              </Link>
             </div>
-            <p className="mt-3 text-xs text-subtle">
-              Si algo esta mal, pidele al dueno que lo cambie en la seccion de Barberos.
-            </p>
           </Card>
         )}
 

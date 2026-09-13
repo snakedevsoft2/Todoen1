@@ -1,18 +1,22 @@
+import Link from "next/link";
 import { requireSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { addDays, inicioDelDiaEn, todayIn } from "@/lib/dates";
 import { enlaceMapa, prettyDistancia } from "@/lib/geo";
 import { Card, PageHeader } from "@/components/ui";
-import { Marcador } from "@/components/Marcador";
+import { Marcador, type Siguiente } from "@/components/Marcador";
 import { Icon } from "@/components/Icon";
 
 export const dynamic = "force-dynamic";
+
+/** Una salida despues de esto ya no cierra la entrada anterior. Ver jornada-reglas. */
+const VENTANA_MS = 20 * 60 * 60 * 1000;
 
 /**
  * La pantalla que usa el empleado: marcar y ver lo suyo del dia.
  *
  * Es de la persona, no del negocio: aqui cada quien ve SUS marcajes y nada
- * mas. La planilla de todos es otra pantalla y es del dueno.
+ * mas. La planilla de todos es otra pantalla y es del administrador.
  */
 export default async function MarcarPage() {
   const { user, staff } = await requireSession();
@@ -23,7 +27,7 @@ export default async function MarcarPage() {
   const desde = inicioDelDiaEn(hoy, user.timezone);
   const hasta = new Date(inicioDelDiaEn(addDays(hoy, 1), user.timezone).getTime() - 1);
 
-  const [sitios, mios] = await Promise.all([
+  const [sitios, mios, ultimoReciente] = await Promise.all([
     db.workSite.findMany({
       where: { userId: user.id, active: true },
       orderBy: { name: "asc" },
@@ -34,10 +38,23 @@ export default async function MarcarPage() {
       orderBy: { markedAt: "desc" },
       include: { site: { select: { name: true, radiusM: true } } },
     }),
+    db.attendance.findFirst({
+      where: { staffId: staff.id, voidedAt: null, markedAt: { gte: new Date(Date.now() - VENTANA_MS) } },
+      orderBy: { markedAt: "desc" },
+      select: { kind: true },
+    }),
   ]);
 
-  const vigentes = mios.filter((m) => !m.voidedAt);
-  const ultimo = vigentes[0]?.kind ?? null;
+  // Lo que le toca: salida si tiene una entrada abierta (tambien la de un
+  // turno de noche que empezo ayer), jornada completa si hoy ya entro y
+  // salio, y si no, entrada.
+  const vigentesHoy = mios.filter((m) => !m.voidedAt);
+  const siguiente: Siguiente =
+    ultimoReciente?.kind === "ENTRADA"
+      ? "SALIDA"
+      : vigentesHoy.some((m) => m.kind === "ENTRADA")
+        ? "COMPLETA"
+        : "ENTRADA";
 
   // Con la zona del negocio, o en Vercel una entrada de las 8 a. m. se veria
   // como de la 1 p. m.
@@ -55,8 +72,33 @@ export default async function MarcarPage() {
 
       <div className="mx-auto grid w-full max-w-xl gap-4">
         <Card>
-          <Marcador sitios={sitios} ultimo={ultimo} />
+          <Marcador sitios={sitios} siguienteInicial={siguiente} />
         </Card>
+
+        {/* Lo otro que hace el empleado en el dia: avisar una novedad o
+            mandar el reporte de lo que hizo. */}
+        <div className="grid grid-cols-2 gap-3">
+          <Link
+            href="/panel/novedades"
+            className="card-tight flex flex-col items-center gap-1.5 py-4 text-center transition-shadow hover:shadow-card-hover"
+          >
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-warn-soft text-warn">
+              <Icon name="bell" className="h-5 w-5" />
+            </span>
+            <span className="text-sm font-bold text-strong">Novedades</span>
+            <span className="text-[11px] leading-snug text-muted">Permiso, incapacidad, llegada tarde</span>
+          </Link>
+          <Link
+            href="/panel/informes"
+            className="card-tight flex flex-col items-center gap-1.5 py-4 text-center transition-shadow hover:shadow-card-hover"
+          >
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-50 text-brand-600">
+              <Icon name="image" className="h-5 w-5" />
+            </span>
+            <span className="text-sm font-bold text-strong">Hacer reporte</span>
+            <span className="text-[11px] leading-snug text-muted">Con fotos, llega al administrador</span>
+          </Link>
+        </div>
 
         <Card>
           <h2 className="text-sm font-bold text-strong">Lo que marcaste hoy</h2>
@@ -79,17 +121,13 @@ export default async function MarcarPage() {
                           : "bg-brand-50 text-brand-600")
                     }
                   >
-                    <Icon
-                      name={m.kind === "ENTRADA" ? "arrowIn" : "arrowOut"}
-                      className="h-4 w-4"
-                    />
+                    <Icon name={m.kind === "ENTRADA" ? "arrowIn" : "arrowOut"} className="h-4 w-4" />
                   </span>
 
                   <span className="min-w-0 flex-1">
                     <span
                       className={
-                        "block text-sm font-bold " +
-                        (m.voidedAt ? "text-subtle line-through" : "text-strong")
+                        "block text-sm font-bold " + (m.voidedAt ? "text-subtle line-through" : "text-strong")
                       }
                     >
                       {m.kind === "ENTRADA" ? "Entrada" : "Salida"} · {hora(m.markedAt)}
@@ -100,9 +138,7 @@ export default async function MarcarPage() {
                       {m.lat === null && " · sin ubicación"}
                     </span>
                     {m.voidedAt && (
-                      <span className="block text-[11px] text-bad">
-                        Anulado: {m.voidedReason}
-                      </span>
+                      <span className="block text-[11px] text-bad">Anulado: {m.voidedReason}</span>
                     )}
                   </span>
 

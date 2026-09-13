@@ -7,19 +7,19 @@ import { SubmitButton } from "./SubmitButton";
 import { Alert, Field } from "./ui";
 
 const TYPES = [
-  { value: "BARBERIA", label: "Barberia", hint: "Turnos, cortes y caja" },
+  { value: "BARBERIA", label: "Barbería", hint: "Turnos, cortes y caja" },
   { value: "RESTAURANTE", label: "Restaurante", hint: "Cuentas por mesa y caja" },
-  { value: "COMIDAS_RAPIDAS", label: "Comidas rapidas", hint: "Venta al mostrador y caja" },
+  { value: "COMIDAS_RAPIDAS", label: "Comidas rápidas", hint: "Venta al mostrador y caja" },
   { value: "ROPA", label: "Tienda de ropa", hint: "Inventario por talla y catálogo" },
-  { value: "CARTERA", label: "Cartera y cobranza", hint: "Prestamos por cuotas y cobros" },
+  { value: "CARTERA", label: "Cartera y cobranza", hint: "Préstamos por cuotas y cobros" },
   {
     value: "ASISTENCIA",
     label: "Gestor de asistencia",
-    hint: "Personal, marcaje con ubicacion y reportes",
+    hint: "Personal, marcaje con ubicación y reportes",
   },
   // Va de ultimo a proposito: primero que intente reconocerse en los de
   // arriba, que le quedan mejor armados. Este es la salida para el resto.
-  { value: "OTRO", label: "Otro negocio", hint: "Lo armas tu mismo" },
+  { value: "OTRO", label: "Otro negocio", hint: "Lo armas tú mismo" },
 ];
 
 export function RegistroForm({
@@ -39,12 +39,18 @@ export function RegistroForm({
 
       <div>
         <span className="label">Tipo de negocio</span>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+        {/*
+          Tres columnas como maximo: el formulario nunca pasa de unos 450 px
+          de ancho, y con cinco columnas "Restaurante" ya no cabia en su
+          casilla aunque la pantalla fuera grande.
+        */}
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {TYPES.map((t) => (
             <label
               key={t.value}
+              data-tipo={t.value}
               className={
-                "cursor-pointer rounded-xl border p-3 text-center transition " +
+                "flex min-w-0 cursor-pointer flex-col items-center rounded-xl border px-2 py-3 text-center transition " +
                 (type === t.value
                   ? "border-transparent bg-brand-600 text-on-brand shadow-soft"
                   : "border-line bg-panel hover:bg-surface")
@@ -58,8 +64,10 @@ export function RegistroForm({
                 onChange={() => setType(t.value)}
                 className="sr-only"
               />
-              <span className="block text-sm font-bold">{t.label}</span>
-              <span className="mt-0.5 block text-[11px] opacity-75">{t.hint}</span>
+              <span className="block max-w-full text-[13px] font-bold leading-tight [overflow-wrap:anywhere] [hyphens:auto]" lang="es">
+                {t.label}
+              </span>
+              <span className="mt-1 block max-w-full text-[11px] leading-snug opacity-75 [overflow-wrap:anywhere]">{t.hint}</span>
             </label>
           ))}
         </div>

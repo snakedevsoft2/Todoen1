@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { getCurrentSession } from "@/lib/auth";
 import { distanciaM } from "@/lib/geo";
+import { motivoParaRechazar } from "@/lib/jornada-reglas";
 
 /**
  * Recibe los marcajes que venian esperando en el telefono.
@@ -80,14 +81,27 @@ export async function POST(request: Request) {
   const techo = ahora + MINUTOS_DE_GRACIA * 60 * 1000;
   const piso = ahora - DIAS_ATRAS * 24 * 60 * 60 * 1000;
 
+  // En orden de hora: en un lote pueden venir la entrada y la salida del mismo
+  // dia, y la regla de la jornada necesita ver primero la entrada.
+  const ordenados = [...marcajes].sort((a, b) => String(a.markedAt ?? "").localeCompare(String(b.markedAt ?? "")));
+
   const resultados: Resultado[] = [];
 
-  for (const m of marcajes) {
+  for (const m of ordenados) {
     const clientKey = typeof m.clientKey === "string" ? m.clientKey.slice(0, 100) : "";
     if (!clientKey) continue;
 
     const rechazar = (motivo: string) =>
       resultados.push({ clientKey, estado: "rechazado", motivo });
+
+    // Lo que ya habia entrado se reconoce antes que nada: un reintento no
+    // puede terminar rechazado por la regla de "una entrada por dia".
+    const yaEntro = await db.attendance.findUnique({ where: { clientKey }, select: { staffId: true } });
+    if (yaEntro) {
+      if (yaEntro.staffId === staff.id) resultados.push({ clientKey, estado: "repetido" });
+      else rechazar("Ese marcaje no se puede recibir.");
+      continue;
+    }
 
     if (m.kind !== "ENTRADA" && m.kind !== "SALIDA") {
       rechazar("No dice si es entrada o salida.");
@@ -114,6 +128,12 @@ export async function POST(request: Request) {
     const sitio = siteId ? sitios.find((s) => s.id === siteId) : null;
     if (siteId && !sitio) {
       rechazar("Ese sitio no existe en esta cuenta.");
+      continue;
+    }
+
+    const motivo = await motivoParaRechazar(staff.id, user.timezone, m.kind, markedAt);
+    if (motivo) {
+      rechazar(motivo);
       continue;
     }
 
@@ -144,9 +164,8 @@ export async function POST(request: Request) {
       });
       resultados.push({ clientKey, estado: "guardado" });
     } catch (error) {
-      // La llave unica choca: este marcaje ya habia entrado en un envio
-      // anterior que se corto antes de confirmar. No es un error, es
-      // exactamente lo que la llave existe para resolver.
+      // La llave unica choca: dos envios del mismo marcaje llegaron a la vez.
+      // No es un error, es exactamente lo que la llave existe para resolver.
       const codigo = (error as { code?: string })?.code;
       if (codigo === "P2002") {
         resultados.push({ clientKey, estado: "repetido" });

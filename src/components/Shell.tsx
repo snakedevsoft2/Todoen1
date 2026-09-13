@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { Icon } from "./Icon";
 import { BrandMark } from "./BrandMark";
 import type { NavItem } from "@/lib/nav";
+import { initials } from "@/lib/staff";
 
 export function Shell({
   nav,
@@ -18,6 +19,8 @@ export function Shell({
   bookingUrl,
   bookingLabel = "Ver página de reservas",
   admin = false,
+  fotoPerfil = null,
+  menuPropio = true,
   logout,
   children,
 }: {
@@ -34,6 +37,10 @@ export function Shell({
   bookingLabel?: string;
   /** Solo para quien administra la plataforma. Para todos los demas no existe. */
   admin?: boolean;
+  /** Direccion de la foto de perfil de quien entro, si tiene. */
+  fotoPerfil?: string | null;
+  /** Si puede armar su propio menu. El empleado del gestor de asistencia no. */
+  menuPropio?: boolean;
   logout: ReactNode;
   children: ReactNode;
 }) {
@@ -109,10 +116,12 @@ export function Shell({
       )}
       {/* Va aqui abajo y no en el menu a proposito: el objetivo de esta
           pantalla es tener menos botones, no uno mas. */}
-      <Link href="/panel/espacio" className="btn-ghost btn-sm w-full justify-start">
-        <Icon name="sliders" className="h-4 w-4" />
-        Armar mi menú
-      </Link>
+      {menuPropio && (
+        <Link href="/panel/espacio" className="btn-ghost btn-sm w-full justify-start">
+          <Icon name="sliders" className="h-4 w-4" />
+          Armar mi menú
+        </Link>
+      )}
       {/* Solo lo ve quien administra la plataforma. Para el resto ni siquiera
           se pinta, asi que nadie descubre que existe. */}
       {admin && (
@@ -122,16 +131,31 @@ export function Shell({
         </Link>
       )}
       {logout}
-      <div className="flex items-center gap-2 px-1 pt-1">
-        <span
-          className="h-2.5 w-2.5 shrink-0 rounded-full"
-          style={{ backgroundColor: staffColor ?? "currentColor" }}
-        />
-        <p className="min-w-0 truncate text-[11px] text-subtle">
-          {ownerName}
-          {roleLabel ? " - " + roleLabel : ""}
-        </p>
-      </div>
+      {/* Quien entro, con su foto: tocarlo lleva a su perfil. */}
+      <Link
+        href="/panel/perfil"
+        data-mi-perfil
+        className="flex items-center gap-2.5 rounded-xl px-1.5 py-1.5 transition-colors duration-150 hover:bg-surface"
+      >
+        {fotoPerfil ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={fotoPerfil} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />
+        ) : (
+          <span
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
+            style={{ backgroundColor: staffColor ?? "#64748b" }}
+            aria-hidden
+          >
+            {initials(ownerName)}
+          </span>
+        )}
+        <span className="min-w-0">
+          <span className="block truncate text-[12px] font-semibold text-strong">{ownerName}</span>
+          <span className="block truncate text-[11px] text-subtle">
+            {roleLabel ? roleLabel + " · " : ""}Mi perfil
+          </span>
+        </span>
+      </Link>
     </div>
   );
 

@@ -1,15 +1,9 @@
 import Link from "next/link";
 import { requireOwner } from "@/lib/auth";
 import { db } from "@/lib/db";
-import {
-  addDays,
-  dayIn,
-  dayRange,
-  inicioDelDiaEn,
-  isoWeekday,
-  startOfMonth,
-  todayIn,
-} from "@/lib/dates";
+import { addDays, dayIn, dayRange, inicioDelDiaEn, todayIn } from "@/lib/dates";
+import { limites, type Rango } from "@/lib/rangos";
+import { cubreDia, etiquetaNovedad } from "@/lib/novedades";
 import { prettyDay } from "@/lib/format";
 import { enElSitio, enlaceMapa, prettyDistancia } from "@/lib/geo";
 import { duracionTexto, tramosDe } from "@/lib/jornada";
@@ -21,21 +15,6 @@ import { Icon } from "@/components/Icon";
 
 export const dynamic = "force-dynamic";
 
-type Rango = "dia" | "semana" | "mes";
-
-/** Primer y ultimo dia (inclusive) del periodo que contiene a `dia`. */
-function limites(dia: string, rango: Rango): { desde: string; hasta: string } {
-  if (rango === "semana") {
-    const lunes = addDays(dia, 1 - isoWeekday(dia));
-    return { desde: lunes, hasta: addDays(lunes, 6) };
-  }
-  if (rango === "mes") {
-    const inicio = startOfMonth(dia);
-    const siguiente = startOfMonth(addDays(inicio, 32));
-    return { desde: inicio, hasta: addDays(siguiente, -1) };
-  }
-  return { desde: dia, hasta: dia };
-}
 
 export default async function PlanillaPage({
   searchParams,
@@ -57,7 +36,7 @@ export default async function PlanillaPage({
   const inicio = inicioDelDiaEn(desde < dia ? desde : dia, tz);
   const fin = inicioDelDiaEn(addDays(hasta > dia ? hasta : dia, 1), tz);
 
-  const [personal, marcajes] = await Promise.all([
+  const [personal, marcajes, novedades] = await Promise.all([
     db.staff.findMany({
       where: { userId: user.id, active: true },
       orderBy: { name: "asc" },
@@ -70,6 +49,12 @@ export default async function PlanillaPage({
         site: { select: { name: true, radiusM: true } },
         staff: { select: { name: true } },
       },
+    }),
+    // Las novedades aprobadas del dia: quien falta con permiso no es lo mismo
+    // que quien falta sin avisar.
+    db.novelty.findMany({
+      where: { userId: user.id, status: "APROBADA", fromDay: { lte: dia }, toDay: { gte: dia } },
+      select: { staffId: true, kind: true, fromDay: true, toDay: true },
     }),
   ]);
 
@@ -90,11 +75,12 @@ export default async function PlanillaPage({
     const { totalMs, tramos } = tramosDe(vig, ahora);
     const ultimo = vig[vig.length - 1];
     const estado = !ultimo ? "sin marcar" : ultimo.kind === "ENTRADA" ? "adentro" : "salio";
-    return { persona: p, suyos, totalMs, estado, raro: tramos.some((t) => t.raro) };
+    const novedad = novedades.find((n) => n.staffId === p.id && cubreDia(n, dia)) ?? null;
+    return { persona: p, suyos, totalMs, estado, raro: tramos.some((t) => t.raro), novedad };
   });
 
   const adentro = jornadas.filter((j) => j.estado === "adentro").length;
-  const sinMarcar = jornadas.filter((j) => j.estado === "sin marcar").length;
+  const sinMarcar = jornadas.filter((j) => j.estado === "sin marcar" && !j.novedad).length;
   const lejos = vigentesDia.filter(lejosDe).length;
 
   // -------------------------------------------------- planilla para exportar
@@ -197,8 +183,12 @@ export default async function PlanillaPage({
             ))}
           </div>
         </div>
-        <div className="mt-3">
+        <div className="mt-3 flex flex-wrap items-start gap-2">
           <AccionesPlanilla datos={planilla} />
+          <a href={"/panel/planilla/exportar?d=" + dia + "&r=" + rango} className="btn-ghost btn-sm" download>
+            <Icon name="download" className="h-4 w-4" />
+            Horas en Excel (CSV)
+          </a>
         </div>
       </Card>
 
@@ -211,7 +201,7 @@ export default async function PlanillaPage({
         </Card>
       ) : (
         <ul className="animate-lista mt-5 space-y-3">
-          {jornadas.map(({ persona, suyos, totalMs, estado, raro }) => (
+          {jornadas.map(({ persona, suyos, totalMs, estado, raro, novedad }) => (
             <li key={persona.id} className="card-tight">
               <div className="flex flex-wrap items-center gap-3">
                 <span className="min-w-0 flex-1">
@@ -223,6 +213,7 @@ export default async function PlanillaPage({
                         ? "Adentro · lleva " + duracionTexto(totalMs)
                         : "Salió · " + duracionTexto(totalMs)}
                     {raro && <span className="text-warn"> · hay un marcaje sin su pareja</span>}
+                    {novedad && <span className="text-brand-700"> · {etiquetaNovedad(novedad.kind)} aprobada</span>}
                   </span>
                 </span>
                 <span

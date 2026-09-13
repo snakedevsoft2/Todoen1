@@ -6,6 +6,8 @@ import { todayIn } from "@/lib/dates";
 import { getDaySummary } from "@/lib/queries";
 import { money, pretty12h, prettyDay, shortDay } from "@/lib/format";
 import { filtroDeSeguimientos } from "@/lib/crm-filas";
+import { esEmpleadoDeAsistencia } from "@/lib/permisos";
+import { ResumenAsistencia } from "@/components/ResumenAsistencia";
 import { BUSINESS_LABEL, ITEM_NOUN } from "@/lib/nav";
 import { getInventorySummary, getLowStock } from "@/lib/inventory";
 import { variantLabel } from "@/lib/variants";
@@ -22,7 +24,14 @@ export default async function PanelHomePage() {
   // El asistente de bienvenida va primero que el resumen: sin el, alguien
   // nuevo aterriza en un menu de trece botones sin saber cuales son suyos.
   // Tiene "Saltar por ahora" en todos los pasos, asi que no encierra a nadie.
+  // El empleado del gestor de asistencia no tiene resumen del negocio: su
+  // pantalla es Marcar.
+  if (esEmpleadoDeAsistencia(user, me)) redirect("/panel/marcar");
+
   if (!me.onboardingDoneAt) redirect("/panel/bienvenida");
+
+  // Donde nadie vende, el resumen es de personal y no de plata.
+  if (user.businessType === "ASISTENCIA") return <ResumenAsistencia user={user} staff={me} />;
 
   const today = todayIn(user.timezone);
   const isBarber = user.businessType === "BARBERIA";

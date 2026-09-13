@@ -1,7 +1,15 @@
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/auth";
 import { BUSINESS_LABEL, logoUrl, publicPath } from "@/lib/nav";
 import { menuDe, modulosDe } from "@/lib/modules";
-import { ROLE_LABEL } from "@/lib/staff";
+import { etiquetaDeRol, fotoPerfil } from "@/lib/staff";
+import {
+  MENU_EMPLEADO_ASISTENCIA,
+  esEmpleadoDeAsistencia,
+  rutaDeEmpleadoAsistencia,
+  tienePaginaPublica,
+} from "@/lib/permisos";
 import { Shell } from "@/components/Shell";
 import { Icon } from "@/components/Icon";
 import { logoutAction } from "@/actions/auth";
@@ -13,9 +21,17 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   const sesion = await requireSession();
   const { user, staff } = sesion;
 
+  // El empleado del gestor de asistencia solo tiene sus cuatro pantallas. Si
+  // escribe otra direccion a mano, vuelve a Marcar.
+  const empleado = esEmpleadoDeAsistencia(user, staff);
+  if (empleado) {
+    const ruta = (await headers()).get("x-ruta") ?? "";
+    if (ruta && !rutaDeEmpleadoAsistencia(ruta)) redirect("/panel/marcar");
+  }
+
   // El menu sale del catalogo en base de datos, filtrado por el oficio, por el
   // rol y por lo que esta persona decidio ver.
-  const modulos = await modulosDe(sesion);
+  const modulos = empleado ? [] : await modulosDe(sesion);
 
   // Direccion -> llave, para que el navegador solo tenga que mandar la llave
   // del apartado y nunca decida el nombre de lo que se anota.
@@ -30,19 +46,23 @@ export default async function PanelLayout({ children }: { children: React.ReactN
     </form>
   );
 
+  const conPagina = tienePaginaPublica(user.businessType) && !empleado;
+
   return (
     <>
       <ThemeStyle brandColor={user.brandColor} theme={user.theme} />
       <RegistrarVisita rutas={rutas} />
       <Shell
-        nav={menuDe(modulos)}
+        nav={empleado ? MENU_EMPLEADO_ASISTENCIA : menuDe(modulos)}
         businessName={user.businessName}
         businessLabel={BUSINESS_LABEL[user.businessType]}
         ownerName={staff.name}
-        roleLabel={ROLE_LABEL[staff.role] ?? "Barbero"}
+        roleLabel={etiquetaDeRol(staff.role, user.businessType)}
         staffColor={staff.color}
+        fotoPerfil={fotoPerfil(staff)}
+        menuPropio={!empleado}
         logo={logoUrl(user.slug, user.logo, user.updatedAt)}
-        bookingUrl={publicPath(user.businessType, user.slug)}
+        bookingUrl={conPagina ? publicPath(user.businessType, user.slug) : undefined}
         bookingLabel="Ver mi portafolio"
         admin={esAdmin(correoDeLaSesion(sesion))}
         logout={logout}

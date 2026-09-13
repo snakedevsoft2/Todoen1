@@ -239,7 +239,8 @@ try {
         ...base,
         clientKey: "lj-" + Math.random(),
         kind: "ENTRADA",
-        markedAt: new Date().toISOString(),
+        // Ayer: hoy ya marco su entrada, y solo se permite una por dia.
+        markedAt: new Date(Date.now() - 30 * 3600 * 1000).toISOString(),
         siteId: lejanoId,
         lat: 4.65,
         lng: -74.058,

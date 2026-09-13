@@ -103,18 +103,43 @@ try {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 }, acceptDownloads: true });
   const page = await entrar(ctx, cuenta.email);
 
-  console.log("\n1. Crear un reporte de visita");
+  console.log("\n1. Crear un reporte de visita con sus fotos");
   await page.goto(BASE + "/panel/informes", { waitUntil: "networkidle" });
   await page.fill('input[name="title"]', "Limpieza de fachada");
   await page.locator('select[name="siteId"]').selectOption(sitio.id);
+  await page.getByText("Datos del cliente (opcional)").click();
   await page.fill('input[name="clientName"]', "Administracion Cedros");
   await page.fill('input[name="clientPhone"]', "3001234567");
   await page.fill('textarea[name="body"]', "Se limpio la fachada norte y se cambiaron dos luminarias.");
-  await page.getByRole("button", { name: /Crear reporte/i }).click();
-  await page.waitForURL(/\/panel\/informes\/[^/]+$/, { timeout: 20000 });
-  const informe = await db.visitReport.findFirst({ where: { userId: cuenta.id } });
-  ok(Boolean(informe), "el reporte quedo guardado");
+  await page.evaluate(async () => {
+    const hacer = (color, w, h) =>
+      new Promise((resolve) => {
+        const c = document.createElement("canvas");
+        c.width = w;
+        c.height = h;
+        const x = c.getContext("2d");
+        x.fillStyle = color;
+        x.fillRect(0, 0, w, h);
+        c.toBlob((b) => resolve(new File([b], color.slice(1) + ".png", { type: "image/png" })), "image/png");
+      });
+    const dt = new DataTransfer();
+    dt.items.add(await hacer("#26a", 800, 600));
+    dt.items.add(await hacer("#6a2", 600, 800));
+    const input = document.querySelector('input[name="fotos-reporte"]');
+    input.files = dt.files;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await page.waitForFunction(() => document.querySelectorAll('img[alt^="Foto "]').length === 2, null, { timeout: 15000 });
+  await page.getByRole("button", { name: /Guardar reporte/i }).click();
+  let informe = null;
+  for (let i = 0; i < 40 && !informe?.sentAt; i += 1) {
+    informe = await db.visitReport.findFirst({ where: { userId: cuenta.id } });
+    if (!informe?.sentAt) await page.waitForTimeout(500);
+  }
+  ok(Boolean(informe?.sentAt), "el reporte quedo guardado y completo");
   ok(informe?.createdByStaffId === cuenta.staff.find((s) => s.role === "DUENO").id, "a nombre de quien lo creo");
+  ok((await db.visitPhoto.count({ where: { reportId: informe?.id } })) === 2, "con las dos fotos");
+  await page.goto(BASE + "/panel/informes/" + informe.id, { waitUntil: "networkidle" });
 
   console.log("\n2. El personal sale de los marcajes, con la hora del negocio");
   const ficha = await page.textContent("body");
@@ -144,18 +169,18 @@ try {
     input.dispatchEvent(new Event("change", { bubbles: true }));
   });
   let fotos = 0;
-  for (let i = 0; i < 40 && fotos < 2; i += 1) {
+  for (let i = 0; i < 40 && fotos < 4; i += 1) {
     fotos = await db.visitPhoto.count({ where: { reportId: informe.id } });
-    if (fotos < 2) await page.waitForTimeout(500);
+    if (fotos < 4) await page.waitForTimeout(500);
   }
-  ok(fotos === 2, "subieron las dos fotos", String(fotos));
+  ok(fotos === 4, "desde la ficha se agregan dos fotos mas", String(fotos));
 
   await page.reload({ waitUntil: "networkidle" });
   await page.waitForTimeout(800);
   const pintadas = await page.evaluate(() =>
     Array.from(document.querySelectorAll('img[src^="/foto-reporte/"]')).filter((i) => i.naturalWidth > 0).length
   );
-  ok(pintadas === 2, "las fotos se ven en la ficha", String(pintadas));
+  ok(pintadas === 4, "las fotos se ven en la ficha", String(pintadas));
   if (DIR) await page.screenshot({ path: DIR + "/informe-ficha.png" });
 
   console.log("\n4. Las fotos son privadas");

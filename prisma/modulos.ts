@@ -349,6 +349,18 @@ export const MODULOS: ModuloDef[] = [
       "Anotas que se hizo, en que sitio y para que cliente, y le agregas las fotos desde el telefono. El PDF sale con las fotos, el personal que estuvo ese dia en el sitio con sus horas de entrada y salida, y se comparte por WhatsApp o se imprime. La planilla de asistencia tambien se exporta en PDF desde Planilla.",
   },
   {
+    key: "novedades",
+    href: "/panel/novedades",
+    label: "Novedades",
+    icon: "bell",
+    group: "NUCLEO",
+    sortOrder: 12,
+    shortDescription:
+      "Los permisos, incapacidades y llegadas tarde que avisa tu personal, para aprobarlos o rechazarlos.",
+    longDescription:
+      "Cada empleado avisa desde su teléfono lo que no es un marcaje: un permiso para una cita, una incapacidad con la foto del soporte, que va a llegar tarde. Funciona sin señal: se envía sola cuando vuelve. Tú la apruebas o la rechazas con una nota, y en el resumen del día sabes quién falta con permiso y quién no.",
+  },
+  {
     key: "equipo",
     href: "/panel/equipo",
     label: "Equipo",
@@ -357,9 +369,9 @@ export const MODULOS: ModuloDef[] = [
     ownerOnly: true,
     sortOrder: 130,
     shortDescription:
-      "Las personas que trabajan contigo. Cada una entra con su propio usuario y ves cuanto vendio cada quien.",
+      "Las personas que trabajan contigo. Cada una entra con su propio usuario y ve solo lo que le corresponde.",
     longDescription:
-      "Le das a cada persona su propio correo y contrasena, y ve solo lo que le corresponde: el movimiento del negocio, pero no la configuracion ni la marca. Como cada venta queda a nombre de quien la hizo, puedes ver cuanto vendio cada uno y liquidar comisiones sin discutir.",
+      "Le das a cada persona su propio correo y contraseña, y ve solo lo que le toca, sin la configuración ni la marca. Lo que hace cada quien queda a su nombre: en un negocio que vende, cuánto vendió y su comisión; en el gestor de asistencia, sus marcajes, sus novedades y sus reportes.",
   },
   {
     key: "personalizar",
@@ -544,6 +556,7 @@ export const PRESETS: Record<Tipo, Record<string, Preset>> = {
     sitios: { ejemplo: "Sede Norte, Edificio Los Cedros, la obra de la 80." },
     equipo: { label: "Personal", ejemplo: "Cada persona con su usuario para marcar." },
     informes: { ejemplo: "Visita a Edificio Los Cedros: fachada limpia, 6 fotos, en PDF." },
+    novedades: { ejemplo: "Rosa tiene cita médica el jueves de 8 a 12. Adjuntó la orden." },
     gastos: { on: false, ejemplo: "Transporte, dotacion, herramienta." },
     avisos: { on: false },
     asistente: { on: false, ejemplo: "Quien no ha marcado entrada hoy?" },

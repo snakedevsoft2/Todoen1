@@ -25,7 +25,7 @@ const ESTATICOS = "ten-estaticos-" + VERSION;
 const PAGINAS = "ten-paginas-" + VERSION;
 
 /** Las unicas paginas que sirven sin red. */
-const PARA_SIN_CONEXION = ["/panel/marcar"];
+const PARA_SIN_CONEXION = ["/panel/marcar", "/panel/informes", "/panel/novedades"];
 
 self.addEventListener("install", () => self.skipWaiting());
 
@@ -62,8 +62,9 @@ function paginaSinConexion() {
 <body><div class="caja">
   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9a520a" stroke-width="2"><path d="M12 8v5m0 3h.01M10.3 4.3 2.6 17.5A2 2 0 0 0 4.3 20.5h15.4a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0Z"/></svg>
   <h1>Sin conexión</h1>
-  <p>Esta pantalla necesita señal. Para marcar tu entrada o salida no hace falta: el marcaje se guarda en el teléfono y se envía solo cuando vuelva la señal.</p>
+  <p>Esta pantalla necesita señal. Para marcar tu entrada o salida no hace falta: el marcaje y los reportes se guardan en el teléfono y se envían solos cuando vuelva la señal.</p>
   <a href="/panel/marcar">Ir a marcar</a>
+  <a href="/panel/informes" style="background:#fff;color:#111116;border:1px solid #e6e6eb">Hacer un reporte</a>
   <button onclick="location.reload()">Reintentar</button>
 </div></body></html>`;
   return new Response(html, {

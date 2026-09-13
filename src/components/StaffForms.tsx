@@ -10,7 +10,7 @@ import {
   updateStaffAction,
   deleteStaffAction,
 } from "@/actions/staff";
-import { ROLE_LABEL, STAFF_COLORS, initials, teamNoun } from "@/lib/staff";
+import { STAFF_COLORS, etiquetaDeRol, initials, teamNoun } from "@/lib/staff";
 import { SubmitButton } from "./SubmitButton";
 import { Alert, Badge, Field } from "./ui";
 import { Icon } from "./Icon";
@@ -82,6 +82,8 @@ export function NewStaffForm({ businessType = "BARBERIA" }: { businessType?: str
   const noun = teamNoun(businessType);
   // Solo la barberia reparte agenda; en la tienda de ropa el color es para los reportes.
   const agenda = businessType === "BARBERIA";
+  // En el gestor de asistencia nadie vende: ni comision ni "puede vender".
+  const asistencia = businessType === "ASISTENCIA";
 
   return (
     <form action={formAction} className="space-y-3">
@@ -102,26 +104,30 @@ export function NewStaffForm({ businessType = "BARBERIA" }: { businessType?: str
         hint={
           agenda
             ? "Para reconocer sus turnos de un vistazo."
-            : "Para reconocer sus ventas de un vistazo."
+            : asistencia
+              ? "Para reconocerlo en la planilla y los reportes."
+              : "Para reconocer sus ventas de un vistazo."
         }
       >
         <ColorPicker name="color" defaultValue={STAFF_COLORS[1]} />
       </Field>
 
-      <Field
-        label="Comisión (%)"
-        hint="Cuanto se lleva de lo que vende. Solo se usa para el reporte. Dejalo en 0 si no aplica."
-      >
-        <input
-          className="input w-28"
-          type="number"
-          name="commissionPct"
-          min={0}
-          max={100}
-          step={1}
-          defaultValue={0}
-        />
-      </Field>
+      {!asistencia && (
+        <Field
+          label="Comisión (%)"
+          hint="Cuánto se lleva de lo que vende. Solo se usa para el reporte. Déjalo en 0 si no aplica."
+        >
+          <input
+            className="input w-28"
+            type="number"
+            name="commissionPct"
+            min={0}
+            max={100}
+            step={1}
+            defaultValue={0}
+          />
+        </Field>
+      )}
 
       {agenda && (
         <label className="flex items-center gap-2 text-sm text-body">
@@ -143,7 +149,9 @@ export function NewStaffForm({ businessType = "BARBERIA" }: { businessType?: str
         <p className="mt-1 text-xs text-muted">
           {agenda
             ? "Con esto el barbero entra con su correo y su contraseña, y ve la agenda y las ventas del negocio."
-            : "Con esto el empleado entra con su correo y su contraseña, y puede vender, ver el inventario y los reportes."}{" "}
+            : asistencia
+              ? "Con esto entra con su correo y su contraseña, marca su entrada y su salida desde el teléfono, avisa sus novedades y hace sus reportes con fotos."
+              : "Con esto el empleado entra con su correo y su contraseña, y puede vender, ver el inventario y los reportes."}{" "}
           No puede cambiar los ajustes ni el equipo.
         </p>
 
@@ -243,6 +251,7 @@ export function StaffCard({
   const [tab, setTab] = useState<"none" | "datos" | "acceso">("none");
   const isOwner = staff.role === "DUENO";
   const agenda = businessType === "BARBERIA";
+  const asistencia = businessType === "ASISTENCIA";
 
   return (
     <li className={"rounded-xl border p-3 " + (staff.active ? "border-line bg-surface" : "border-dashed border-line bg-panel opacity-70")}>
@@ -253,9 +262,9 @@ export function StaffCard({
             <p className="flex flex-wrap items-center gap-2 text-sm font-bold text-strong">
               {staff.name}
               {isOwner ? (
-                <Badge tone="blue">Dueño</Badge>
+                <Badge tone="blue">{etiquetaDeRol("DUENO", businessType)}</Badge>
               ) : (
-                <Badge>{ROLE_LABEL[staff.role] ?? "Empleado"}</Badge>
+                <Badge>{etiquetaDeRol(staff.role, businessType)}</Badge>
               )}
               {!staff.active && <Badge tone="red">Inactivo</Badge>}
             </p>
@@ -276,9 +285,13 @@ export function StaffCard({
                 ? staff.bookable
                   ? "Los clientes lo pueden elegir"
                   : "No aparece en las reservas"
-                : staff.active
-                  ? "Puede vender en la tienda"
-                  : "Sin acceso a la tienda"}
+                : asistencia
+                  ? staff.email
+                    ? "Marca desde su teléfono"
+                    : "Dale un usuario para que pueda marcar"
+                  : staff.active
+                    ? "Puede vender en la tienda"
+                    : "Sin acceso a la tienda"}
               {staff.commissionPct > 0 ? " - Comisión " + staff.commissionPct + "%" : ""}
             </p>
           </div>
@@ -381,17 +394,22 @@ export function StaffCard({
             <ColorPicker name="color" defaultValue={staff.color} />
           </Field>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label={"Comisión (%) en " + currency}>
-              <input
-                className="input w-28"
-                type="number"
-                name="commissionPct"
-                min={0}
-                max={100}
-                step={1}
-                defaultValue={staff.commissionPct}
-              />
-            </Field>
+            {asistencia ? (
+              // Sin ventas no hay comision, pero se conserva lo que estaba guardado.
+              <input type="hidden" name="commissionPct" value={staff.commissionPct} />
+            ) : (
+              <Field label={"Comisión (%) en " + currency}>
+                <input
+                  className="input w-28"
+                  type="number"
+                  name="commissionPct"
+                  min={0}
+                  max={100}
+                  step={1}
+                  defaultValue={staff.commissionPct}
+                />
+              </Field>
+            )}
             {agenda ? (
               <label className="flex items-center gap-2 self-end pb-2 text-sm text-body">
                 <input
