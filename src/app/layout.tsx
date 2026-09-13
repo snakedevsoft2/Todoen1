@@ -26,7 +26,24 @@ const archivoBlack = Archivo_Black({
   display: "swap",
 });
 
+/**
+ * La direccion publica de la aplicacion, para armar enlaces absolutos.
+ *
+ * WhatsApp y Facebook no entienden "/catalogo/x/opengraph-image": necesitan la
+ * direccion completa de la imagen, o la tarjeta del enlace sale sin foto. En
+ * Vercel se toma el dominio de produccion que la plataforma expone; APP_URL
+ * manda sobre todo si algun dia hace falta fijarlo a mano.
+ */
+function direccionPublica(): URL {
+  const fija = process.env.APP_URL?.trim();
+  if (fija) return new URL(fija);
+  const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
+  if (vercel) return new URL("https://" + vercel);
+  return new URL("http://localhost:" + (process.env.PORT ?? "3000"));
+}
+
 export const metadata: Metadata = {
+  metadataBase: direccionPublica(),
   title: "Todoen1 - Ventas, inventario y caja",
   description:
     "Aplicacion para barberias, restaurantes, comidas rapidas y tiendas de ropa: turnos, inventario, ventas del dia, gastos y cierre de caja.",

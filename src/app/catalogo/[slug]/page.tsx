@@ -29,9 +29,25 @@ export async function generateMetadata({
     select: { businessName: true, tagline: true, publicHeadline: true, publicAbout: true },
   });
   if (!shop) return { title: "Portafolio" };
+
+  const titulo = shop.publicHeadline || shop.businessName;
+  const descripcion =
+    shop.publicAbout ?? shop.tagline ?? "Mira el catálogo de " + shop.businessName + " y pide por WhatsApp.";
+
+  // Lo que WhatsApp, Facebook e Instagram leen para armar la tarjeta del
+  // enlace. La imagen no va aqui: la pone opengraph-image.tsx, que Next suma
+  // sola a estos datos.
   return {
-    title: (shop.publicHeadline || shop.businessName) + " - Portafolio",
-    description: shop.publicAbout ?? shop.tagline ?? undefined,
+    title: titulo + " - Portafolio",
+    description: descripcion,
+    openGraph: {
+      title: titulo,
+      description: descripcion,
+      type: "website",
+      siteName: shop.businessName,
+      locale: "es_CO",
+    },
+    twitter: { card: "summary_large_image", title: titulo, description: descripcion },
   };
 }
 
