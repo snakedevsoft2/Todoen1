@@ -5,6 +5,7 @@ import { updatePortfolioAction } from "@/actions/portfolio";
 import { SubmitButton } from "./SubmitButton";
 import { PhotoField } from "./PhotoField";
 import { PortfolioPreview, type PreviewItem } from "./PortfolioPreview";
+import { FONDOS } from "@/lib/fondos";
 import { Alert, Field } from "./ui";
 import { Icon } from "./Icon";
 
@@ -28,6 +29,7 @@ export function PortfolioForm({
     publicAbout: string | null;
     publicOrderNote: string | null;
     publicCover: string | null;
+    publicBackground: string;
   };
   businessName: string;
   itemPlural: string;
@@ -46,6 +48,7 @@ export function PortfolioForm({
   const [state, formAction] = useActionState(updatePortfolioAction, undefined);
 
   const [cover, setCover] = useState(initial.publicCover);
+  const [fondo, setFondo] = useState(initial.publicBackground);
   const [headline, setHeadline] = useState(initial.publicHeadline ?? "");
   const [about, setAbout] = useState(initial.publicAbout ?? "");
   const [orderNote, setOrderNote] = useState(initial.publicOrderNote ?? "");
@@ -57,6 +60,7 @@ export function PortfolioForm({
   const vista = (
     <PortfolioPreview
       cover={cover}
+      fondo={fondo}
       headline={headline}
       about={about}
       orderNote={orderNote}
@@ -92,6 +96,53 @@ export function PortfolioForm({
             label="Foto de portada"
             hint="La franja de arriba de tu pagina. Se ve mejor una foto ancha del local."
           />
+
+          {/* El fondo va justo despues de la portada porque "Mi portada" la
+              usa: asi se entiende la relacion sin explicarla. */}
+          <fieldset>
+            <legend className="label">Fondo de la página</legend>
+            <p className="mb-2 text-xs text-subtle">
+              Como una página de pagos: un color de fondo y tu catálogo flotando encima en una tarjeta.
+            </p>
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+              {FONDOS.map((f) => {
+                const activo = fondo === f.key;
+                const muestra =
+                  f.key === "foto"
+                    ? cover
+                      ? { backgroundImage: "url(" + cover + ")", backgroundSize: "cover", backgroundPosition: "center" }
+                      : { backgroundColor: "#e6e6eb" }
+                    : f.key === "marca"
+                      ? { backgroundColor: preview.brandColor }
+                      : { backgroundColor: f.color ?? "#ffffff" };
+                return (
+                  <label
+                    key={f.key}
+                    className={
+                      "flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border p-2 text-[11px] font-semibold transition-colors focus-within:ring-2 focus-within:ring-brand-500/40 " +
+                      (activo
+                        ? "border-brand-600 bg-brand-50 text-brand-700"
+                        : "border-line bg-panel text-body hover:border-line-strong")
+                    }
+                  >
+                    <input
+                      type="radio"
+                      name="publicBackground"
+                      value={f.key}
+                      checked={activo}
+                      onChange={() => setFondo(f.key)}
+                      className="sr-only"
+                    />
+                    <span className="h-9 w-full rounded-lg border border-line" style={muestra} />
+                    {f.label}
+                  </label>
+                );
+              })}
+            </div>
+            {fondo === "foto" && !cover && (
+              <p className="mt-2 text-xs text-warn">Sube una portada: sin ella se usa tu color.</p>
+            )}
+          </fieldset>
 
           <Field label="Titular" hint={"Si lo dejas vacio usamos " + businessName + "."}>
             <input

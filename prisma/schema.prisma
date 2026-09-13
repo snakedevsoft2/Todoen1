@@ -117,6 +117,10 @@ model User {
   publicOrderNote  String?
   /// Si se muestran los precios. Hay negocios que prefieren no publicarlos.
   publicShowPrices Boolean @default(true)
+  /// Fondo de la pagina publica, como una pagina de pagos: "claro" es la de
+  /// siempre; los demas ponen un fondo solido (o la portada difuminada) y el
+  /// contenido flota encima en una tarjeta. Ver lib/fondos.ts.
+  publicBackground String  @default("claro")
 
   // Promociones al por mayor: el apartado del catalogo para quien compra en cantidad.
   /// Si esta encendido, el catalogo publico muestra las escalas por cantidad.

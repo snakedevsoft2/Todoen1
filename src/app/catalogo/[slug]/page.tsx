@@ -7,6 +7,7 @@ import { ITEM_NOUN, logoUrl, photoUrl } from "@/lib/nav";
 import { variantLabel } from "@/lib/variants";
 import { normalizePhone } from "@/lib/whatsapp";
 import { APP_NAME } from "@/lib/brand";
+import { resolverFondo } from "@/lib/fondos";
 import { Icon } from "@/components/Icon";
 import { ThemeStyle } from "@/components/ThemeStyle";
 import { BrandMark } from "@/components/BrandMark";
@@ -151,9 +152,29 @@ export default async function PortafolioPage({
     );
   }
 
+  // Fondo de pagina de pagos: color solido o portada difuminada, y todo el
+  // contenido en una tarjeta encima. "Clasico" es la pagina de siempre.
+  const fondo = resolverFondo(shop.publicBackground, shop.brandColor, cover);
+  const enTarjeta = fondo.enTarjeta;
+  // Con la portada de fondo no se repite la franja de arriba: ya esta detras de
+  // todo, y ponerla dos veces duplicaria la foto dentro de la pagina.
+  const franja = cover && fondo.key !== "foto";
+
   return (
-    <div className="min-h-dvh">
+    <div
+      className="relative min-h-dvh"
+      data-fondo={fondo.key}
+      style={enTarjeta && !fondo.foto ? { backgroundColor: fondo.color } : undefined}
+    >
       <ThemeStyle brandColor={shop.brandColor} theme={shop.theme} />
+
+      {fondo.foto && (
+        <div aria-hidden="true" className="fixed inset-0 z-0 overflow-hidden" style={{ backgroundColor: fondo.color }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={fondo.foto} alt="" className="h-full w-full scale-110 object-cover blur-2xl" />
+          <div className="absolute inset-0 bg-black/45" />
+        </div>
+      )}
 
       {/* Aviso de borrador: solo lo ve el dueno, nunca un cliente. */}
       {enBorrador && (
@@ -169,9 +190,11 @@ export default async function PortafolioPage({
         </div>
       )}
 
+      <div className={enTarjeta ? "relative z-10 mx-auto w-full max-w-5xl px-3 py-5 sm:px-6 sm:py-10" : ""}>
+      <div className={enTarjeta ? "overflow-hidden rounded-3xl border border-line/60 bg-panel shadow-soft-lg" : ""}>
       {/* Portada */}
       <header className="border-b border-line">
-        {cover && (
+        {franja && (
           <div className="relative h-40 w-full overflow-hidden border-b border-line sm:h-56">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={cover} alt="" className="h-full w-full object-cover" />
@@ -179,7 +202,7 @@ export default async function PortafolioPage({
         )}
 
         <div className="mx-auto w-full max-w-5xl px-4 py-7 text-center">
-          <div className={"mx-auto flex justify-center " + (cover ? "-mt-16 sm:-mt-20" : "")}>
+          <div className={"mx-auto flex justify-center " + (franja ? "-mt-16 sm:-mt-20" : "")}>
             <BrandMark
               name={shop.businessName}
               logo={logoUrl(shop.slug, shop.logo, shop.updatedAt)}
@@ -278,6 +301,8 @@ export default async function PortafolioPage({
           Hecho con {APP_NAME}
         </p>
       </footer>
+      </div>
+      </div>
     </div>
   );
 }

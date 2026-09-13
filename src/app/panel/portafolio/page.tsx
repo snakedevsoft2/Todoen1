@@ -103,6 +103,7 @@ export default async function PortafolioPage() {
               publicAbout: user.publicAbout,
               publicOrderNote: user.publicOrderNote,
               publicCover: user.publicCover,
+              publicBackground: user.publicBackground,
             }}
             businessName={user.businessName}
             itemPlural={noun.plural}
