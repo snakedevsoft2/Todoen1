@@ -11,6 +11,8 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { Icon } from "@/components/Icon";
 import { CambiarTipoNegocio } from "@/components/CambiarTipoNegocio";
 import { OPCIONES_TIPO } from "@/lib/tipo-negocio";
+import { FacturacionForm } from "@/components/FacturacionForm";
+import { configuracionFacturacion } from "@/lib/facturacion";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +22,7 @@ export default async function AjustesPage() {
   const isClothing = user.businessType === "ROPA";
   const isOwner = staff.role === "DUENO";
   const publicLink = publicPath(user.businessType, user.slug);
+  const facturacion = isOwner ? await configuracionFacturacion(user.id) : null;
 
   return (
     <>
@@ -63,6 +66,16 @@ export default async function AjustesPage() {
             className="lg:col-span-2"
           >
             <CambiarTipoNegocio actual={user.businessType} opciones={OPCIONES_TIPO} />
+          </Card>
+        )}
+
+        {facturacion && (
+          <Card
+            title="Factura autorizada"
+            subtitle="Factura electrónica ante la DIAN (Colombia) o el SRI (Ecuador), con tu propia cuenta"
+            className="lg:col-span-2"
+          >
+            <FacturacionForm config={facturacion} moneda={user.currency} />
           </Card>
         )}
 

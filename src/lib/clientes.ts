@@ -17,6 +17,7 @@ export type Origen =
   | "turno"
   | "cartera"
   | "reporte"
+  | "venta"
   | "chat"
   | "whatsapp";
 

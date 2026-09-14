@@ -1,46 +1,58 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { formatoGuardado, guardarFormato, imprimirPdf } from "@/lib/imprimir";
-import { buildTirillaPdf, FORMATOS, type Formato, type Linea } from "@/lib/tirilla";
+import { conexionGuardada, formatoGuardado, guardarConexion, guardarFormato, imprimirHtml } from "@/lib/imprimir";
+import { CONEXIONES, conexionesDisponibles, imprimirDirecto, type Conexion } from "@/lib/impresora-directa";
+import { tirillaEscPos } from "@/lib/escpos";
+import { FORMATOS, tirillaHtml, type Formato, type Linea } from "@/lib/tirilla";
 import { Icon } from "./Icon";
 
 /**
- * Imprimir un recibo en la impresora de verdad.
+ * Imprimir un recibo en la impresora de verdad, con senal o sin ella.
  *
  * Pregunta el tamano la primera vez y despues no vuelve a estorbar: se queda
- * con el que se uso en ESTE equipo. El computador del local y el celular del
- * cobrador guardan el suyo, que es lo correcto porque tienen impresoras
- * distintas.
+ * con el tamano y la forma de conexion que se usaron en ESTE equipo. El
+ * computador del local y el celular del cobrador guardan los suyos, que es lo
+ * correcto porque tienen impresoras distintas.
  *
- * La flechita deja cambiarlo cuando haga falta.
+ * La flechita deja cambiarlos. Elegir una conexion directa desde ahi abre la
+ * lista de impresoras para escoger cual; el boton grande usa la ultima.
  */
 export function BotonImprimir({
-  /** Renglones para el papel de tirilla. */
+  /** Renglones del recibo. */
   tirilla,
-  /** El PDF de hoja completa, que ya sabe armar cada recibo. */
-  hoja,
   nombreArchivo,
+  /** Logo del negocio, solo para la hoja completa. */
+  logoUrl,
   /** Texto del boton. "Imprimir" en la mayoria de sitios. */
   label = "Imprimir",
   className = "btn-ghost btn-sm",
+  /** Hacia donde se abre el menu, para que no se salga de la pantalla. */
+  menu = "derecha",
 }: {
   tirilla: () => Linea[];
-  hoja: () => Promise<File>;
   nombreArchivo: string;
+  logoUrl?: string | null;
   label?: string;
   className?: string;
+  menu?: "derecha" | "izquierda";
 }) {
   const [formato, setFormato] = useState<Formato | null>(null);
+  const [conexion, setConexion] = useState<Conexion>("sistema");
+  const [disponibles, setDisponibles] = useState<Conexion[]>(["sistema"]);
   const [abierto, setAbierto] = useState(false);
   const [ocupado, setOcupado] = useState(false);
-  const [aviso, setAviso] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<{ tono: "ok" | "error"; texto: string } | null>(null);
   const caja = useRef<HTMLDivElement>(null);
 
-  // El tamano guardado solo existe en el navegador, asi que se lee despues de
-  // pintar: leerlo antes haria que el servidor y el cliente no coincidan.
+  // Lo guardado solo existe en el navegador, asi que se lee despues de pintar:
+  // leerlo antes haria que el servidor y el cliente no coincidan.
   useEffect(() => {
+    const hay = conexionesDisponibles();
+    const guardada = conexionGuardada();
+    setDisponibles(hay);
     setFormato(formatoGuardado());
+    setConexion(guardada && hay.includes(guardada) ? guardada : "sistema");
   }, []);
 
   // Cerrar el menu al tocar por fuera. Sin esto se queda abierto tapando la
@@ -54,31 +66,38 @@ export function BotonImprimir({
     return () => document.removeEventListener("mousedown", fuera);
   }, [abierto]);
 
-  async function imprimir(f: Formato) {
+  async function imprimir(f: Formato, c: Conexion, elegirOtra = false) {
     setAbierto(false);
     setOcupado(true);
     setAviso(null);
+    guardarFormato(f);
+    setFormato(f);
+    guardarConexion(c);
+    setConexion(c);
+
+    // La hoja completa siempre va por el dialogo: una termica no la saca.
+    const directa = f !== "a4" && c !== "sistema";
     try {
-      guardarFormato(f);
-      setFormato(f);
-
-      const file =
-        f === "a4"
-          ? await hoja()
-          : await buildTirillaPdf(tirilla(), f === "58" ? 58 : 80, nombreArchivo);
-
-      const como = await imprimirPdf(file);
-      setAviso(
-        como === "dialogo"
-          ? null
-          : "Se abrio el recibo en otra pestana: desde ahi dale imprimir o compartir."
-      );
+      if (directa) {
+        // Sin nada que espere antes: el navegador solo deja buscar la
+        // impresora justo despues del toque.
+        const r = await imprimirDirecto(c, tirillaEscPos(tirilla(), f === "58" ? 58 : 80), elegirOtra);
+        setAviso(r === "impreso" ? { tono: "ok", texto: "Enviado a la impresora." } : null);
+      } else {
+        await imprimirHtml(tirillaHtml(tirilla(), f, logoUrl), f, nombreArchivo.replace(/\.pdf$/i, ""));
+      }
     } catch (error) {
-      setAviso(error instanceof Error ? error.message : "No pudimos preparar la impresion.");
+      const texto = error instanceof Error ? error.message : "No pudimos preparar la impresión.";
+      setAviso({
+        tono: "error",
+        texto: directa && !/diálogo/.test(texto) ? texto + " También puedes imprimir con el diálogo de impresión." : texto,
+      });
     } finally {
       setOcupado(false);
     }
   }
+
+  const marca = <span className="ml-1.5 text-[11px] text-muted">· la que usas</span>;
 
   return (
     <div className="relative" ref={caja}>
@@ -86,11 +105,11 @@ export function BotonImprimir({
         <button
           type="button"
           disabled={ocupado}
-          onClick={() => (formato ? imprimir(formato) : setAbierto(true))}
+          onClick={() => (formato ? imprimir(formato, conexion) : setAbierto(true))}
           className={className + " rounded-r-none"}
         >
           <Icon name="print" className="h-4 w-4" />
-          {ocupado ? "Preparando..." : label}
+          {ocupado ? "Imprimiendo..." : label}
         </button>
         <button
           type="button"
@@ -106,28 +125,59 @@ export function BotonImprimir({
       </div>
 
       {abierto && (
-        <div className="absolute right-0 z-30 mt-1 w-60 overflow-hidden rounded-xl border border-line bg-panel shadow-lg">
-          <p className="border-b border-line px-3 py-2 text-[11px] text-subtle">
-            ¿En qué impresora?
-          </p>
+        <div
+          className={
+            "absolute z-30 mt-1 max-h-[70vh] w-64 overflow-y-auto rounded-xl border border-line bg-panel shadow-lg " +
+            (menu === "izquierda" ? "left-0" : "right-0")
+          }
+        >
+          <p className="border-b border-line px-3 py-2 text-[11px] text-subtle">¿En qué papel?</p>
           {FORMATOS.map((f) => (
             <button
               key={f.value}
               type="button"
-              onClick={() => imprimir(f.value)}
+              onClick={() => imprimir(f.value, conexion)}
               className="block w-full px-3 py-2.5 text-left transition hover:bg-soft"
             >
               <span className="block text-[13px] font-bold text-strong">
                 {f.label}
-                {formato === f.value && <span className="ml-1.5 text-[11px] text-muted">· la que usas</span>}
+                {formato === f.value && marca}
               </span>
               <span className="block text-[11px] leading-snug text-muted">{f.hint}</span>
             </button>
           ))}
+
+          {disponibles.length > 1 && (
+            <>
+              <p className="border-y border-line px-3 py-2 text-[11px] text-subtle">¿Cómo está conectada?</p>
+              {CONEXIONES.filter((c) => disponibles.includes(c.value)).map((c) => (
+                <button
+                  key={c.value}
+                  type="button"
+                  onClick={() =>
+                    c.value === "sistema"
+                      ? imprimir(formato ?? "58", "sistema")
+                      : imprimir(formato === "80" ? "80" : "58", c.value, true)
+                  }
+                  className="block w-full px-3 py-2.5 text-left transition hover:bg-soft"
+                >
+                  <span className="block text-[13px] font-bold text-strong">
+                    {c.label}
+                    {formato && conexion === c.value && marca}
+                  </span>
+                  <span className="block text-[11px] leading-snug text-muted">{c.hint}</span>
+                </button>
+              ))}
+            </>
+          )}
         </div>
       )}
 
-      {aviso && <p className="mt-1 text-[11px] text-muted">{aviso}</p>}
+      {aviso && (
+        <p className={"mt-1 max-w-xs text-[11px] " + (aviso.tono === "error" ? "text-bad" : "text-good")}>
+          {aviso.texto}
+        </p>
+      )}
     </div>
   );
 }

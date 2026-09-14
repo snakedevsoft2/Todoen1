@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { enviarProgramados } from "@/lib/envios-crm";
+import { reintentarFacturas } from "@/lib/facturacion";
 import { addDays, todayIn } from "@/lib/dates";
 import { collectionMessage, debtState, saldo } from "@/lib/debts";
 import { pretty12h, prettyDay } from "@/lib/format";
@@ -194,8 +195,12 @@ export async function GET(request: Request) {
   // Los mensajes programados del CRM que ya llegaron a su hora.
   const crm = await enviarProgramados({ limite: 1000 });
 
+  // Las facturas autorizadas que esperan respuesta o fallaron por conexion.
+  const facturas = await reintentarFacturas(50);
+
   return Response.json({
     crm,
+    facturas,
     negocios: negocios.length,
     turnos: { enviados, fallidos, sinConfigurar },
     cartera: { cobros },

@@ -28,7 +28,9 @@ export async function POST(request: Request) {
     revalidatePath("/panel/ventas");
     revalidatePath("/panel/inventario");
     revalidatePath("/panel/caja");
+    revalidatePath("/panel/cartera");
+    revalidatePath("/panel/clientes");
     revalidatePath("/panel");
   }
-  return Response.json({ id: r.datos.id, repetido: r.datos.repetido });
+  return Response.json({ id: r.datos.id, repetido: r.datos.repetido, tipo: r.datos.tipo });
 }

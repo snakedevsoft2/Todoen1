@@ -4,6 +4,7 @@ import { isValidDay, todayIn } from "./dates";
 import { parseMoney } from "./format";
 import { applyStockMove, variantLabel } from "./inventory";
 import { LLAVE_VALIDA, falla, textoDe, type Resultado, type Sesion } from "./informes";
+import { anotarCliente } from "./clientes";
 
 /**
  * Registrar una venta directa, con senal o sin ella.
@@ -50,20 +51,30 @@ export function leerCarrito(raw: unknown): LineaVenta[] {
     .slice(0, 100);
 }
 
+export type VentaRegistrada = { id: string; repetido: boolean; tipo: "venta" | "deuda" };
+
 export async function registrarVenta(
   s: Sesion,
   d: Record<string, unknown>
-): Promise<Resultado<{ id: string; repetido: boolean }>> {
+): Promise<Resultado<VentaRegistrada>> {
   const { user } = s;
   const clientKey = typeof d.clientKey === "string" && LLAVE_VALIDA.test(d.clientKey) ? d.clientKey : null;
   if (d.clientKey !== undefined && d.clientKey !== null && !clientKey) return falla("Llave inválida.");
 
+  // A credito no entra plata hoy: queda en Cuentas por cobrar y cada abono
+  // entra a la caja el dia en que se recibe, igual que un fiado de Cartera.
+  const aCredito = d.paymentMethod === "CREDITO";
+
   const yaEsta = async () => {
     if (!clientKey) return null;
-    const ya = await db.sale.findUnique({ where: { clientKey }, select: { id: true, userId: true } });
+    const [venta, deuda] = await Promise.all([
+      db.sale.findUnique({ where: { clientKey }, select: { id: true, userId: true } }),
+      db.debt.findUnique({ where: { clientKey }, select: { id: true, userId: true } }),
+    ]);
+    const ya = venta ?? deuda;
     if (!ya) return null;
     return ya.userId === user.id
-      ? { ok: true as const, datos: { id: ya.id, repetido: true } }
+      ? { ok: true as const, datos: { id: ya.id, repetido: true, tipo: venta ? ("venta" as const) : ("deuda" as const) } }
       : falla("Esa venta no se puede recibir.", 409);
   };
   const previo = await yaEsta();
@@ -80,6 +91,12 @@ export async function registrarVenta(
   const day = isValidDay(dayInput) ? dayInput : todayIn(user.timezone);
   const computed = items.reduce((sum, i) => sum + i.unitPrice * i.qty, 0);
   const total = items.length > 0 ? computed : manualTotal;
+
+  const clientName = textoDe(d.clientName, 200);
+  const clientPhone = textoDe(d.clientPhone, 40);
+  const dueDay = textoDe(d.dueDay, 10);
+  if (aCredito && !clientName) return falla("Para dejarla en cuentas por cobrar escribe el nombre del cliente.");
+  if (aCredito && dueDay && (!isValidDay(dueDay) || dueDay < day)) return falla("La fecha en que va a pagar no es válida.");
 
   // Verificamos que los servicios enviados sean realmente de este negocio.
   const ids = items.map((i) => i.serviceId).filter((v): v is string => Boolean(v));
@@ -147,6 +164,54 @@ export async function registrarVenta(
     };
   });
 
+  if (aCredito) {
+    const concepto = (
+      items.length > 0 ? items.map((i) => i.qty + "x " + i.name).join(", ") : textoDe(d.concept, 200) || "Venta a crédito"
+    ).slice(0, 200);
+    let deuda;
+    try {
+      // La deuda y el descuento de stock van juntos, igual que en una venta.
+      deuda = await db.$transaction(async (tx) => {
+        const debt = await tx.debt.create({
+          data: {
+            userId: user.id,
+            clientName,
+            clientPhone: clientPhone || null,
+            concept: concepto,
+            amount: total,
+            day,
+            dueDay: dueDay || null,
+            notes: textoDe(d.notes, 200) || null,
+            // No se conto como venta: cada abono si entra a la caja.
+            alreadyInvoiced: false,
+            clientKey,
+          },
+        });
+        for (const [variantId, qty] of needed) {
+          const moved = await applyStockMove(tx, {
+            userId: user.id,
+            variantId,
+            type: "VENTA",
+            delta: -qty,
+            day,
+            reason: "Venta a crédito: " + clientName,
+          });
+          if (!moved.ok) throw new SinStock(moved.error);
+        }
+        return debt;
+      });
+    } catch (e) {
+      if (e instanceof SinStock) return falla(e.message);
+      if ((e as { code?: string })?.code === "P2002") {
+        const carrera = await yaEsta();
+        if (carrera) return carrera;
+      }
+      throw e;
+    }
+    await anotarCliente(user.id, { name: clientName, phone: clientPhone || null, source: "cartera" });
+    return { ok: true, datos: { id: deuda.id, repetido: false, tipo: "deuda" } };
+  }
+
   const pago = PAGOS.includes(d.paymentMethod as PaymentMethod) ? (d.paymentMethod as PaymentMethod) : "EFECTIVO";
 
   let venta;
@@ -161,7 +226,7 @@ export async function registrarVenta(
           staffId: staff?.id ?? s.staff.id,
           paymentMethod: pago,
           origin: "MANUAL",
-          clientName: textoDe(d.clientName, 200) || null,
+          clientName: clientName || null,
           notes: textoDe(d.notes, 200) || null,
           clientKey,
           items: { create: rows },
@@ -192,5 +257,7 @@ export async function registrarVenta(
     throw e;
   }
 
-  return { ok: true, datos: { id: venta.id, repetido: false } };
+  // El cliente que se escribio en la venta queda guardado en Clientes.
+  if (clientName) await anotarCliente(user.id, { name: clientName, phone: clientPhone || null, source: "venta" });
+  return { ok: true, datos: { id: venta.id, repetido: false, tipo: "venta" } };
 }

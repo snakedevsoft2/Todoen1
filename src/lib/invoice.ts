@@ -1,4 +1,5 @@
 import { money, prettyDay } from "./format";
+import { qrModulos } from "./qr";
 import type { Linea } from "./tirilla";
 
 /**
@@ -29,7 +30,50 @@ export type InvoiceData = {
   items: InvoiceItem[];
   total: number;
   notes: string | null;
+  /**
+   * La venta se hizo sin senal y todavia no tiene numero: el que le ponga el
+   * servidor al subirla seria otro, asi que el recibo no inventa uno.
+   */
+  provisional?: boolean;
+  /** La autorizacion de la DIAN o el SRI, cuando la venta tiene factura autorizada. */
+  autorizacion?: AutorizacionFactura;
 };
+
+/**
+ * Lo que convierte la factura normal en factura autorizada.
+ *
+ * Los valores van en la misma unidad que el resto de la factura (la que
+ * entiende money()), para que el subtotal y el impuesto se lean igual.
+ */
+export type AutorizacionFactura = {
+  pais: "CO" | "EC";
+  /** El numero oficial: SETP990000001 o 001-001-000000123. */
+  numero: string;
+  /** "CUFE" o "Clave de acceso". */
+  etiquetaCodigo: string;
+  codigo: string;
+  /** Lo que lleva el QR: el enlace de consulta de la DIAN o la clave de acceso. */
+  qr: string | null;
+  /** Cuando se autorizo, en ISO. */
+  fecha: string | null;
+  /** Ambiente de pruebas: la factura no tiene validez fiscal. */
+  pruebas: boolean;
+  compradorDocumento: string | null;
+  subtotal: number;
+  impuesto: number;
+  etiquetaImpuesto: string;
+};
+
+const LEYENDA: Record<AutorizacionFactura["pais"], string> = {
+  CO: "Factura electronica de venta validada por la DIAN",
+  EC: "Comprobante electronico autorizado por el SRI",
+};
+
+function fechaCorta(iso: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : d.toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" });
+}
 
 const PAYMENT_LABEL: Record<string, string> = {
   EFECTIVO: "Efectivo",
@@ -43,6 +87,11 @@ export function invoiceNumber(saleId: string): string {
   return saleId.slice(-8).toUpperCase();
 }
 
+/** El numero que se imprime: el oficial si la factura esta autorizada. */
+function numeroDe(data: InvoiceData): string {
+  return data.autorizacion?.numero ?? invoiceNumber(data.saleId);
+}
+
 export function invoiceFileName(data: InvoiceData): string {
   const slug = data.businessName
     .normalize("NFD")
@@ -51,13 +100,14 @@ export function invoiceFileName(data: InvoiceData): string {
     .replace(/^-+|-+$/g, "")
     .toLowerCase()
     .slice(0, 30);
-  return "factura-" + (slug || "venta") + "-" + invoiceNumber(data.saleId) + ".pdf";
+  const numero = numeroDe(data).replace(/[^a-zA-Z0-9-]+/g, "");
+  return (data.autorizacion ? "factura-electronica-" : "factura-") + (slug || "venta") + "-" + numero + ".pdf";
 }
 
 /** El texto que acompaña a la factura en WhatsApp o en el correo. */
 export function invoiceMessage(data: InvoiceData): string {
   const lines = [
-    "Factura " + invoiceNumber(data.saleId) + " - " + data.businessName,
+    (data.autorizacion ? "Factura electrónica " : "Factura ") + numeroDe(data) + " - " + data.businessName,
     prettyDay(data.day),
     "",
     ...data.items.map(
@@ -68,6 +118,7 @@ export function invoiceMessage(data: InvoiceData): string {
     "Pago: " + (PAYMENT_LABEL[data.paymentMethod] ?? data.paymentMethod),
   ];
   if (data.clientName) lines.splice(2, 0, "Cliente: " + data.clientName);
+  if (data.autorizacion) lines.push(data.autorizacion.etiquetaCodigo + ": " + data.autorizacion.codigo);
   lines.push("", "Gracias por tu compra.");
   return lines.join("\n");
 }
@@ -135,11 +186,11 @@ export async function buildInvoicePdf(data: InvoiceData): Promise<File> {
   doc.setTextColor(0);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
-  doc.text("FACTURA DE VENTA", rightX, y, { align: "right" });
+  doc.text(data.autorizacion ? "FACTURA ELECTRONICA DE VENTA" : "FACTURA DE VENTA", rightX, y, { align: "right" });
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(110);
-  doc.text("No. " + invoiceNumber(data.saleId), rightX, y + 5, { align: "right" });
+  doc.text("No. " + numeroDe(data), rightX, y + 5, { align: "right" });
   doc.text(prettyDay(data.day), rightX, y + 9, { align: "right" });
 
   y = Math.max(subY, y + 14) + 6;
@@ -153,6 +204,13 @@ export async function buildInvoicePdf(data: InvoiceData): Promise<File> {
   doc.text("Cliente", marginX, y);
   doc.setFont("helvetica", "normal");
   doc.text(data.clientName || "Mostrador", marginX + 22, y);
+  if (data.autorizacion?.compradorDocumento) {
+    doc.setFontSize(9);
+    doc.setTextColor(110);
+    doc.text(data.autorizacion.compradorDocumento, marginX + 22, y + 4.5);
+    doc.setTextColor(0);
+    doc.setFontSize(10);
+  }
 
   if (data.staffName) {
     doc.setFont("helvetica", "bold");
@@ -192,6 +250,16 @@ export async function buildInvoicePdf(data: InvoiceData): Promise<File> {
   }
 
   y += 4;
+  if (data.autorizacion) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text("Subtotal", 140, y);
+    doc.text(money(data.autorizacion.subtotal, data.currency), rightX - 2, y, { align: "right" });
+    y += 5;
+    doc.text(data.autorizacion.etiquetaImpuesto, 140, y);
+    doc.text(money(data.autorizacion.impuesto, data.currency), rightX - 2, y, { align: "right" });
+    y += 7;
+  }
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
   doc.text("TOTAL", 140, y);
@@ -209,6 +277,55 @@ export async function buildInvoicePdf(data: InvoiceData): Promise<File> {
   if (data.notes) {
     y += 5;
     doc.text(doc.splitTextToSize("Nota: " + data.notes, rightX - marginX) as string[], marginX, y);
+  }
+
+  if (data.autorizacion) {
+    const a = data.autorizacion;
+    // El bloque de la autorizacion: el QR a la izquierda y el codigo al lado.
+    y += 10;
+    if (y > 240) {
+      doc.addPage();
+      y = 25;
+    }
+    const lado = 32;
+    if (a.qr) {
+      try {
+        const modulos = qrModulos(a.qr);
+        const paso = lado / modulos.length;
+        doc.setFillColor(0, 0, 0);
+        modulos.forEach((fila, my) =>
+          fila.forEach((negro, mx) => {
+            if (negro) doc.rect(marginX + mx * paso, y + my * paso, paso, paso, "F");
+          })
+        );
+      } catch {
+        // Sin QR la factura sigue siendo valida: el codigo va escrito al lado.
+      }
+    }
+    const textoX = a.qr ? marginX + lado + 6 : marginX;
+    const ancho = rightX - textoX;
+    doc.setTextColor(0);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text(LEYENDA[a.pais], textoX, y + 4);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    let ty = y + 9;
+    const codigo = doc.splitTextToSize(a.etiquetaCodigo + ": " + a.codigo, ancho) as string[];
+    doc.text(codigo, textoX, ty);
+    ty += codigo.length * 3.6 + 1.5;
+    const fecha = fechaCorta(a.fecha);
+    if (fecha) {
+      doc.text((a.pais === "CO" ? "Validada: " : "Autorizada: ") + fecha, textoX, ty);
+      ty += 4;
+    }
+    if (a.pruebas) {
+      doc.setTextColor(185, 28, 28);
+      doc.setFont("helvetica", "bold");
+      doc.text("AMBIENTE DE PRUEBAS - SIN VALIDEZ FISCAL", textoX, ty);
+      doc.setFont("helvetica", "normal");
+    }
+    doc.setTextColor(110);
   }
 
   doc.setFontSize(8);
@@ -233,13 +350,18 @@ export function invoiceTirilla(data: InvoiceData): Linea[] {
 
   lineas.push(
     { t: "sep" },
-    { t: "centro", text: "FACTURA DE VENTA", fuerte: true },
-    { t: "centro", text: "No. " + invoiceNumber(data.saleId), tenue: true },
+    { t: "centro", text: data.autorizacion ? "FACTURA ELECTRÓNICA DE VENTA" : "FACTURA DE VENTA", fuerte: true },
+    {
+      t: "centro",
+      text: data.provisional ? "Registrada sin señal" : "No. " + numeroDe(data),
+      tenue: true,
+    },
     { t: "centro", text: prettyDay(data.day), tenue: true },
     { t: "sep" }
   );
 
   if (data.clientName) lineas.push({ t: "par", label: "Cliente", value: data.clientName });
+  if (data.autorizacion?.compradorDocumento) lineas.push({ t: "texto", text: data.autorizacion.compradorDocumento, tenue: true });
   if (data.staffName) lineas.push({ t: "par", label: "Atendio", value: data.staffName });
   if (data.clientName || data.staffName) lineas.push({ t: "sep" });
 
@@ -252,12 +374,31 @@ export function invoiceTirilla(data: InvoiceData): Linea[] {
     });
   }
 
+  if (data.autorizacion) {
+    lineas.push(
+      { t: "par", label: "Subtotal", value: money(data.autorizacion.subtotal, data.currency) },
+      { t: "par", label: data.autorizacion.etiquetaImpuesto, value: money(data.autorizacion.impuesto, data.currency) }
+    );
+  }
   lineas.push(
     { t: "total", label: "TOTAL", value: money(data.total, data.currency) },
     { t: "par", label: "Forma de pago", value: PAYMENT_LABEL[data.paymentMethod] ?? data.paymentMethod }
   );
 
   if (data.notes) lineas.push({ t: "espacio" }, { t: "texto", text: data.notes, tenue: true });
+
+  if (data.autorizacion) {
+    const a = data.autorizacion;
+    const fecha = fechaCorta(a.fecha);
+    lineas.push(
+      { t: "sep" },
+      { t: "centro", text: a.pais === "CO" ? "Factura electrónica validada por la DIAN" : "Comprobante autorizado por el SRI", fuerte: true },
+      { t: "texto", text: a.etiquetaCodigo + ":" },
+      { t: "texto", text: a.codigo, tenue: true }
+    );
+    if (fecha) lineas.push({ t: "centro", text: (a.pais === "CO" ? "Validada " : "Autorizada ") + fecha, tenue: true });
+    if (a.pruebas) lineas.push({ t: "centro", text: "AMBIENTE DE PRUEBAS - SIN VALIDEZ FISCAL", fuerte: true });
+  }
 
   lineas.push({ t: "sep" }, { t: "centro", text: "Gracias por su compra", tenue: true }, { t: "espacio" });
 

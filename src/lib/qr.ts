@@ -46,3 +46,19 @@ export function qrSvg(texto: string, opciones: { size?: number; dark?: string } 
     "</svg>",
   ].join("");
 }
+
+/**
+ * La misma matriz del QR, modulo por modulo.
+ *
+ * Para dibujarlo donde no cabe un SVG, como el PDF de la factura autorizada:
+ * ahi va un cuadrito por modulo negro.
+ */
+export function qrModulos(texto: string): boolean[][] {
+  const hints = new Map<EncodeHintType, unknown>();
+  hints.set(EncodeHintType.MARGIN, 0);
+  hints.set(EncodeHintType.ERROR_CORRECTION, QRCodeDecoderErrorCorrectionLevel.M);
+  const matriz = new QRCodeWriter().encode(texto, BarcodeFormat.QR_CODE, 0, 0, hints);
+  return Array.from({ length: matriz.getHeight() }, (_, y) =>
+    Array.from({ length: matriz.getWidth() }, (_, x) => matriz.get(x, y))
+  );
+}

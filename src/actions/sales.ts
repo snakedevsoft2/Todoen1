@@ -22,9 +22,16 @@ export async function deleteSaleAction(formData: FormData) {
   const id = str(formData.get("id"));
   const sale = await db.sale.findFirst({
     where: { id, userId: user.id },
-    include: { items: { select: { variantId: true, qty: true } } },
+    include: {
+      items: { select: { variantId: true, qty: true } },
+      electronicInvoice: { select: { status: true } },
+    },
   });
   if (!sale) return;
+  // Una venta con factura autorizada, o camino a serlo, no se borra: ante la
+  // DIAN o el SRI una factura emitida se anula con una nota credito.
+  const factura = sale.electronicInvoice?.status;
+  if (factura === "AUTORIZADA" || factura === "ENVIANDO") return;
 
   // Lo que se vendio por talla vuelve al inventario al borrar la venta.
   const back = new Map<string, number>();
@@ -57,6 +64,8 @@ export async function deleteSaleAction(formData: FormData) {
         saleId: sale.id,
       });
     }
+    // La factura rechazada o con error no llego a existir ante la entidad.
+    await tx.electronicInvoice.deleteMany({ where: { saleId: sale.id } });
     await tx.sale.delete({ where: { id: sale.id } });
   });
 

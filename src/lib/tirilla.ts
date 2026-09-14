@@ -1,17 +1,19 @@
 /**
- * Recibos en papel de tirilla, para la impresora termica del mostrador.
+ * Recibos para imprimir: en papel de tirilla (la termica del mostrador) o en
+ * hoja normal.
  *
- * La factura y el comprobante que ya existian son hojas A4: se ven bien en
- * pantalla y en la impresora de oficina, pero en una termica de 58mm salen
- * recortados o diminutos. Esto arma el mismo contenido en papel angosto.
+ * El contenido se describe una sola vez como una lista de renglones, y de ahi
+ * salen las dos formas de imprimir:
  *
- * Se genera un PDF, no comandos ESC/POS, y es a proposito: desde el navegador
- * no se puede hablar directo con una impresora termica, ni por USB ni por
- * Bluetooth. Lo que si funciona en todas partes es mandarle un PDF del ancho
- * exacto al dialogo de impresion del sistema, que es quien tiene el driver.
+ * - HTML para el dialogo de impresion del sistema (tirillaHtml). No usa
+ *   internet ni librerias que haya que bajar, asi que funciona sin senal, y
+ *   sirve con cualquier impresora que el equipo tenga instalada: la de
+ *   oficina, la termica con su driver, la de Wi-Fi o AirPrint en el iPhone.
+ * - Comandos ESC/POS para mandarle directo a una termica sin driver, por
+ *   Bluetooth o por cable (ver escpos.ts e impresora-directa.ts).
  *
- * El alto se calcula segun el contenido: una tirilla no tiene paginas, sale el
- * papel que haga falta y se corta.
+ * El alto de la tirilla sale del contenido: una tirilla no tiene paginas, sale
+ * el papel que haga falta y se corta.
  */
 
 export type AnchoTirilla = 58 | 80;
@@ -33,8 +35,8 @@ export function esFormato(v: unknown): v is Formato {
  * Un renglon de la tirilla.
  *
  * Es una lista y no HTML a proposito: el mismo contenido tiene que poder
- * armarse igual para el comprobante de abono y para la factura de venta, sin
- * que cada uno repita como se dibuja.
+ * armarse igual para el comprobante de abono y para la factura de venta, y
+ * salir igual por el dialogo del sistema y directo a la termica.
  */
 export type Linea =
   | { t: "titulo"; text: string }
@@ -45,131 +47,82 @@ export type Linea =
   | { t: "total"; label: string; value: string }
   | { t: "espacio" };
 
-/** Margen lateral y alto de cada tipo de renglon, en milimetros. */
-const MARGEN = 4;
-const ALTO = {
-  titulo: 6,
-  centro: 4.2,
-  sep: 3,
-  par: 4.4,
-  texto: 4,
-  total: 8,
-  espacio: 2.5,
-};
+function esc(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+}
 
-function altoDe(l: Linea): number {
-  return ALTO[l.t];
+function clases(base: string, l: { fuerte?: boolean; tenue?: boolean }): string {
+  return base + (l.fuerte ? " ti-fuerte" : "") + (l.tenue ? " ti-tenue" : "");
 }
 
 /**
- * Parte un texto largo en los renglones que quepan.
+ * El recibo en HTML, del ancho del papel.
  *
- * Sin esto, el nombre de un producto largo se sale del papel y se pierde justo
- * la parte que dice que se vendio.
+ * El logo solo va en la hoja: en 58mm una imagen se come medio papel y no se
+ * distingue. Si el logo no carga (sin senal y sin haberlo visto antes), se
+ * quita antes de imprimir y el recibo sale igual.
  */
-function partir(doc: { splitTextToSize: (t: string, w: number) => string[] }, text: string, ancho: number): string[] {
-  return doc.splitTextToSize(text, ancho);
+export function tirillaHtml(lineas: Linea[], formato: Formato, logoUrl?: string | null): string {
+  const filas = lineas
+    .map((l) => {
+      switch (l.t) {
+        case "titulo":
+          return '<p class="ti-titulo">' + esc(l.text) + "</p>";
+        case "centro":
+          return '<p class="' + clases("ti-centro", l) + '">' + esc(l.text) + "</p>";
+        case "sep":
+          return '<hr class="ti-sep">';
+        case "par":
+          return (
+            '<p class="' + clases("ti-par", l) + '"><span>' + esc(l.label) + "</span><span>" + esc(l.value) + "</span></p>"
+          );
+        case "texto":
+          return '<p class="' + clases("ti-texto", l) + '">' + esc(l.text) + "</p>";
+        case "total":
+          return '<p class="ti-total"><span>' + esc(l.label) + "</span><span>" + esc(l.value) + "</span></p>";
+        case "espacio":
+          return '<p class="ti-espacio"></p>';
+      }
+    })
+    .join("");
+  const logo = formato === "a4" && logoUrl ? '<img class="ti-logo" alt="" src="' + esc(logoUrl) + '">' : "";
+  return '<div class="ti ti-' + formato + '">' + logo + filas + "</div>";
 }
 
-export async function buildTirillaPdf(
-  lineas: Linea[],
-  ancho: AnchoTirilla,
-  fileName: string
-): Promise<File> {
-  const { jsPDF } = await import("jspdf");
-
-  const util = ancho - MARGEN * 2;
-
-  // Primera pasada con un documento de mentira, solo para medir cuanto papel
-  // hace falta: los textos largos ocupan mas de un renglon y hay que saberlo
-  // antes de crear la hoja.
-  const medidor = new jsPDF({ unit: "mm", format: [ancho, 1000] });
-  medidor.setFontSize(9);
-  let alto = MARGEN * 2;
-  for (const l of lineas) {
-    if (l.t === "texto" || l.t === "centro") {
-      alto += partir(medidor, l.text, util).length * altoDe(l);
-    } else if (l.t === "titulo") {
-      medidor.setFontSize(12);
-      alto += partir(medidor, l.text, util).length * altoDe(l);
-      medidor.setFontSize(9);
-    } else {
-      alto += altoDe(l);
-    }
-  }
-  // Un poco de papel de sobra al final, para que el corte no muerda el texto.
-  alto += 8;
-
-  const doc = new jsPDF({ unit: "mm", format: [ancho, alto] });
-  const centro = ancho / 2;
-  const derecha = ancho - MARGEN;
-  let y = MARGEN + 4;
-
-  for (const l of lineas) {
-    switch (l.t) {
-      case "titulo": {
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(12);
-        for (const linea of partir(doc, l.text, util)) {
-          doc.text(linea, centro, y, { align: "center" });
-          y += ALTO.titulo;
-        }
-        break;
-      }
-      case "centro": {
-        doc.setFont("helvetica", l.fuerte ? "bold" : "normal");
-        doc.setFontSize(l.fuerte ? 10 : 8.5);
-        doc.setTextColor(l.tenue ? 110 : 0);
-        for (const linea of partir(doc, l.text, util)) {
-          doc.text(linea, centro, y, { align: "center" });
-          y += ALTO.centro;
-        }
-        doc.setTextColor(0);
-        break;
-      }
-      case "sep": {
-        doc.setDrawColor(150);
-        doc.setLineWidth(0.2);
-        doc.line(MARGEN, y - 1.5, derecha, y - 1.5);
-        y += ALTO.sep;
-        break;
-      }
-      case "par": {
-        doc.setFont("helvetica", l.fuerte ? "bold" : "normal");
-        doc.setFontSize(9);
-        doc.text(l.label, MARGEN, y);
-        doc.text(l.value, derecha, y, { align: "right" });
-        y += ALTO.par;
-        break;
-      }
-      case "texto": {
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8.5);
-        doc.setTextColor(l.tenue ? 110 : 0);
-        for (const linea of partir(doc, l.text, util)) {
-          doc.text(linea, MARGEN, y);
-          y += ALTO.texto;
-        }
-        doc.setTextColor(0);
-        break;
-      }
-      case "total": {
-        doc.setDrawColor(0);
-        doc.setLineWidth(0.4);
-        doc.line(MARGEN, y - 3.5, derecha, y - 3.5);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(12);
-        doc.text(l.label, MARGEN, y + 1.5);
-        doc.text(l.value, derecha, y + 1.5, { align: "right" });
-        y += ALTO.total;
-        break;
-      }
-      case "espacio":
-        y += ALTO.espacio;
-        break;
-    }
-  }
-
-  const blob = doc.output("blob");
-  return new File([blob], fileName, { type: "application/pdf" });
+/**
+ * Estilos del recibo impreso.
+ *
+ * Mientras no se imprime, el recibo queda fuera de la pantalla (se necesita
+ * pintado para medir cuanto papel ocupa). Al imprimir se esconde todo lo demas
+ * de la pagina. Se imprime desde la misma pagina y no desde un marco aparte
+ * porque el celular (Chrome en Android, Safari en iPhone) imprime la pagina
+ * entera e ignora el marco.
+ *
+ * Negro puro: la termica no tiene grises, y un gris claro sale punteado o no
+ * sale.
+ */
+export const TIRILLA_CSS = `
+#ten-impresion{position:absolute;left:-10000px;top:0;visibility:hidden;pointer-events:none}
+@media print{
+  html,body{background:#fff!important;margin:0!important;padding:0!important;min-height:0!important;height:auto!important}
+  body>*:not(#ten-impresion){display:none!important}
+  #ten-impresion{position:static;left:auto;visibility:visible}
 }
+#ten-impresion .ti{box-sizing:border-box;color:#000;background:#fff;font-family:Arial,Helvetica,sans-serif;line-height:1.25;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+#ten-impresion .ti *{box-sizing:border-box;margin:0;padding:0}
+#ten-impresion .ti-58{width:58mm;padding:2mm 3mm 5mm;font-size:8.5pt}
+#ten-impresion .ti-80{width:80mm;padding:2mm 4mm 5mm;font-size:10pt}
+#ten-impresion .ti-a4{width:100%;max-width:150mm;margin:0 auto;font-size:11pt}
+#ten-impresion .ti p{overflow-wrap:anywhere}
+#ten-impresion .ti-logo{display:block;max-height:22mm;max-width:40mm;margin:0 auto 3mm}
+#ten-impresion .ti-titulo{text-align:center;font-weight:700;font-size:1.45em;margin-bottom:.5mm}
+#ten-impresion .ti-centro{text-align:center}
+#ten-impresion .ti-fuerte{font-weight:700}
+#ten-impresion .ti-tenue{color:#222}
+#ten-impresion .ti-sep{border:0;border-top:1px dashed #000;margin:1.5mm 0}
+#ten-impresion .ti-par,#ten-impresion .ti-total{display:flex;justify-content:space-between;gap:2mm}
+#ten-impresion .ti-par span:first-child,#ten-impresion .ti-total span:first-child{flex:1 1 auto}
+#ten-impresion .ti-par span:last-child,#ten-impresion .ti-total span:last-child{flex:0 1 auto;text-align:right}
+#ten-impresion .ti-total{font-weight:700;font-size:1.3em;border-top:1.5px solid #000;margin-top:1.5mm;padding-top:1mm}
+#ten-impresion .ti-espacio{height:2mm}
+`;

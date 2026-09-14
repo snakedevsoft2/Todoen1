@@ -207,6 +207,8 @@ model User {
   visitAttachments   VisitAttachment[]
   scanDocuments      ScanDocument[]
   scheduledMessages  ScheduledMessage[]
+  billingConfig      BillingConfig?
+  electronicInvoices ElectronicInvoice[]
 
   @@index([slug])
 }
@@ -264,6 +266,10 @@ model Debt {
 
   /// Cuando se le mando el ultimo cobro, para no acosar al cliente.
   lastReminderAt DateTime?
+
+  /// La llave del telefono cuando el fiado se registro desde la venta, con o
+  /// sin senal: si la subida se reintenta, la deuda no queda dos veces.
+  clientKey String? @unique
 
   /**
    * Datos del prestamo, para el negocio de cartera.
@@ -618,7 +624,8 @@ model Sale {
   clientKey     String?       @unique
   createdAt     DateTime      @default(now())
 
-  items SaleItem[]
+  items             SaleItem[]
+  electronicInvoice ElectronicInvoice?
 
   @@index([userId, day])
   @@index([userId, staffId, day])
@@ -1451,3 +1458,99 @@ model ScheduledMessage {
   @@index([status, sendAt])
   @@index([customerId])
 }
+
+// ------------------------------------------------ FACTURACION ELECTRONICA
+
+/// Como factura un negocio ante la entidad de su pais.
+///
+/// Es opcional: sin esto, o apagado, todo sigue saliendo como factura normal.
+/// Cada negocio conecta su propia cuenta del proveedor autorizado (Factus en
+/// Colombia, Datil en Ecuador). Las credenciales se guardan cifradas y nunca
+/// vuelven a la pantalla.
+model BillingConfig {
+  id               String    @id @default(cuid())
+  userId           String    @unique
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  enabled          Boolean   @default(false)
+  /// "CO" (DIAN, con Factus) o "EC" (SRI, con Datil).
+  country          String    @default("CO")
+  /// "pruebas" o "produccion".
+  environment      String    @default("pruebas")
+  /// Credenciales del proveedor, cifradas. Ver lib/facturacion/cifrado.ts.
+  credentials      String?
+  /// "normal" o "autorizada": lo que sale marcado de primero al vender.
+  defaultDocument  String    @default("normal")
+  /// Colombia: "01" IVA o "04" impuesto al consumo. Ecuador: siempre IVA.
+  taxCode          String    @default("01")
+  /// Tarifa en porcentaje. Los precios del catalogo ya la traen incluida.
+  taxRate          Float     @default(19)
+  /// Colombia: el rango de numeracion de Factus. Vacio usa el unico activo.
+  numberingRangeId String?
+  /// Ecuador: Datil pide el emisor completo en cada factura.
+  taxId            String?
+  legalName        String?
+  tradeName        String?
+  fiscalAddress    String?
+  establishment    String    @default("001")
+  emissionPoint    String    @default("001")
+  /// El siguiente numero de factura en Ecuador. Lo lleva el negocio, no Datil.
+  nextSequential   Int       @default(1)
+  keepsAccounting  Boolean   @default(false)
+  specialTaxpayer  String?
+  lastCheckAt      DateTime?
+  lastCheckOk      Boolean?
+  lastCheckMessage String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+enum InvoiceStatus {
+  /// Enviada: esperando que la entidad la autorice.
+  ENVIANDO
+  AUTORIZADA
+  /// La entidad o el proveedor la rechazaron: hay que corregir algo.
+  RECHAZADA
+  /// No se pudo hablar con el proveedor: se reintenta sola.
+  ERROR
+}
+
+/// La factura autorizada de una venta. Una venta tiene como mucho una.
+model ElectronicInvoice {
+  id               String        @id @default(cuid())
+  userId           String
+  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// NoAction: la base no deja borrar una venta que tiene factura (ante la
+  /// entidad se anula con nota credito), pero si deja borrar la cuenta entera,
+  /// que se lleva la venta y la factura en la misma operacion.
+  saleId           String        @unique
+  sale             Sale          @relation(fields: [saleId], references: [id], onDelete: NoAction)
+  country          String
+  environment      String
+  status           InvoiceStatus @default(ENVIANDO)
+  /// El numero oficial: SETP990000001 en Colombia, 001-001-000000123 en Ecuador.
+  number           String?
+  /// CUFE en Colombia, clave de acceso en Ecuador.
+  authCode         String?
+  qrUrl            String?
+  publicUrl        String?
+  /// El id del documento en el proveedor (Datil lo necesita para consultar).
+  providerId       String?
+  /// Ecuador: el secuencial apartado para esta factura. Un reintento usa el mismo.
+  sequential       Int?
+  /// El comprador como se envio: tipo y numero de documento, nombre, correo...
+  customer         Json
+  subtotal         Float
+  tax              Float
+  total            Float
+  /// Por que se rechazo o por que fallo.
+  message          String?
+  attempts         Int           @default(1)
+  authorizedAt     DateTime?
+  createdByStaffId String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status, updatedAt])
+}
+

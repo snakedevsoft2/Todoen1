@@ -8,6 +8,7 @@ import { whereDeSegmento } from "@/lib/clientes";
 import { iniciales, textoUltimoContacto } from "@/lib/crm-filas";
 import { Badge, Card, Empty, Stat } from "@/components/ui";
 import { ClienteForm, ImportarClientes } from "@/components/ClienteForm";
+import { CargaMasiva } from "@/components/CargaMasiva";
 import { Pastilla } from "@/components/EtiquetasCliente";
 import { Icon } from "@/components/Icon";
 
@@ -193,6 +194,9 @@ export default async function ClientesPage({
         <div className="space-y-4">
           <Card title="Agregar un cliente">
             <ClienteForm submitLabel="Agregar cliente" />
+          </Card>
+          <Card title="Subir muchos clientes de una vez" subtitle="Desde Excel o un archivo CSV">
+            <CargaMasiva tipo="clientes" />
           </Card>
           {esDueno && (
             <Card title="Trae los que ya tienes">

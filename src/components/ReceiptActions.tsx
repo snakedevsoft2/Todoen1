@@ -132,7 +132,7 @@ export function ReceiptActions({
       </button>
       <BotonImprimir
         tirilla={() => receiptTirilla(data)}
-        hoja={() => buildReceiptPdf(data)}
+        logoUrl={data.logoUrl}
         nombreArchivo={receiptFileName(data)}
       />
       <button type="button" onClick={bajar} disabled={busy !== ""} className="btn-ghost btn-sm">

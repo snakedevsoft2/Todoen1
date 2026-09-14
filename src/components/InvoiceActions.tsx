@@ -182,7 +182,7 @@ export function InvoiceActions({
         </button>
         <BotonImprimir
           tirilla={() => invoiceTirilla(data)}
-          hoja={() => buildInvoicePdf(data)}
+          logoUrl={data.logoUrl}
           nombreArchivo={invoiceFileName(data)}
         />
         <button

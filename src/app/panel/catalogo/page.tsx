@@ -5,6 +5,7 @@ import { money } from "@/lib/format";
 import { BUSINESS_LABEL, ITEM_NOUN, photoUrl } from "@/lib/nav";
 import { Badge, Card, Empty, PageHeader, Stat } from "@/components/ui";
 import { ServiceForm } from "@/components/ServiceForm";
+import { CargaMasiva } from "@/components/CargaMasiva";
 import { VariantsPanel } from "@/components/VariantsPanel";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Icon } from "@/components/Icon";
@@ -77,6 +78,7 @@ export default async function CatalogoPage() {
       </div>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-[420px_1fr]">
+        <div className="space-y-4">
         <Card
           title={"Agregar " + noun.singular}
           subtitle={
@@ -95,6 +97,10 @@ export default async function CatalogoPage() {
             submitLabel={"Agregar " + noun.singular}
           />
         </Card>
+        <Card title={"Subir muchos " + noun.plural + " de una vez"} subtitle="Desde Excel o un archivo CSV">
+          <CargaMasiva tipo="productos" />
+        </Card>
+        </div>
 
         <Card
           title="Catálogo"

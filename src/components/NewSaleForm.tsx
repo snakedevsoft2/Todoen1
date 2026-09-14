@@ -15,8 +15,12 @@ import {
   ventasPendientes,
   type VentaPendiente,
 } from "@/lib/cola-pendientes";
+import { invoiceFileName, invoiceTirilla, type InvoiceData } from "@/lib/invoice";
 import { Icon } from "./Icon";
 import { RegistrarSW } from "./RegistrarSW";
+import { BotonImprimir } from "./BotonImprimir";
+import { FacturaAutorizada } from "./FacturaAutorizada";
+import type { Pais } from "@/lib/facturacion/paises";
 
 export type VariantOption = {
   id: string;
@@ -71,6 +75,9 @@ export function NewSaleForm({
   timezone,
   cuenta,
   esHoy,
+  negocio,
+  clientes = [],
+  facturacion = null,
 }: {
   services: ServiceRow[];
   currency: string;
@@ -86,6 +93,17 @@ export function NewSaleForm({
   cuenta: string;
   /** Si la pantalla muestra el dia de hoy (y no uno anterior elegido a proposito). */
   esHoy: boolean;
+  /** Los clientes guardados, para escogerlos al escribir el nombre. */
+  clientes?: { id: string; name: string; phone: string | null }[];
+  /** La factura autorizada, si el negocio la tiene activa. */
+  facturacion?: {
+    pais: Pais;
+    entidad: string;
+    predeterminado: "normal" | "autorizada";
+    etiquetaImpuesto: string;
+  } | null;
+  /** Lo que va en el encabezado del recibo impreso. */
+  negocio: { nombre: string; telefono: string | null; direccion: string | null; logoUrl: string | null };
 }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
@@ -98,6 +116,13 @@ export function NewSaleForm({
   const [enviando, setEnviando] = useState(false);
   const [pendientes, setPendientes] = useState<VentaPendiente[]>([]);
   const [enLinea, setEnLinea] = useState(true);
+  const telRef = useRef<HTMLInputElement>(null);
+  const [pago, setPago] = useState("EFECTIVO");
+  const [comprobante, setComprobante] = useState<"normal" | "autorizada">(facturacion?.predeterminado ?? "normal");
+  // La venta recien guardada que pidio factura autorizada.
+  const [ventaParaFactura, setVentaParaFactura] = useState<string | null>(null);
+  /** La ultima venta guardada, para imprimirle el recibo aunque no haya senal. */
+  const [ultima, setUltima] = useState<InvoiceData | null>(null);
 
   const total = useMemo(() => cart.reduce((s, r) => s + r.unitPrice * r.qty, 0), [cart]);
 
@@ -260,6 +285,7 @@ export function NewSaleForm({
     setCart([]);
     setOpenSizes(null);
     formRef.current?.reset();
+    setPago("EFECTIVO");
     ponerHoy();
   }
 
@@ -274,6 +300,11 @@ export function NewSaleForm({
       return;
     }
     const dia = String(fd.get("day") ?? "");
+    const aCredito = String(fd.get("paymentMethod") ?? "") === "CREDITO";
+    if (aCredito && !String(fd.get("clientName") ?? "").trim()) {
+      setMensaje({ kind: "error", text: "Para dejarla en cuentas por cobrar escribe el nombre del cliente." });
+      return;
+    }
 
     const venta: VentaPendiente = {
       clientKey: nuevaLlave(),
@@ -290,6 +321,8 @@ export function NewSaleForm({
       concept: String(fd.get("concept") ?? ""),
       paymentMethod: String(fd.get("paymentMethod") ?? "EFECTIVO"),
       clientName: String(fd.get("clientName") ?? ""),
+      clientPhone: String(fd.get("clientPhone") ?? ""),
+      dueDay: aCredito ? String(fd.get("dueDay") ?? "") : "",
       notes: String(fd.get("notes") ?? ""),
       staffId: String(fd.get("staffId") ?? ""),
       total: valor,
@@ -297,15 +330,47 @@ export function NewSaleForm({
       error: null,
     };
 
+    // El recibo sale de lo que se vio en pantalla, no del servidor: asi se puede
+    // imprimir tambien sin senal.
+    const recibo = (saleId: string, provisional: boolean): InvoiceData => ({
+      saleId,
+      provisional,
+      businessName: negocio.nombre,
+      businessPhone: negocio.telefono,
+      businessAddress: negocio.direccion,
+      logoUrl: negocio.logoUrl,
+      currency,
+      day: venta.day,
+      clientName: venta.clientName.trim() || null,
+      paymentMethod: venta.paymentMethod,
+      staffName: team.find((t) => t.id === venta.staffId)?.name ?? null,
+      items:
+        venta.items.length > 0
+          ? venta.items.map((i) => ({ name: i.name, qty: i.qty, unitPrice: i.unitPrice }))
+          : [{ name: venta.concept.trim() || "Venta", qty: 1, unitPrice: valor }],
+      total: valor,
+      notes: venta.notes.trim() || null,
+    });
+
     setEnviando(true);
     setMensaje(null);
+    setUltima(null);
+    setVentaParaFactura(null);
     try {
       let aviso = "Sin señal: la venta quedó guardada en este teléfono y se sube sola cuando vuelva.";
       if (navigator.onLine) {
         const p = await enviar("/api/ventas", cuerpoDeVenta(venta));
         if (p.ok) {
           limpiar();
-          setMensaje({ kind: "ok", text: "Venta registrada." });
+          const id = typeof p.datos.id === "string" ? p.datos.id : venta.clientKey;
+          if (p.datos.tipo === "deuda") {
+            // A credito no hay factura de venta: queda la deuda del cliente.
+            setMensaje({ kind: "ok", text: "Quedó en Cuentas por cobrar a nombre de " + venta.clientName.trim() + "." });
+          } else {
+            setUltima(recibo(id, false));
+            setMensaje({ kind: "ok", text: "Venta registrada." });
+            if (facturacion && comprobante === "autorizada") setVentaParaFactura(id);
+          }
           router.refresh();
           return;
         }
@@ -326,6 +391,7 @@ export function NewSaleForm({
       }
       limpiar();
       await refrescar();
+      if (!aCredito) setUltima(recibo(venta.clientKey, true));
       setMensaje({ kind: "info", text: aviso });
     } finally {
       setEnviando(false);
@@ -381,6 +447,29 @@ export function NewSaleForm({
       )}
 
       {mensaje && <Alert kind={mensaje.kind}>{mensaje.text}</Alert>}
+
+      {ventaParaFactura && ultima && facturacion && (
+        <FacturaAutorizada
+          key={ventaParaFactura}
+          saleId={ventaParaFactura}
+          pais={facturacion.pais}
+          habilitada
+          inicial={null}
+          base={ultima}
+          etiquetaImpuesto={facturacion.etiquetaImpuesto}
+          abrirDeUna
+        />
+      )}
+
+      {ultima && (
+        <BotonImprimir
+          tirilla={() => invoiceTirilla(ultima)}
+          nombreArchivo={invoiceFileName(ultima)}
+          logoUrl={ultima.logoUrl}
+          label="Imprimir recibo"
+          menu="izquierda"
+        />
+      )}
 
       {services.length > 0 && (
         <div className="space-y-3">
@@ -566,16 +655,43 @@ export function NewSaleForm({
             <input ref={diaRef} className="input" type="date" name="day" defaultValue={today} />
           </Field>
           <Field label="Método de pago">
-            <select className="input" name="paymentMethod" defaultValue="EFECTIVO">
+            <select className="input" name="paymentMethod" value={pago} onChange={(e) => setPago(e.target.value)}>
               <option value="EFECTIVO">Efectivo</option>
               <option value="TARJETA">Tarjeta</option>
               <option value="TRANSFERENCIA">Transferencia</option>
               <option value="OTRO">Otro</option>
+              <option value="CREDITO">Cuentas por cobrar (fiado)</option>
             </select>
           </Field>
-          <Field label="Cliente (opcional)">
-            <input className="input" name="clientName" placeholder="Mostrador" />
+          <Field label={pago === "CREDITO" ? "Cliente (quién queda debiendo)" : "Cliente (opcional)"}>
+            <input
+              className="input"
+              name="clientName"
+              placeholder="Mostrador"
+              list="clientes-guardados"
+              autoComplete="off"
+              onChange={(e) => {
+                // Al escoger un cliente guardado, se trae su telefono.
+                const c = clientes.find((x) => x.name.toLowerCase() === e.target.value.trim().toLowerCase());
+                if (c?.phone && telRef.current && !telRef.current.value) telRef.current.value = c.phone;
+              }}
+            />
+            <datalist id="clientes-guardados">
+              {clientes.map((c) => (
+                <option key={c.id} value={c.name}>
+                  {c.phone ?? ""}
+                </option>
+              ))}
+            </datalist>
           </Field>
+          <Field label="Teléfono del cliente (opcional)" hint="Con el nombre queda guardado en Clientes.">
+            <input ref={telRef} className="input" name="clientPhone" inputMode="tel" placeholder="300 000 0000" />
+          </Field>
+          {pago === "CREDITO" && (
+            <Field label="¿Cuándo paga? (opcional)" hint="No suma a la caja de hoy: cada abono entra el día en que te paguen.">
+              <input className="input" type="date" name="dueDay" />
+            </Field>
+          )}
         </div>
 
         {cart.length === 0 && (
@@ -594,6 +710,20 @@ export function NewSaleForm({
               <input className="input" name="concept" placeholder="Venta del mostrador" />
             </Field>
           </div>
+        )}
+
+        {facturacion && pago !== "CREDITO" && (
+          <Field label="Comprobante">
+            <select
+              className="input"
+              name="comprobante"
+              value={comprobante}
+              onChange={(e) => setComprobante(e.target.value === "autorizada" ? "autorizada" : "normal")}
+            >
+              <option value="normal">Factura normal</option>
+              <option value="autorizada">Factura autorizada ({facturacion.entidad})</option>
+            </select>
+          </Field>
         )}
 
         <Field label="Nota (opcional)">

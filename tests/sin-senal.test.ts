@@ -70,7 +70,7 @@ describe("ventas hechas sin señal", () => {
     const b = await registrarVenta(tienda, venta());
     if (!a.ok || !b.ok) throw new Error("debia registrarse");
     expect(a.datos.repetido).toBe(false);
-    expect(b.datos).toEqual({ id: a.datos.id, repetido: true });
+    expect(b.datos).toEqual({ id: a.datos.id, repetido: true, tipo: "venta" });
 
     expect(await db.sale.count({ where: { userId: tienda.user.id } })).toBe(1);
     expect((await db.productVariant.findUniqueOrThrow({ where: { id: tallaId } })).stock).toBe(1);

@@ -81,23 +81,42 @@ try {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 950 } });
   const page = await ctx.newPage();
 
-  // Se atrapan los PDF que se mandan a imprimir para poder medirlos.
   await page.addInitScript(() => {
-    window.__pdfs = [];
-    const orig = URL.createObjectURL.bind(URL);
-    URL.createObjectURL = (obj) => {
-      if (obj instanceof Blob && obj.type === "application/pdf") {
-        const lector = new FileReader();
-        lector.onload = () => window.__pdfs.push(String(lector.result));
-        lector.readAsBinaryString(obj);
-      }
-      return orig(obj);
+    // El dialogo de impresion bloquearia la prueba: se atrapa lo que iba a
+    // salir en papel, con el tamano de pagina que se le pidio.
+    window.__impresiones = [];
+    window.print = () => {
+      window.__impresiones.push({
+        html: document.getElementById("ten-impresion")?.innerHTML ?? "",
+        estilo: document.getElementById("ten-impresion-estilo")?.textContent ?? "",
+      });
+      window.dispatchEvent(new Event("afterprint"));
     };
-    // El dialogo de impresion bloquearia la prueba.
-    window.__printCalls = 0;
-    const abrir = window.open;
     window.open = () => null;
-    void abrir;
+
+    // Una termica Bluetooth de mentira que guarda los bytes que le llegan.
+    window.__bt = [];
+    const caracteristica = {
+      properties: { write: false, writeWithoutResponse: true },
+      writeValue: async () => {},
+      writeValueWithoutResponse: async (v) => {
+        for (const b of new Uint8Array(v.buffer, v.byteOffset, v.byteLength)) window.__bt.push(b);
+      },
+    };
+    const termica = {
+      name: "Termica prueba",
+      gatt: {
+        connected: false,
+        async connect() {
+          this.connected = true;
+          return { getPrimaryServices: async () => [{ getCharacteristics: async () => [caracteristica] }] };
+        },
+      },
+    };
+    Object.defineProperty(navigator, "bluetooth", {
+      configurable: true,
+      value: { requestDevice: async () => termica },
+    });
   });
 
   await page.goto(BASE + "/login", { waitUntil: "networkidle" });
@@ -136,29 +155,29 @@ try {
   ok(/Hoja carta/.test(menuImp), "ofrece hoja normal");
   if (DIR) await page.screenshot({ path: DIR + "/imprimir-menu.png" });
 
-  console.log("\n5. El PDF sale del ancho correcto");
+  console.log("\n5. Imprime sin internet, del ancho de la tirilla");
+  await ctx.setOffline(true);
   await page.getByRole("button", { name: /Tirilla 58 mm/ }).click();
-  await page.waitForTimeout(3500);
+  await page.waitForTimeout(1500);
 
-  const pdfs = await page.evaluate(() => window.__pdfs ?? []);
-  ok(pdfs.length > 0, "se genero un PDF para imprimir", "ninguno");
-
-  if (pdfs.length > 0) {
-    // El MediaBox del PDF dice el tamano real de la hoja, en puntos.
-    const m = /MediaBox\s*\[\s*0\s+0\s+([\d.]+)\s+([\d.]+)/.exec(pdfs[pdfs.length - 1]);
-    ok(Boolean(m), "el PDF declara su tamano de hoja");
-    if (m) {
-      const anchoMm = (Number(m[1]) / 72) * 25.4;
-      const altoMm = (Number(m[2]) / 72) * 25.4;
-      ok(
-        Math.abs(anchoMm - 58) < 1,
-        "el ancho es de 58mm, que es lo que hace que la termica saque la tirilla",
-        anchoMm.toFixed(1) + "mm"
-      );
-      ok(altoMm > 60, "el alto crece con el contenido, no es una hoja fija", altoMm.toFixed(1) + "mm");
-      console.log("       (tirilla de " + anchoMm.toFixed(1) + " x " + altoMm.toFixed(1) + " mm)");
-    }
+  const imps = await page.evaluate(() => window.__impresiones ?? []);
+  ok(imps.length === 1, "abrio el dialogo de impresion sin senal", String(imps.length));
+  const tir = imps[imps.length - 1] ?? { html: "", estilo: "" };
+  ok(/COMPROBANTE DE ABONO/.test(tir.html) && /Juan Perez/.test(tir.html), "con el comprobante del abono");
+  // El tamano de pagina es lo que hace que la termica saque la tirilla y no una hoja.
+  const m = /size:58mm (\d+)mm/.exec(tir.estilo);
+  ok(Boolean(m), "la pagina mide 58mm de ancho", tir.estilo.slice(-80));
+  if (m) {
+    ok(Number(m[1]) > 60, "el alto crece con el contenido, no es una hoja fija", m[1] + "mm");
+    console.log("       (tirilla de 58 x " + m[1] + " mm)");
   }
+  // Se limpia un momento despues de cerrar el dialogo, no al instante.
+  await page.waitForTimeout(2000);
+  ok(
+    (await page.evaluate(() => document.getElementById("ten-impresion"))) === null,
+    "despues de imprimir no queda nada pegado en la pantalla"
+  );
+  await ctx.setOffline(false);
 
   console.log("\n6. Se acuerda del tamano que uso");
   const guardado = await page.evaluate(() => localStorage.getItem("ten_formato_impresion"));
@@ -171,17 +190,29 @@ try {
     "y se lo muestra marcado la proxima vez"
   );
 
-  console.log("\n7. La hoja A4 sigue saliendo del tamano de siempre");
+  console.log("\n7. La hoja carta / A4 usa el papel de la impresora");
   await page.getByRole("button", { name: /Hoja carta/ }).click();
-  await page.waitForTimeout(4000);
-  const pdfs2 = await page.evaluate(() => window.__pdfs ?? []);
-  const m2 = /MediaBox\s*\[\s*0\s+0\s+([\d.]+)\s+([\d.]+)/.exec(pdfs2[pdfs2.length - 1]);
-  if (m2) {
-    const anchoMm = (Number(m2[1]) / 72) * 25.4;
-    ok(Math.abs(anchoMm - 210) < 2, "el A4 mide 210mm de ancho", anchoMm.toFixed(1) + "mm");
-  } else {
-    ok(false, "el A4 declara su tamano");
-  }
+  await page.waitForTimeout(1500);
+  const hoja = (await page.evaluate(() => window.__impresiones ?? [])).at(-1) ?? { html: "", estilo: "" };
+  ok(/ti-a4/.test(hoja.html), "sale el recibo en formato de hoja");
+  ok(/@page\{margin:12mm\}/.test(hoja.estilo) && !/@page\{size/.test(hoja.estilo), "sin forzar tamano: carta o A4, la que tenga");
+
+  console.log("\n8. Directo a una termica Bluetooth, sin driver");
+  await page.getByRole("button", { name: "Elegir tamano de impresion" }).first().click();
+  await page.waitForTimeout(300);
+  ok(await page.getByRole("button", { name: /Térmica por Bluetooth/ }).isVisible(), "ofrece la termica por Bluetooth");
+  if (DIR) await page.screenshot({ path: DIR + "/imprimir-conexiones.png" });
+  await page.getByRole("button", { name: /Térmica por Bluetooth/ }).click();
+  await page.waitForTimeout(2500);
+  const bytes = await page.evaluate(() => window.__bt ?? []);
+  ok(bytes[0] === 0x1b && bytes[1] === 0x40, "le llegan comandos ESC/POS", bytes.slice(0, 4).join(","));
+  const texto = String.fromCharCode(...bytes);
+  ok(/ABONA/.test(texto) && /Juan Perez/.test(texto), "con el comprobante escrito");
+  ok(/Enviado a la impresora/.test(await page.textContent("body")), "y avisa que se envio");
+  ok(
+    (await page.evaluate(() => localStorage.getItem("ten_conexion_impresion"))) === "bluetooth",
+    "queda como la forma de imprimir de este equipo"
+  );
 
   await ctx.close();
 } finally {

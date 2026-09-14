@@ -94,6 +94,17 @@ async function abrirEnFrio(page, ruta) {
 
 try {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, acceptDownloads: true });
+  // El dialogo de impresion bloquearia la prueba: se atrapa lo que iba a salir en papel.
+  await ctx.addInitScript(() => {
+    window.__impresiones = [];
+    window.print = () => {
+      window.__impresiones.push({
+        html: document.getElementById("ten-impresion")?.innerHTML ?? "",
+        estilo: document.getElementById("ten-impresion-estilo")?.textContent ?? "",
+      });
+      window.dispatchEvent(new Event("afterprint"));
+    };
+  });
   const page = await ctx.newPage();
   page.on("pageerror", (e) => errores.push("pageerror: " + e.message));
   page.on("response", (r) => r.status() >= 500 && r.status() !== 503 && errores.push(r.status() + " " + r.url()));
@@ -120,6 +131,14 @@ try {
   await page.getByRole("button", { name: /Hamburguesa prueba/ }).click();
   await page.getByRole("button", { name: /Guardar venta/ }).click();
   ok(Boolean(await esperarHasta(() => page.getByText(/quedó guardada en este teléfono/).count())), "la venta queda guardada en el teléfono");
+  await page.getByRole("button", { name: "Imprimir recibo" }).click();
+  await page.getByRole("button", { name: /Tirilla 58 mm/ }).click();
+  const impreso = await esperarHasta(() => page.evaluate(() => window.__impresiones.at(-1) ?? null), 5000);
+  ok(
+    /Hamburguesa prueba/.test(impreso?.html ?? "") && /sin señal/.test(impreso?.html ?? "") && /size:58mm/.test(impreso?.estilo ?? ""),
+    "imprime el recibo de la venta sin señal, en tirilla",
+    (impreso?.estilo ?? "").slice(-60)
+  );
   await page.fill('input[name="manualTotal"]', "5000");
   await page.fill('input[name="concept"]', "Propina prueba");
   await page.getByRole("button", { name: /Guardar venta/ }).click();

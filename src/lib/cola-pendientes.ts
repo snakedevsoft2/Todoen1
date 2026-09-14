@@ -30,6 +30,10 @@ export type VentaPendiente = {
   concept: string;
   paymentMethod: string;
   clientName: string;
+  /** Telefono del cliente: con el queda guardado en Clientes. */
+  clientPhone?: string;
+  /** A credito: el dia en que el cliente dijo que paga. */
+  dueDay?: string;
   notes: string;
   staffId: string;
   /** El total que se vio en pantalla, para mostrarlo mientras espera. */
@@ -115,6 +119,8 @@ export function cuerpoDeVenta(v: VentaPendiente): Record<string, unknown> {
     concept: v.concept,
     paymentMethod: v.paymentMethod,
     clientName: v.clientName,
+    clientPhone: v.clientPhone ?? "",
+    dueDay: v.dueDay ?? "",
     notes: v.notes,
     staffId: v.staffId,
   };

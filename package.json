@@ -39,6 +39,7 @@
     "verificar:snake": "node scripts/verificar-snake.mjs",
     "verificar:tipo": "node scripts/verificar-tipo.mjs",
     "verificar:sin-senal": "node scripts/verificar-sin-senal.mjs",
+    "verificar:pos": "node scripts/verificar-pos.mjs",
     "clave": "node scripts/cambiar-clave.mjs"
   },
   "dependencies": {

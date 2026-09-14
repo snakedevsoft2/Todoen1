@@ -1,20 +1,16 @@
-import { esFormato, type Formato } from "./tirilla";
+import { esConexion, type Conexion } from "./impresora-directa";
+import { esFormato, TIRILLA_CSS, type Formato } from "./tirilla";
 
 /**
- * Mandar un PDF a la impresora de verdad.
+ * Mandar un documento a la impresora por el dialogo de impresion del sistema.
  *
- * Desde el navegador no se puede hablar directo con una impresora, ni por USB
- * ni por Bluetooth: no existe esa puerta, y menos en el celular. Lo que si se
- * puede es abrirle el dialogo de impresion del sistema con el documento ya
- * cargado, y ahi el sistema usa el driver que tenga instalado. Eso funciona
- * igual con la termica del mostrador y con la de oficina.
- *
- * Se hace con un marco escondido: se le carga el PDF y se le pide imprimir.
- * En el computador eso abre el dialogo sin sacar a la persona de la pantalla
- * donde estaba.
+ * El sistema usa el driver que tenga instalado, asi que sirve con cualquier
+ * impresora: la termica del mostrador, la de oficina, la de Wi-Fi o AirPrint.
+ * Para las termicas sin driver esta impresora-directa.ts.
  */
 
 const CLAVE = "ten_formato_impresion";
+const CLAVE_CONEXION = "ten_conexion_impresion";
 
 /** El tamano que eligio la ultima vez en ESTE equipo. */
 export function formatoGuardado(): Formato | null {
@@ -35,11 +31,101 @@ export function guardarFormato(f: Formato): void {
   }
 }
 
+/** Como imprimio la ultima vez en ESTE equipo. */
+export function conexionGuardada(): Conexion | null {
+  try {
+    const v = localStorage.getItem(CLAVE_CONEXION);
+    return esConexion(v) ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+export function guardarConexion(c: Conexion): void {
+  try {
+    localStorage.setItem(CLAVE_CONEXION, c);
+  } catch {
+    // Igual que el tamano.
+  }
+}
+
+const ID = "ten-impresion";
+let limpiarAnterior: (() => void) | null = null;
+
+/**
+ * Imprime un recibo armado con tirillaHtml.
+ *
+ * No usa internet ni carga nada: el recibo se pinta en la misma pagina, se
+ * mide cuanto papel ocupa y se abre el dialogo. Por eso funciona sin senal.
+ */
+export async function imprimirHtml(html: string, formato: Formato, titulo?: string): Promise<void> {
+  limpiarAnterior?.();
+
+  const estilo = document.createElement("style");
+  estilo.id = ID + "-estilo";
+  estilo.textContent = TIRILLA_CSS;
+  document.head.appendChild(estilo);
+
+  const caja = document.createElement("div");
+  caja.id = ID;
+  caja.setAttribute("aria-hidden", "true");
+  caja.innerHTML = html;
+  document.body.appendChild(caja);
+
+  const tituloAntes = document.title;
+  let hecho = false;
+  const limpiar = () => {
+    if (hecho) return;
+    hecho = true;
+    caja.remove();
+    estilo.remove();
+    document.title = tituloAntes;
+    if (limpiarAnterior === limpiar) limpiarAnterior = null;
+  };
+  limpiarAnterior = limpiar;
+
+  // El logo: se espera un momento a que cargue, y si no carga se quita para
+  // que no salga el cuadro de imagen rota.
+  const imagenes = Array.from(caja.querySelectorAll("img"));
+  await Promise.all(
+    imagenes.map((img) =>
+      img.complete
+        ? null
+        : new Promise((listo) => {
+            img.onload = img.onerror = listo;
+            setTimeout(listo, 2500);
+          })
+    )
+  );
+  for (const img of imagenes) if (!img.naturalWidth) img.remove();
+
+  if (formato === "a4") {
+    // Hoja: se deja el tamano de papel que tenga la impresora (carta o A4).
+    estilo.textContent += "@page{margin:12mm}";
+  } else {
+    // Tirilla: una sola pagina del ancho del rollo y del alto del recibo.
+    const px = (caja.firstElementChild as HTMLElement | null)?.getBoundingClientRect().height ?? 0;
+    const alto = Math.max(40, Math.ceil((px * 25.4) / 96) + 2);
+    estilo.textContent += "@page{size:" + formato + "mm " + alto + "mm;margin:0}";
+  }
+
+  // El nombre que propone "Guardar como PDF".
+  if (titulo) document.title = titulo;
+
+  // En el computador print() espera a que se cierre el dialogo; en el celular
+  // vuelve de una. Se limpia un rato despues de imprimir, y por si el aviso de
+  // "ya imprimio" no llega, a los dos minutos.
+  window.addEventListener("afterprint", () => setTimeout(limpiar, 1500), { once: true });
+  setTimeout(limpiar, 120_000);
+  await new Promise((r) => setTimeout(r, 30));
+  window.print();
+}
+
 /** Como termino el intento de imprimir, para poder decirselo a la persona. */
 export type ResultadoImpresion = "dialogo" | "pestana";
 
 /**
- * Abre el dialogo de impresion con este PDF.
+ * Abre el dialogo de impresion con un PDF ya armado (reportes y planillas).
  *
  * Devuelve "dialogo" si se pudo desde la misma pantalla, o "pestana" si toco
  * abrirlo aparte. Lo segundo pasa sobre todo en el celular, donde el navegador

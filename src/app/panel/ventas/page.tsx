@@ -10,6 +10,10 @@ import { getDaySummary } from "@/lib/queries";
 import { Card, Empty, PageHeader, Stat } from "@/components/ui";
 import { NewSaleForm, type VariantOption } from "@/components/NewSaleForm";
 import { InvoiceActions } from "@/components/InvoiceActions";
+import { FacturaAutorizada } from "@/components/FacturaAutorizada";
+import { configuracionFacturacion, facturaVista } from "@/lib/facturacion";
+import { TARIFAS, datosPais } from "@/lib/facturacion/paises";
+import type { InvoiceData } from "@/lib/invoice";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Icon } from "@/components/Icon";
 import { deleteSaleAction, updateSalePaymentAction } from "@/actions/sales";
@@ -37,7 +41,7 @@ export default async function VentasPage({
     db.sale.findMany({
       where: { userId: user.id, day },
       orderBy: { createdAt: "desc" },
-      include: { items: true, staff: { select: { name: true, color: true } } },
+      include: { items: true, staff: { select: { name: true, color: true } }, electronicInvoice: true },
     }),
     db.service.findMany({
       where: { userId: user.id, active: true },
@@ -94,6 +98,39 @@ export default async function VentasPage({
     .filter((row) => row.count > 0);
 
   const logo = logoUrl(user.slug, user.logo, user.updatedAt);
+
+  // La factura autorizada (DIAN o SRI), si el negocio la tiene activa.
+  const facturacion = await configuracionFacturacion(user.id);
+  const etiquetaImpuesto =
+    TARIFAS[facturacion.country].find((t) => t.value === facturacion.taxKey)?.label ?? "Impuesto";
+
+  // Los clientes guardados, para escogerlos al vender.
+  const clientesGuardados = await db.customer.findMany({
+    where: { userId: user.id },
+    orderBy: { updatedAt: "desc" },
+    take: 500,
+    select: { id: true, name: true, phone: true },
+  });
+
+  const datosFactura = (s: (typeof sales)[number]): InvoiceData => ({
+    saleId: s.id,
+    businessName: user.businessName,
+    businessPhone: user.phone,
+    businessAddress: user.address,
+    logoUrl: logo,
+    currency: user.currency,
+    day: s.day,
+    clientName: s.clientName,
+    paymentMethod: s.paymentMethod,
+    staffName: s.staff?.name ?? null,
+    items: s.items.map((i) => ({
+      name: i.variantLabel && !i.name.includes(i.variantLabel) ? i.name + " (" + i.variantLabel + ")" : i.name,
+      qty: i.qty,
+      unitPrice: i.unitPrice,
+    })),
+    total: s.total,
+    notes: s.notes,
+  });
 
   return (
     <>
@@ -178,6 +215,23 @@ export default async function VentasPage({
             timezone={user.timezone}
             cuenta={me.id}
             esHoy={day === today}
+            clientes={clientesGuardados}
+            facturacion={
+              facturacion.enabled
+                ? {
+                    pais: facturacion.country,
+                    entidad: datosPais(facturacion.country).entidad,
+                    predeterminado: facturacion.defaultDocument,
+                    etiquetaImpuesto,
+                  }
+                : null
+            }
+            negocio={{
+              nombre: user.businessName,
+              telefono: user.phone,
+              direccion: user.address,
+              logoUrl: logo,
+            }}
           />
         </Card>
 
@@ -241,6 +295,7 @@ export default async function VentasPage({
                           <Icon name="check" className="h-4 w-4" />
                         </SubmitButton>
                       </form>
+                      {!(s.electronicInvoice && ["AUTORIZADA", "ENVIANDO"].includes(s.electronicInvoice.status)) && (
                       <form action={deleteSaleAction}>
                         <input type="hidden" name="id" value={s.id} />
                         <SubmitButton
@@ -257,33 +312,19 @@ export default async function VentasPage({
                           <Icon name="trash" className="h-4 w-4" />
                         </SubmitButton>
                       </form>
+                      )}
                     </div>
                   </div>
 
                   <div className="mt-2 flex flex-wrap gap-2">
-                    <InvoiceActions
-                      data={{
-                        saleId: s.id,
-                        businessName: user.businessName,
-                        businessPhone: user.phone,
-                        businessAddress: user.address,
-                        logoUrl: logo,
-                        currency: user.currency,
-                        day: s.day,
-                        clientName: s.clientName,
-                        paymentMethod: s.paymentMethod,
-                        staffName: s.staff?.name ?? null,
-                        items: s.items.map((i) => ({
-                          name:
-                            i.variantLabel && !i.name.includes(i.variantLabel)
-                              ? i.name + " (" + i.variantLabel + ")"
-                              : i.name,
-                          qty: i.qty,
-                          unitPrice: i.unitPrice,
-                        })),
-                        total: s.total,
-                        notes: s.notes,
-                      }}
+                    <InvoiceActions data={datosFactura(s)} />
+                    <FacturaAutorizada
+                      saleId={s.id}
+                      pais={facturacion.country}
+                      habilitada={facturacion.enabled}
+                      inicial={s.electronicInvoice ? facturaVista(s.electronicInvoice) : null}
+                      base={datosFactura(s)}
+                      etiquetaImpuesto={etiquetaImpuesto}
                     />
                   </div>
                 </li>
