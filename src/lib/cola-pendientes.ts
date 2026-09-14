@@ -16,9 +16,12 @@ import { enviar, nuevaLlave, parar, unaALaVez, type ResultadoSubida } from "./co
 export { nuevaLlave };
 
 const BASE = "ten_pendientes";
-const VERSION = 1;
+// Version 2: se sumaron las ubicaciones de la jornada y las llegadas.
+const VERSION = 2;
 const VENTAS = "ventas";
 const DOCUMENTOS = "documentos";
+const UBICACIONES = "ubicaciones";
+const VISITAS = "visitas";
 
 export type VentaPendiente = {
   clientKey: string;
@@ -60,7 +63,7 @@ function abrir(): Promise<IDBDatabase> {
     const req = indexedDB.open(BASE, VERSION);
     req.onupgradeneeded = () => {
       const db = req.result;
-      for (const t of [VENTAS, DOCUMENTOS]) {
+      for (const t of [VENTAS, DOCUMENTOS, UBICACIONES, VISITAS]) {
         if (!db.objectStoreNames.contains(t)) db.createObjectStore(t, { keyPath: "clientKey" });
       }
     };
@@ -165,3 +168,120 @@ export const subirDocumentos = unaALaVez(async (cuenta: string, alAvanzar?: () =
   }
   return { enviados, huboRed: true, aviso: null };
 });
+
+// ------------------------------------------------ ubicacion y llegadas
+
+/** Una ubicacion de la jornada, esperando para subir. */
+export type UbicacionPendiente = {
+  clientKey: string;
+  cuenta: string;
+  at: string;
+  lat: number;
+  lng: number;
+  accuracyM: number | null;
+  creadoEn: string;
+};
+
+/** Un "Llegue" esperando para subir. */
+export type VisitaPendiente = {
+  clientKey: string;
+  cuenta: string;
+  arrivedAt: string;
+  siteId: string | null;
+  place: string;
+  note: string;
+  lat: number | null;
+  lng: number | null;
+  accuracyM: number | null;
+  creadoEn: string;
+};
+
+export async function guardarUbicacion(u: UbicacionPendiente): Promise<void> {
+  await conTienda(UBICACIONES, "readwrite", (t) => t.put(u));
+}
+
+export async function guardarVisita(v: VisitaPendiente): Promise<void> {
+  await conTienda(VISITAS, "readwrite", (t) => t.put(v));
+}
+
+export function visitasPendientes(cuenta: string): Promise<VisitaPendiente[]> {
+  return todos<VisitaPendiente>(VISITAS, cuenta);
+}
+
+export function ubicacionesPendientes(cuenta: string): Promise<UbicacionPendiente[]> {
+  return todos<UbicacionPendiente>(UBICACIONES, cuenta);
+}
+
+type ResultadoItem = { clientKey: string; estado: "guardado" | "repetido" | "rechazado"; motivo?: string };
+export type ResultadoLote = { enviados: number; rechazados: ResultadoItem[]; huboRed: boolean };
+
+/**
+ * Manda de a lotes, igual que los marcajes: el servidor responde por cada uno
+ * y todo lo que respondio (guardado, repetido o rechazado) sale de la cola.
+ * Sin red no se toca nada.
+ */
+async function subirLote<T extends { clientKey: string; creadoEn: string; cuenta: string }>(
+  tienda: string,
+  cuenta: string,
+  url: string,
+  campo: string,
+  cuerpoDe: (x: T) => Record<string, unknown>
+): Promise<ResultadoLote> {
+  const cola = (await todos<T>(tienda, cuenta)).slice(0, 100);
+  if (cola.length === 0) return { enviados: 0, rechazados: [], huboRed: true };
+  let r: Response;
+  try {
+    r = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ [campo]: cola.map(cuerpoDe) }),
+    });
+  } catch {
+    return { enviados: 0, rechazados: [], huboRed: false };
+  }
+  if (!r.ok) return { enviados: 0, rechazados: [], huboRed: true };
+  const datos = (await r.json().catch(() => ({}))) as { resultados?: ResultadoItem[] };
+  let enviados = 0;
+  const rechazados: ResultadoItem[] = [];
+  for (const x of datos.resultados ?? []) {
+    await conTienda(tienda, "readwrite", (t) => t.delete(x.clientKey));
+    if (x.estado === "rechazado") rechazados.push(x);
+    else enviados += 1;
+  }
+  return { enviados, rechazados, huboRed: true };
+}
+
+function unoALaVez<A extends unknown[], R>(fn: (...args: A) => Promise<R>) {
+  let enCurso: Promise<R> | null = null;
+  return (...args: A) => {
+    if (!enCurso) {
+      enCurso = fn(...args).finally(() => {
+        enCurso = null;
+      });
+    }
+    return enCurso;
+  };
+}
+
+export const subirUbicaciones = unoALaVez((cuenta: string) =>
+  subirLote<UbicacionPendiente>(UBICACIONES, cuenta, "/api/asistencia/ubicaciones", "ubicaciones", (u) => ({
+    clientKey: u.clientKey,
+    at: u.at,
+    lat: u.lat,
+    lng: u.lng,
+    accuracyM: u.accuracyM,
+  }))
+);
+
+export const subirVisitas = unoALaVez((cuenta: string) =>
+  subirLote<VisitaPendiente>(VISITAS, cuenta, "/api/asistencia/visitas", "visitas", (v) => ({
+    clientKey: v.clientKey,
+    arrivedAt: v.arrivedAt,
+    siteId: v.siteId,
+    place: v.place,
+    note: v.note,
+    lat: v.lat,
+    lng: v.lng,
+    accuracyM: v.accuracyM,
+  }))
+);

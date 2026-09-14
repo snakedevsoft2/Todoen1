@@ -40,6 +40,7 @@
     "verificar:tipo": "node scripts/verificar-tipo.mjs",
     "verificar:sin-senal": "node scripts/verificar-sin-senal.mjs",
     "verificar:pos": "node scripts/verificar-pos.mjs",
+    "verificar:ubicacion": "node scripts/verificar-ubicacion.mjs",
     "clave": "node scripts/cambiar-clave.mjs"
   },
   "dependencies": {
@@ -53,6 +54,7 @@
     "bcryptjs": "^2.4.3",
     "jose": "^5.9.6",
     "jspdf": "^4.2.1",
+    "leaflet": "^1.9.4",
     "next": "^15.5.25",
     "pdf-lib": "^1.17.1",
     "react": "19.0.0",
@@ -63,6 +65,7 @@
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
+    "@types/leaflet": "^1.9.22",
     "@types/node": "^22.10.7",
     "@types/react": "^19.0.7",
     "@types/react-dom": "^19.0.3",

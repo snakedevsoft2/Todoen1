@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { enviarProgramados } from "@/lib/envios-crm";
 import { reintentarFacturas } from "@/lib/facturacion";
+import { borrarUbicacionesViejas } from "@/lib/ubicacion";
 import { addDays, todayIn } from "@/lib/dates";
 import { collectionMessage, debtState, saldo } from "@/lib/debts";
 import { pretty12h, prettyDay } from "@/lib/format";
@@ -198,9 +199,13 @@ export async function GET(request: Request) {
   // Las facturas autorizadas que esperan respuesta o fallaron por conexion.
   const facturas = await reintentarFacturas(50);
 
+  // El recorrido del personal no se guarda para siempre.
+  const ubicacionesBorradas = await borrarUbicacionesViejas();
+
   return Response.json({
     crm,
     facturas,
+    ubicacionesBorradas,
     negocios: negocios.length,
     turnos: { enviados, fallidos, sinConfigurar },
     cartera: { cobros },

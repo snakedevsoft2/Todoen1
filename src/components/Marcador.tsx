@@ -10,8 +10,11 @@ import {
   type MarcajePendiente,
 } from "@/lib/cola-marcajes";
 import { prettyDistancia } from "@/lib/geo";
+import { ubicar } from "@/lib/ubicar";
 import { Icon } from "./Icon";
 import { RegistrarSW } from "./RegistrarSW";
+import { SeguimientoJornada } from "./SeguimientoJornada";
+import { BotonLlegue } from "./BotonLlegue";
 
 /**
  * El marcador de entrada y salida.
@@ -39,39 +42,19 @@ type Estado =
   | { fase: "ubicando" }
   | { fase: "guardado"; kind: "ENTRADA" | "SALIDA"; conUbicacion: boolean };
 
-/**
- * Pide la ubicacion, pero no se queda colgado esperandola.
- *
- * Un GPS en un sotano puede tardar un minuto o no responder nunca. Si a los
- * ocho segundos no llego, se marca igual y sin coordenada: es mejor un marcaje
- * sin ubicacion que una persona esperando con el telefono en la mano.
- */
-function ubicar(): Promise<GeolocationPosition | null> {
-  if (!("geolocation" in navigator)) return Promise.resolve(null);
-  return new Promise((resolve) => {
-    let resuelto = false;
-    const listo = (p: GeolocationPosition | null) => {
-      if (!resuelto) {
-        resuelto = true;
-        resolve(p);
-      }
-    };
-    navigator.geolocation.getCurrentPosition(
-      (p) => listo(p),
-      () => listo(null),
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
-    );
-    setTimeout(() => listo(null), 8500);
-  });
-}
-
 export function Marcador({
   sitios,
   siguienteInicial,
+  cuenta,
+  seguimiento,
 }: {
   sitios: Sitio[];
   /** Lo que le toca segun el servidor al abrir la pantalla. */
   siguienteInicial: Siguiente;
+  /** La persona que marca: sus llegadas y ubicaciones pendientes son solo suyas. */
+  cuenta: string;
+  /** Si el negocio pide la ubicacion durante la jornada, y si esta persona acepto. */
+  seguimiento: { activo: boolean; consentido: boolean };
 }) {
   const router = useRouter();
   const [estado, setEstado] = useState<Estado>({ fase: "listo" });
@@ -217,6 +200,14 @@ export function Marcador({
         </span>
       </div>
 
+      {/* Durante la jornada (entrada sin salida), si el negocio lo pide. */}
+      <SeguimientoJornada
+        cuenta={cuenta}
+        activo={seguimiento.activo}
+        consentidoInicial={seguimiento.consentido}
+        enJornada={siguiente === "SALIDA"}
+      />
+
       {sitios.length > 0 && siguiente !== "COMPLETA" && (
         <label className="block">
           <span className="label">¿Dónde estás?</span>
@@ -280,6 +271,8 @@ export function Marcador({
           </span>
         </button>
       )}
+
+      <BotonLlegue cuenta={cuenta} sitios={sitios} />
 
       {aviso && (
         <p className="flex items-start gap-2 text-[13px] text-bad">

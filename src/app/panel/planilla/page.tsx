@@ -12,6 +12,9 @@ import { Card, Empty, PageHeader, Stat } from "@/components/ui";
 import { AnularMarcaje } from "@/components/AnularMarcaje";
 import { AccionesPlanilla } from "@/components/CompartirPdf";
 import { Icon } from "@/components/Icon";
+import { InterruptorSeguimiento } from "@/components/InterruptorSeguimiento";
+import { MapaEquipo, type PersonaMapa } from "@/components/MapaEquipo";
+import { RefrescoAutomatico } from "@/components/RefrescoAutomatico";
 
 export const dynamic = "force-dynamic";
 
@@ -36,11 +39,15 @@ export default async function PlanillaPage({
   const inicio = inicioDelDiaEn(desde < dia ? desde : dia, tz);
   const fin = inicioDelDiaEn(addDays(hasta > dia ? hasta : dia, 1), tz);
 
-  const [personal, marcajes, novedades] = await Promise.all([
+  // Las ubicaciones y las llegadas son del dia que se esta viendo.
+  const inicioDia = inicioDelDiaEn(dia, tz);
+  const finDia = inicioDelDiaEn(addDays(dia, 1), tz);
+
+  const [personal, marcajes, novedades, ubicaciones, llegadas] = await Promise.all([
     db.staff.findMany({
       where: { userId: user.id, active: true },
       orderBy: { name: "asc" },
-      select: { id: true, name: true },
+      select: { id: true, name: true, color: true, locationConsentAt: true },
     }),
     db.attendance.findMany({
       where: { userId: user.id, markedAt: { gte: inicio, lt: fin } },
@@ -55,6 +62,16 @@ export default async function PlanillaPage({
     db.novelty.findMany({
       where: { userId: user.id, status: "APROBADA", fromDay: { lte: dia }, toDay: { gte: dia } },
       select: { staffId: true, kind: true, fromDay: true, toDay: true },
+    }),
+    db.locationPing.findMany({
+      where: { userId: user.id, at: { gte: inicioDia, lt: finDia } },
+      orderBy: { at: "asc" },
+      select: { staffId: true, at: true, lat: true, lng: true },
+    }),
+    db.siteVisit.findMany({
+      where: { userId: user.id, arrivedAt: { gte: inicioDia, lt: finDia } },
+      orderBy: { arrivedAt: "asc" },
+      include: { site: { select: { name: true, radiusM: true } }, staff: { select: { name: true } } },
     }),
   ]);
 
@@ -132,6 +149,33 @@ export default async function PlanillaPage({
       })),
   };
 
+  // ---------------------------------------------- ubicacion durante la jornada
+  const ultimaUbicacion = (staffId: string) => {
+    const suyas = ubicaciones.filter((x) => x.staffId === staffId);
+    return suyas[suyas.length - 1] ?? null;
+  };
+  const personasMapa: PersonaMapa[] = personal
+    .map((p) => {
+      const suyas = ubicaciones.filter((x) => x.staffId === p.id);
+      const ultima = suyas[suyas.length - 1];
+      return {
+        id: p.id,
+        nombre: p.name,
+        color: p.color,
+        ultima: ultima ? { lat: ultima.lat, lng: ultima.lng, hora: hora(ultima.at) } : null,
+        recorrido: suyas.map((x) => [x.lat, x.lng] as [number, number]),
+        visitas: llegadas
+          .filter((v) => v.staffId === p.id && v.lat !== null && v.lng !== null)
+          .map((v) => ({
+            lat: v.lat as number,
+            lng: v.lng as number,
+            texto: p.name + " llegó a " + (v.site?.name ?? v.place ?? "") + " · " + hora(v.arrivedAt),
+          })),
+      };
+    })
+    .filter((p) => p.ultima || p.visitas.length > 0);
+  const sinConsentimiento = personal.filter((p) => !p.locationConsentAt);
+
   const enlaceRango = (r: Rango) => "/panel/planilla?d=" + dia + (r === "dia" ? "" : "&r=" + r);
 
   return (
@@ -192,6 +236,60 @@ export default async function PlanillaPage({
         </div>
       </Card>
 
+      <Card
+        className="mt-4"
+        title="Ubicación y llegadas"
+        subtitle={dia === hoy ? "Se actualiza sola cada minuto" : prettyDay(dia)}
+      >
+        {dia === hoy && <RefrescoAutomatico segundos={60} />}
+        <InterruptorSeguimiento activo={user.liveTracking} />
+        {user.liveTracking && personal.length > 0 && (
+          <p className="mt-2 text-[12px] text-muted">
+            {personal.length - sinConsentimiento.length} de {personal.length} aceptaron compartir su ubicación.
+            {sinConsentimiento.length > 0 && " Falta: " + sinConsentimiento.map((p) => p.name).join(", ") + "."}
+          </p>
+        )}
+        {personasMapa.length > 0 ? (
+          <div className="mt-3">
+            <MapaEquipo personas={personasMapa} />
+          </div>
+        ) : (
+          <p className="mt-3 text-[13px] text-muted">
+            {user.liveTracking
+              ? "Todavía no hay ubicaciones ni llegadas este día."
+              : "Las llegadas que marque tu personal con el botón \"Llegué\" aparecen aquí."}
+          </p>
+        )}
+        {llegadas.length > 0 && (
+          <ul className="mt-3 divide-y divide-line border-t border-line" data-llegadas-planilla>
+            {llegadas.map((v) => {
+              const lejos = v.site ? enElSitio(v.distanceM, v.site.radiusM, v.accuracyM) === false : false;
+              return (
+                <li key={v.id} className="flex flex-wrap items-center gap-2.5 py-2 text-[13px]">
+                  <span className="font-bold text-strong">{hora(v.arrivedAt)}</span>
+                  <span className="min-w-0 flex-1 text-muted">
+                    <span className="text-body">{v.staff.name}</span> llegó a {v.site?.name ?? v.place}
+                    {v.distanceM !== null && (
+                      <span className={lejos ? "text-bad" : ""}>
+                        {" · a " + prettyDistancia(v.distanceM)}
+                        {lejos && " (lejos)"}
+                      </span>
+                    )}
+                    {v.lat === null && " · sin ubicación"}
+                    {v.note ? " · " + v.note : ""}
+                  </span>
+                  {v.lat !== null && v.lng !== null && (
+                    <a href={enlaceMapa(v.lat, v.lng)} target="_blank" rel="noopener noreferrer" className="text-[11px] text-brand-600 underline">
+                      Mapa
+                    </a>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Card>
+
       {personal.length === 0 ? (
         <Card className="mt-5">
           <Empty
@@ -214,6 +312,15 @@ export default async function PlanillaPage({
                         : "Salió · " + duracionTexto(totalMs)}
                     {raro && <span className="text-warn"> · hay un marcaje sin su pareja</span>}
                     {novedad && <span className="text-brand-700"> · {etiquetaNovedad(novedad.kind)} aprobada</span>}
+                    {user.liveTracking && estado === "adentro" && dia === hoy && (
+                      <span className={ultimaUbicacion(persona.id) ? "text-good" : "text-warn"}>
+                        {ultimaUbicacion(persona.id)
+                          ? " · ubicación a las " + hora(ultimaUbicacion(persona.id)!.at)
+                          : persona.locationConsentAt
+                            ? " · sin ubicación todavía"
+                            : " · no aceptó compartir su ubicación"}
+                      </span>
+                    )}
                   </span>
                 </span>
                 <span

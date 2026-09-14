@@ -27,7 +27,7 @@ export default async function MarcarPage() {
   const desde = inicioDelDiaEn(hoy, user.timezone);
   const hasta = new Date(inicioDelDiaEn(addDays(hoy, 1), user.timezone).getTime() - 1);
 
-  const [sitios, mios, ultimoReciente] = await Promise.all([
+  const [sitios, mios, ultimoReciente, llegadas] = await Promise.all([
     db.workSite.findMany({
       where: { userId: user.id, active: true },
       orderBy: { name: "asc" },
@@ -42,6 +42,11 @@ export default async function MarcarPage() {
       where: { staffId: staff.id, voidedAt: null, markedAt: { gte: new Date(Date.now() - VENTANA_MS) } },
       orderBy: { markedAt: "desc" },
       select: { kind: true },
+    }),
+    db.siteVisit.findMany({
+      where: { staffId: staff.id, arrivedAt: { gte: desde, lte: hasta } },
+      orderBy: { arrivedAt: "desc" },
+      include: { site: { select: { name: true } } },
     }),
   ]);
 
@@ -72,7 +77,12 @@ export default async function MarcarPage() {
 
       <div className="mx-auto grid w-full max-w-xl gap-4">
         <Card>
-          <Marcador sitios={sitios} siguienteInicial={siguiente} />
+          <Marcador
+            sitios={sitios}
+            siguienteInicial={siguiente}
+            cuenta={staff.id}
+            seguimiento={{ activo: user.liveTracking, consentido: Boolean(staff.locationConsentAt) }}
+          />
         </Card>
 
         {/* Lo otro que hace el empleado en el dia: avisar una novedad o
@@ -157,6 +167,37 @@ export default async function MarcarPage() {
             </ul>
           )}
         </Card>
+
+        {llegadas.length > 0 && (
+          <Card>
+            <h2 className="text-sm font-bold text-strong">Tus llegadas de hoy</h2>
+            <ul className="mt-3 divide-y divide-line" data-llegadas>
+              {llegadas.map((v) => (
+                <li key={v.id} className="flex flex-wrap items-center gap-3 py-2.5">
+                  <Icon name="map" className="h-4 w-4 shrink-0 text-brand-600" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-bold text-strong">
+                      {v.site?.name ?? v.place} · {hora(v.arrivedAt)}
+                    </span>
+                    <span className="block text-[11px] text-muted">
+                      {v.distanceM !== null
+                        ? "a " + prettyDistancia(v.distanceM) + " del sitio"
+                        : v.lat === null
+                          ? "sin ubicación"
+                          : "con ubicación"}
+                      {v.note ? " · " + v.note : ""}
+                    </span>
+                  </span>
+                  {v.lat !== null && v.lng !== null && (
+                    <a href={enlaceMapa(v.lat, v.lng)} target="_blank" rel="noopener noreferrer" className="btn-ghost btn-sm">
+                      Ver mapa
+                    </a>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
       </div>
     </>
   );

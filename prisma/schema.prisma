@@ -151,6 +151,10 @@ model User {
   workDays    String  @default("1,2,3,4,5,6") // 1=lunes ... 7=domingo
   bookingOpen Boolean @default(true)
 
+  /// Pedir la ubicacion del personal durante la jornada (entre la entrada y la
+  /// salida). Cada persona tiene que aceptarlo antes de que se envie nada.
+  liveTracking Boolean @default(false)
+
   /**
    * Cuenta suspendida por el administrador de la plataforma.
    * Mientras este puesta, nadie de esta cuenta puede entrar. No se borra nada:
@@ -206,6 +210,8 @@ model User {
   novelties          Novelty[]
   visitAttachments   VisitAttachment[]
   scanDocuments      ScanDocument[]
+  locationPings      LocationPing[]
+  siteVisits         SiteVisit[]
   scheduledMessages  ScheduledMessage[]
   billingConfig      BillingConfig?
   electronicInvoices ElectronicInvoice[]
@@ -399,6 +405,10 @@ model Staff {
   /// cronometrar a nadie.
   lastSeenAt DateTime?
 
+  /// Cuando acepto compartir su ubicacion durante la jornada. Vacio: no la
+  /// ha aceptado y no se envia nada, aunque el negocio lo tenga activado.
+  locationConsentAt DateTime?
+
   /**
    * ANTIGUO. La configuracion ahora vive en WorkspaceConfig. Estas dos
    * columnas se conservan porque en produccion puede haber gente que ya
@@ -424,6 +434,8 @@ model Staff {
   deals          Deal[]          @relation("OportunidadesDeLaPersona")
   followUps      FollowUp[]      @relation("SeguimientosDeLaPersona")
   novelties      Novelty[]       @relation("NovedadesDeLaPersona")
+  locationPings  LocationPing[]  @relation("UbicacionesDeLaPersona")
+  siteVisits     SiteVisit[]     @relation("VisitasDeLaPersona")
 
   @@index([userId, active])
 }
@@ -949,6 +961,7 @@ model WorkSite {
 
   marks   Attendance[]
   reports VisitReport[]
+  visits  SiteVisit[]
 
   @@index([userId, active])
 }
@@ -1552,5 +1565,56 @@ model ElectronicInvoice {
 
   @@index([userId, createdAt])
   @@index([status, updatedAt])
+}
+
+// ------------------------------------------------ UBICACION DURANTE LA JORNADA
+
+/// Donde estaba una persona durante su jornada, cada pocos minutos.
+///
+/// Solo entre su entrada y su salida, solo si el negocio lo activo y la
+/// persona lo acepto, y solo mientras tiene la pantalla de Marcar abierta: una
+/// pagina web no puede seguir a nadie con el telefono bloqueado.
+model LocationPing {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  staffId    String
+  staff      Staff    @relation("UbicacionesDeLaPersona", fields: [staffId], references: [id], onDelete: Cascade)
+  /// Cuando se tomo, con el reloj del telefono.
+  at         DateTime
+  receivedAt DateTime @default(now())
+  lat        Float
+  lng        Float
+  accuracyM  Int?
+  /// La llave del telefono: una ubicacion reenviada no queda dos veces.
+  clientKey  String   @unique
+
+  @@index([userId, at])
+  @@index([staffId, at])
+}
+
+/// "Llegue": la persona marca que llego a un cliente, una obra o un sitio.
+model SiteVisit {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  staffId    String
+  staff      Staff     @relation("VisitasDeLaPersona", fields: [staffId], references: [id], onDelete: Cascade)
+  siteId     String?
+  site       WorkSite? @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  /// Donde llego cuando no es uno de los sitios: "Donde el cliente Pedro".
+  place      String?
+  note       String?
+  arrivedAt  DateTime
+  receivedAt DateTime  @default(now())
+  lat        Float?
+  lng        Float?
+  accuracyM  Int?
+  /// Metros hasta el sitio, cuando el sitio tiene coordenadas.
+  distanceM  Int?
+  clientKey  String    @unique
+
+  @@index([userId, arrivedAt])
+  @@index([staffId, arrivedAt])
 }
 
