@@ -124,11 +124,11 @@ export async function borrarNovedad(clientKey: string): Promise<void> {
   await conTienda(NOVEDADES, "readwrite", (t) => t.delete(clientKey));
 }
 
-type Paso =
+export type Paso =
   | { ok: true; datos: Record<string, unknown> }
   | { ok: false; conRed: boolean; motivo: string; reintentar: boolean };
 
-async function enviar(url: string, cuerpo: Record<string, unknown>): Promise<Paso> {
+export async function enviar(url: string, cuerpo: Record<string, unknown>): Promise<Paso> {
   let r: Response;
   try {
     r = await fetch(url, {
@@ -158,7 +158,7 @@ export type ResultadoSubida = {
   aviso: string | null;
 };
 
-const parar = (enviados: number, p: Extract<Paso, { ok: false }>): ResultadoSubida => ({
+export const parar = (enviados: number, p: Extract<Paso, { ok: false }>): ResultadoSubida => ({
   enviados,
   huboRed: p.conRed,
   aviso: p.conRed ? p.motivo : null,
@@ -169,11 +169,11 @@ const parar = (enviados: number, p: Extract<Paso, { ok: false }>): ResultadoSubi
  * el de "volvio a la pantalla" pueden llegar juntos, y dos subidas en paralelo
  * pelearian por el mismo reporte.
  */
-function unaALaVez(fn: (alAvanzar?: () => void) => Promise<ResultadoSubida>) {
+export function unaALaVez<A extends unknown[]>(fn: (...args: A) => Promise<ResultadoSubida>) {
   let enCurso: Promise<ResultadoSubida> | null = null;
-  return (alAvanzar?: () => void) => {
+  return (...args: A) => {
     if (!enCurso) {
-      enCurso = fn(alAvanzar).finally(() => {
+      enCurso = fn(...args).finally(() => {
         enCurso = null;
       });
     }
@@ -181,7 +181,7 @@ function unaALaVez(fn: (alAvanzar?: () => void) => Promise<ResultadoSubida>) {
   };
 }
 
-export const subirReportes = unaALaVez(async (alAvanzar) => {
+export const subirReportes = unaALaVez(async (alAvanzar?: () => void) => {
   const cola = (await reportesPendientes()).filter((r) => !r.error);
   let enviados = 0;
 
@@ -251,7 +251,7 @@ export const subirReportes = unaALaVez(async (alAvanzar) => {
   return { enviados, huboRed: true, aviso: null };
 });
 
-export const subirNovedades = unaALaVez(async (alAvanzar) => {
+export const subirNovedades = unaALaVez(async (alAvanzar?: () => void) => {
   const cola = (await novedadesPendientes()).filter((n) => !n.error);
   let enviados = 0;
 

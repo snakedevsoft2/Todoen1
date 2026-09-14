@@ -612,6 +612,10 @@ model Sale {
   appointment   Appointment?  @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
   orderId       String?       @unique
   order         Order?        @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  /// La llave que le puso el telefono a la venta. Si se guardo sin senal y la
+  /// subida se corta y se reintenta, la venta no queda dos veces ni descuenta
+  /// el inventario dos veces.
+  clientKey     String?       @unique
   createdAt     DateTime      @default(now())
 
   items SaleItem[]
@@ -1397,6 +1401,8 @@ model ScanDocument {
   pages     Int
   /// El texto reconocido en las paginas, si se paso a texto.
   text      String?
+  /// La llave del telefono: el documento guardado sin senal llega una vez.
+  clientKey String?  @unique
   createdAt DateTime @default(now())
 
   @@index([userId, createdAt])

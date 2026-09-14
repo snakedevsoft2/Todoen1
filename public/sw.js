@@ -10,10 +10,14 @@
  *
  * - Archivos de /_next/static: primero del cache. Llevan una huella en el
  *   nombre, asi que un archivo guardado nunca queda viejo.
- * - La pagina de Marcar: primero la red, y si no hay, la copia guardada. Asi
- *   con senal siempre se ve lo ultimo.
- * - Cualquier otra pagina sin red: un aviso de "sin conexion" con el enlace a
- *   Marcar, en vez de la pagina de error del navegador.
+ * - Las paginas que sirven sin senal (Marcar, Reportes, Novedades, Ventas y
+ *   Escaner): primero la red, y si no hay, la copia guardada. Asi con senal
+ *   siempre se ve lo ultimo.
+ * - Los archivos del lector de texto (/ocr/): primero del cache. La carpeta
+ *   lleva la version en el nombre, asi que tampoco quedan viejos.
+ * - Cualquier otra pagina sin red: un aviso de "sin conexion" con enlaces a
+ *   las pantallas que si quedaron guardadas en este telefono, en vez de la
+ *   pagina de error del navegador.
  * - Lo que va a /api y todo lo que no es GET NUNCA se toca. Un marcaje o un
  *   abono servido desde un cache seria un registro falso.
  * - Las paginas guardadas se borran al llegar al ingreso (LoginForm): llevan
@@ -24,8 +28,20 @@ const VERSION = "v1";
 const ESTATICOS = "ten-estaticos-" + VERSION;
 const PAGINAS = "ten-paginas-" + VERSION;
 
-/** Las unicas paginas que sirven sin red. */
-const PARA_SIN_CONEXION = ["/panel/marcar", "/panel/informes", "/panel/novedades"];
+/** Las unicas paginas que sirven sin red, con el texto de su enlace en el aviso. */
+const PARA_SIN_CONEXION = ["/panel/marcar", "/panel/informes", "/panel/novedades", "/panel/ventas", "/panel/escaner"];
+const ENLACE = {
+  "/panel/marcar": "Marcar entrada o salida",
+  "/panel/informes": "Hacer un reporte",
+  "/panel/novedades": "Avisar una novedad",
+  "/panel/ventas": "Registrar una venta",
+  "/panel/escaner": "Escanear un documento",
+};
+
+/** Archivos que no cambian nunca: llevan la version o una huella en la ruta. */
+function esArchivoFijo(ruta) {
+  return ruta.startsWith("/_next/static/") || ruta.startsWith("/ocr/");
+}
 
 self.addEventListener("install", () => self.skipWaiting());
 
@@ -45,7 +61,24 @@ function claveDePagina(ruta) {
   return new URL(ruta, self.location.origin).href;
 }
 
-function paginaSinConexion() {
+async function paginaSinConexion() {
+  // Solo se ofrecen las pantallas que de verdad quedaron guardadas: un enlace a
+  // una que no se abrio nunca con senal llevaria otra vez a este aviso.
+  const enlaces = [];
+  try {
+    const c = await caches.open(PAGINAS);
+    for (const ruta of PARA_SIN_CONEXION) {
+      if (await c.match(claveDePagina(ruta))) enlaces.push(ruta);
+    }
+  } catch {
+    // Sin cache no hay enlaces; queda el boton de reintentar.
+  }
+  const botones = enlaces
+    .map((r, i) => '<a href="' + r + '"' + (i > 0 ? ' class="otro"' : "") + ">" + ENLACE[r] + "</a>")
+    .join("");
+  const texto = enlaces.length
+    ? "Esta pantalla necesita señal. Estas sí funcionan sin conexión: lo que hagas se guarda en el teléfono y se envía solo cuando vuelva la señal."
+    : "Esta pantalla necesita señal. Vuelve a intentarlo cuando tengas conexión.";
   const html = `<!doctype html>
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Sin conexión</title>
@@ -57,14 +90,13 @@ function paginaSinConexion() {
   p{color:#6e6e78;font-size:15px;line-height:1.5;margin:0 0 24px}
   a,button{display:block;width:100%;box-sizing:border-box;padding:14px;border-radius:14px;font-size:16px;
            font-weight:600;text-decoration:none;border:0;margin-bottom:10px;cursor:pointer}
-  a{background:#5856d6;color:#fff} button{background:#fff;color:#111116;border:1px solid #e6e6eb}
+  a{background:#5856d6;color:#fff} a.otro,button{background:#fff;color:#111116;border:1px solid #e6e6eb}
 </style></head>
 <body><div class="caja">
   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9a520a" stroke-width="2"><path d="M12 8v5m0 3h.01M10.3 4.3 2.6 17.5A2 2 0 0 0 4.3 20.5h15.4a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0Z"/></svg>
   <h1>Sin conexión</h1>
-  <p>Esta pantalla necesita señal. Para marcar tu entrada o salida no hace falta: el marcaje y los reportes se guardan en el teléfono y se envían solos cuando vuelva la señal.</p>
-  <a href="/panel/marcar">Ir a marcar</a>
-  <a href="/panel/informes" style="background:#fff;color:#111116;border:1px solid #e6e6eb">Hacer un reporte</a>
+  <p>${texto}</p>
+  ${botones}
   <button onclick="location.reload()">Reintentar</button>
 </div></body></html>`;
   return new Response(html, {
@@ -104,7 +136,7 @@ self.addEventListener("message", (event) => {
         try {
           const url = new URL(u, self.location.origin);
           if (url.origin !== self.location.origin) continue;
-          if (!url.pathname.startsWith("/_next/static/")) continue;
+          if (!esArchivoFijo(url.pathname)) continue;
           if (await c.match(url.href)) continue;
           const r = await fetch(url.href, { credentials: "same-origin" });
           if (r.ok) await c.put(url.href, r);
@@ -124,7 +156,7 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith("/api/")) return;
 
-  if (url.pathname.startsWith("/_next/static/")) {
+  if (esArchivoFijo(url.pathname)) {
     event.respondWith(
       (async () => {
         const c = await caches.open(ESTATICOS);
@@ -159,7 +191,7 @@ self.addEventListener("fetch", (event) => {
           const guardada = await c.match(clave);
           if (guardada) return guardada;
         }
-        return paginaSinConexion();
+        return await paginaSinConexion();
       }
     })()
   );

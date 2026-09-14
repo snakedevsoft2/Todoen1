@@ -175,6 +175,9 @@ export default async function VentasPage({
             team={team}
             defaultStaffId={me.id}
             staffLabel={isClothing ? "Quién vendió" : "Quién atendió"}
+            timezone={user.timezone}
+            cuenta={me.id}
+            esHoy={day === today}
           />
         </Card>
 

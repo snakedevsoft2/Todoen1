@@ -2,12 +2,33 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MODOS, aplicarModo, nombreDocumento, type Modo } from "@/lib/escaner";
 import { fileToDataUrl } from "@/lib/image";
+import { OCR, archivosOcrParaEsteEquipo } from "@/lib/ocr";
+import { enviar } from "@/lib/cola-reportes";
+import {
+  borrarDocumentoPendiente,
+  cuerpoDeDocumento,
+  documentosPendientes,
+  guardarDocumentoPendiente,
+  nuevaLlave,
+  subirDocumentos,
+  type DocumentoPendiente,
+} from "@/lib/cola-pendientes";
 import { Alert, Field } from "./ui";
 import { Icon } from "./Icon";
+import { RegistrarSW } from "./RegistrarSW";
+
+/**
+ * Lo que la pantalla solo baja al usarlo: se carga con senal para que el PDF
+ * y el paso a texto funcionen despues sin ella.
+ */
+async function precargarEscaner(): Promise<string[]> {
+  await Promise.all([import("jspdf"), import("tesseract.js")]);
+  return archivosOcrParaEsteEquipo();
+}
 
 const MAX_PAGINAS = 20;
 const MAX_BYTES_GUARDAR = 3 * 1024 * 1024;
@@ -97,8 +118,11 @@ function leerComoDataUrl(archivo: Blob): Promise<string> {
  *
  * Todo pasa en el telefono: el giro, el modo documento, el PDF y la lectura
  * del texto. Al servidor solo llega el PDF terminado, y solo si se guarda.
+ *
+ * Funciona sin senal si la pantalla se abrio antes con ella: el PDF y el texto
+ * se hacen igual, y lo que se guarda queda en el telefono y se sube solo.
  */
-export function Escaner({ hoy }: { hoy: string }) {
+export function Escaner({ hoy, cuenta }: { hoy: string; cuenta: string }) {
   const router = useRouter();
   const camara = useRef<HTMLInputElement>(null);
   const galeria = useRef<HTMLInputElement>(null);
@@ -109,6 +133,64 @@ export function Escaner({ hoy }: { hoy: string }) {
   const [texto, setTexto] = useState("");
   const [progreso, setProgreso] = useState<number | null>(null);
   const [mensaje, setMensaje] = useState<{ kind: "ok" | "error" | "info"; text: string } | null>(null);
+  const [pendientes, setPendientes] = useState<DocumentoPendiente[]>([]);
+  const [enLinea, setEnLinea] = useState(true);
+
+  const refrescar = useCallback(async () => {
+    try {
+      setPendientes(await documentosPendientes(cuenta));
+    } catch {
+      // Sin IndexedDB no hay cola; el aviso sale al intentar guardar sin senal.
+    }
+  }, [cuenta]);
+
+  const subir = useCallback(async () => {
+    try {
+      const r = await subirDocumentos(cuenta, () => void refrescar());
+      await refrescar();
+      if (r.enviados > 0) {
+        setMensaje({
+          kind: "ok",
+          text:
+            r.enviados === 1
+              ? "Volvió la señal: el documento guardado en el teléfono ya se subió."
+              : "Volvió la señal: " + r.enviados + " documentos guardados en el teléfono ya se subieron.",
+        });
+        router.refresh();
+      } else if (r.aviso) {
+        setMensaje({ kind: "error", text: r.aviso });
+      }
+    } catch {
+      // Se reintenta en el proximo evento.
+    }
+  }, [cuenta, refrescar, router]);
+
+  useEffect(() => {
+    setEnLinea(navigator.onLine);
+    void refrescar().then(() => {
+      if (navigator.onLine) void subir();
+    });
+    const volvio = () => {
+      setEnLinea(true);
+      void subir();
+    };
+    const cayo = () => setEnLinea(false);
+    const alVolver = () => {
+      if (document.visibilityState === "visible" && navigator.onLine) void subir();
+    };
+    window.addEventListener("online", volvio);
+    window.addEventListener("offline", cayo);
+    document.addEventListener("visibilitychange", alVolver);
+    const reloj = setInterval(() => {
+      if (navigator.onLine) void subir();
+    }, 30_000);
+    return () => {
+      window.removeEventListener("online", volvio);
+      window.removeEventListener("offline", cayo);
+      document.removeEventListener("visibilitychange", alVolver);
+      clearInterval(reloj);
+    };
+  }, [refrescar, subir]);
 
   // Cada vez que cambia el giro o el modo de una pagina, se vuelve a procesar
   // solo esa. El PDF armado deja de valer.
@@ -212,7 +294,13 @@ export function Escaner({ hoy }: { hoy: string }) {
       const { createWorker } = await import("tesseract.js");
       const total = paginas.length;
       let actual = 0;
+      // Todo sale de la propia aplicacion y no de un CDN, para que funcione sin
+      // senal: el trabajador de fondo ya guardo estos archivos.
       const worker = await createWorker("spa", 1, {
+        workerPath: OCR.worker,
+        corePath: OCR.carpeta,
+        langPath: OCR.carpeta,
+        workerBlobURL: false,
         logger: (m: { status: string; progress: number }) => {
           if (m.status === "recognizing text") setProgreso(Math.round(((actual + m.progress) / total) * 100));
         },
@@ -229,7 +317,9 @@ export function Escaner({ hoy }: { hoy: string }) {
     } catch {
       setMensaje({
         kind: "error",
-        text: "No se pudo leer el texto. La primera vez hace falta internet para descargar el idioma.",
+        text: navigator.onLine
+          ? "No se pudo leer el texto. Vuelve a intentarlo."
+          : "No se pudo leer el texto sin señal. Abre el escáner una vez con internet para que quede listo en este teléfono.",
       });
     } finally {
       setProgreso(null);
@@ -244,24 +334,50 @@ export function Escaner({ hoy }: { hoy: string }) {
       return;
     }
     setOcupado("Guardando…");
+    setMensaje(null);
     try {
-      const r = await fetch("/api/documentos", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: titulo, pdf: await leerComoDataUrl(archivo), pages: paginas.length, text: texto }),
-      });
-      const datos = (await r.json().catch(() => ({}))) as { error?: string };
-      if (!r.ok) {
-        setMensaje({ kind: "error", text: datos.error ?? "No se pudo guardar." });
+      const doc: DocumentoPendiente = {
+        clientKey: nuevaLlave(),
+        cuenta,
+        title: titulo,
+        pdf: await leerComoDataUrl(archivo),
+        pages: paginas.length,
+        text: texto,
+        creadoEn: new Date().toISOString(),
+        error: null,
+      };
+      let aviso = "Sin señal: el documento quedó guardado en este teléfono y se sube solo cuando vuelva.";
+      if (navigator.onLine) {
+        const p = await enviar("/api/documentos", cuerpoDeDocumento(doc));
+        if (p.ok) {
+          setMensaje({ kind: "ok", text: "Guardado en tus documentos." });
+          router.refresh();
+          return;
+        }
+        if (!p.reintentar) {
+          setMensaje({ kind: "error", text: p.motivo });
+          return;
+        }
+        if (p.conRed) aviso = p.motivo + " El documento quedó guardado en este teléfono.";
+      }
+
+      // Sin red, o el servidor no respondio: a la cola, con la misma llave.
+      try {
+        await guardarDocumentoPendiente(doc);
+      } catch {
+        setMensaje({ kind: "error", text: "Sin señal y este navegador no deja guardar el documento. Descarga el PDF." });
         return;
       }
-      setMensaje({ kind: "ok", text: "Guardado en tus documentos." });
-      router.refresh();
-    } catch {
-      setMensaje({ kind: "error", text: "Sin conexión. Descarga el PDF y guárdalo cuando tengas señal." });
+      await refrescar();
+      setMensaje({ kind: "info", text: aviso });
     } finally {
       setOcupado(null);
     }
+  }
+
+  async function descartar(clientKey: string) {
+    await borrarDocumentoPendiente(clientKey);
+    await refrescar();
   }
 
   function empezarOtro() {
@@ -274,6 +390,42 @@ export function Escaner({ hoy }: { hoy: string }) {
 
   return (
     <div className="space-y-4">
+      <RegistrarSW guardarEstaPagina precargar={precargarEscaner} />
+
+      {!enLinea && (
+        <p data-sin-senal className="rounded-xl border border-warn-line bg-warn-soft px-3 py-2 text-[13px] text-warn">
+          Sin señal: puedes escanear, armar el PDF y pasar a texto. Lo que guardes se sube solo cuando vuelva.
+        </p>
+      )}
+
+      {pendientes.length > 0 && (
+        <div data-documentos-pendientes className="rounded-xl border border-warn-line bg-warn-soft p-3">
+          <p className="flex items-center gap-2 text-[13px] font-bold text-warn">
+            <Icon name="clock" className="h-4 w-4" />
+            {pendientes.length === 1 ? "1 documento por subir" : pendientes.length + " documentos por subir"}
+          </p>
+          <ul className="mt-2 space-y-1.5">
+            {pendientes.map((d) => (
+              <li key={d.clientKey} className="flex items-center gap-2 text-[13px]">
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-semibold text-strong">{d.title}</span>
+                  <span className={"block text-[11px] " + (d.error ? "text-bad" : "text-muted")}>
+                    {d.error
+                      ? "No se pudo subir: " + d.error
+                      : (!enLinea ? "Esperando señal" : "Subiendo…") + " · " + d.pages + (d.pages === 1 ? " página" : " páginas")}
+                  </span>
+                </span>
+                {d.error && (
+                  <button type="button" className="btn-ghost btn-sm" onClick={() => descartar(d.clientKey)}>
+                    Descartar
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {mensaje && <Alert kind={mensaje.kind}>{mensaje.text}</Alert>}
 
       <Field label="Nombre del documento">

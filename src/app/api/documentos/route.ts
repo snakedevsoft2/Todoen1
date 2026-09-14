@@ -21,6 +21,6 @@ export async function POST(request: Request) {
 
   const r = await guardarDocumento(sesion, cuerpo ?? {});
   if (!r.ok) return Response.json({ error: r.error }, { status: r.status });
-  revalidatePath("/panel/escaner");
-  return Response.json({ id: r.datos.id });
+  if (!r.datos.repetido) revalidatePath("/panel/escaner");
+  return Response.json({ id: r.datos.id, repetido: r.datos.repetido });
 }

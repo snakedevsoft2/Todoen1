@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { MAX_BYTES_PDF, PDF_VALIDO, esPdfDeVerdad, falla, textoDe, type Resultado, type Sesion } from "./informes";
+import { LLAVE_VALIDA, MAX_BYTES_PDF, PDF_VALIDO, esPdfDeVerdad, falla, textoDe, type Resultado, type Sesion } from "./informes";
 
 /**
  * Los documentos escaneados que se guardan en la cuenta.
@@ -15,7 +15,26 @@ export function puedeVerDocumento(staff: { id: string; role: string }, doc: { st
   return staff.role === "DUENO" || doc.staffId === staff.id;
 }
 
-export async function guardarDocumento(s: Sesion, d: Record<string, unknown>): Promise<Resultado<{ id: string }>> {
+export async function guardarDocumento(
+  s: Sesion,
+  d: Record<string, unknown>
+): Promise<Resultado<{ id: string; repetido: boolean }>> {
+  const clientKey = typeof d.clientKey === "string" && LLAVE_VALIDA.test(d.clientKey) ? d.clientKey : null;
+  if (d.clientKey !== undefined && d.clientKey !== null && !clientKey) return falla("Llave inválida.");
+
+  // Si ya llego en una subida anterior que se corto (se guardo sin senal), se
+  // responde el mismo documento.
+  const yaEsta = async () => {
+    if (!clientKey) return null;
+    const ya = await db.scanDocument.findUnique({ where: { clientKey }, select: { id: true, userId: true } });
+    if (!ya) return null;
+    return ya.userId === s.user.id
+      ? { ok: true as const, datos: { id: ya.id, repetido: true } }
+      : falla("Ese documento no se puede recibir.", 409);
+  };
+  const previo = await yaEsta();
+  if (previo) return previo;
+
   const pdf = typeof d.pdf === "string" ? d.pdf : "";
   if (!PDF_VALIDO.test(pdf) || !esPdfDeVerdad(pdf)) return falla("Eso no es un PDF válido.");
   const size = Math.floor(((pdf.length - pdf.indexOf(",") - 1) * 3) / 4);
@@ -31,19 +50,29 @@ export async function guardarDocumento(s: Sesion, d: Record<string, unknown>): P
     return falla("Ya tienes " + MAX_DOCUMENTOS + " documentos guardados. Borra los que no uses.");
   }
 
-  const documento = await db.scanDocument.create({
-    data: {
-      userId: s.user.id,
-      staffId: s.staff.id,
-      title: textoDe(d.title, 120) || "Documento escaneado",
-      pdf,
-      size,
-      pages,
-      text: textoDe(d.text, 100_000) || null,
-    },
-    select: { id: true },
-  });
-  return { ok: true, datos: { id: documento.id } };
+  let documento;
+  try {
+    documento = await db.scanDocument.create({
+      data: {
+        userId: s.user.id,
+        staffId: s.staff.id,
+        title: textoDe(d.title, 120) || "Documento escaneado",
+        pdf,
+        size,
+        pages,
+        text: textoDe(d.text, 100_000) || null,
+        clientKey,
+      },
+      select: { id: true },
+    });
+  } catch (e) {
+    if ((e as { code?: string })?.code === "P2002") {
+      const carrera = await yaEsta();
+      if (carrera) return carrera;
+    }
+    throw e;
+  }
+  return { ok: true, datos: { id: documento.id, repetido: false } };
 }
 
 export async function borrarDocumento(s: Sesion, id: string): Promise<boolean> {

@@ -1,11 +1,22 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState } from "react";
-import { createSaleAction } from "@/actions/sales";
-import { SubmitButton } from "./SubmitButton";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Alert, Field } from "./ui";
-import { money, pasoMoneda } from "@/lib/format";
+import { money, parseMoney, pasoMoneda } from "@/lib/format";
+import { todayIn } from "@/lib/dates";
+import { enviar } from "@/lib/cola-reportes";
+import {
+  borrarVenta,
+  cuerpoDeVenta,
+  guardarVenta,
+  nuevaLlave,
+  subirVentas,
+  ventasPendientes,
+  type VentaPendiente,
+} from "@/lib/cola-pendientes";
 import { Icon } from "./Icon";
+import { RegistrarSW } from "./RegistrarSW";
 
 export type VariantOption = {
   id: string;
@@ -38,6 +49,17 @@ type CartRow = {
   max?: number;
 };
 
+type Mensaje = { kind: "ok" | "error" | "info"; text: string };
+
+/**
+ * Registrar una venta, con senal o sin ella.
+ *
+ * Con senal se manda al momento. Sin senal (o si la red se cae al mandar) la
+ * venta queda guardada en el telefono con su llave y se sube sola cuando
+ * vuelve, sin quedar repetida. Si el servidor la rechaza al momento (no
+ * alcanza el stock, por ejemplo) el carrito se queda como estaba para
+ * corregirlo.
+ */
 export function NewSaleForm({
   services,
   currency,
@@ -46,6 +68,9 @@ export function NewSaleForm({
   team = [],
   defaultStaffId,
   staffLabel = "Quién atendió",
+  timezone,
+  cuenta,
+  esHoy,
 }: {
   services: ServiceRow[];
   currency: string;
@@ -55,22 +80,90 @@ export function NewSaleForm({
   team?: StaffRow[];
   defaultStaffId?: string;
   staffLabel?: string;
+  /** Zona del negocio, para poner la fecha de hoy aunque la pagina venga guardada de otro dia. */
+  timezone: string;
+  /** Quien esta registrando: su cola de pendientes es solo suya. */
+  cuenta: string;
+  /** Si la pantalla muestra el dia de hoy (y no uno anterior elegido a proposito). */
+  esHoy: boolean;
 }) {
-  const [state, formAction] = useActionState(createSaleAction, undefined);
+  const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
+  const diaRef = useRef<HTMLInputElement>(null);
   const [cart, setCart] = useState<CartRow[]>([]);
   const [openSizes, setOpenSizes] = useState<string | null>(null);
   const [freeName, setFreeName] = useState("");
   const [freePrice, setFreePrice] = useState("");
+  const [mensaje, setMensaje] = useState<Mensaje | null>(null);
+  const [enviando, setEnviando] = useState(false);
+  const [pendientes, setPendientes] = useState<VentaPendiente[]>([]);
+  const [enLinea, setEnLinea] = useState(true);
 
   const total = useMemo(() => cart.reduce((s, r) => s + r.unitPrice * r.qty, 0), [cart]);
 
-  // Al guardar bien la venta dejamos el carrito limpio para la siguiente.
-  useEffect(() => {
-    if (state?.ok) {
-      setCart([]);
-      setOpenSizes(null);
+  // Si la pagina se abrio sin senal, puede ser la copia guardada de otro dia:
+  // la fecha de hoy se toma del telefono, en la zona del negocio.
+  const ponerHoy = useCallback(() => {
+    if (esHoy && diaRef.current) diaRef.current.value = todayIn(timezone);
+  }, [esHoy, timezone]);
+  useEffect(ponerHoy, [ponerHoy]);
+
+  const refrescar = useCallback(async () => {
+    try {
+      setPendientes(await ventasPendientes(cuenta));
+    } catch {
+      // Sin IndexedDB no hay cola; el aviso sale al intentar guardar sin senal.
     }
-  }, [state]);
+  }, [cuenta]);
+
+  const subir = useCallback(async () => {
+    try {
+      const r = await subirVentas(cuenta, () => void refrescar());
+      await refrescar();
+      if (r.enviados > 0) {
+        setMensaje({
+          kind: "ok",
+          text:
+            r.enviados === 1
+              ? "Volvió la señal: la venta guardada en el teléfono ya se subió."
+              : "Volvió la señal: " + r.enviados + " ventas guardadas en el teléfono ya se subieron.",
+        });
+        router.refresh();
+      } else if (r.aviso) {
+        setMensaje({ kind: "error", text: r.aviso });
+      }
+    } catch {
+      // Se reintenta en el proximo evento.
+    }
+  }, [cuenta, refrescar, router]);
+
+  useEffect(() => {
+    setEnLinea(navigator.onLine);
+    void refrescar().then(() => {
+      if (navigator.onLine) void subir();
+    });
+    const volvio = () => {
+      setEnLinea(true);
+      void subir();
+    };
+    const cayo = () => setEnLinea(false);
+    const alVolver = () => {
+      if (document.visibilityState === "visible" && navigator.onLine) void subir();
+    };
+    window.addEventListener("online", volvio);
+    window.addEventListener("offline", cayo);
+    document.addEventListener("visibilitychange", alVolver);
+    // Por si el evento "online" no llega (pasa en celulares).
+    const reloj = setInterval(() => {
+      if (navigator.onLine) void subir();
+    }, 30_000);
+    return () => {
+      window.removeEventListener("online", volvio);
+      window.removeEventListener("offline", cayo);
+      document.removeEventListener("visibilitychange", alVolver);
+      clearInterval(reloj);
+    };
+  }, [refrescar, subir]);
 
   const grouped = useMemo(() => {
     return services.reduce<Record<string, ServiceRow[]>>((acc, s) => {
@@ -163,20 +256,131 @@ export function NewSaleForm({
     setCart((prev) => prev.filter((r) => r.key !== key));
   }
 
-  const itemsJson = JSON.stringify(
-    cart.map((r) => ({
-      serviceId: r.serviceId,
-      variantId: r.variantId,
-      name: r.name,
-      unitPrice: r.unitPrice,
-      qty: r.qty,
-    }))
-  );
+  function limpiar() {
+    setCart([]);
+    setOpenSizes(null);
+    formRef.current?.reset();
+    ponerHoy();
+  }
+
+  async function guardar(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (enviando) return;
+    const fd = new FormData(e.currentTarget);
+    const manualTotal = String(fd.get("manualTotal") ?? "");
+    const valor = cart.length > 0 ? total : parseMoney(manualTotal, currency);
+    if (cart.length === 0 && valor <= 0) {
+      setMensaje({ kind: "error", text: "Agrega al menos un item o escribe un valor." });
+      return;
+    }
+    const dia = String(fd.get("day") ?? "");
+
+    const venta: VentaPendiente = {
+      clientKey: nuevaLlave(),
+      cuenta,
+      day: /^\d{4}-\d{2}-\d{2}$/.test(dia) ? dia : todayIn(timezone),
+      items: cart.map((r) => ({
+        serviceId: r.serviceId,
+        variantId: r.variantId,
+        name: r.name,
+        unitPrice: r.unitPrice,
+        qty: r.qty,
+      })),
+      manualTotal: cart.length > 0 ? "" : manualTotal,
+      concept: String(fd.get("concept") ?? ""),
+      paymentMethod: String(fd.get("paymentMethod") ?? "EFECTIVO"),
+      clientName: String(fd.get("clientName") ?? ""),
+      notes: String(fd.get("notes") ?? ""),
+      staffId: String(fd.get("staffId") ?? ""),
+      total: valor,
+      creadoEn: new Date().toISOString(),
+      error: null,
+    };
+
+    setEnviando(true);
+    setMensaje(null);
+    try {
+      let aviso = "Sin señal: la venta quedó guardada en este teléfono y se sube sola cuando vuelva.";
+      if (navigator.onLine) {
+        const p = await enviar("/api/ventas", cuerpoDeVenta(venta));
+        if (p.ok) {
+          limpiar();
+          setMensaje({ kind: "ok", text: "Venta registrada." });
+          router.refresh();
+          return;
+        }
+        if (!p.reintentar) {
+          // Rechazada por lo que trae (no alcanza el stock...): el carrito queda para corregirla.
+          setMensaje({ kind: "error", text: p.motivo });
+          return;
+        }
+        if (p.conRed) aviso = p.motivo + " La venta quedó guardada en este teléfono.";
+      }
+
+      // Sin red, o el servidor no respondio: a la cola, con la misma llave.
+      try {
+        await guardarVenta(venta);
+      } catch {
+        setMensaje({ kind: "error", text: "Sin señal y este navegador no deja guardar la venta. Anótala y regístrala cuando vuelva la señal." });
+        return;
+      }
+      limpiar();
+      await refrescar();
+      setMensaje({ kind: "info", text: aviso });
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  async function descartar(clientKey: string) {
+    await borrarVenta(clientKey);
+    await refrescar();
+  }
 
   return (
     <div className="space-y-4">
-      {state?.error && <Alert kind="error">{state.error}</Alert>}
-      {state?.ok && <Alert kind="ok">{state.ok}</Alert>}
+      <RegistrarSW guardarEstaPagina />
+
+      {!enLinea && (
+        <p data-sin-senal className="rounded-xl border border-warn-line bg-warn-soft px-3 py-2 text-[13px] text-warn">
+          Sin señal: puedes seguir vendiendo. Las ventas se guardan en este teléfono y se suben solas cuando vuelva. La lista
+          del día puede no estar al día.
+        </p>
+      )}
+
+      {pendientes.length > 0 && (
+        <div data-ventas-pendientes className="rounded-xl border border-warn-line bg-warn-soft p-3">
+          <p className="flex items-center gap-2 text-[13px] font-bold text-warn">
+            <Icon name="clock" className="h-4 w-4" />
+            {pendientes.length === 1 ? "1 venta por subir" : pendientes.length + " ventas por subir"} ·{" "}
+            {money(
+              pendientes.reduce((s, v) => s + v.total, 0),
+              currency
+            )}
+          </p>
+          <ul className="mt-2 space-y-1.5">
+            {pendientes.map((v) => (
+              <li key={v.clientKey} className="flex items-center gap-2 text-[13px]">
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-semibold text-strong">
+                    {money(v.total, currency)} · {v.items.map((i) => i.qty + "x " + i.name).join(", ") || v.concept || "Venta"}
+                  </span>
+                  <span className={"block text-[11px] " + (v.error ? "text-bad" : "text-muted")}>
+                    {v.error ? "No se pudo subir: " + v.error : !enLinea ? "Esperando señal" : "Subiendo…"}
+                  </span>
+                </span>
+                {v.error && (
+                  <button type="button" className="btn-ghost btn-sm" onClick={() => descartar(v.clientKey)}>
+                    Descartar
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {mensaje && <Alert kind={mensaje.kind}>{mensaje.text}</Alert>}
 
       {services.length > 0 && (
         <div className="space-y-3">
@@ -338,9 +542,7 @@ export function NewSaleForm({
         </div>
       </div>
 
-      <form action={formAction} className="space-y-3">
-        <input type="hidden" name="itemsJson" value={itemsJson} />
-
+      <form ref={formRef} onSubmit={guardar} className="space-y-3">
         {team.length > 1 && (
           <Field label={staffLabel} hint="La venta se suma a la medicion de esta persona.">
             <select
@@ -361,7 +563,7 @@ export function NewSaleForm({
 
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Día de la venta">
-            <input className="input" type="date" name="day" defaultValue={today} />
+            <input ref={diaRef} className="input" type="date" name="day" defaultValue={today} />
           </Field>
           <Field label="Método de pago">
             <select className="input" name="paymentMethod" defaultValue="EFECTIVO">
@@ -398,10 +600,10 @@ export function NewSaleForm({
           <input className="input" name="notes" placeholder="Ej: pago mitad efectivo" />
         </Field>
 
-        <SubmitButton className="btn-success w-full" pendingText="Guardando venta...">
+        <button type="submit" className="btn-success w-full" disabled={enviando}>
           <Icon name="check" className="h-4 w-4" />
-          Guardar venta {cart.length > 0 ? "por " + money(total, currency) : ""}
-        </SubmitButton>
+          {enviando ? "Guardando venta..." : "Guardar venta " + (cart.length > 0 ? "por " + money(total, currency) : "")}
+        </button>
       </form>
     </div>
   );

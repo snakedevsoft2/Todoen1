@@ -41,7 +41,7 @@ export default async function EscanerPage() {
 
       <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
         <Card className="min-w-0">
-          <Escaner hoy={todayIn(user.timezone)} />
+          <Escaner hoy={todayIn(user.timezone)} cuenta={staff.id} />
         </Card>
 
         <Card title={esDueno ? "Documentos guardados" : "Mis documentos"} className="min-w-0">

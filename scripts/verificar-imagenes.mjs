@@ -151,9 +151,14 @@ try {
     await valor.fill(String(1000 * i));
     await page.getByRole("button", { name: "Agregar", exact: true }).click();
   }
-  const largo = await page.evaluate(() => document.querySelector('input[name="itemsJson"]')?.value.length ?? 0);
+  // La venta sale como JSON a /api/ventas (asi tambien puede guardarse sin
+  // senal): se mide el carrito que de verdad viaja en esa peticion.
+  const [peticion] = await Promise.all([
+    page.waitForRequest((r) => r.url().endsWith("/api/ventas") && r.method() === "POST", { timeout: 15000 }),
+    page.getByRole("button", { name: /Guardar venta/ }).click(),
+  ]);
+  const largo = JSON.stringify(JSON.parse(peticion.postData() ?? "{}").items ?? []).length;
   ok(largo > 200, "el carrito pasa de doscientos caracteres", String(largo));
-  await page.locator("form", { has: page.locator('input[name="itemsJson"]') }).locator('button[type="submit"]').last().click();
   await page.waitForTimeout(2500);
   const venta = await db.sale.findFirst({ where: { userId: cuenta.id }, include: { items: true } });
   ok(venta?.items.length === 8, "la venta queda con los ocho renglones", String(venta?.items.length));

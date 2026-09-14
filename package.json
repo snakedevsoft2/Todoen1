@@ -4,9 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && prisma migrate deploy && tsx prisma/sembrar-modulos.ts && next build",
+    "build": "prisma generate && prisma migrate deploy && tsx prisma/sembrar-modulos.ts && node scripts/copiar-ocr.mjs && next build",
     "start": "next start",
-    "postinstall": "prisma generate",
+    "postinstall": "prisma generate && node scripts/copiar-ocr.mjs",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "seed": "tsx prisma/seed.ts",
@@ -38,6 +38,7 @@
     "verificar:mensajes": "node scripts/verificar-mensajes.mjs",
     "verificar:snake": "node scripts/verificar-snake.mjs",
     "verificar:tipo": "node scripts/verificar-tipo.mjs",
+    "verificar:sin-senal": "node scripts/verificar-sin-senal.mjs",
     "clave": "node scripts/cambiar-clave.mjs"
   },
   "dependencies": {
@@ -46,6 +47,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@prisma/client": "^6.2.1",
+    "@tesseract.js-data/spa": "^1.0.0",
     "@zxing/browser": "^0.2.1",
     "bcryptjs": "^2.4.3",
     "jose": "^5.9.6",
