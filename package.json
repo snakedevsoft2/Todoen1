@@ -37,6 +37,7 @@
     "verificar:escaner": "node scripts/verificar-escaner.mjs",
     "verificar:mensajes": "node scripts/verificar-mensajes.mjs",
     "verificar:snake": "node scripts/verificar-snake.mjs",
+    "verificar:tipo": "node scripts/verificar-tipo.mjs",
     "clave": "node scripts/cambiar-clave.mjs"
   },
   "dependencies": {

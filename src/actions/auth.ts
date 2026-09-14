@@ -6,18 +6,9 @@ import { db } from "@/lib/db";
 import { checkPassword, ensureOwnerStaff, hashPassword, uniqueSlug } from "@/lib/auth";
 import { clearSessionCookie, cookieJar, signSession, writeSessionCookie } from "@/lib/session";
 import { SUPPORT_WHATSAPP_PRETTY } from "@/lib/support";
+import { CATALOGO_POR_TIPO, COLOR_POR_TIPO, esTipoElegible } from "@/lib/tipo-negocio";
 
 export type AuthState = { error?: string } | undefined;
-
-const VALID_TYPES: BusinessType[] = [
-  "BARBERIA",
-  "RESTAURANTE",
-  "COMIDAS_RAPIDAS",
-  "ROPA",
-  "CARTERA",
-  "ASISTENCIA",
-  "OTRO",
-];
 
 /**
  * Lo que se le dice a una cuenta suspendida.
@@ -27,56 +18,6 @@ const VALID_TYPES: BusinessType[] = [
  */
 const CUENTA_SUSPENDIDA =
   "Tu cuenta esta suspendida. Escribenos al " + SUPPORT_WHATSAPP_PRETTY + " para reactivarla.";
-
-/** Cada tipo de negocio arranca con un color distinto. Se cambia en Personalizar. */
-const DEFAULT_BRAND: Record<BusinessType, string> = {
-  BARBERIA: "#4f46e5",
-  RESTAURANTE: "#b91c1c",
-  COMIDAS_RAPIDAS: "#ea580c",
-  ROPA: "#0f766e",
-  CARTERA: "#166534",
-  ASISTENCIA: "#3730a3",
-  OTRO: "#0369a1",
-};
-
-const DEFAULT_CATALOG: Record<BusinessType, { name: string; price: number; durationMin: number; category: string }[]> = {
-  BARBERIA: [
-    { name: "Corte clasico", price: 20000, durationMin: 30, category: "Cortes" },
-    { name: "Corte + barba", price: 30000, durationMin: 45, category: "Cortes" },
-    { name: "Barba y perfilado", price: 15000, durationMin: 20, category: "Barba" },
-    { name: "Cejas", price: 6000, durationMin: 15, category: "Extras" },
-  ],
-  RESTAURANTE: [
-    { name: "Almuerzo del dia", price: 15000, durationMin: 0, category: "Platos" },
-    { name: "Bandeja paisa", price: 28000, durationMin: 0, category: "Platos" },
-    { name: "Gaseosa personal", price: 4000, durationMin: 0, category: "Bebidas" },
-    { name: "Jugo natural", price: 6000, durationMin: 0, category: "Bebidas" },
-  ],
-  COMIDAS_RAPIDAS: [
-    { name: "Hamburguesa sencilla", price: 14000, durationMin: 0, category: "Hamburguesas" },
-    { name: "Perro caliente", price: 11000, durationMin: 0, category: "Perros" },
-    { name: "Salchipapa", price: 13000, durationMin: 0, category: "Papas" },
-    { name: "Gaseosa 400ml", price: 4000, durationMin: 0, category: "Bebidas" },
-  ],
-  ROPA: [
-    { name: "Camiseta basica", price: 35000, durationMin: 0, category: "Camisetas" },
-    { name: "Jean clasico", price: 89000, durationMin: 0, category: "Jeans" },
-    { name: "Buzo con capota", price: 79000, durationMin: 0, category: "Buzos" },
-    { name: "Vestido casual", price: 95000, durationMin: 0, category: "Vestidos" },
-  ],
-  // Quien presta plata no vende nada, asi que no hay catalogo que sembrar.
-  // Dejarlo vacio es lo honesto: su trabajo empieza en Cuentas por cobrar.
-  CARTERA: [],
-  // Tampoco vende: administra personal. Empieza agregando a su gente.
-  ASISTENCIA: [],
-  // Aqui no podemos adivinar el oficio, asi que en vez de inventar productos
-  // que no van a servirle a nadie, dejamos dos marcados como ejemplo para que
-  // se vea de una que hay que cambiarlos.
-  OTRO: [
-    { name: "Mi primer producto (cambiame)", price: 10000, durationMin: 0, category: "General" },
-    { name: "Mi primer servicio (cambiame)", price: 25000, durationMin: 30, category: "General" },
-  ],
-};
 
 export async function registerAction(_prev: AuthState, formData: FormData): Promise<AuthState> {
   // Pedimos el almacen de cookies antes de tocar la base de datos.
@@ -92,7 +33,7 @@ export async function registerAction(_prev: AuthState, formData: FormData): Prom
   if (password.length < 6) return { error: "La contrasena debe tener al menos 6 caracteres." };
   if (!ownerName) return { error: "Escribe tu nombre." };
   if (!businessName) return { error: "Escribe el nombre del negocio." };
-  if (!VALID_TYPES.includes(businessType)) return { error: "Elige el tipo de negocio." };
+  if (!esTipoElegible(businessType)) return { error: "Elige el tipo de negocio." };
 
   const exists = await db.user.findUnique({ where: { email }, select: { id: true } });
   if (exists) return { error: "Ya existe una cuenta con ese correo." };
@@ -107,18 +48,18 @@ export async function registerAction(_prev: AuthState, formData: FormData): Prom
       businessType,
       phone: phone || null,
       slug,
-      brandColor: DEFAULT_BRAND[businessType],
+      brandColor: COLOR_POR_TIPO[businessType],
       // El dueno queda registrado como la primera persona que atiende.
       staff: {
         create: {
           name: ownerName,
           role: "DUENO",
-          color: DEFAULT_BRAND[businessType],
+          color: COLOR_POR_TIPO[businessType],
           phone: phone || null,
         },
       },
       services: {
-        create: DEFAULT_CATALOG[businessType].map((s) => ({
+        create: CATALOGO_POR_TIPO[businessType].map((s) => ({
           name: s.name,
           price: s.price,
           durationMin: s.durationMin || 30,

@@ -10,6 +10,8 @@ import { SuspenderForm } from "@/components/admin/SuspenderForm";
 import { InterruptorModulo } from "@/components/admin/InterruptorModulo";
 import { ReponerClave } from "@/components/ReponerClave";
 import { Icon } from "@/components/Icon";
+import { CambiarTipoNegocio } from "@/components/CambiarTipoNegocio";
+import { OPCIONES_TIPO } from "@/lib/tipo-negocio";
 
 export const dynamic = "force-dynamic";
 
@@ -173,6 +175,13 @@ export default async function AdminCuentaPage({ params }: { params: Promise<{ id
         </div>
 
         <div className="space-y-4">
+          <Bloque titulo="Tipo de negocio">
+            <p className="mb-3 text-[11px] leading-relaxed text-slate-500">
+              Para quien se registró con el tipo equivocado. Cambia su menú; no borra ningún dato.
+            </p>
+            <CambiarTipoNegocio actual={cuenta.businessType} opciones={OPCIONES_TIPO} userId={cuenta.id} />
+          </Bloque>
+
           <Bloque titulo={cuenta.suspendedAt ? "Cuenta suspendida" : "Suspender la cuenta"}>
             {cuenta.suspendedAt ? (
               <>
