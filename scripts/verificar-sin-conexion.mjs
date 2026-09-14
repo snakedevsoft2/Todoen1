@@ -121,7 +121,8 @@ try {
 
   console.log("\n4. Otra pantalla sin senal muestra un aviso, no el error");
   try {
-    await page.goto(BASE + "/panel/informes", { waitUntil: "domcontentloaded", timeout: 15000 });
+    // La Guia no esta en el menu del empleado: nunca queda guardada en su telefono.
+    await page.goto(BASE + "/panel/guia", { waitUntil: "domcontentloaded", timeout: 15000 });
   } catch {
     // Se revisa abajo.
   }

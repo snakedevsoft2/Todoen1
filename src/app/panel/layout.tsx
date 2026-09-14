@@ -20,6 +20,8 @@ import { Icon } from "@/components/Icon";
 import { logoutAction } from "@/actions/auth";
 import { ThemeStyle } from "@/components/ThemeStyle";
 import { RegistrarVisita } from "@/components/RegistrarVisita";
+import { PrepararSinConexion } from "@/components/PrepararSinConexion";
+import { AvisoSinConexion } from "@/components/AvisoSinConexion";
 import { correoDeLaSesion, esAdmin } from "@/lib/admin";
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
@@ -42,6 +44,15 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   // del apartado y nunca decida el nombre de lo que se anota.
   const rutas = Object.fromEntries(modulos.map((m) => [m.href, m.key]));
 
+  const nav = empleado ? MENU_EMPLEADO_ASISTENCIA : menuDe(modulos);
+  const logo = logoUrl(user.slug, user.logo, user.updatedAt);
+  const foto = fotoPerfil(staff);
+
+  // Las pantallas del menu quedan guardadas en el telefono para usarlas sin senal.
+  const paginasSinConexion = Array.from(new Set(["/panel", ...nav.map((i) => i.href)])).filter(
+    (h) => h === "/panel" || h.startsWith("/panel/")
+  );
+
   const logout = (
     <form action={logoutAction}>
       <button type="submit" className="btn-ghost btn-sm w-full justify-start">
@@ -62,21 +73,27 @@ export default async function PanelLayout({ children }: { children: React.ReactN
     <>
       <ThemeStyle brandColor={user.brandColor} theme={user.theme} />
       <RegistrarVisita rutas={rutas} />
+      <PrepararSinConexion
+        cuenta={staff.id}
+        paginas={paginasSinConexion}
+        archivos={[logo, foto].filter((x): x is string => Boolean(x))}
+      />
       <Shell
-        nav={empleado ? MENU_EMPLEADO_ASISTENCIA : menuDe(modulos)}
+        nav={nav}
         businessName={user.businessName}
         businessLabel={BUSINESS_LABEL[user.businessType]}
         ownerName={staff.name}
         roleLabel={etiquetaDeRol(staff.role, user.businessType)}
         staffColor={staff.color}
-        fotoPerfil={fotoPerfil(staff)}
+        fotoPerfil={foto}
         menuPropio={!empleado}
-        logo={logoUrl(user.slug, user.logo, user.updatedAt)}
+        logo={logo}
         bookingUrl={conPagina ? publicPath(user.businessType, user.slug) : undefined}
         bookingLabel="Ver mi portafolio"
         admin={esAdmin(correoDeLaSesion(sesion))}
         logout={logout}
       >
+        <AvisoSinConexion />
         {children}
       </Shell>
       {/* La IA Snake flotante: solo si el servidor tiene la clave del modelo, y

@@ -41,6 +41,7 @@
     "verificar:sin-senal": "node scripts/verificar-sin-senal.mjs",
     "verificar:pos": "node scripts/verificar-pos.mjs",
     "verificar:ubicacion": "node scripts/verificar-ubicacion.mjs",
+    "verificar:panel-sin-senal": "node scripts/verificar-panel-sin-senal.mjs",
     "clave": "node scripts/cambiar-clave.mjs"
   },
   "dependencies": {

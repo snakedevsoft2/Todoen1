@@ -1,46 +1,80 @@
 /**
- * Trabajador de fondo de Todoen1: abrir el marcador sin senal.
+ * Trabajador de fondo de Todoen1: la aplicacion sin senal.
  *
- * La cola de marcajes (src/lib/cola-marcajes.ts) ya guardaba lo marcado sin
- * red, pero solo si la pantalla estaba abierta desde antes. Si el empleado
- * abria la aplicacion en frio dentro del sotano, la pagina no cargaba. Esto
- * guarda la pagina de Marcar y sus archivos para poder abrirla sin red.
+ * Lo que guarda y como lo sirve:
  *
- * Lo que hace, y lo que NO hace a proposito:
- *
- * - Archivos de /_next/static: primero del cache. Llevan una huella en el
- *   nombre, asi que un archivo guardado nunca queda viejo.
- * - Las paginas que sirven sin senal (Marcar, Reportes, Novedades, Ventas y
- *   Escaner): primero la red, y si no hay, la copia guardada. Asi con senal
- *   siempre se ve lo ultimo.
- * - Los archivos del lector de texto (/ocr/): primero del cache. La carpeta
- *   lleva la version en el nombre, asi que tampoco quedan viejos.
- * - Cualquier otra pagina sin red: un aviso de "sin conexion" con enlaces a
- *   las pantallas que si quedaron guardadas en este telefono, en vez de la
- *   pagina de error del navegador.
- * - Lo que va a /api y todo lo que no es GET NUNCA se toca. Un marcaje o un
- *   abono servido desde un cache seria un registro falso.
- * - Las paginas guardadas se borran al llegar al ingreso (LoginForm): llevan
- *   el nombre de quien estaba adentro.
+ * - Archivos de /_next/static y del lector de texto (/ocr/): primero del
+ *   cache. Llevan una huella o la version en la ruta, asi que nunca quedan
+ *   viejos.
+ * - El logo y las fotos de productos (/logo/, /foto/) con ?v=: igual, primero
+ *   del cache. La version cambia cuando cambia la imagen.
+ * - Las imagenes y archivos privados (foto de perfil, fotos de reportes y de
+ *   novedades, adjuntos, documentos): primero la red y, sin ella, la copia.
+ *   Van en un cache aparte que se borra al llegar al ingreso, igual que las
+ *   pantallas: llevan datos de la persona.
+ * - Las pantallas del panel: primero la red, y si no hay, la copia guardada.
+ *   Se guardan al abrirlas y, en segundo plano, todas las del menu (lo pide
+ *   PrepararSinConexion). Sin red se ve lo ultimo guardado; lo que necesite
+ *   internet lo avisa la pantalla.
+ * - Una pantalla que nunca se guardo: un aviso de "sin conexion" con enlaces a
+ *   las que si estan guardadas.
+ * - Lo que va a /api, las descargas de /panel/exportar y todo lo que no es GET
+ *   NUNCA se toca. Un marcaje o un abono servido desde un cache seria un
+ *   registro falso.
+ * - Las pantallas y archivos guardados se borran al llegar al ingreso
+ *   (LoginForm borra todo lo que empieza por "ten-paginas").
  */
 
 const VERSION = "v1";
 const ESTATICOS = "ten-estaticos-" + VERSION;
 const PAGINAS = "ten-paginas-" + VERSION;
+/** Empieza por "ten-paginas" a proposito: el ingreso borra todo lo que empieza asi. */
+const ARCHIVOS = "ten-paginas-archivos-" + VERSION;
+const MAX_PAGINAS = 150;
+const MAX_ARCHIVOS = 300;
 
-/** Las unicas paginas que sirven sin red, con el texto de su enlace en el aviso. */
-const PARA_SIN_CONEXION = ["/panel/marcar", "/panel/informes", "/panel/novedades", "/panel/ventas", "/panel/escaner"];
+/** Las pantallas que se ofrecen en el aviso, con el texto de su enlace. */
 const ENLACE = {
+  "/panel": "Ir al inicio",
   "/panel/marcar": "Marcar entrada o salida",
-  "/panel/informes": "Hacer un reporte",
-  "/panel/novedades": "Avisar una novedad",
   "/panel/ventas": "Registrar una venta",
   "/panel/escaner": "Escanear un documento",
+  "/panel/informes": "Hacer un reporte",
+  "/panel/novedades": "Avisar una novedad",
+  "/panel/cuentas": "Cuentas abiertas",
+  "/panel/gastos": "Gastos",
+  "/panel/caja": "Cierre de caja",
+  "/panel/cartera": "Cartera",
+  "/panel/turnos": "Turnos",
+  "/panel/inventario": "Inventario",
+  "/panel/clientes": "Clientes",
+  "/panel/planilla": "Planilla",
 };
 
+const PRIVADOS = ["/foto-perfil/", "/foto-reporte/", "/foto-novedad/", "/adjunto-reporte/", "/documento/"];
+
 /** Archivos que no cambian nunca: llevan la version o una huella en la ruta. */
-function esArchivoFijo(ruta) {
-  return ruta.startsWith("/_next/static/") || ruta.startsWith("/ocr/");
+function esArchivoFijo(url) {
+  const r = url.pathname;
+  if (r.startsWith("/_next/static/") || r.startsWith("/ocr/")) return true;
+  return (r.startsWith("/logo/") || r.startsWith("/foto/")) && url.searchParams.has("v");
+}
+
+function esArchivoPrivado(url) {
+  return PRIVADOS.some((p) => url.pathname.startsWith(p));
+}
+
+function esDescarga(url) {
+  return url.pathname.startsWith("/panel/exportar") || url.pathname.startsWith("/panel/planilla/exportar");
+}
+
+function esPantalla(url) {
+  const r = url.pathname;
+  return (r === "/panel" || r.startsWith("/panel/")) && !esDescarga(url);
+}
+
+function claveDe(url) {
+  return url.origin + url.pathname + url.search;
 }
 
 self.addEventListener("install", () => self.skipWaiting());
@@ -48,7 +82,7 @@ self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
-      const vivas = [ESTATICOS, PAGINAS];
+      const vivas = [ESTATICOS, PAGINAS, ARCHIVOS];
       for (const k of await caches.keys()) {
         if (k.startsWith("ten-") && !vivas.includes(k)) await caches.delete(k);
       }
@@ -57,8 +91,11 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-function claveDePagina(ruta) {
-  return new URL(ruta, self.location.origin).href;
+/** Borra lo mas viejo cuando se pasa del tope. */
+async function recortar(nombre, maximo) {
+  const c = await caches.open(nombre);
+  const llaves = await c.keys();
+  for (const k of llaves.slice(0, Math.max(0, llaves.length - maximo))) await c.delete(k);
 }
 
 async function paginaSinConexion() {
@@ -67,8 +104,8 @@ async function paginaSinConexion() {
   const enlaces = [];
   try {
     const c = await caches.open(PAGINAS);
-    for (const ruta of PARA_SIN_CONEXION) {
-      if (await c.match(claveDePagina(ruta))) enlaces.push(ruta);
+    for (const ruta of Object.keys(ENLACE)) {
+      if (await c.match(self.location.origin + ruta)) enlaces.push(ruta);
     }
   } catch {
     // Sin cache no hay enlaces; queda el boton de reintentar.
@@ -77,7 +114,7 @@ async function paginaSinConexion() {
     .map((r, i) => '<a href="' + r + '"' + (i > 0 ? ' class="otro"' : "") + ">" + ENLACE[r] + "</a>")
     .join("");
   const texto = enlaces.length
-    ? "Esta pantalla necesita señal. Estas sí funcionan sin conexión: lo que hagas se guarda en el teléfono y se envía solo cuando vuelva la señal."
+    ? "Esta pantalla no quedó guardada en este teléfono. Estas sí funcionan sin conexión:"
     : "Esta pantalla necesita señal. Vuelve a intentarlo cuando tengas conexión.";
   const html = `<!doctype html>
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -85,7 +122,7 @@ async function paginaSinConexion() {
 <style>
   body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f7f7fa;
        font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:#111116;padding:24px}
-  .caja{max-width:360px;text-align:center}
+  .caja{max-width:360px;width:100%;text-align:center}
   h1{font-size:22px;margin:16px 0 8px}
   p{color:#6e6e78;font-size:15px;line-height:1.5;margin:0 0 24px}
   a,button{display:block;width:100%;box-sizing:border-box;padding:14px;border-radius:14px;font-size:16px;
@@ -105,47 +142,82 @@ async function paginaSinConexion() {
   });
 }
 
-async function guardarPagina(ruta) {
-  try {
-    const r = await fetch(ruta, { credentials: "same-origin" });
-    // Una redireccion (al ingreso, porque la sesion se cayo) no se guarda:
-    // abrir sin red mostraria el ingreso en vez de Marcar.
-    if (r.ok && !r.redirected) {
-      const c = await caches.open(PAGINAS);
-      await c.put(claveDePagina(ruta), r);
+/** Las rutas de archivos que aparecen en una pantalla: sus scripts y sus imagenes. */
+function archivosDe(html) {
+  const encontrados = new Set();
+  for (const m of html.matchAll(/\/_next\/static\/[^"'\s)\\]+/g)) encontrados.add(m[0]);
+  for (const m of html.matchAll(/\/(?:logo|foto|foto-perfil|foto-reporte|foto-novedad)\/[^"'\s)\\<]+/g)) {
+    encontrados.add(m[0].replace(/&amp;/g, "&"));
+  }
+  return [...encontrados];
+}
+
+async function guardarArchivos(lista) {
+  const estaticos = await caches.open(ESTATICOS);
+  const privados = await caches.open(ARCHIVOS);
+  for (const u of lista.slice(0, 400)) {
+    try {
+      const url = new URL(u, self.location.origin);
+      if (url.origin !== self.location.origin) continue;
+      const cache = esArchivoFijo(url) ? estaticos : esArchivoPrivado(url) ? privados : null;
+      if (!cache || (await cache.match(url.href))) continue;
+      const r = await fetch(url.href, { credentials: "same-origin" });
+      if (r.ok) await cache.put(url.href, r);
+    } catch {
+      // Uno que falle no impide guardar los demas.
     }
+  }
+  await recortar(ARCHIVOS, MAX_ARCHIVOS);
+}
+
+/** Cuando se guardo cada pantalla, para no pedirla dos veces seguidas al servidor. */
+const recientes = new Map();
+
+async function guardarPagina(ruta, conArchivos) {
+  try {
+    const url = new URL(ruta, self.location.origin);
+    if (url.origin !== self.location.origin || !esPantalla(url)) return;
+    const clave = claveDe(url);
+    if (Date.now() - (recientes.get(clave) ?? 0) < 120000) return;
+    const r = await fetch(url.href, { credentials: "same-origin" });
+    // Una redireccion (al ingreso, o a Marcar para el empleado) no se guarda:
+    // abrir sin red mostraria otra pantalla con la direccion de esta.
+    if (!r.ok || r.redirected || !(r.headers.get("content-type") || "").includes("text/html")) return;
+    recientes.set(clave, Date.now());
+    const texto = conArchivos ? await r.clone().text() : null;
+    const c = await caches.open(PAGINAS);
+    await c.put(clave, r);
+    await recortar(PAGINAS, MAX_PAGINAS);
+    if (texto) await guardarArchivos(archivosDe(texto));
   } catch {
-    // Sin red en este momento: se guarda en la proxima visita.
+    // Sin red en este momento: se guarda en la proxima.
   }
 }
 
-/** La pagina le avisa que se abrio con red y le pasa sus archivos. */
 self.addEventListener("message", (event) => {
   const d = event.data || {};
-  if (d.tipo !== "guardar") return;
 
-  event.waitUntil(
-    (async () => {
-      if (typeof d.pagina === "string" && PARA_SIN_CONEXION.includes(d.pagina)) {
-        await guardarPagina(d.pagina);
-      }
-      if (!Array.isArray(d.recursos)) return;
+  // La pantalla que se esta viendo, con los archivos que ya cargo.
+  if (d.tipo === "guardar") {
+    event.waitUntil(
+      (async () => {
+        if (typeof d.pagina === "string") await guardarPagina(d.pagina, false);
+        if (Array.isArray(d.recursos)) await guardarArchivos(d.recursos);
+      })()
+    );
+  }
 
-      const c = await caches.open(ESTATICOS);
-      for (const u of d.recursos.slice(0, 300)) {
-        try {
-          const url = new URL(u, self.location.origin);
-          if (url.origin !== self.location.origin) continue;
-          if (!esArchivoFijo(url.pathname)) continue;
-          if (await c.match(url.href)) continue;
-          const r = await fetch(url.href, { credentials: "same-origin" });
-          if (r.ok) await c.put(url.href, r);
-        } catch {
-          // Uno que falle no impide guardar los demas.
+  // Todas las pantallas del menu, en segundo plano, con sus scripts e imagenes.
+  if (d.tipo === "precargar" && Array.isArray(d.paginas)) {
+    event.waitUntil(
+      (async () => {
+        if (Array.isArray(d.recursos)) await guardarArchivos(d.recursos);
+        for (const p of d.paginas.slice(0, 40)) {
+          if (typeof p === "string") await guardarPagina(p, true);
         }
-      }
-    })()
-  );
+      })()
+    );
+  }
 });
 
 self.addEventListener("fetch", (event) => {
@@ -154,9 +226,9 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
-  if (url.pathname.startsWith("/api/")) return;
+  if (url.pathname.startsWith("/api/") || esDescarga(url)) return;
 
-  if (esArchivoFijo(url.pathname)) {
+  if (esArchivoFijo(url)) {
     event.respondWith(
       (async () => {
         const c = await caches.open(ESTATICOS);
@@ -170,26 +242,45 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  if (esArchivoPrivado(url)) {
+    event.respondWith(
+      (async () => {
+        try {
+          const r = await fetch(req);
+          if (r.ok) (await caches.open(ARCHIVOS)).put(req, r.clone());
+          return r;
+        } catch {
+          const guardado = await (await caches.open(ARCHIVOS)).match(req);
+          return guardado ?? new Response("", { status: 503 });
+        }
+      })()
+    );
+    return;
+  }
+
   // Solo navegaciones. Las peticiones internas de Next (RSC) pasan derecho:
   // si fallan sin red, Next cae a una navegacion, y esa si la atiende esto.
   if (req.mode !== "navigate") return;
 
   event.respondWith(
     (async () => {
-      const guardable = PARA_SIN_CONEXION.includes(url.pathname);
-      const clave = claveDePagina(url.pathname);
+      const guardable = esPantalla(url);
       try {
         const r = await fetch(req);
-        if (guardable && r.ok && !r.redirected) {
-          const c = await caches.open(PAGINAS);
-          c.put(clave, r.clone());
+        if (guardable && r.ok && !r.redirected && (r.headers.get("content-type") || "").includes("text/html")) {
+          const copia = r.clone();
+          caches.open(PAGINAS).then((c) => c.put(claveDe(url), copia)).catch(() => {});
+          recientes.set(claveDe(url), Date.now());
         }
         return r;
       } catch {
         if (guardable) {
           const c = await caches.open(PAGINAS);
-          const guardada = await c.match(clave);
-          if (guardada) return guardada;
+          const exacta = await c.match(claveDe(url));
+          if (exacta) return exacta;
+          // La misma pantalla con otra fecha o filtro: mejor lo ultimo guardado que nada.
+          const sinFiltros = await c.match(url.origin + url.pathname);
+          if (sinFiltros) return sinFiltros;
         }
         return await paginaSinConexion();
       }

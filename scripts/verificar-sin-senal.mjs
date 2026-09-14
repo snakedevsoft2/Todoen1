@@ -186,7 +186,8 @@ try {
   ok((await db.scanDocument.count({ where: { userId: cuenta.id } })) === 0, "todavía no llega al servidor");
 
   console.log("\n4. Otra pantalla sin señal ofrece las que sí sirven");
-  await abrirEnFrio(page, "/panel/catalogo");
+  // Cartera viene apagada en comidas rapidas: no esta en el menu y nunca se guardo.
+  await abrirEnFrio(page, "/panel/cartera");
   const cuerpo = (await page.textContent("body").catch(() => "")) ?? "";
   ok(/Sin conexi/.test(cuerpo) && /Registrar una venta/.test(cuerpo) && /Escanear un documento/.test(cuerpo), "enlaza a Ventas y Escáner");
   ok(!/Marcar entrada o salida/.test(cuerpo), "y no a pantallas que nunca se abrieron");
