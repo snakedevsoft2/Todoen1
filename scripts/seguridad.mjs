@@ -225,10 +225,13 @@ try {
     "el error es el mismo exista o no el correo (no se pueden enumerar cuentas)",
     mensajes.length + " usos"
   );
+  // Se mira el orden dentro del ingreso, para el dueno y para el empleado: la
+  // clave primero y la suspension (manual o por pago) despues.
+  const ingreso = auth.slice(auth.indexOf("export async function loginAction"), auth.indexOf("export async function logoutAction"));
+  const antesQue = (primero, despues) => ingreso.indexOf(primero) >= 0 && ingreso.indexOf(despues) > ingreso.indexOf(primero);
   ok(
-    /if \(user\.suspendedAt\) return \{ error: CUENTA_SUSPENDIDA \}/.test(auth) &&
-      auth.indexOf("checkPassword(password, user.passwordHash)") <
-        auth.indexOf("if (user.suspendedAt)"),
+    antesQue("checkPassword(password, user.passwordHash)", "user.suspendedAt ||") &&
+      antesQue("checkPassword(password, staff.passwordHash)", "staff.user.suspendedAt ||"),
     "lo de 'cuenta suspendida' solo se dice despues de acertar la contrasena"
   );
 

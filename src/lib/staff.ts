@@ -28,6 +28,10 @@ export const ROLE_LABEL: Record<string, string> = {
  *
  * El modelo es el mismo (Staff), solo cambia la palabra: la barberia tiene
  * barberos con agenda y la tienda de ropa tiene vendedores con comision.
+ *
+ * Tiene que estar todo negocio al que el catalogo (prisma/modulos.ts) le da el
+ * apartado "Empleados", aunque venga apagado de fabrica: si no, el menu lo
+ * muestra y la pantalla lo devuelve al inicio. La prueba equipo-tipos lo vigila.
  */
 export const TEAM_NOUN: Record<string, { title: string; singular: string; plural: string; role: string }> = {
   BARBERIA: { title: "Barberos", singular: "barbero", plural: "barberos", role: "BARBERO" },
@@ -37,7 +41,15 @@ export const TEAM_NOUN: Record<string, { title: string; singular: string; plural
   // no lo que puede hacer.
   CARTERA: { title: "Cobradores", singular: "cobrador", plural: "cobradores", role: "VENDEDOR" },
   ASISTENCIA: { title: "Personal", singular: "empleado", plural: "empleados", role: "VENDEDOR" },
+  RESTAURANTE: { title: "Empleados", singular: "empleado", plural: "empleados", role: "VENDEDOR" },
+  COMIDAS_RAPIDAS: { title: "Empleados", singular: "empleado", plural: "empleados", role: "VENDEDOR" },
+  OTRO: { title: "Empleados", singular: "empleado", plural: "empleados", role: "VENDEDOR" },
+  DISTRIBUIDORA: { title: "Empleados", singular: "empleado", plural: "empleados", role: "VENDEDOR" },
+  SERVICIOS: { title: "Técnicos", singular: "técnico", plural: "técnicos", role: "VENDEDOR" },
 };
+
+/** Para un negocio que no esta en la lista: empleado, nunca barbero. */
+const EQUIPO_GENERICO = { title: "Empleados", singular: "empleado", plural: "empleados", role: "VENDEDOR" };
 
 /**
  * Como se llama el rol en pantalla, con la palabra de cada negocio.
@@ -64,7 +76,7 @@ export function hasTeam(businessType: string): boolean {
 }
 
 export function teamNoun(businessType: string) {
-  return TEAM_NOUN[businessType] ?? TEAM_NOUN.BARBERIA;
+  return TEAM_NOUN[businessType] ?? EQUIPO_GENERICO;
 }
 
 /** Iniciales para el circulito de color de cada barbero. */
