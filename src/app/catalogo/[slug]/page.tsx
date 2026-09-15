@@ -130,6 +130,7 @@ export default async function PortafolioPage({
       variants: conStock.map((v) => ({ id: v.id, label: variantLabel(v) })),
       // Solo esta agotado si lleva inventario y no quedo ninguna talla.
       soldOut: p.trackStock && p.variants.length > 0 && conStock.length === 0,
+      createdAt: p.createdAt.getTime(),
     };
   });
 

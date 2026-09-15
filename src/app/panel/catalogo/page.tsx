@@ -13,6 +13,7 @@ import { deleteServiceAction, toggleServiceAction } from "@/actions/services";
 import { FormSinSenal } from "@/components/SinSenal";
 import { esPlanCompleto } from "@/lib/plan";
 import { SoloPlanPago } from "@/components/SoloPlanPago";
+import { CatalogoFiltrado } from "@/components/CatalogoFiltrado";
 
 export const dynamic = "force-dynamic";
 
@@ -45,11 +46,6 @@ export default async function CatalogoPage() {
     ? Math.round(services.filter((s) => s.active).reduce((s, i) => s + i.price, 0) / activeCount)
     : 0;
   const conFoto = services.filter((s) => s.image).length;
-
-  const grouped = services.reduce<Record<string, typeof services>>((acc, s) => {
-    (acc[s.category] ??= []).push(s);
-    return acc;
-  }, {});
 
   return (
     <>
@@ -117,7 +113,7 @@ export default async function CatalogoPage() {
           subtitle={
             isClothing
               ? "Toca Tallas para cargar el inventario de cada prenda"
-              : "Toca editar para cambiar precio, nombre o duracion"
+              : "Toca una categoría o busca por nombre; en Editar cambias precio, nombre o categoría"
           }
         >
           {services.length === 0 ? (
@@ -126,20 +122,22 @@ export default async function CatalogoPage() {
               hint="Crea el primero con el formulario de la izquierda."
             />
           ) : (
-            <div className="space-y-5">
-              {Object.entries(grouped).map(([category, list]) => (
-                <div key={category}>
-                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted">
-                    {category}
-                  </p>
-                  <ul className="space-y-2">
-                    {list.map((s) => {
-                      const variants = s.variants;
-                      const stock = variants.reduce((sum, v) => sum + Math.max(0, v.stock), 0);
-                      const photo = photoUrl(s.id, s.image, s.updatedAt);
+            <CatalogoFiltrado
+              items={services.map((s) => {
+                const variants = s.variants;
+                const stock = variants.reduce((sum, v) => sum + Math.max(0, v.stock), 0);
+                const photo = photoUrl(s.id, s.image, s.updatedAt);
 
-                      return (
-                        <li key={s.id} className="rounded-xl border border-line bg-surface p-3">
+                return {
+                  id: s.id,
+                  name: s.name,
+                  price: s.price,
+                  category: s.category,
+                  createdAt: s.createdAt.getTime(),
+                  active: s.active,
+                  textos: [s.brand, s.description],
+                  nodo: (
+                    <>
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div className="flex min-w-0 gap-3">
                               {isClothing && (
@@ -269,13 +267,11 @@ export default async function CatalogoPage() {
                               />
                             </div>
                           </details>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              ))}
-            </div>
+                    </>
+                  ),
+                };
+              })}
+            />
           )}
         </Card>
       </div>

@@ -101,7 +101,7 @@ export function ServiceForm({
           />
         </Field>
 
-        <Field label="Categoría">
+        <Field label="Categoría" hint="Agrupa tus productos (Bebidas, Postres...) para encontrarlos rápido.">
           <input
             className="input"
             name="category"

@@ -4,6 +4,14 @@ import { useMemo, useState } from "react";
 import { money } from "@/lib/format";
 import { sortTiers, tierPrice, wholesaleTotals, type Tier } from "@/lib/wholesale";
 import { Icon } from "./Icon";
+import { BarraCatalogo } from "./BarraCatalogo";
+import {
+  agruparPorCategoria,
+  categoriasConCantidad,
+  filtrarCatalogo,
+  ordenarItems,
+  type OrdenCatalogo,
+} from "@/lib/categorias";
 
 /** El apartado de mayoristas del negocio, tal como se publica. */
 export type Wholesale = {
@@ -23,6 +31,8 @@ export type PortfolioItem = {
   /** Tallas con stock. Vacio en los negocios que no llevan inventario. */
   variants: { id: string; label: string }[];
   soldOut: boolean;
+  /** Para ordenar por los mas nuevos (milisegundos). */
+  createdAt?: number;
 };
 
 type Linea = { key: string; nombre: string; precio: number; qty: number };
@@ -62,9 +72,22 @@ export function PortfolioOrder({
   const [nombre, setNombre] = useState("");
   const [nota, setNota] = useState("");
 
+  const [busqueda, setBusqueda] = useState("");
+  const [orden, setOrden] = useState<OrdenCatalogo>("nombre");
+
+  const conteo = useMemo(() => categoriasConCantidad(items), [items]);
   const visibles = useMemo(
-    () => (categoria ? items.filter((i) => i.category === categoria) : items),
-    [items, categoria]
+    () =>
+      ordenarItems(
+        filtrarCatalogo(items, categoria, busqueda, (i) => [i.name, i.brand, i.description, i.category]),
+        orden
+      ),
+    [items, categoria, busqueda, orden]
+  );
+  // Viendo todo, cada categoria con su titulo: se entiende que hay y donde.
+  const grupos = useMemo(
+    () => (categoria === "" && busqueda.trim() === "" && categories.length > 1 ? agruparPorCategoria(visibles, orden) : null),
+    [visibles, categoria, busqueda, orden, categories.length]
   );
 
   const tiers = useMemo(() => wholesale?.tiers ?? [], [wholesale]);
@@ -133,6 +156,98 @@ export function PortfolioOrder({
       ? "https://wa.me/" + whatsapp + "?text=" + encodeURIComponent(mensaje)
       : null;
 
+  const ficha = (item: PortfolioItem) => (
+        <article key={item.id} className="card flex flex-col overflow-hidden p-0">
+          {/* Sin foto la caja se queda baja: un negocio que aun no subio
+              fotos no tiene por que verse lleno de huecos enormes. */}
+          <div
+            className={
+              "relative flex items-center justify-center border-b border-line bg-surface " +
+              (item.photo ? "aspect-[4/5]" : "h-16")
+            }
+          >
+            {item.photo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={item.photo}
+                alt={item.name}
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
+            ) : (
+              <Icon name="image" className="h-6 w-6 text-subtle" />
+            )}
+            {item.soldOut && (
+              <span className="absolute right-2 top-2 rounded-md border border-line bg-bad px-2 py-0.5 text-[11px] font-medium uppercase text-white">
+                Agotado
+              </span>
+            )}
+          </div>
+
+          <div className="flex flex-1 flex-col p-3.5">
+            <p className="font-display text-[15px] leading-tight text-strong">{item.name}</p>
+            {item.brand && (
+              <p className="mt-0.5 text-[11px] font-medium uppercase tracking-[0.04em] text-subtle">
+                {item.brand}
+              </p>
+            )}
+            {item.description && (
+              <p className="mt-1 text-xs text-muted">{item.description}</p>
+            )}
+
+            {showPrices && (
+              <>
+                <p className="mt-2 font-display text-lg leading-none text-brand-600 num">
+                  {money(item.price, currency)}
+                </p>
+                {/* La escala de entrada, para que el mayorista vea el precio
+                    bueno sin tener que armar el pedido primero. */}
+                {entrada && (
+                  <p className="mt-1 text-[11px] font-semibold text-muted">
+                    Desde {entrada.minQty}:{" "}
+                    <span className="num text-good">
+                      {money(tierPrice(item.price, entrada.percentOff), currency)}
+                    </span>{" "}
+                    c/u
+                  </p>
+                )}
+              </>
+            )}
+
+            {item.variants.length > 0 ? (
+              <div className="mt-3">
+                <p className="mb-1.5 text-[11px] font-medium uppercase tracking-[0.04em] text-subtle">
+                  Tallas
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {item.variants.map((v) => (
+                    <button
+                      key={v.id}
+                      type="button"
+                      onClick={() => agregar(item, v)}
+                      className="rounded-lg border border-line bg-panel px-2.5 py-1 text-xs font-bold text-strong transition hover:bg-brand-50"
+                    >
+                      {v.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              !item.soldOut && (
+                <button
+                  type="button"
+                  onClick={() => agregar(item)}
+                  className="btn-ghost btn-sm mt-3 w-full justify-center"
+                >
+                  <Icon name="plus" className="h-4 w-4" />
+                  Agregar al pedido
+                </button>
+              )
+            )}
+          </div>
+        </article>
+  );
+
   return (
     <>
       {/* Apartado de mayoristas: quien compra en cantidad ve de una cuanto le
@@ -185,121 +300,52 @@ export function PortfolioOrder({
         </section>
       )}
 
-      {categories.length > 1 && (
-        <div className="mb-5 flex flex-wrap justify-center gap-2">
+      <BarraCatalogo
+        categorias={conteo}
+        total={items.length}
+        categoria={categoria}
+        onCategoria={setCategoria}
+        busqueda={busqueda}
+        onBusqueda={setBusqueda}
+        buscador={items.length > 6}
+        orden={orden}
+        onOrden={showPrices && items.length > 3 ? setOrden : undefined}
+        placeholder={"Buscar " + itemNoun}
+        pegajosa={items.length > 6}
+        className="top-3 mb-5"
+      />
+
+      {visibles.length === 0 && (
+        <div className="card mb-5 text-center text-[13px] text-muted" data-sin-resultados>
+          No encontramos “{busqueda.trim() || categoria}”.{" "}
           <button
             type="button"
-            onClick={() => setCategoria("")}
-            className={categoria === "" ? "btn-primary btn-sm" : "btn-ghost btn-sm"}
+            className="link"
+            onClick={() => {
+              setBusqueda("");
+              setCategoria("");
+            }}
           >
-            Todo
+            Ver todo
           </button>
-          {categories.map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => setCategoria(c)}
-              className={categoria === c ? "btn-primary btn-sm" : "btn-ghost btn-sm"}
-            >
-              {c}
-            </button>
-          ))}
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {visibles.map((item) => (
-          <article key={item.id} className="card flex flex-col overflow-hidden p-0">
-            {/* Sin foto la caja se queda baja: un negocio que aun no subio
-                fotos no tiene por que verse lleno de huecos enormes. */}
-            <div
-              className={
-                "relative flex items-center justify-center border-b border-line bg-surface " +
-                (item.photo ? "aspect-[4/5]" : "h-16")
-              }
-            >
-              {item.photo ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={item.photo}
-                  alt={item.name}
-                  className="h-full w-full object-cover"
-                  loading="lazy"
-                />
-              ) : (
-                <Icon name="image" className="h-6 w-6 text-subtle" />
-              )}
-              {item.soldOut && (
-                <span className="absolute right-2 top-2 rounded-md border border-line bg-bad px-2 py-0.5 text-[11px] font-medium uppercase text-white">
-                  Agotado
-                </span>
-              )}
-            </div>
-
-            <div className="flex flex-1 flex-col p-3.5">
-              <p className="font-display text-[15px] leading-tight text-strong">{item.name}</p>
-              {item.brand && (
-                <p className="mt-0.5 text-[11px] font-medium uppercase tracking-[0.04em] text-subtle">
-                  {item.brand}
-                </p>
-              )}
-              {item.description && (
-                <p className="mt-1 text-xs text-muted">{item.description}</p>
-              )}
-
-              {showPrices && (
-                <>
-                  <p className="mt-2 font-display text-lg leading-none text-brand-600 num">
-                    {money(item.price, currency)}
-                  </p>
-                  {/* La escala de entrada, para que el mayorista vea el precio
-                      bueno sin tener que armar el pedido primero. */}
-                  {entrada && (
-                    <p className="mt-1 text-[11px] font-semibold text-muted">
-                      Desde {entrada.minQty}:{" "}
-                      <span className="num text-good">
-                        {money(tierPrice(item.price, entrada.percentOff), currency)}
-                      </span>{" "}
-                      c/u
-                    </p>
-                  )}
-                </>
-              )}
-
-              {item.variants.length > 0 ? (
-                <div className="mt-3">
-                  <p className="mb-1.5 text-[11px] font-medium uppercase tracking-[0.04em] text-subtle">
-                    Tallas
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {item.variants.map((v) => (
-                      <button
-                        key={v.id}
-                        type="button"
-                        onClick={() => agregar(item, v)}
-                        className="rounded-lg border border-line bg-panel px-2.5 py-1 text-xs font-bold text-strong transition hover:bg-brand-50"
-                      >
-                        {v.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                !item.soldOut && (
-                  <button
-                    type="button"
-                    onClick={() => agregar(item)}
-                    className="btn-ghost btn-sm mt-3 w-full justify-center"
-                  >
-                    <Icon name="plus" className="h-4 w-4" />
-                    Agregar al pedido
-                  </button>
-                )
-              )}
-            </div>
-          </article>
-        ))}
-      </div>
+      {grupos ? (
+        <div className="space-y-8">
+          {grupos.map((g) => (
+            <section key={g.nombre} data-grupo-categoria={g.nombre}>
+              <h2 className="mb-3 inline-flex items-center gap-2 rounded-full border border-line bg-panel px-3.5 py-1.5 text-sm font-semibold text-strong">
+                {g.nombre}
+                <span className="text-xs font-medium text-muted">{g.items.length}</span>
+              </h2>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{g.items.map((item) => ficha(item))}</div>
+            </section>
+          ))}
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{visibles.map((item) => ficha(item))}</div>
+      )}
 
       {/* Barra del pedido: se queda abajo mientras el cliente escoge. */}
       {lineas.length > 0 && (

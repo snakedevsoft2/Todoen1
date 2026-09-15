@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Alert, Field } from "./ui";
+import { BarraCatalogo } from "./BarraCatalogo";
+import { agruparPorCategoria, categoriasConCantidad, filtrarCatalogo } from "@/lib/categorias";
 import { money, parseMoney, pasoMoneda } from "@/lib/format";
 import { todayIn } from "@/lib/dates";
 import { enviar } from "@/lib/cola-reportes";
@@ -193,12 +195,14 @@ export function NewSaleForm({
     };
   }, [refrescar, subir]);
 
-  const grouped = useMemo(() => {
-    return services.reduce<Record<string, ServiceRow[]>>((acc, s) => {
-      (acc[s.category] ??= []).push(s);
-      return acc;
-    }, {});
-  }, [services]);
+  // Categoria tocada y busqueda: con muchos productos no hay que bajar por todo.
+  const [categoria, setCategoria] = useState("");
+  const [busqueda, setBusqueda] = useState("");
+  const categorias = useMemo(() => categoriasConCantidad(services), [services]);
+  const grouped = useMemo(
+    () => agruparPorCategoria(filtrarCatalogo(services, categoria, busqueda, (s) => [s.name, s.category])),
+    [services, categoria, busqueda]
+  );
 
   function addService(service: ServiceRow) {
     // Si la prenda tiene tallas, primero hay que decir cual se vendio.
@@ -480,7 +484,32 @@ export function NewSaleForm({
           <p className="text-[11px] font-medium uppercase tracking-[0.04em] text-muted">
             Toca para agregar {itemLabel}
           </p>
-          {Object.entries(grouped).map(([category, list]) => (
+          <BarraCatalogo
+            categorias={categorias}
+            total={services.length}
+            categoria={categoria}
+            onCategoria={setCategoria}
+            busqueda={busqueda}
+            onBusqueda={setBusqueda}
+            buscador={services.length > 8}
+            placeholder={"Buscar " + itemLabel}
+          />
+          {grouped.length === 0 && (
+            <p className="rounded-xl border border-dashed border-line p-3 text-center text-xs text-muted" data-sin-resultados>
+              No hay nada con “{busqueda.trim() || categoria}”.{" "}
+              <button
+                type="button"
+                className="link"
+                onClick={() => {
+                  setBusqueda("");
+                  setCategoria("");
+                }}
+              >
+                Ver todo
+              </button>
+            </p>
+          )}
+          {grouped.map(({ nombre: category, items: list }) => (
             <div key={category}>
               <p className="mb-1.5 text-[11px] text-subtle">{category}</p>
               <div className="grid grid-cols-2 gap-2">
