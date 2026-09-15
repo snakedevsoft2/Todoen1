@@ -44,24 +44,68 @@ export function normalizePhone(input: string | null | undefined): string | null 
   return digits.slice(0, 15);
 }
 
+/** Indicativos de pais conocidos, de los mas largos a los mas cortos. */
+const INDICATIVOS = ["593", "591", "595", "598", "502", "503", "504", "505", "506", "507", "57", "58", "56", "54", "52", "51", "34", "1"];
+
+/** El indicativo del pais por la zona horaria del negocio. */
+const INDICATIVO_POR_ZONA: Record<string, string> = {
+  "America/Bogota": "57",
+  "America/Guayaquil": "593",
+  "Pacific/Galapagos": "593",
+  "America/Lima": "51",
+  "America/Mexico_City": "52",
+  "America/Caracas": "58",
+  "America/Panama": "507",
+  "America/Santiago": "56",
+  "America/Argentina/Buenos_Aires": "54",
+  "America/La_Paz": "591",
+  "America/Asuncion": "595",
+  "America/Montevideo": "598",
+  "America/Costa_Rica": "506",
+  "America/Guatemala": "502",
+  "America/El_Salvador": "503",
+  "America/Tegucigalpa": "504",
+  "America/Managua": "505",
+  "America/New_York": "1",
+  "Europe/Madrid": "34",
+};
+
 /**
- * Completa el indicativo del pais cuando el cliente escribio solo su numero
- * local. Toma el indicativo del numero del negocio.
+ * El indicativo que se le pone a un numero local: el del WhatsApp del negocio
+ * si lo tiene con indicativo, y si no, el del pais de su zona horaria.
+ */
+export function indicativoDe(ownerNumber?: string | null, zona?: string | null): string | null {
+  const owner = String(ownerNumber ?? "").replace(/\D/g, "");
+  if (owner.length > 10) {
+    const conocido = INDICATIVOS.find((c) => owner.startsWith(c) && owner.length - c.length >= 8);
+    if (conocido) return conocido;
+  }
+  if (zona && INDICATIVO_POR_ZONA[zona]) return INDICATIVO_POR_ZONA[zona];
+  return owner.length > 10 ? owner.slice(0, owner.length - 10) : null;
+}
+
+/**
+ * El numero listo para WhatsApp: solo digitos y con indicativo del pais.
+ *
+ * Los clientes se guardan como se escribieron ("300 123 4567", "099 123 4567")
+ * y WhatsApp solo entrega con indicativo. Al numero local se le quita el 0 de
+ * adelante (asi se marca en Ecuador) y se le pone el indicativo del negocio.
  */
 export function toInternational(
   phone: string | null | undefined,
-  ownerNumber?: string | null
+  ownerNumber?: string | null,
+  zona?: string | null
 ): string | null {
-  const digits = String(phone ?? "").replace(/\D/g, "");
+  let digits = String(phone ?? "").replace(/\D/g, "");
+  if (digits.startsWith("00")) digits = digits.slice(2);
   if (digits.length < 7) return null;
-  if (digits.length >= 11) return digits.slice(0, 15);
+  if (digits.length >= 11 && !digits.startsWith("0")) return digits.slice(0, 15);
 
-  const owner = String(ownerNumber ?? "").replace(/\D/g, "");
-  if (owner.length > 10) {
-    const prefix = owner.slice(0, owner.length - 10);
-    return (prefix + digits).slice(0, 15);
-  }
-  return digits;
+  const local = digits.replace(/^0+/, "");
+  if (local.length < 7) return null;
+  const prefijo = indicativoDe(ownerNumber, zona);
+  if (!prefijo) return local;
+  return (prefijo + local).slice(0, 15);
 }
 
 /** Enlace que abre WhatsApp con el mensaje ya escrito. */

@@ -106,6 +106,8 @@ try {
   await emp.click('button[type="submit"]');
   await emp.waitForURL(/\/panel/, { timeout: 25000 });
   ok(/\/panel/.test(emp.url()), "entra al panel", emp.url());
+  ok(!emp.url().includes("bienvenida"), "no pasa por el asistente que arma el menú", emp.url());
+  ok((await emp.getByRole("link", { name: "Armar mi menú" }).count()) === 0, "no tiene Armar mi menú");
 
   console.log("\n3. No ve los botones de borrar ni cambiar");
   await emp.goto(BASE + "/panel/gastos", { waitUntil: "load" });
@@ -143,6 +145,24 @@ try {
   ok(Boolean(await esperarHasta(() => historial.getByText("Anotó un gasto: Hielo de Juliana").count())), "su historial muestra el gasto");
   ok((await historial.getByText("Registró una venta a Cliente de Juliana").count()) === 1, "y la venta");
   ok((await historial.getByText(/Borró/).count()) === 0, "y nada borrado");
+
+  console.log("\n5b. El menú del empleado lo arma la dueña");
+  await emp.goto(BASE + "/panel/espacio", { waitUntil: "load" });
+  ok(!emp.url().includes("/panel/espacio"), "no puede abrir la pantalla de armar el menú", emp.url());
+  await emp.goto(BASE + "/panel", { waitUntil: "load" });
+  const conCatalogo = await emp.locator('nav a[href="/panel/catalogo"]').count();
+  const duenaStaff = await db.staff.findFirst({ where: { userId: cuenta.id, role: "DUENO" } });
+  await db.workspaceConfig.upsert({
+    where: { staffId: duenaStaff.id },
+    create: { staffId: duenaStaff.id, userId: cuenta.id, hiddenKeys: "catalogo", orderKeys: "" },
+    update: { hiddenKeys: "catalogo" },
+  });
+  await emp.reload({ waitUntil: "load" });
+  ok(
+    conCatalogo > 0 && (await emp.locator('nav a[href="/panel/catalogo"]').count()) === 0,
+    "si la dueña esconde un apartado, al empleado también se le esconde",
+    String(conCatalogo)
+  );
 
   console.log("\n6. La dueña le quita el acceso");
   await duena.goto(BASE + "/panel/equipo", { waitUntil: "load" });

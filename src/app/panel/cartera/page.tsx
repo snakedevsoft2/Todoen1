@@ -72,7 +72,7 @@ export default async function CarteraPage({
 
       const enlaceWhatsapp = deuda.clientPhone
         ? waLink(
-            toInternational(deuda.clientPhone, user.whatsappNumber),
+            toInternational(deuda.clientPhone, user.whatsappNumber, user.timezone),
             collectionMessage({
               businessName: user.businessName,
               clientName: deuda.clientName,
@@ -248,7 +248,7 @@ export default async function CarteraPage({
               {visibles.map(({ deuda, pendiente, estado }) => {
                 const enlace = deuda.clientPhone
                   ? waLink(
-                      toInternational(deuda.clientPhone, user.whatsappNumber),
+                      toInternational(deuda.clientPhone, user.whatsappNumber, user.timezone),
                       collectionMessage({
                         businessName: user.businessName,
                         clientName: deuda.clientName,

@@ -101,7 +101,7 @@ function escapar(s: string): string {
 
 async function entregar(user: User, c: Customer, channel: string, plantilla: string): Promise<Entrega> {
   const texto = aplicarPlantilla(plantilla, { nombre: c.name, negocio: user.businessName });
-  const telefono = c.phone ? toInternational(c.phone, user.whatsappNumber) : null;
+  const telefono = c.phone ? toInternational(c.phone, user.whatsappNumber, user.timezone) : null;
   const motivos: string[] = [];
 
   if (channel !== "correo") {

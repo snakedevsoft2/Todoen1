@@ -70,7 +70,7 @@ export async function GET(request: Request) {
     });
 
     for (const turno of turnos) {
-      const to = toInternational(turno.clientPhone, shop.whatsappNumber);
+      const to = toInternational(turno.clientPhone, shop.whatsappNumber, shop.timezone);
       if (!to) {
         fallidos += 1;
         continue;
@@ -148,7 +148,7 @@ export async function GET(request: Request) {
       const pendiente = saldo(deuda);
       if (pendiente <= 0) continue;
 
-      const to = toInternational(deuda.clientPhone, shop.whatsappNumber);
+      const to = toInternational(deuda.clientPhone, shop.whatsappNumber, shop.timezone);
       if (!to) continue;
 
       const provider: WhatsappProvider = isProvider(shop.whatsappProvider)

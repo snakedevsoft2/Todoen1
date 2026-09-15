@@ -26,7 +26,7 @@ const CUENTA_SUSPENDIDA =
 
 /** Cuando la suspension fue por el pago, se dice eso: el cliente sabe que hacer. */
 const CUENTA_VENCIDA =
-  "Tu cuenta esta suspendida porque vencio el pago. Escribenos al " + SUPPORT_WHATSAPP_PRETTY + " para renovarla.";
+  "Tu cuenta no esta activa en este momento. Escribenos al " + SUPPORT_WHATSAPP_PRETTY + " para reactivarla.";
 
 function mensajeSuspendida(u: { suspendedAt: Date | null; suspendedForPayment: boolean }): string {
   // Sin suspendedAt es que se acaba de suspender por pago en este ingreso.

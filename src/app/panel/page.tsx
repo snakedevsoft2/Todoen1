@@ -28,7 +28,8 @@ export default async function PanelHomePage() {
   // pantalla es Marcar.
   if (esEmpleadoDeAsistencia(user, me)) redirect("/panel/marcar");
 
-  if (!me.onboardingDoneAt) redirect("/panel/bienvenida");
+  // El empleado no pasa por el asistente que arma el menu: ese lo arma el dueño.
+  if (!me.onboardingDoneAt && me.role === "DUENO") redirect("/panel/bienvenida");
 
   // Donde nadie vende, el resumen es de personal y no de plata.
   if (user.businessType === "ASISTENCIA") return <ResumenAsistencia user={user} staff={me} />;
@@ -113,7 +114,8 @@ export default async function PanelHomePage() {
     <>
       {/* El instructivo va despues del asistente: primero se arma el menu, y
           solo entonces tiene sentido explicar apartado por apartado. */}
-      {me.onboardingDoneAt && !me.tourDoneAt && (
+      {/* Al empleado se le da solo la guia de uso, sin asistente de menu. */}
+      {(me.onboardingDoneAt || me.role !== "DUENO") && !me.tourDoneAt && (
         <GuiaInicial
           steps={tourSteps(user.businessType)}
           businessName={user.businessName}

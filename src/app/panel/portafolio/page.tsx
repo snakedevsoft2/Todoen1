@@ -6,6 +6,7 @@ import { Card, Empty, PageHeader, Stat } from "@/components/ui";
 import { CopyLink } from "@/components/CopyLink";
 import { Icon } from "@/components/Icon";
 import { PortfolioForm } from "@/components/PortfolioForm";
+import { BrandingForm } from "@/components/BrandingForm";
 import { WholesaleForm } from "@/components/WholesaleForm";
 
 export const dynamic = "force-dynamic";
@@ -50,6 +51,17 @@ export default async function PortafolioPage() {
           {user.publicOpen ? "Ver como lo ven" : "Ver como quedaria"}
         </Link>
       </PageHeader>
+
+      <Card
+        className="mb-4"
+        title="Tu logo y tus colores"
+        subtitle="El logo reemplaza las iniciales en tu portafolio y en tu panel"
+      >
+        <BrandingForm
+          businessName={user.businessName}
+          initial={{ brandColor: user.brandColor, theme: user.theme, tagline: user.tagline, logo: user.logo }}
+        />
+      </Card>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat

@@ -76,6 +76,8 @@ export default async function BienvenidaPage() {
 
   // Si ya lo termino o lo salto, no se lo volvemos a poner encima.
   if (staff.onboardingDoneAt) redirect("/panel");
+  // El empleado no arma menu: usa el que armo el dueño y ve la guia de uso en el resumen.
+  if (staff.role !== "DUENO") redirect("/panel");
 
   const paso = Math.max(0, Math.min(PASOS - 1, staff.onboardingStep));
   const modulos = await modulosDe(sesion);

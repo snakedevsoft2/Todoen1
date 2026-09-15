@@ -64,7 +64,7 @@ export default async function SegmentosPage({
   const destinatarios = clientes.map((c) => ({
     id: c.id,
     name: c.name,
-    phone: c.phone ? toInternational(c.phone, user.whatsappNumber) : null,
+    phone: c.phone ? toInternational(c.phone, user.whatsappNumber, user.timezone) : null,
   }));
   const conTelefono = destinatarios.filter((d) => d.phone).length;
 

@@ -13,7 +13,8 @@
  * editor, que corre en el navegador.
  */
 
-export type FondoKey = "claro" | "gris" | "arena" | "menta" | "cielo" | "lavanda" | "oscuro" | "marca" | "foto";
+/** "libre" es un color elegido a mano: se guarda como "color:#1f7a4d". */
+export type FondoKey = "claro" | "gris" | "arena" | "menta" | "cielo" | "lavanda" | "oscuro" | "marca" | "foto" | "libre";
 
 export type Fondo = {
   key: FondoKey;
@@ -40,6 +41,25 @@ export function esFondo(v: unknown): v is FondoKey {
   return FONDOS.some((f) => f.key === v);
 }
 
+const COLOR_LIBRE = /^color:#[0-9a-f]{6}$/i;
+
+/** Un color de fondo elegido a mano, fuera de la lista. */
+export function esColorLibre(v: unknown): v is string {
+  return typeof v === "string" && COLOR_LIBRE.test(v);
+}
+
+/** Lo que se puede guardar como fondo: uno de la lista o un color elegido a mano. */
+export function fondoValido(v: unknown): v is string {
+  return esFondo(v) || esColorLibre(v);
+}
+
+/** Si un color es oscuro: encima el texto va en blanco para que se lea. */
+export function esColorOscuro(hex: string): boolean {
+  const n = parseInt(hex.slice(1), 16);
+  const luz = (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+  return luz < 0.6;
+}
+
 export type FondoResuelto = {
   key: FondoKey;
   /** true: el contenido va dentro de una tarjeta flotante. */
@@ -61,6 +81,10 @@ export function resolverFondo(
   brandColor: string,
   cover: string | null | undefined
 ): FondoResuelto {
+  if (esColorLibre(key)) {
+    const color = key.slice(6).toLowerCase();
+    return { key: "libre", enTarjeta: true, color, oscuro: esColorOscuro(color), foto: null };
+  }
   const k: FondoKey = esFondo(key) ? key : "claro";
   const marca = /^#[0-9a-f]{6}$/i.test(brandColor) ? brandColor : "#5856d6";
 

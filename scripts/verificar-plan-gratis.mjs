@@ -112,7 +112,7 @@ try {
   await page.goto(BASE + "/panel/catalogo", { waitUntil: "load" });
   ok((await page.locator('link[rel="manifest"]').count()) === 1, "la página enlaza el manifiesto");
   ok((await page.locator('[data-aviso-pago="prueba"]').count()) === 1, "el dueño ve cuántos días de prueba le quedan");
-  ok(page.url().includes("/panel/catalogo") && (await page.locator("[data-solo-plan-pago]").count()) === 0, "la carga masiva está disponible", page.url());
+  ok(page.url().includes("/panel/catalogo") && (await page.locator("[data-funcion-inactiva]").count()) === 0, "la carga masiva está disponible", page.url());
   ok(Boolean(await esperarHasta(() => trabajadorActivo(page), 25000)), "el trabajador de fondo queda activo");
   ok(Boolean(await esperarHasta(async () => (await guardadas(page)) > 0, 25000)), "guarda pantallas para usar sin señal");
   const alInstalar = await erroresDeInstalacion();
@@ -122,7 +122,7 @@ try {
   await db.user.update({ where: { id: cuenta.id }, data: { trialEndsAt: new Date(Date.now() - DIA) } });
   await page.goto(BASE + "/panel", { waitUntil: "load" });
   ok((await page.locator('link[rel="manifest"]').count()) === 0, "ya no enlaza el manifiesto");
-  ok((await page.locator('[data-aviso-pago="gratis"]').count()) === 1, "el dueño ve que está en la versión gratis y cómo activar el plan");
+  ok((await page.locator('[data-aviso-pago="limitada"]').count()) === 1, "el dueño ve que está en la versión gratis y cómo activar el plan");
   ok(Boolean(await esperarHasta(async () => !(await conTrabajador(page)))), "se quita el trabajador de fondo");
   ok(Boolean(await esperarHasta(async () => (await guardadas(page)) === 0)), "se borran las pantallas guardadas");
   await page.reload({ waitUntil: "load" });
@@ -135,7 +135,7 @@ try {
     ["/panel/ajustes", "factura autorizada"],
   ]) {
     await page.goto(BASE + ruta, { waitUntil: "load" });
-    ok(page.url().includes(ruta) && (await page.locator("[data-solo-plan-pago]").count()) > 0, que + ": dice que es del plan pago", page.url());
+    ok(page.url().includes(ruta) && (await page.locator("[data-funcion-inactiva]").count()) > 0, que + ": dice que es del plan pago", page.url());
   }
   const exportar = await page.request.get(BASE + "/panel/exportar/ventas");
   ok(exportar.status() === 403, "exportar a Excel responde que es del plan pago", String(exportar.status()));
@@ -144,7 +144,7 @@ try {
   let abrio = false;
   try {
     await page.goto(BASE + "/panel/gastos", { waitUntil: "domcontentloaded", timeout: 15000 });
-    abrio = (await page.locator('[data-aviso-pago="gratis"]').count()) > 0;
+    abrio = (await page.locator('[data-aviso-pago="limitada"]').count()) > 0;
   } catch {
     abrio = false;
   }
@@ -155,10 +155,10 @@ try {
   await cdp.send("Emulation.setEmulatedMedia", { features: [{ name: "display-mode", value: "standalone" }] }).catch(() => undefined);
   await page.goto(BASE + "/panel", { waitUntil: "load" });
   if (await page.evaluate(() => matchMedia("(display-mode: standalone)").matches)) {
-    ok(Boolean(await esperarHasta(() => page.locator("[data-app-sin-plan]").count())), "la tapa con el aviso para activar el plan");
+    ok(Boolean(await esperarHasta(() => page.locator("[data-app-inactiva]").count())), "la tapa con el aviso para activar el plan");
     await cdp.send("Emulation.setEmulatedMedia", { features: [] });
     await page.goto(BASE + "/panel", { waitUntil: "load" });
-    ok((await page.locator("[data-app-sin-plan]").count()) === 0, "en el navegador se sigue usando");
+    ok((await page.locator("[data-app-inactiva]").count()) === 0, "en el navegador se sigue usando");
   } else {
     // Sin la simulacion del navegador, se le hace creer a una pagina aparte
     // que esta abierta como aplicacion instalada.
@@ -169,10 +169,10 @@ try {
       window.matchMedia = (q) => (q.includes("display-mode: standalone") ? { ...original(q), matches: true, media: q } : original(q));
     });
     await instalada.goto(BASE + "/panel", { waitUntil: "load" });
-    ok(Boolean(await esperarHasta(() => instalada.locator("[data-app-sin-plan]").count())), "la tapa con el aviso para activar el plan");
+    ok(Boolean(await esperarHasta(() => instalada.locator("[data-app-inactiva]").count())), "la tapa con el aviso para activar el plan");
     await instalada.close();
     await page.goto(BASE + "/panel", { waitUntil: "load" });
-    ok((await page.locator("[data-app-sin-plan]").count()) === 0, "en el navegador se sigue usando");
+    ok((await page.locator("[data-app-inactiva]").count()) === 0, "en el navegador se sigue usando");
   }
 
   console.log("\n5. El administrador le da cortesía y vuelve a tener todo");

@@ -93,11 +93,11 @@ export default async function ClientePage({ params }: { params: Promise<{ id: st
   });
   const canales = canalesDe(user);
 
-  const telefono = cliente.phone ? toInternational(cliente.phone, user.whatsappNumber) : null;
+  const telefono = cliente.phone ? toInternational(cliente.phone, user.whatsappNumber, user.timezone) : null;
   const whatsapp = telefono ? waLink(telefono, "Hola " + primerNombre(cliente.name) + ", ") : null;
   const dias = diasSinContacto(cliente.lastContactAt);
   const puestas = new Set(cliente.tags.map((t) => t.tagId));
-  const ctx = { hoy, yoId: staff.id, esDueno, numeroNegocio: user.whatsappNumber };
+  const ctx = { hoy, yoId: staff.id, esDueno, numeroNegocio: user.whatsappNumber, zona: user.timezone };
 
   const eventos: Evento[] = [
     ...cliente.interactions.map((i) => {

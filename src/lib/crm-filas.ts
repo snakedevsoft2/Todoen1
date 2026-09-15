@@ -31,9 +31,9 @@ export const INCLUIR_SEGUIMIENTO = {
 
 export function filaDeSeguimiento(
   s: SeguimientoConDatos,
-  ctx: { hoy: string; yoId: string; esDueno: boolean; numeroNegocio: string | null }
+  ctx: { hoy: string; yoId: string; esDueno: boolean; numeroNegocio: string | null; zona?: string | null }
 ): SeguimientoRow {
-  const telefono = s.customer?.phone ? toInternational(s.customer.phone, ctx.numeroNegocio) : null;
+  const telefono = s.customer?.phone ? toInternational(s.customer.phone, ctx.numeroNegocio, ctx.zona) : null;
   return {
     id: s.id,
     title: s.title,

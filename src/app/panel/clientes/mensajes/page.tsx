@@ -63,7 +63,7 @@ export default async function MensajesPage() {
           ) : (
             <ul className="divide-y divide-line" data-mensajes-a-mano>
               {aMano.map((m) => {
-                const tel = m.customer.phone ? toInternational(m.customer.phone, user.whatsappNumber) : null;
+                const tel = m.customer.phone ? toInternational(m.customer.phone, user.whatsappNumber, user.timezone) : null;
                 const href = tel ? waLink(tel, aplicarPlantilla(m.text, { nombre: m.customer.name, negocio: user.businessName })) : null;
                 return (
                   <li key={m.id} className="flex items-center gap-3 py-2.5">

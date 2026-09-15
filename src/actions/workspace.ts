@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireSession } from "@/lib/auth";
+import { requireOwner } from "@/lib/auth";
 import { str } from "@/lib/format";
 import {
   keysDeFabrica,
@@ -41,7 +41,7 @@ export async function saveWorkspaceAction(
   _prev: WorkspaceState,
   formData: FormData
 ): Promise<WorkspaceState> {
-  const sesion = await requireSession();
+  const sesion = await requireOwner();
 
   // El catalogo de esta persona es la unica lista valida: lo que llegue por el
   // formulario y no este aqui se ignora, venga de donde venga.
@@ -69,7 +69,7 @@ export async function saveWorkspaceAction(
 
 /** Aplica uno de los arreglos listos sin tocar el orden que la persona eligio. */
 export async function applyPresetAction(formData: FormData) {
-  const sesion = await requireSession();
+  const sesion = await requireOwner();
   const preset = str(formData.get("preset")) as PresetKey;
   if (preset !== "esencial" && preset !== "fabrica" && preset !== "todo") return;
 
@@ -90,7 +90,7 @@ export async function applyPresetAction(formData: FormData) {
 
 /** Volver al menu de fabrica: se borra la configuracion y manda el catalogo. */
 export async function resetWorkspaceAction() {
-  const { user, staff } = await requireSession();
+  const { user, staff } = await requireOwner();
   await db.workspaceConfig.deleteMany({ where: { staffId: staff.id, userId: user.id } });
   refresh();
 }

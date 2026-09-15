@@ -214,6 +214,22 @@ try {
     "queda como la forma de imprimir de este equipo"
   );
 
+  console.log("
+9. En el celular el menú de imprimir se ve completo");
+  const ctxCel = await browser.newContext({ storageState: await ctx.storageState(), viewport: { width: 390, height: 844 } });
+  const cel = await ctxCel.newPage();
+  await cel.goto(BASE + "/panel/cartera/" + deuda.id, { waitUntil: "networkidle" });
+  await cel.getByRole("button", { name: "Elegir tamano de impresion" }).first().click();
+  const menuCel = cel.locator("[data-menu-imprimir]");
+  await menuCel.waitFor({ timeout: 5000 });
+  const caja = await menuCel.boundingBox();
+  ok(Boolean(caja) && caja.x >= 0 && caja.x + caja.width <= 390 && caja.y >= 0 && caja.y + caja.height <= 844, "el menú queda dentro de la pantalla", JSON.stringify(caja));
+  ok(await cel.getByRole("button", { name: /Tirilla 58 mm/ }).isVisible(), "y se ven las opciones");
+  if (DIR) await cel.screenshot({ path: DIR + "/imprimir-celular.png" });
+  await menuCel.getByRole("button", { name: "Cerrar" }).click();
+  ok((await cel.locator("[data-menu-imprimir]").count()) === 0, "y se cierra");
+  await ctxCel.close();
+
   await ctx.close();
 } finally {
   await browser.close();

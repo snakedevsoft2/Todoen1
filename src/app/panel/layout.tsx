@@ -101,10 +101,11 @@ export default async function PanelLayout({ children }: { children: React.ReactN
         roleLabel={etiquetaDeRol(staff.role, user.businessType)}
         staffColor={staff.color}
         fotoPerfil={foto}
-        menuPropio={!empleado}
+        menuPropio={staff.role === "DUENO"}
         logo={logo}
         bookingUrl={conPagina ? publicPath(user.businessType, user.slug) : undefined}
         bookingLabel="Ver mi portafolio"
+        compartir={conPagina ? { ruta: publicPath(user.businessType, user.slug), qr: "/qr/" + user.slug, negocio: user.businessName } : undefined}
         admin={esAdmin(correoDeLaSesion(sesion))}
         logout={logout}
       >

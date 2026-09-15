@@ -409,7 +409,7 @@ export default async function TurnosPage({
                     <div className="mt-3 flex flex-wrap gap-2 border-t border-line pt-3">
                       {(() => {
                         const link = waLink(
-                          toInternational(a.clientPhone, user.whatsappNumber),
+                          toInternational(a.clientPhone, user.whatsappNumber, user.timezone),
                           confirmMessage({
                             businessName: user.businessName,
                             clientName: a.clientName,
@@ -554,6 +554,7 @@ export default async function TurnosPage({
 
         <div className="space-y-4">
           <ReminderList
+            zona={user.timezone}
             rows={recordatorios.map((r) => ({
               id: r.id,
               clientName: r.clientName,

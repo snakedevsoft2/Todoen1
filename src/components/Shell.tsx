@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "./Icon";
 import { BrandMark } from "./BrandMark";
+import { CompartirPortafolio } from "./CompartirPortafolio";
 import type { NavItem } from "@/lib/nav";
 import { initials } from "@/lib/staff";
 
@@ -21,6 +22,7 @@ export function Shell({
   admin = false,
   fotoPerfil = null,
   menuPropio = true,
+  compartir,
   logout,
   children,
 }: {
@@ -41,6 +43,8 @@ export function Shell({
   fotoPerfil?: string | null;
   /** Si puede armar su propio menu. El empleado del gestor de asistencia no. */
   menuPropio?: boolean;
+  /** Para compartir el portafolio con QR y enlace. Solo el dueno. */
+  compartir?: { ruta: string; qr: string; negocio: string };
   logout: ReactNode;
   children: ReactNode;
 }) {
@@ -114,6 +118,7 @@ export function Shell({
           {bookingLabel}
         </Link>
       )}
+      {compartir && <CompartirPortafolio {...compartir} />}
       {/* Va aqui abajo y no en el menu a proposito: el objetivo de esta
           pantalla es tener menos botones, no uno mas. */}
       {menuPropio && (

@@ -1,4 +1,4 @@
-import { requireSession } from "@/lib/auth";
+import { requireOwner } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
   GRUPO_LABEL,
@@ -18,7 +18,8 @@ import { Icon } from "@/components/Icon";
 export const dynamic = "force-dynamic";
 
 export default async function EspacioPage() {
-  const sesion = await requireSession();
+  // Armar el menu es del dueño: el empleado usa el que el dueño le deja.
+  const sesion = await requireOwner();
   const { user, staff } = sesion;
 
   // Se muestran en el orden que la persona ya eligio, para que editar sea

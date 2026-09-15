@@ -29,6 +29,7 @@ export function ReminderList({
   businessName,
   address,
   ownerNumber,
+  zona = null,
   autoOn,
 }: {
   rows: ReminderRow[];
@@ -36,6 +37,8 @@ export function ReminderList({
   address: string | null;
   /** Numero del negocio, para completar el indicativo del cliente. */
   ownerNumber: string | null;
+  /** Zona horaria del negocio: de ahi sale el indicativo si el numero del negocio no lo trae. */
+  zona?: string | null;
   /** true si el envio automatico esta configurado. */
   autoOn: boolean;
 }) {
@@ -61,7 +64,7 @@ export function ReminderList({
           {[...pendientes, ...enviados].map((row) => {
             const enviado = Boolean(row.reminderSentAt);
             const enlace = waLink(
-              toInternational(row.clientPhone, ownerNumber),
+              toInternational(row.clientPhone, ownerNumber, zona),
               reminderMessage({
                 businessName,
                 clientName: row.clientName,

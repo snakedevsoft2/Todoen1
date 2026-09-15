@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { getCurrentSession } from "@/lib/auth";
 import { ITEM_NOUN, logoUrl, photoUrl } from "@/lib/nav";
 import { variantLabel } from "@/lib/variants";
-import { normalizePhone } from "@/lib/whatsapp";
+import { normalizePhone, toInternational } from "@/lib/whatsapp";
 import { APP_NAME } from "@/lib/brand";
 import { resolverFondo } from "@/lib/fondos";
 import { aiEnabled } from "@/lib/ai";
@@ -113,7 +113,8 @@ export default async function PortafolioPage({
 
   const noun = ITEM_NOUN[shop.businessType];
   const esBarberia = shop.businessType === "BARBERIA";
-  const whatsapp = normalizePhone(shop.whatsappNumber) ?? normalizePhone(shop.phone);
+  // Con indicativo del pais: un numero local (0982...) no abre el chat.
+  const whatsapp = toInternational(shop.whatsappNumber || shop.phone, shop.whatsappNumber, shop.timezone);
   const cover = shop.publicCover;
 
   const items: PortfolioItem[] = productos.map((p) => {

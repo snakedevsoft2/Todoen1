@@ -75,7 +75,10 @@ export async function modulosDe({ user, staff }: Sesion): Promise<Modulo[]> {
     }),
     // El aislamiento va en la consulta: la config se pide por persona Y por
     // negocio, aunque el id de la persona ya sea unico.
-    db.workspaceConfig.findFirst({ where: { staffId: staff.id, userId: user.id } }),
+    // El empleado no arma su menu: usa el que armo el dueño, sin lo que es solo del dueño.
+    db.workspaceConfig.findFirst({
+      where: esDueno ? { staffId: staff.id, userId: user.id } : { userId: user.id, staff: { role: "DUENO" } },
+    }),
     // Lo que el administrador de la plataforma le prendio o le apago a esta
     // cuenta en particular.
     db.accountModule.findMany({ where: { userId: user.id } }),

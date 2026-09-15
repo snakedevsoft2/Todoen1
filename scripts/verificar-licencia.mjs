@@ -146,7 +146,7 @@ try {
   await tel.fill('input[name="email"]', cuenta.email);
   await tel.fill('input[name="password"]', "demo1234");
   await tel.click('button[type="submit"]');
-  ok(Boolean(await esperarHasta(() => tel.getByText(/venci[oó] el pago/i).count())), "al ingresar se le dice que venció el pago");
+  ok(Boolean(await esperarHasta(() => tel.getByText(/no est[aá] activa en este momento/i).count())), "al ingresar se le dice que la cuenta no está activa");
   ok(Boolean(await esperarHasta(async () => (await licencia(tel))?.activa === false)), "el teléfono sabe que la cuenta ya no está activa");
   await ctx.setOffline(true);
   const sinSenal = await abrirEnFrio(tel, "/panel/gastos");

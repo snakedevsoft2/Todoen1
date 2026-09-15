@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { requireSession } from "@/lib/auth";
+import { requireOwner, requireSession } from "@/lib/auth";
 import { str } from "@/lib/format";
 import { keysDeFabrica, modulosDe, presetKeys, type PresetKey } from "@/lib/modules";
 import { PASOS } from "@/lib/onboarding";
@@ -29,7 +29,7 @@ export async function goToStepAction(formData: FormData) {
  * configurador, para que un apartado nuevo pueda estrenarse despues.
  */
 export async function chooseWorkspaceAction(formData: FormData) {
-  const sesion = await requireSession();
+  const sesion = await requireOwner();
   const preset = str(formData.get("preset")) as PresetKey;
   if (preset !== "esencial" && preset !== "fabrica" && preset !== "todo") return;
 
@@ -71,7 +71,7 @@ export async function finishOnboardingAction() {
 
 /** Volver a verlo desde Ajustes. */
 export async function restartOnboardingAction() {
-  const { staff } = await requireSession();
+  const { staff } = await requireOwner();
   await db.staff.update({
     where: { id: staff.id },
     data: { onboardingDoneAt: null, onboardingStep: 0 },

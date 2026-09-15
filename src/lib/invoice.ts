@@ -163,7 +163,7 @@ export function marcarVersionGratis(doc: Pdf, rightX: number) {
     doc.setGState(new Transparencia({ opacity: 0.08 }));
     doc.setFontSize(54);
     doc.setTextColor(0);
-    doc.text("VERSIÓN GRATIS", 105, 175, { align: "center", angle: 30 });
+    doc.text("TODOEN1", 105, 175, { align: "center", angle: 30 });
     doc.setGState(new Transparencia({ opacity: 1 }));
   } catch {
     // Sin transparencia queda solo la marca de abajo.

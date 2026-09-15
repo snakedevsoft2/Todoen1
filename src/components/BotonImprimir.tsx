@@ -125,13 +125,24 @@ export function BotonImprimir({
       </div>
 
       {abierto && (
-        <div
-          className={
-            "absolute z-30 mt-1 max-h-[70vh] w-64 overflow-y-auto rounded-xl border border-line bg-panel shadow-lg " +
-            (menu === "izquierda" ? "left-0" : "right-0")
-          }
-        >
-          <p className="border-b border-line px-3 py-2 text-[11px] text-subtle">¿En qué papel?</p>
+        <>
+          {/* En el celular y la tableta el menu sale desde abajo, a lo ancho de
+              la pantalla: pegado al boton se salia por un lado y no se veia. */}
+          <div className="fixed inset-0 z-[65] bg-black/30 lg:hidden" aria-hidden="true" onClick={() => setAbierto(false)} />
+          <div
+            data-menu-imprimir
+            className={
+              "fixed inset-x-3 bottom-3 z-[70] max-h-[75vh] overflow-y-auto rounded-2xl border border-line bg-panel pb-[env(safe-area-inset-bottom)] shadow-lg " +
+              "lg:absolute lg:inset-x-auto lg:bottom-auto lg:z-30 lg:mt-1 lg:max-h-[70vh] lg:w-64 lg:rounded-xl lg:pb-0 " +
+              (menu === "izquierda" ? "lg:left-0" : "lg:right-0")
+            }
+          >
+          <div className="flex items-center justify-between gap-2 border-b border-line px-3 py-2">
+            <p className="text-[11px] text-subtle">¿En qué papel?</p>
+            <button type="button" onClick={() => setAbierto(false)} className="text-[12px] font-semibold text-muted lg:hidden">
+              Cerrar
+            </button>
+          </div>
           {FORMATOS.map((f) => (
             <button
               key={f.value}
@@ -170,7 +181,8 @@ export function BotonImprimir({
               ))}
             </>
           )}
-        </div>
+          </div>
+        </>
       )}
 
       {aviso && (

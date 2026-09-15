@@ -45,10 +45,10 @@ export function finDePrueba(ahora = new Date()): Date {
   return new Date(ahora.getTime() + DIAS_DE_PRUEBA * DIA);
 }
 
-export const SOLO_PLAN_PAGO = "Disponible en el plan pago. Escríbenos por WhatsApp para activarlo.";
+export const SOLO_PLAN_PAGO = "Esta función no está activa en tu cuenta. Escríbenos a soporte si la necesitas.";
 
 /** La marca de las facturas y recibos de la version gratis. */
-export const MARCA_VERSION_GRATIS = "Versión gratis - Todoen1";
+export const MARCA_VERSION_GRATIS = "Hecho con Todoen1";
 
 /** Para acciones y rutas: el motivo si la cuenta esta en la version gratis, o null si puede. */
 export function motivoSinPlan(c: CuentaConPlan): string | null {
@@ -57,5 +57,5 @@ export function motivoSinPlan(c: CuentaConPlan): string | null {
 
 /** El WhatsApp de soporte con el mensaje para activar el plan ya escrito. */
 export function enlaceActivarPlan(businessName: string): string {
-  return "https://wa.me/" + SUPPORT_WHATSAPP + "?text=" + encodeURIComponent("Hola, quiero activar el plan de " + businessName + ".");
+  return "https://wa.me/" + SUPPORT_WHATSAPP + "?text=" + encodeURIComponent("Hola, necesito ayuda con la cuenta de " + businessName + ".");
 }

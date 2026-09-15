@@ -71,6 +71,9 @@ export function PortfolioForm({
     />
   );
 
+  // Un color elegido a mano se guarda como "color:#1f7a4d".
+  const colorLibre = String(fondo ?? "").startsWith("color:") ? String(fondo).slice(6) : null;
+
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
       <form action={formAction} className="space-y-4">
@@ -139,6 +142,23 @@ export function PortfolioForm({
                 );
               })}
             </div>
+            <label
+              data-fondo-libre
+              className={
+                "mt-2 flex cursor-pointer items-center gap-3 rounded-xl border p-2 text-[12px] font-semibold transition-colors " +
+                (colorLibre ? "border-brand-600 bg-brand-50 text-brand-700" : "border-line bg-panel text-body hover:border-line-strong")
+              }
+            >
+              <input
+                type="color"
+                aria-label="Elegir otro color de fondo"
+                value={colorLibre ?? "#1f7a4d"}
+                onChange={(e) => setFondo("color:" + e.target.value)}
+                className="h-9 w-12 shrink-0 cursor-pointer rounded-lg border border-line bg-transparent p-0.5"
+              />
+              {colorLibre ? "Tu color: " + colorLibre : "Otro color: elige el que quieras"}
+              {colorLibre && <input type="hidden" name="publicBackground" value={"color:" + colorLibre} />}
+            </label>
             {fondo === "foto" && !cover && (
               <p className="mt-2 text-xs text-warn">Sube una portada: sin ella se usa tu color.</p>
             )}

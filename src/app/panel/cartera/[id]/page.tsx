@@ -44,7 +44,7 @@ export default async function DeudaPage({ params }: { params: Promise<{ id: stri
 
   const enlaceCobro = deuda.clientPhone
     ? waLink(
-        toInternational(deuda.clientPhone, user.whatsappNumber),
+        toInternational(deuda.clientPhone, user.whatsappNumber, user.timezone),
         collectionMessage({
           businessName: user.businessName,
           clientName: deuda.clientName,

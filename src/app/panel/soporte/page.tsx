@@ -125,6 +125,8 @@ export default async function SoportePage() {
           {/* Tres capas, de la mas guiada a la mas suelta: el asistente arma el
               menu, el instructivo explica pantalla por pantalla, y la guia
               responde una duda suelta cuando ya se esta trabajando. */}
+          {/* Armar el menu es del dueño: el empleado usa el que el dueño le deja. */}
+          {staff.role === "DUENO" && (
           <Card title="Volver a armar tu menú" subtitle="El asistente de bienvenida">
             <p className="mb-3 text-sm text-body">
               Si te sobran o te faltan apartados, el asistente te vuelve a preguntar que necesitas
@@ -137,6 +139,7 @@ export default async function SoportePage() {
               </SubmitButton>
             </form>
           </Card>
+          )}
 
           <Card title="Buscar una duda suelta" subtitle="La guia">
             <p className="mb-3 text-sm text-body">
