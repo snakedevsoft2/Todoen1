@@ -155,7 +155,7 @@ export default async function MensajesPage() {
                   : "Sin plantilla, WhatsApp solo sale a quien te escribió en las últimas 24 horas. Créala en Meta con {{1}} nombre y {{2}} mensaje."
               }
             />
-            <Canal ok={canales.correo} label="Correo" hint={canales.correo ? "Conectado: sale a los clientes que tienen correo." : "Falta RESEND_API_KEY en el servidor."} />
+            <Canal ok={canales.correo} label="Correo" hint={canales.correo ? "Conectado: sale a los clientes que tienen correo." : "Falta configurar el correo en el servidor (SMTP_USER y SMTP_PASS)."} />
           </ul>
           <p className="mt-4 text-[12px] text-muted">
             Lo que no pueda salir solo queda arriba, en «Para enviar a mano», con el mensaje ya escrito.

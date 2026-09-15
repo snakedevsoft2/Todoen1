@@ -143,7 +143,7 @@ export async function toggleStaffAccessAction(formData: FormData): Promise<void>
  * Reponerle la clave a una cuenta desde el panel de la plataforma.
  *
  * Es la salida para cuando el camino normal no alcanza: el correo no llega, se
- * equivocaron al escribirlo, o todavia no hay RESEND_API_KEY configurada.
+ * equivocaron al escribirlo, o todavia no hay correo configurado (SMTP o Resend).
  *
  * No se le pone una contrasena nueva y se le dicta: se le genera el MISMO
  * enlace de un solo uso que manda la pantalla publica, y la persona escribe la
@@ -221,7 +221,7 @@ export async function reponerClaveAction(
     ? "Enlace enviado a " + destino.email + "."
     : hayCorreo
       ? "No se pudo mandar el correo. Pasale el enlace por WhatsApp."
-      : "El envio de correos no esta configurado (falta RESEND_API_KEY). Pasale el enlace por WhatsApp.";
+      : "El envio de correos no esta configurado (faltan SMTP_USER y SMTP_PASS). Pasale el enlace por WhatsApp.";
 
   return { enlace, correo: destino.email, ok: aviso, enviado };
 }
