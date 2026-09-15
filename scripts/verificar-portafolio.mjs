@@ -105,20 +105,20 @@ try {
   // Un color elegido de verdad dispara el evento input; fill cambia el valor sin avisarle a React.
   await libre.locator('input[type="color"]').evaluate((el) => {
     const poner = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
-    poner.call(el, "#1f7a4d");
+    poner.call(el, "#2a8a5d");
     el.dispatchEvent(new Event("input", { bubbles: true }));
   });
-  ok(Boolean(await esperarHasta(() => libre.getByText("Tu color: #1f7a4d").count())), "se puede elegir otro color de fondo");
+  ok(Boolean(await esperarHasta(() => libre.getByText("Tu color: #2a8a5d").count())), "se puede elegir otro color de fondo");
   await page.locator("form", { has: libre }).locator('button[type="submit"]').last().click();
   ok(
-    Boolean(await esperarHasta(async () => (await db.user.findUnique({ where: { id: cuenta.id } }))?.publicBackground === "color:#1f7a4d")),
+    Boolean(await esperarHasta(async () => (await db.user.findUnique({ where: { id: cuenta.id } }))?.publicBackground === "color:#2a8a5d")),
     "el fondo queda guardado"
   );
 
   console.log("\n4. La página pública");
   await page.goto(BASE + ruta, { waitUntil: "load" });
   const conFondo = await page.evaluate(() =>
-    [...document.querySelectorAll("*")].some((e) => getComputedStyle(e).backgroundColor === "rgb(31, 122, 77)")
+    [...document.querySelectorAll("*")].some((e) => getComputedStyle(e).backgroundColor === "rgb(42, 138, 93)")
   );
   ok(conFondo, "se ve con el color de fondo elegido");
   const escribir = (await page.getByRole("link", { name: /Escribirnos/ }).first().getAttribute("href")) ?? "";

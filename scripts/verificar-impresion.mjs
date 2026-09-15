@@ -214,8 +214,7 @@ try {
     "queda como la forma de imprimir de este equipo"
   );
 
-  console.log("
-9. En el celular el menú de imprimir se ve completo");
+  console.log("\n9. En el celular el menú de imprimir se ve completo");
   const ctxCel = await browser.newContext({ storageState: await ctx.storageState(), viewport: { width: 390, height: 844 } });
   const cel = await ctxCel.newPage();
   await cel.goto(BASE + "/panel/cartera/" + deuda.id, { waitUntil: "networkidle" });
