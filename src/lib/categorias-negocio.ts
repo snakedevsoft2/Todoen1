@@ -181,3 +181,27 @@ export async function asignarProductos(userId: string, id: string, productos: st
   ].filter(Boolean);
   return { ok: "Guardado: " + partes.join(" y ") + "." };
 }
+
+/**
+ * Mete los productos elegidos en una categoria, y la crea si es nueva. Es lo
+ * que usa la lista de productos al seleccionar varios y tocar "Mover".
+ */
+export async function moverProductos(userId: string, productos: string[], categoria: string): Promise<Resultado> {
+  const ids = [...new Set(productos.filter(Boolean))].slice(0, 5000);
+  if (ids.length === 0) return { error: "Elige al menos un producto." };
+
+  const limpio = nombreCategoria(categoria);
+  if (!mismaCategoria(limpio, CATEGORIA_GENERAL)) {
+    const v = validarNombreCategoria(categoria);
+    if ("error" in v) return v;
+    const lista = await categoriasDelNegocio(userId);
+    if (!lista.some((c) => mismaCategoria(c.name, limpio)) && lista.length >= MAX_CATEGORIAS) {
+      return { error: "Ya tienes " + MAX_CATEGORIAS + " categorías. Junta o borra alguna para crear otra." };
+    }
+  }
+
+  const destino = (await asegurarCategorias(userId, [limpio])).get(limpio) ?? CATEGORIA_GENERAL;
+  const r = await db.service.updateMany({ where: { userId, id: { in: ids } }, data: { category: destino } });
+  if (r.count === 0) return { error: "No encontramos esos productos." };
+  return { ok: (r.count === 1 ? "1 producto pasó" : r.count + " productos pasaron") + " a " + destino + "." };
+}

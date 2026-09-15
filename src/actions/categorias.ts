@@ -8,6 +8,7 @@ import {
   borrarCategoria,
   crearCategoria,
   moverCategoria,
+  moverProductos,
   renombrarCategoria,
   type Resultado,
 } from "@/lib/categorias-negocio";
@@ -52,4 +53,11 @@ export async function asignarProductosAction(_prev: ActionState, formData: FormD
   const { user } = await requireOwner();
   const productos = formData.getAll("productos").map((v) => String(v));
   return responder(user.slug, await asignarProductos(user.id, str(formData.get("id")), productos));
+}
+
+/** Desde la lista de productos: los seleccionados pasan a una categoria (nueva o ya creada). */
+export async function moverProductosAction(productos: string[], categoria: string): Promise<ActionState> {
+  const { user } = await requireOwner();
+  const ids = Array.isArray(productos) ? productos.map((p) => String(p)) : [];
+  return responder(user.slug, await moverProductos(user.id, ids, String(categoria ?? "")));
 }

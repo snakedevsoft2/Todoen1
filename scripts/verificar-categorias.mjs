@@ -139,6 +139,41 @@ try {
     "al borrarla, la Bolsa no se borra: vuelve a General"
   );
 
+  console.log("\n1c. Seleccionar productos y meterlos en una categoría");
+  await page.goto(BASE + "/panel/catalogo", { waitUntil: "load" });
+  const moverBarra = page.locator("[data-mover-productos]");
+  const contar = (category) => db.service.count({ where: { userId: cuenta.id, category } });
+  await page.locator("[data-seleccionar-productos]").click();
+  await page.locator("[data-buscar-catalogo]").fill("postre 1");
+  await moverBarra.getByLabel(/Seleccionar los que se ven/).check();
+  ok((await page.locator("[data-seleccionados]").innerText()).startsWith("2"), "con el buscador elige de una los 2 que se ven");
+  await page.locator("[data-buscar-catalogo]").fill("");
+  await page.getByLabel("Seleccionar Bolsa", { exact: true }).check();
+  ok((await page.locator("[data-seleccionados]").innerText()).startsWith("3"), "y suma otro tocándolo uno a uno");
+  ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "seleccionando, la página no se sale del ancho del celular");
+  await page.locator("[data-destino-categoria]").selectOption("__nueva__");
+  await page.locator("[data-nueva-categoria]").fill("Favoritos");
+  const anchoSelector = (await page.locator("[data-destino-categoria]").boundingBox())?.width ?? 0;
+  ok(anchoSelector > 120, "con una categoría nueva, el selector sigue a la vista", Math.round(anchoSelector) + " px");
+  await moverBarra.getByRole("button", { name: /^Mover/ }).click();
+  ok(Boolean(await esperarHasta(async () => (await contar("Favoritos")) === 3)), "mete los 3 elegidos en una categoría nueva");
+  ok(Boolean(await esperarHasta(() => page.getByText("3 productos pasaron a Favoritos.").count())), "y avisa cuántos pasaron");
+  ok(Boolean(await esperarHasta(() => page.locator('[data-barra-catalogo] [data-categoria="Favoritos"]').count())), "Favoritos aparece en la fila de categorías");
+
+  await page.locator('[data-barra-catalogo] [data-categoria="Favoritos"]').click();
+  await page.locator("[data-seleccionar-productos]").click();
+  await moverBarra.getByLabel(/Seleccionar los que se ven/).check();
+  await page.getByLabel("Seleccionar Bolsa", { exact: true }).uncheck();
+  await page.locator("[data-destino-categoria]").selectOption("Postres");
+  await moverBarra.getByRole("button", { name: /^Mover/ }).click();
+  ok(Boolean(await esperarHasta(async () => (await contar("Postres")) === 10 && (await contar("Favoritos")) === 1)), "devuelve los postres a una categoría que ya existe");
+
+  await page.locator("[data-seleccionar-productos]").click();
+  await page.getByLabel("Seleccionar Bolsa", { exact: true }).check();
+  await page.locator("[data-destino-categoria]").selectOption("General");
+  await moverBarra.getByRole("button", { name: /^Mover/ }).click();
+  ok(Boolean(await esperarHasta(async () => (await contar("General")) === 1 && (await contar("Favoritos")) === 0)), "y la Bolsa vuelve a General");
+
   console.log("\n2. Ventas");
   await page.goto(BASE + "/panel/ventas", { waitUntil: "load" });
   const barraVenta = page.locator("[data-barra-catalogo]").first();

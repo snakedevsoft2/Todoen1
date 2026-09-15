@@ -149,6 +149,7 @@ export default async function CatalogoPage() {
           ) : (
             <CatalogoFiltrado
               ordenCategorias={ordenCategorias}
+              puedeMover={esDueno}
               items={services.map((s) => {
                 const variants = s.variants;
                 const stock = variants.reduce((sum, v) => sum + Math.max(0, v.stock), 0);
