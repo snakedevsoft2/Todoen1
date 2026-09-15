@@ -13,6 +13,8 @@ import { CambiarTipoNegocio } from "@/components/CambiarTipoNegocio";
 import { OPCIONES_TIPO } from "@/lib/tipo-negocio";
 import { FacturacionForm } from "@/components/FacturacionForm";
 import { configuracionFacturacion } from "@/lib/facturacion";
+import { esPlanCompleto } from "@/lib/plan";
+import { SoloPlanPago } from "@/components/SoloPlanPago";
 
 export const dynamic = "force-dynamic";
 
@@ -75,7 +77,11 @@ export default async function AjustesPage() {
             subtitle="Factura electrónica ante la DIAN (Colombia) o el SRI (Ecuador), con tu propia cuenta"
             className="lg:col-span-2"
           >
-            <FacturacionForm config={facturacion} moneda={user.currency} />
+            {esPlanCompleto(user) ? (
+              <FacturacionForm config={facturacion} moneda={user.currency} />
+            ) : (
+              <SoloPlanPago que="Factura autorizada" negocio={user.businessName} />
+            )}
           </Card>
         )}
 

@@ -135,6 +135,8 @@ export async function quitarControlDePago(userId: string): Promise<void> {
     where: { id: userId },
     data: {
       paidUntil: null,
+      // Cortesia de verdad: sin una prueba que se acabe y la deje en la version gratis.
+      trialEndsAt: null,
       ...(cuenta.suspendedAt && cuenta.suspendedForPayment ? { suspendedAt: null, suspendedReason: null, suspendedForPayment: false } : {}),
     },
   });

@@ -1,5 +1,6 @@
 import { getCurrentSession } from "@/lib/auth";
 import { MAX_DIAS_SIN_CONEXION } from "@/lib/pagos";
+import { esPlanCompleto } from "@/lib/plan";
 
 /**
  * Si la cuenta de este telefono sigue activa.
@@ -15,6 +16,8 @@ export async function GET() {
   const sesion = await getCurrentSession();
   const sinCache = { "Cache-Control": "no-store" };
   if (!sesion) return Response.json({ activa: false }, { status: 401, headers: sinCache });
+  // La version gratis no se usa sin senal: el telefono borra lo que tenia guardado.
+  if (!esPlanCompleto(sesion.user)) return Response.json({ activa: false, motivo: "version-gratis" }, { status: 403, headers: sinCache });
   return Response.json(
     { activa: true, pagadaHasta: sesion.user.paidUntil?.toISOString() ?? null, maxDiasSinConexion: MAX_DIAS_SIN_CONEXION },
     { headers: sinCache }

@@ -11,6 +11,8 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { Icon } from "@/components/Icon";
 import { deleteServiceAction, toggleServiceAction } from "@/actions/services";
 import { FormSinSenal } from "@/components/SinSenal";
+import { esPlanCompleto } from "@/lib/plan";
+import { SoloPlanPago } from "@/components/SoloPlanPago";
 
 export const dynamic = "force-dynamic";
 
@@ -99,7 +101,7 @@ export default async function CatalogoPage() {
           />
         </Card>
         <Card title={"Subir muchos " + noun.plural + " de una vez"} subtitle="Desde Excel o un archivo CSV">
-          <CargaMasiva tipo="productos" />
+          {esPlanCompleto(user) ? <CargaMasiva tipo="productos" /> : <SoloPlanPago que="Carga masiva" negocio={user.businessName} />}
         </Card>
         </div>
 

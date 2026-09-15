@@ -20,7 +20,7 @@ async function confirmarLicencia(reg: ServiceWorkerRegistration, senal: AbortSig
   ultimaLicencia = Date.now();
   try {
     const r = await fetch("/api/licencia", { cache: "no-store", signal: senal });
-    if (r.status === 401) reg.active?.postMessage({ tipo: "licencia", activa: false });
+    if (r.status === 401 || r.status === 403) reg.active?.postMessage({ tipo: "licencia", activa: false });
     else if (r.ok) reg.active?.postMessage({ tipo: "licencia", activa: true });
   } catch {
     // Sin red, o se cambio de pantalla antes de responder: se intenta en la proxima.

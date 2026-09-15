@@ -18,6 +18,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { Icon } from "@/components/Icon";
 import { deleteSaleAction, updateSalePaymentAction } from "@/actions/sales";
 import { FormSinSenal } from "@/components/SinSenal";
+import { esPlanCompleto } from "@/lib/plan";
 
 export const dynamic = "force-dynamic";
 
@@ -102,6 +103,8 @@ export default async function VentasPage({
 
   // La factura autorizada (DIAN o SRI), si el negocio la tiene activa.
   const facturacion = await configuracionFacturacion(user.id);
+  // La version gratis no tiene factura autorizada y sus facturas llevan la marca.
+  const completo = esPlanCompleto(user);
   const etiquetaImpuesto =
     TARIFAS[facturacion.country].find((t) => t.value === facturacion.taxKey)?.label ?? "Impuesto";
 
@@ -131,6 +134,7 @@ export default async function VentasPage({
     })),
     total: s.total,
     notes: s.notes,
+    marcaGratis: !completo,
   });
 
   return (
@@ -217,8 +221,9 @@ export default async function VentasPage({
             cuenta={me.id}
             esHoy={day === today}
             clientes={clientesGuardados}
+            marcaGratis={!completo}
             facturacion={
-              facturacion.enabled
+              completo && facturacion.enabled
                 ? {
                     pais: facturacion.country,
                     entidad: datosPais(facturacion.country).entidad,
@@ -322,7 +327,7 @@ export default async function VentasPage({
                     <FacturaAutorizada
                       saleId={s.id}
                       pais={facturacion.country}
-                      habilitada={facturacion.enabled}
+                      habilitada={completo && facturacion.enabled}
                       inicial={s.electronicInvoice ? facturaVista(s.electronicInvoice) : null}
                       base={datosFactura(s)}
                       etiquetaImpuesto={etiquetaImpuesto}

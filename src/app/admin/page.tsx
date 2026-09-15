@@ -4,6 +4,7 @@ import { BUSINESS_LABEL } from "@/lib/nav";
 import { Icon } from "@/components/Icon";
 import type { BusinessType } from "@prisma/client";
 import { estadoDePago } from "@/lib/pagos";
+import { planDeCuenta } from "@/lib/plan";
 
 export const dynamic = "force-dynamic";
 
@@ -165,7 +166,12 @@ export default async function AdminPage({
                     <td className="px-4 py-3" data-pago-cuenta>
                       {(() => {
                         const e = estadoDePago(c.paidUntil);
-                        if (e.estado === "sin-control") return <span className="text-[11px] text-slate-600">Sin control</span>;
+                        if (e.estado === "sin-control") {
+                          const p = planDeCuenta(c);
+                          if (p.tipo === "prueba") return <span className="text-[12px] text-amber-300">Prueba · {p.dias} d</span>;
+                          if (p.tipo === "gratis") return <span className="text-[12px] text-rose-300">Versión gratis</span>;
+                          return <span className="text-[11px] text-slate-600">Cortesía</span>;
+                        }
                         const tono = e.estado === "al-dia" ? "text-slate-300" : e.estado === "por-vencer" ? "text-amber-300" : "text-rose-300";
                         return (
                           <span className={"text-[12px] " + tono}>

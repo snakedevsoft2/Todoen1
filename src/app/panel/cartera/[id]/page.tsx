@@ -22,6 +22,7 @@ import {
   reopenDebtAction,
 } from "@/actions/debts";
 import { FormSinSenal } from "@/components/SinSenal";
+import { esPlanCompleto } from "@/lib/plan";
 
 export const dynamic = "force-dynamic";
 
@@ -187,6 +188,7 @@ export default async function DeudaPage({ params }: { params: Promise<{ id: stri
                             historial: deuda.payments
                               .slice(i + 1)
                               .map((p) => ({ day: p.day, amount: p.amount })),
+                            marcaGratis: !esPlanCompleto(user),
                           }}
                         />
 

@@ -171,6 +171,10 @@ model User {
   billingNote         String?
   /// La suspension la puso el control de pagos: se levanta sola al registrar el pago.
   suspendedForPayment Boolean   @default(false)
+  /// Hasta cuando va la prueba gratis de una cuenta nueva. Sin fecha de pago y
+  /// con la prueba vencida, la cuenta queda en la version gratis. Vacio (y sin
+  /// fecha de pago): cortesia. Ver lib/plan.ts.
+  trialEndsAt         DateTime?
 
   /**
    * Pregunta de seguridad, para recuperar la clave sin depender del correo.

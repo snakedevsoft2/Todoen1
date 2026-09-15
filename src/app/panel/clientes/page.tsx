@@ -11,6 +11,8 @@ import { ClienteForm, ImportarClientes } from "@/components/ClienteForm";
 import { CargaMasiva } from "@/components/CargaMasiva";
 import { Pastilla } from "@/components/EtiquetasCliente";
 import { Icon } from "@/components/Icon";
+import { esPlanCompleto } from "@/lib/plan";
+import { SoloPlanPago } from "@/components/SoloPlanPago";
 
 export const dynamic = "force-dynamic";
 
@@ -196,7 +198,7 @@ export default async function ClientesPage({
             <ClienteForm submitLabel="Agregar cliente" />
           </Card>
           <Card title="Subir muchos clientes de una vez" subtitle="Desde Excel o un archivo CSV">
-            <CargaMasiva tipo="clientes" />
+            {esPlanCompleto(user) ? <CargaMasiva tipo="clientes" /> : <SoloPlanPago que="Carga masiva" negocio={user.businessName} />}
           </Card>
           {esDueno && (
             <Card title="Trae los que ya tienes">

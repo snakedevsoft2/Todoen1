@@ -1,5 +1,7 @@
 import { money, prettyDay } from "./format";
 import type { Linea } from "./tirilla";
+import { MARCA_VERSION_GRATIS } from "./plan";
+import { marcarVersionGratis } from "./invoice";
 
 /**
  * Comprobante de abono en PDF.
@@ -27,6 +29,8 @@ export type ReceiptData = {
   saldo: number;
   /** Los abonos anteriores, para que el cliente vea la cuenta completa. */
   historial: { day: string; amount: number }[];
+  /** La cuenta esta en la version gratis: el comprobante sale con la marca. */
+  marcaGratis?: boolean;
 };
 
 const PAYMENT_LABEL: Record<string, string> = {
@@ -225,6 +229,7 @@ export async function buildReceiptPdf(data: ReceiptData): Promise<File> {
     marginX,
     285
   );
+  if (data.marcaGratis) marcarVersionGratis(doc, 210 - marginX);
 
   const blob = doc.output("blob");
   return new File([blob], receiptFileName(data), { type: "application/pdf" });
@@ -274,6 +279,7 @@ export function receiptTirilla(data: ReceiptData): Linea[] {
       text: data.saldo > 0 ? "Gracias por su abono" : "Queda a paz y salvo. Gracias.",
       tenue: true,
     },
+    ...(data.marcaGratis ? [{ t: "centro" as const, text: MARCA_VERSION_GRATIS, fuerte: true }] : []),
     { t: "espacio" }
   );
 

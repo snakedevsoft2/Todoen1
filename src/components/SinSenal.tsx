@@ -108,8 +108,14 @@ function resumenDe(accion: string, fd: FormData): string {
   return (ETIQUETA[accion] ?? "Cambio") + (detalle ? ": " + detalle.trim().slice(0, 60) : "");
 }
 
-type Contexto = { cuenta: string; avisar: () => void };
-const ContextoSinSenal = createContext<Contexto>({ cuenta: "", avisar: () => undefined });
+/** cuenta vacia: no se guarda nada en la cola (la version gratis no se usa sin senal). */
+type Contexto = { cuenta: string; avisar: () => void; sinConexion: boolean };
+const ContextoSinSenal = createContext<Contexto>({ cuenta: "", avisar: () => undefined, sinConexion: true });
+
+/** Si esta cuenta puede usar la aplicacion sin senal (la version gratis no). */
+export function useSinConexionPermitida(): boolean {
+  return useContext(ContextoSinSenal).sinConexion;
+}
 
 async function encolar(ctx: Contexto, accion: string, fd: FormData): Promise<boolean> {
   try {
@@ -200,7 +206,16 @@ export function FormSinSenal({
  * Sube lo pendiente cuando hay senal y muestra cuantos cambios esperan. Va en
  * el layout del panel, alrededor de las pantallas.
  */
-export function ProveedorSinSenal({ cuenta, children }: { cuenta: string; children: React.ReactNode }) {
+export function ProveedorSinSenal({
+  cuenta,
+  sinConexion = true,
+  children,
+}: {
+  cuenta: string;
+  /** Falso en la version gratis: no se guarda nada nuevo en la cola, pero lo que ya habia se sube. */
+  sinConexion?: boolean;
+  children: React.ReactNode;
+}) {
   const router = useRouter();
   const [pendientes, setPendientes] = useState<AccionPendiente[]>([]);
   const [enLinea, setEnLinea] = useState(true);
@@ -257,7 +272,7 @@ export function ProveedorSinSenal({ cuenta, children }: { cuenta: string; childr
   const rechazados = pendientes.filter((p) => p.error);
 
   return (
-    <ContextoSinSenal.Provider value={{ cuenta, avisar }}>
+    <ContextoSinSenal.Provider value={{ cuenta: sinConexion ? cuenta : "", avisar, sinConexion }}>
       {pendientes.length > 0 && (
         <div data-acciones-pendientes className="mb-3 rounded-xl border border-warn-line bg-warn-soft p-3 text-[13px]">
           {esperando.length > 0 && (

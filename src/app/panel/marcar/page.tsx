@@ -6,6 +6,7 @@ import { enlaceMapa, prettyDistancia } from "@/lib/geo";
 import { Card, PageHeader } from "@/components/ui";
 import { Marcador, type Siguiente } from "@/components/Marcador";
 import { Icon } from "@/components/Icon";
+import { esPlanCompleto } from "@/lib/plan";
 
 export const dynamic = "force-dynamic";
 
@@ -81,7 +82,8 @@ export default async function MarcarPage() {
             sitios={sitios}
             siguienteInicial={siguiente}
             cuenta={staff.id}
-            seguimiento={{ activo: user.liveTracking, consentido: Boolean(staff.locationConsentAt) }}
+            seguimiento={{ activo: user.liveTracking && esPlanCompleto(user), consentido: Boolean(staff.locationConsentAt) }}
+            llegadas={esPlanCompleto(user)}
           />
         </Card>
 

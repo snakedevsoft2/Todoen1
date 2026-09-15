@@ -14,6 +14,8 @@ import { ITEM_NOUN } from "@/lib/nav";
 import { ROLE_LABEL } from "@/lib/staff";
 import { Card, Empty, PageHeader, Stat } from "@/components/ui";
 import { StaffDot } from "@/components/StaffForms";
+import { esPlanCompleto } from "@/lib/plan";
+import { SoloPlanPago } from "@/components/SoloPlanPago";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +25,14 @@ export default async function ReportesPage({
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
   const user = await requireUser();
+  if (!esPlanCompleto(user)) {
+    return (
+      <>
+        <PageHeader title="Reportes" subtitle="Ventas, gastos y descargas para el contador" />
+        <SoloPlanPago que="Reportes y exportar a Excel" negocio={user.businessName} />
+      </>
+    );
+  }
   const params = await searchParams;
   const today = todayIn(user.timezone);
 

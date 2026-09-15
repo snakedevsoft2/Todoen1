@@ -47,6 +47,7 @@ export function Marcador({
   siguienteInicial,
   cuenta,
   seguimiento,
+  llegadas = true,
 }: {
   sitios: Sitio[];
   /** Lo que le toca segun el servidor al abrir la pantalla. */
@@ -55,6 +56,8 @@ export function Marcador({
   cuenta: string;
   /** Si el negocio pide la ubicacion durante la jornada, y si esta persona acepto. */
   seguimiento: { activo: boolean; consentido: boolean };
+  /** El boton "Llegué": es del plan completo. */
+  llegadas?: boolean;
 }) {
   const router = useRouter();
   const [estado, setEstado] = useState<Estado>({ fase: "listo" });
@@ -272,7 +275,7 @@ export function Marcador({
         </button>
       )}
 
-      <BotonLlegue cuenta={cuenta} sitios={sitios} />
+      {llegadas && <BotonLlegue cuenta={cuenta} sitios={sitios} />}
 
       {aviso && (
         <p className="flex items-start gap-2 text-[13px] text-bad">

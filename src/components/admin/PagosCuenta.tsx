@@ -14,6 +14,7 @@ export function PagosCuenta({
   estado,
   tono,
   paidUntil,
+  conPrueba = false,
   nota,
 }: {
   userId: string;
@@ -22,6 +23,8 @@ export function PagosCuenta({
   tono: "ok" | "aviso" | "mal" | "neutro";
   /** YYYY-MM-DD, para la fecha a mano. */
   paidUntil: string | null;
+  /** Cuenta nueva con prueba gratis (en curso o vencida). */
+  conPrueba?: boolean;
   nota: string;
 }) {
   const [state, formAction, pending] = useActionState(registrarPagoAction, undefined);
@@ -84,17 +87,17 @@ export function PagosCuenta({
         </label>
       </form>
 
-      {paidUntil && (
+      {(paidUntil || conPrueba) && (
         <form action={quitarControlPagoAction}>
           <input type="hidden" name="userId" value={userId} />
           <button type="submit" className="text-[11px] font-semibold text-slate-500 underline hover:text-slate-300">
-            Quitar el control de pago (cortesía)
+            {paidUntil ? "Quitar el control de pago (cortesía)" : "Darle todo gratis (cortesía)"}
           </button>
         </form>
       )}
 
       <p className="text-[11px] leading-snug text-slate-500">
-        Se le avisa al dueño 7 días antes. Si vence, tiene 5 días de gracia y después la cuenta se suspende sola. Al registrar el
+        Las cuentas nuevas tienen 7 días de prueba con todo; después quedan en la versión gratis hasta que registres el pago. Se le avisa al dueño 7 días antes de vencer. Si vence, tiene 5 días de gracia y después la cuenta se suspende sola. Al registrar el
         pago vuelve a quedar activa.
       </p>
     </div>

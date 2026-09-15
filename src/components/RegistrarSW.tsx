@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useSinConexionPermitida } from "./SinSenal";
 
 /**
  * Registra el trabajador de fondo (public/sw.js).
@@ -29,10 +30,13 @@ export function RegistrarSW({
   // registrar ni a guardar todo.
   const precarga = useRef(precargar);
   precarga.current = precargar;
+  // La version gratis no se usa sin senal: ni trabajador de fondo ni pantallas guardadas.
+  const permitido = useSinConexionPermitida();
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
     if (process.env.NODE_ENV !== "production") return;
+    if (!permitido) return;
 
     let vivo = true;
     navigator.serviceWorker
@@ -69,7 +73,7 @@ export function RegistrarSW({
     return () => {
       vivo = false;
     };
-  }, [guardarEstaPagina]);
+  }, [guardarEstaPagina, permitido]);
 
   return null;
 }

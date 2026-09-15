@@ -1,6 +1,7 @@
 import { money, prettyDay } from "./format";
 import { qrModulos } from "./qr";
 import type { Linea } from "./tirilla";
+import { MARCA_VERSION_GRATIS } from "./plan";
 
 /**
  * Armado de la factura en PDF, en el navegador.
@@ -37,6 +38,8 @@ export type InvoiceData = {
   provisional?: boolean;
   /** La autorizacion de la DIAN o el SRI, cuando la venta tiene factura autorizada. */
   autorizacion?: AutorizacionFactura;
+  /** La cuenta esta en la version gratis: la factura normal sale con la marca. */
+  marcaGratis?: boolean;
 };
 
 /**
@@ -146,6 +149,28 @@ async function loadLogo(url: string): Promise<{ data: string; format: string } |
 }
 
 /** Genera el PDF de la factura y lo devuelve como archivo listo para compartir. */
+type Pdf = InstanceType<typeof import("jspdf").jsPDF>;
+
+/** La marca de la version gratis: abajo a la derecha y, suave, cruzada en la hoja. */
+export function marcarVersionGratis(doc: Pdf, rightX: number) {
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(120);
+  doc.text(MARCA_VERSION_GRATIS, rightX, 285, { align: "right" });
+  try {
+    // jsPDF crea la transparencia con new, aunque sus tipos la declaren como metodo.
+    const Transparencia = doc.GState as unknown as new (p: { opacity: number }) => object;
+    doc.setGState(new Transparencia({ opacity: 0.08 }));
+    doc.setFontSize(54);
+    doc.setTextColor(0);
+    doc.text("VERSIÓN GRATIS", 105, 175, { align: "center", angle: 30 });
+    doc.setGState(new Transparencia({ opacity: 1 }));
+  } catch {
+    // Sin transparencia queda solo la marca de abajo.
+  }
+  doc.setFont("helvetica", "normal");
+}
+
 export async function buildInvoicePdf(data: InvoiceData): Promise<File> {
   // Carga diferida: jsPDF pesa, y solo hace falta cuando alguien pide la factura.
   const { jsPDF } = await import("jspdf");
@@ -330,6 +355,8 @@ export async function buildInvoicePdf(data: InvoiceData): Promise<File> {
 
   doc.setFontSize(8);
   doc.text("Gracias por tu compra.", marginX, 285);
+  // La factura autorizada es un documento fiscal: la marca va solo en la normal.
+  if (data.marcaGratis && !data.autorizacion) marcarVersionGratis(doc, rightX);
 
   const blob = doc.output("blob");
   return new File([blob], invoiceFileName(data), { type: "application/pdf" });
@@ -400,7 +427,9 @@ export function invoiceTirilla(data: InvoiceData): Linea[] {
     if (a.pruebas) lineas.push({ t: "centro", text: "AMBIENTE DE PRUEBAS - SIN VALIDEZ FISCAL", fuerte: true });
   }
 
-  lineas.push({ t: "sep" }, { t: "centro", text: "Gracias por su compra", tenue: true }, { t: "espacio" });
+  lineas.push({ t: "sep" }, { t: "centro", text: "Gracias por su compra", tenue: true });
+  if (data.marcaGratis && !data.autorizacion) lineas.push({ t: "centro", text: MARCA_VERSION_GRATIS, fuerte: true });
+  lineas.push({ t: "espacio" });
 
   return lineas;
 }

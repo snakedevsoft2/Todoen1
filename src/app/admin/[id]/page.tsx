@@ -14,6 +14,7 @@ import { CambiarTipoNegocio } from "@/components/CambiarTipoNegocio";
 import { OPCIONES_TIPO } from "@/lib/tipo-negocio";
 import { PagosCuenta } from "@/components/admin/PagosCuenta";
 import { estadoDePago, fechaLarga } from "@/lib/pagos";
+import { planDeCuenta } from "@/lib/plan";
 
 export const dynamic = "force-dynamic";
 
@@ -61,9 +62,14 @@ export default async function AdminCuentaPage({ params }: { params: Promise<{ id
 
   // El pago: en que va y como se le muestra al administrador.
   const pago = estadoDePago(cuenta.paidUntil);
+  const plan = planDeCuenta(cuenta);
   const textoPago =
     pago.estado === "sin-control"
-      ? "Sin control de pago (cortesía)"
+      ? plan.tipo === "prueba"
+        ? "Prueba gratis hasta el " + fechaLarga(plan.hasta) + " · faltan " + plan.dias + " días"
+        : plan.tipo === "gratis"
+          ? "Versión gratis (limitada) desde el " + fechaLarga(plan.desde) + " · registra el pago para darle todo"
+          : "Sin control de pago (cortesía)"
       : pago.estado === "al-dia"
         ? "Pagada hasta el " + fechaLarga(pago.vence) + " · faltan " + pago.dias + " días"
         : pago.estado === "por-vencer"
@@ -71,7 +77,14 @@ export default async function AdminCuentaPage({ params }: { params: Promise<{ id
           : pago.estado === "vencida"
             ? "Venció el " + fechaLarga(pago.vence) + " · se suspende el " + fechaLarga(pago.suspendeEl)
             : "Venció el " + fechaLarga(pago.vence) + (cuenta.suspendedForPayment ? " · suspendida por pago" : " · se suspende en la próxima pantalla");
-  const tonoPago = pago.estado === "al-dia" ? "ok" : pago.estado === "por-vencer" ? "aviso" : pago.estado === "sin-control" ? "neutro" : "mal";
+  const tonoPago =
+    pago.estado === "al-dia"
+      ? "ok"
+      : pago.estado === "por-vencer" || plan.tipo === "prueba"
+        ? "aviso"
+        : pago.estado === "sin-control" && plan.tipo === "cortesia"
+          ? "neutro"
+          : "mal";
   const diaPagado = cuenta.paidUntil
     ? new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota", year: "numeric", month: "2-digit", day: "2-digit" }).format(cuenta.paidUntil)
     : null;
@@ -200,6 +213,7 @@ export default async function AdminCuentaPage({ params }: { params: Promise<{ id
               estado={textoPago}
               tono={tonoPago}
               paidUntil={diaPagado}
+              conPrueba={Boolean(cuenta.trialEndsAt)}
               nota={cuenta.billingNote ?? ""}
             />
           </Bloque>

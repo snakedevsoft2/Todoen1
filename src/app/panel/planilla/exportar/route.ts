@@ -5,6 +5,7 @@ import { buildCsv, csvResponse, numero } from "@/lib/csv";
 import { tramosDe } from "@/lib/jornada";
 import { cubreDia, etiquetaNovedad } from "@/lib/novedades";
 import { esRango, limites } from "@/lib/rangos";
+import { SOLO_PLAN_PAGO, esPlanCompleto } from "@/lib/plan";
 
 /**
  * Las horas trabajadas en Excel (CSV), para la nomina.
@@ -16,6 +17,7 @@ import { esRango, limites } from "@/lib/rangos";
 export async function GET(request: Request) {
   const sesion = await getCurrentSession();
   if (!sesion || sesion.staff.role !== "DUENO") return new Response("No autorizado.", { status: 401 });
+  if (!esPlanCompleto(sesion.user)) return new Response(SOLO_PLAN_PAGO, { status: 403 });
   const { user } = sesion;
 
   const url = new URL(request.url);

@@ -1,6 +1,7 @@
 import { db } from "./db";
 import { distanciaM } from "./geo";
 import type { Sesion } from "./informes";
+import { SOLO_PLAN_PAGO, esPlanCompleto } from "./plan";
 
 /**
  * La ubicacion del personal durante la jornada, y las llegadas ("Llegue").
@@ -62,10 +63,12 @@ export async function recibirUbicaciones(s: Sesion, lote: unknown[]): Promise<Re
   const resultados: ResultadoItem[] = [];
   // Se lee otra vez de la base: la sesion puede traer datos de antes del cambio.
   const [negocio, persona] = await Promise.all([
-    db.user.findUnique({ where: { id: s.user.id }, select: { liveTracking: true } }),
+    db.user.findUnique({ where: { id: s.user.id }, select: { liveTracking: true, paidUntil: true, trialEndsAt: true } }),
     db.staff.findUnique({ where: { id: s.staff.id }, select: { locationConsentAt: true } }),
   ]);
-  const motivoGeneral = !negocio?.liveTracking
+  const motivoGeneral = negocio && !esPlanCompleto(negocio)
+    ? SOLO_PLAN_PAGO
+    : !negocio?.liveTracking
     ? "El negocio no tiene activada la ubicación durante la jornada."
     : !persona?.locationConsentAt
       ? "No has aceptado compartir tu ubicación."
@@ -148,12 +151,19 @@ export async function recibirUbicaciones(s: Sesion, lote: unknown[]): Promise<Re
 export async function registrarVisitas(s: Sesion, lote: unknown[]): Promise<ResultadoItem[]> {
   const resultados: ResultadoItem[] = [];
   const sitios = await db.workSite.findMany({ where: { userId: s.user.id }, select: { id: true, lat: true, lng: true } });
+  // El boton "Llegue" es del plan completo.
+  const negocio = await db.user.findUnique({ where: { id: s.user.id }, select: { paidUntil: true, trialEndsAt: true } });
+  const sinPlan = negocio && !esPlanCompleto(negocio) ? SOLO_PLAN_PAGO : null;
 
   for (const crudo of lote) {
     const v = (crudo ?? {}) as Record<string, unknown>;
     const clientKey = llaveDe(v.clientKey);
     if (!clientKey) continue;
     const rechazar = (motivo: string) => resultados.push({ clientKey, estado: "rechazado", motivo });
+    if (sinPlan) {
+      rechazar(sinPlan);
+      continue;
+    }
 
     const ya = await db.siteVisit.findUnique({ where: { clientKey }, select: { staffId: true } });
     if (ya) {

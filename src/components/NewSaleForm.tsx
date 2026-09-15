@@ -78,6 +78,7 @@ export function NewSaleForm({
   negocio,
   clientes = [],
   facturacion = null,
+  marcaGratis = false,
 }: {
   services: ServiceRow[];
   currency: string;
@@ -104,6 +105,8 @@ export function NewSaleForm({
   } | null;
   /** Lo que va en el encabezado del recibo impreso. */
   negocio: { nombre: string; telefono: string | null; direccion: string | null; logoUrl: string | null };
+  /** La version gratis: el recibo sale con la marca. */
+  marcaGratis?: boolean;
 }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
@@ -350,6 +353,7 @@ export function NewSaleForm({
           : [{ name: venta.concept.trim() || "Venta", qty: 1, unitPrice: valor }],
       total: valor,
       notes: venta.notes.trim() || null,
+      marcaGratis,
     });
 
     setEnviando(true);

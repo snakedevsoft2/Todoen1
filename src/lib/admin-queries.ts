@@ -80,6 +80,8 @@ export type FilaCuenta = {
   suspendedAt: Date | null;
   /** Hasta cuando esta pagada. Null: sin control de pago. */
   paidUntil: Date | null;
+  /** Hasta cuando va (o fue) la prueba gratis. Null: sin prueba. */
+  trialEndsAt: Date | null;
   personas: number;
   conAcceso: number;
   /** La ultima vez que entro cualquiera de esa cuenta. */
@@ -111,6 +113,7 @@ export async function listaDeCuentas(busqueda = ""): Promise<FilaCuenta[]> {
       createdAt: true,
       suspendedAt: true,
       paidUntil: true,
+      trialEndsAt: true,
       staff: { select: { email: true, lastSeenAt: true, active: true } },
       _count: { select: { sales: true, expenses: true, services: true, debts: true } },
       accountModules: { where: { enabled: false }, select: { id: true } },
@@ -130,6 +133,7 @@ export async function listaDeCuentas(busqueda = ""): Promise<FilaCuenta[]> {
       createdAt: u.createdAt,
       suspendedAt: u.suspendedAt,
       paidUntil: u.paidUntil,
+      trialEndsAt: u.trialEndsAt,
       personas: u.staff.length,
       conAcceso: u.staff.filter((s) => s.email && s.active).length,
       ultimoAcceso: vistas.length
@@ -161,6 +165,7 @@ export async function detalleDeCuenta(id: string) {
       suspendedReason: true,
       suspendedForPayment: true,
       paidUntil: true,
+      trialEndsAt: true,
       billingNote: true,
       publicOpen: true,
       staff: {

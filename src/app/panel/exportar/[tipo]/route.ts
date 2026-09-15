@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { isValidDay, startOfMonth, todayIn } from "@/lib/dates";
 import { buildCsv, csvResponse } from "@/lib/csv";
 import { variantLabel } from "@/lib/variants";
+import { SOLO_PLAN_PAGO, esPlanCompleto } from "@/lib/plan";
 
 /**
  * Exportar para el contador.
@@ -28,6 +29,7 @@ export async function GET(
 ) {
   const user = await getCurrentUser();
   if (!user) return new Response("Necesitas iniciar sesión.", { status: 401 });
+  if (!esPlanCompleto(user)) return new Response(SOLO_PLAN_PAGO, { status: 403 });
 
   const { tipo: rawTipo } = await params;
   if (!TIPOS.includes(rawTipo as Tipo)) {

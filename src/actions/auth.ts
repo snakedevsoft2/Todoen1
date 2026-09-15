@@ -8,6 +8,7 @@ import { clearSessionCookie, cookieJar, signSession, writeSessionCookie } from "
 import { SUPPORT_WHATSAPP_PRETTY } from "@/lib/support";
 import { suspenderSiVencio } from "@/lib/pagos";
 import { CATALOGO_POR_TIPO, COLOR_POR_TIPO, esTipoElegible } from "@/lib/tipo-negocio";
+import { finDePrueba } from "@/lib/plan";
 
 export type AuthState = { error?: string } | undefined;
 
@@ -59,6 +60,8 @@ export async function registerAction(_prev: AuthState, formData: FormData): Prom
       phone: phone || null,
       slug,
       brandColor: COLOR_POR_TIPO[businessType],
+      // Unos dias con todo; despues, la version gratis hasta que pague.
+      trialEndsAt: finDePrueba(),
       // El dueno queda registrado como la primera persona que atiende.
       staff: {
         create: {

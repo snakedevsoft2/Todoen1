@@ -15,6 +15,8 @@ import { Icon } from "@/components/Icon";
 import { InterruptorSeguimiento } from "@/components/InterruptorSeguimiento";
 import { MapaEquipo, type PersonaMapa } from "@/components/MapaEquipo";
 import { RefrescoAutomatico } from "@/components/RefrescoAutomatico";
+import { esPlanCompleto } from "@/lib/plan";
+import { SoloPlanPago } from "@/components/SoloPlanPago";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +27,7 @@ export default async function PlanillaPage({
   searchParams: Promise<{ d?: string; r?: string }>;
 }) {
   const { user } = await requireOwner();
+  const completo = esPlanCompleto(user);
   const params = await searchParams;
   const tz = user.timezone;
 
@@ -229,10 +232,12 @@ export default async function PlanillaPage({
         </div>
         <div className="mt-3 flex flex-wrap items-start gap-2">
           <AccionesPlanilla datos={planilla} />
-          <a href={"/panel/planilla/exportar?d=" + dia + "&r=" + rango} className="btn-ghost btn-sm" download>
-            <Icon name="download" className="h-4 w-4" />
-            Horas en Excel (CSV)
-          </a>
+          {completo && (
+            <a href={"/panel/planilla/exportar?d=" + dia + "&r=" + rango} className="btn-ghost btn-sm" download>
+              <Icon name="download" className="h-4 w-4" />
+              Horas en Excel (CSV)
+            </a>
+          )}
         </div>
       </Card>
 
@@ -242,7 +247,11 @@ export default async function PlanillaPage({
         subtitle={dia === hoy ? "Se actualiza sola cada minuto" : prettyDay(dia)}
       >
         {dia === hoy && <RefrescoAutomatico segundos={60} />}
-        <InterruptorSeguimiento activo={user.liveTracking} />
+        {completo ? (
+          <InterruptorSeguimiento activo={user.liveTracking} />
+        ) : (
+          <SoloPlanPago que="Ubicación del personal" negocio={user.businessName} />
+        )}
         {user.liveTracking && personal.length > 0 && (
           <p className="mt-2 text-[12px] text-muted">
             {personal.length - sinConsentimiento.length} de {personal.length} aceptaron compartir su ubicación.
