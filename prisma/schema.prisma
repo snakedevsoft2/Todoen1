@@ -163,6 +163,15 @@ model User {
   suspendedAt     DateTime?
   suspendedReason String?
 
+  /// Hasta cuando esta pagada la cuenta. Vacio: sin control de pago (cuentas
+  /// de cortesia o de antes del control). Pasados los dias de gracia sin
+  /// renovar, la cuenta se suspende sola. Ver lib/pagos.ts.
+  paidUntil           DateTime?
+  /// Nota del administrador sobre el plan: valor, forma de pago, acuerdos.
+  billingNote         String?
+  /// La suspension la puso el control de pagos: se levanta sola al registrar el pago.
+  suspendedForPayment Boolean   @default(false)
+
   /**
    * Pregunta de seguridad, para recuperar la clave sin depender del correo.
    * La respuesta se guarda con bcrypt, igual que la contrasena, y normalizada

@@ -12,6 +12,8 @@ import { ReponerClave } from "@/components/ReponerClave";
 import { Icon } from "@/components/Icon";
 import { CambiarTipoNegocio } from "@/components/CambiarTipoNegocio";
 import { OPCIONES_TIPO } from "@/lib/tipo-negocio";
+import { PagosCuenta } from "@/components/admin/PagosCuenta";
+import { estadoDePago, fechaLarga } from "@/lib/pagos";
 
 export const dynamic = "force-dynamic";
 
@@ -56,6 +58,23 @@ export default async function AdminCuentaPage({ params }: { params: Promise<{ id
   // Solo lo que tiene algo. Un restaurante no necesita ver "Turnos: 0": eso no
   // es informacion, es ruido de una cosa que su oficio ni siquiera tiene.
   const movimientos = todos.filter((m) => m.n > 0);
+
+  // El pago: en que va y como se le muestra al administrador.
+  const pago = estadoDePago(cuenta.paidUntil);
+  const textoPago =
+    pago.estado === "sin-control"
+      ? "Sin control de pago (cortesía)"
+      : pago.estado === "al-dia"
+        ? "Pagada hasta el " + fechaLarga(pago.vence) + " · faltan " + pago.dias + " días"
+        : pago.estado === "por-vencer"
+          ? "Vence el " + fechaLarga(pago.vence) + (pago.dias <= 1 ? " (mañana)" : " · en " + pago.dias + " días")
+          : pago.estado === "vencida"
+            ? "Venció el " + fechaLarga(pago.vence) + " · se suspende el " + fechaLarga(pago.suspendeEl)
+            : "Venció el " + fechaLarga(pago.vence) + (cuenta.suspendedForPayment ? " · suspendida por pago" : " · se suspende en la próxima pantalla");
+  const tonoPago = pago.estado === "al-dia" ? "ok" : pago.estado === "por-vencer" ? "aviso" : pago.estado === "sin-control" ? "neutro" : "mal";
+  const diaPagado = cuenta.paidUntil
+    ? new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota", year: "numeric", month: "2-digit", day: "2-digit" }).format(cuenta.paidUntil)
+    : null;
 
   // Los apartados agrupados como en el configurador, para que se lean igual.
   const porGrupo = new Map<string, typeof cuenta.modulos>();
@@ -175,6 +194,16 @@ export default async function AdminCuentaPage({ params }: { params: Promise<{ id
         </div>
 
         <div className="space-y-4">
+          <Bloque titulo="Pagos">
+            <PagosCuenta
+              userId={cuenta.id}
+              estado={textoPago}
+              tono={tonoPago}
+              paidUntil={diaPagado}
+              nota={cuenta.billingNote ?? ""}
+            />
+          </Bloque>
+
           <Bloque titulo="Tipo de negocio">
             <p className="mb-3 text-[11px] leading-relaxed text-slate-500">
               Para quien se registró con el tipo equivocado. Cambia su menú; no borra ningún dato.
@@ -191,6 +220,11 @@ export default async function AdminCuentaPage({ params }: { params: Promise<{ id
                 <p className="mt-2 text-[11px] text-slate-500">
                   Nadie de esta cuenta puede entrar. Sus datos siguen completos.
                 </p>
+                {pago.estado === "suspender" && (
+                  <p className="mt-2 text-[11px] text-amber-300">
+                    El pago sigue vencido: si la reactivas sin registrar el pago, se vuelve a suspender. Registra el pago en Pagos.
+                  </p>
+                )}
                 <form action={reactivateAccountAction} className="mt-3">
                   <input type="hidden" name="userId" value={cuenta.id} />
                   <button

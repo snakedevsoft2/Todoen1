@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { enviarProgramados } from "@/lib/envios-crm";
 import { reintentarFacturas } from "@/lib/facturacion";
 import { borrarUbicacionesViejas } from "@/lib/ubicacion";
+import { suspenderVencidas } from "@/lib/pagos";
 import { addDays, todayIn } from "@/lib/dates";
 import { collectionMessage, debtState, saldo } from "@/lib/debts";
 import { pretty12h, prettyDay } from "@/lib/format";
@@ -202,10 +203,14 @@ export async function GET(request: Request) {
   // El recorrido del personal no se guarda para siempre.
   const ubicacionesBorradas = await borrarUbicacionesViejas();
 
+  // Las cuentas con el pago vencido y sin dias de gracia se suspenden.
+  const suspendidasPorPago = await suspenderVencidas();
+
   return Response.json({
     crm,
     facturas,
     ubicacionesBorradas,
+    suspendidasPorPago,
     negocios: negocios.length,
     turnos: { enviados, fallidos, sinConfigurar },
     cartera: { cobros },

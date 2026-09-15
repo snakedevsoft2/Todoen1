@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import type { Staff, User } from "@prisma/client";
 import { db } from "./db";
+import { suspenderSiVencio } from "./pagos";
 import { readSession } from "./session";
 
 /**
@@ -102,6 +103,10 @@ export async function getCurrentSession(): Promise<Session | null> {
   // Cuenta suspendida por la plataforma: la sesion deja de valer en la
   // siguiente peticion, sin tener que esperar a que la cookie caduque.
   if (user.suspendedAt) return null;
+
+  // Pago vencido y sin dias de gracia: se suspende aqui mismo, sin esperar al
+  // envio diario.
+  if (await suspenderSiVencio(user)) return null;
 
   // Sesiones viejas (antes del equipo) no traen sid: eran del dueno.
   if (!session.sid) {

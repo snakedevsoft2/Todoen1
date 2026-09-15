@@ -22,6 +22,7 @@ import { ThemeStyle } from "@/components/ThemeStyle";
 import { RegistrarVisita } from "@/components/RegistrarVisita";
 import { PrepararSinConexion } from "@/components/PrepararSinConexion";
 import { AvisoSinConexion } from "@/components/AvisoSinConexion";
+import { AvisoDePago } from "@/components/AvisoDePago";
 import { correoDeLaSesion, esAdmin } from "@/lib/admin";
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
@@ -94,6 +95,8 @@ export default async function PanelLayout({ children }: { children: React.ReactN
         logout={logout}
       >
         <AvisoSinConexion />
+        {/* Solo al dueño: es quien puede renovar el plan. */}
+        {!empleado && staff.role === "DUENO" && <AvisoDePago paidUntil={user.paidUntil} businessName={user.businessName} />}
         {children}
       </Shell>
       {/* La IA Snake flotante: solo si el servidor tiene la clave del modelo, y

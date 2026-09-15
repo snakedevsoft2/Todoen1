@@ -6,6 +6,7 @@ import { requireAdmin } from "@/lib/admin";
 import { str } from "@/lib/format";
 import { mailEnabled, sendMail } from "@/lib/mail";
 import { correoDeEnlace, crearEnlace, direccionBase, type Destino } from "@/lib/reset";
+import { quitarControlDePago, registrarPago } from "@/lib/pagos";
 
 export type AdminState = { error?: string; ok?: string } | undefined;
 
@@ -104,7 +105,7 @@ export async function reactivateAccountAction(formData: FormData): Promise<void>
   const userId = str(formData.get("userId"));
   await db.user.update({
     where: { id: userId },
-    data: { suspendedAt: null, suspendedReason: null },
+    data: { suspendedAt: null, suspendedReason: null, suspendedForPayment: false },
   });
   refrescar(userId);
 }
@@ -222,3 +223,38 @@ export async function reponerClaveAction(
 
   return { enlace, correo: destino.email, ok: aviso, enviado };
 }
+
+/**
+ * Registrar el pago de una cuenta: mueve la fecha de "pagada hasta".
+ *
+ * Con meses, se suma desde el vencimiento si todavia no paso (quien paga antes
+ * no pierde dias) o desde hoy si ya paso. Con fecha, se pone esa. Si la cuenta
+ * estaba suspendida por el pago, queda activa en el momento.
+ */
+export async function registrarPagoAction(_prev: AdminState, formData: FormData): Promise<AdminState> {
+  await requireAdmin();
+  const userId = str(formData.get("userId"));
+  const modo = str(formData.get("modo"));
+  const nota = str(formData.get("nota"));
+  const r =
+    modo === "fecha"
+      ? await registrarPago(userId, { hasta: str(formData.get("hasta")), nota })
+      : await registrarPago(userId, { meses: Number(modo), nota });
+  if (!r.ok) return { error: r.error };
+  refrescar(userId);
+  return {
+    ok:
+      "Listo: pagada hasta el " +
+      r.paidUntil.toLocaleDateString("es-CO", { timeZone: "America/Bogota", day: "numeric", month: "long", year: "numeric" }) +
+      (r.reactivada ? ". La cuenta volvió a quedar activa." : "."),
+  };
+}
+
+/** Quitar el control de pago: la cuenta queda sin fecha (cortesia). */
+export async function quitarControlPagoAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const userId = str(formData.get("userId"));
+  await quitarControlDePago(userId);
+  refrescar(userId);
+}
+

@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { checkPassword, ensureOwnerStaff, hashPassword, uniqueSlug } from "@/lib/auth";
 import { clearSessionCookie, cookieJar, signSession, writeSessionCookie } from "@/lib/session";
 import { SUPPORT_WHATSAPP_PRETTY } from "@/lib/support";
+import { suspenderSiVencio } from "@/lib/pagos";
 import { CATALOGO_POR_TIPO, COLOR_POR_TIPO, esTipoElegible } from "@/lib/tipo-negocio";
 
 export type AuthState = { error?: string } | undefined;
@@ -18,6 +19,15 @@ export type AuthState = { error?: string } | undefined;
  */
 const CUENTA_SUSPENDIDA =
   "Tu cuenta esta suspendida. Escribenos al " + SUPPORT_WHATSAPP_PRETTY + " para reactivarla.";
+
+/** Cuando la suspension fue por el pago, se dice eso: el cliente sabe que hacer. */
+const CUENTA_VENCIDA =
+  "Tu cuenta esta suspendida porque vencio el pago. Escribenos al " + SUPPORT_WHATSAPP_PRETTY + " para renovarla.";
+
+function mensajeSuspendida(u: { suspendedAt: Date | null; suspendedForPayment: boolean }): string {
+  // Sin suspendedAt es que se acaba de suspender por pago en este ingreso.
+  return u.suspendedForPayment || !u.suspendedAt ? CUENTA_VENCIDA : CUENTA_SUSPENDIDA;
+}
 
 export async function registerAction(_prev: AuthState, formData: FormData): Promise<AuthState> {
   // Pedimos el almacen de cookies antes de tocar la base de datos.
@@ -104,7 +114,7 @@ export async function loginAction(_prev: AuthState, formData: FormData): Promise
     }
     // La cuenta suspendida se avisa despues de comprobar la contrasena, no
     // antes: si no, cualquiera podria averiguar que correos existen.
-    if (user.suspendedAt) return { error: CUENTA_SUSPENDIDA };
+    if (user.suspendedAt || (await suspenderSiVencio(user))) return { error: mensajeSuspendida(user) };
     const owner = await ensureOwnerStaff(user);
     writeSessionCookie(
       jar,
@@ -128,7 +138,7 @@ export async function loginAction(_prev: AuthState, formData: FormData): Promise
   if (!staff.active) {
     return { error: "Tu usuario esta desactivado. Pidele al dueno que lo active." };
   }
-  if (staff.user.suspendedAt) return { error: CUENTA_SUSPENDIDA };
+  if (staff.user.suspendedAt || (await suspenderSiVencio(staff.user))) return { error: mensajeSuspendida(staff.user) };
 
   writeSessionCookie(
     jar,

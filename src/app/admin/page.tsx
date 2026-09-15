@@ -3,6 +3,7 @@ import { listaDeCuentas, resumenPlataforma } from "@/lib/admin-queries";
 import { BUSINESS_LABEL } from "@/lib/nav";
 import { Icon } from "@/components/Icon";
 import type { BusinessType } from "@prisma/client";
+import { estadoDePago } from "@/lib/pagos";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +47,9 @@ export default async function AdminPage({
 }) {
   const { q = "" } = await searchParams;
   const [resumen, cuentas] = await Promise.all([resumenPlataforma(), listaDeCuentas(q)]);
+  const diaEnColombia = (d: Date) =>
+    new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota", year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+  const pagosVencidos = cuentas.filter((c) => ["vencida", "suspender"].includes(estadoDePago(c.paidUntil).estado)).length;
 
   return (
     <>
@@ -54,7 +58,7 @@ export default async function AdminPage({
         Quién se registró, quién sigue entrando y qué le puedes prender o apagar.
       </p>
 
-      <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+      <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-7">
         <Numero label="Negocios" valor={resumen.negocios} pie="registrados en total" />
         <Numero
           label="Activos hoy"
@@ -69,6 +73,12 @@ export default async function AdminPage({
           valor={resumen.dormidos}
           pie="se registraron y ya"
           tono={resumen.dormidos > 0 ? "text-rose-400" : "text-slate-100"}
+        />
+        <Numero
+          label="Pagos vencidos"
+          valor={pagosVencidos}
+          pie="en gracia o suspendidas"
+          tono={pagosVencidos > 0 ? "text-rose-400" : "text-slate-100"}
         />
         <Numero
           label="Suspendidas"
@@ -115,7 +125,7 @@ export default async function AdminPage({
         </p>
       ) : (
         <div className="mt-4 overflow-x-auto rounded-xl border border-slate-800">
-          <table className="w-full min-w-[820px] text-left text-sm">
+          <table className="w-full min-w-[900px] text-left text-sm">
             <thead className="bg-slate-900/60 text-[11px] uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-4 py-2.5 font-bold">Negocio</th>
@@ -123,6 +133,7 @@ export default async function AdminPage({
                 <th className="px-4 py-2.5 font-bold">Personas</th>
                 <th className="px-4 py-2.5 font-bold">Último acceso</th>
                 <th className="px-4 py-2.5 font-bold">Movimientos</th>
+                <th className="px-4 py-2.5 font-bold">Pago</th>
                 <th className="px-4 py-2.5 font-bold">Estado</th>
                 <th className="px-4 py-2.5" />
               </tr>
@@ -151,6 +162,19 @@ export default async function AdminPage({
                     </td>
                     <td className={"px-4 py-3 " + visto.tono}>{visto.texto}</td>
                     <td className="px-4 py-3 text-slate-300">{c.movimientos}</td>
+                    <td className="px-4 py-3" data-pago-cuenta>
+                      {(() => {
+                        const e = estadoDePago(c.paidUntil);
+                        if (e.estado === "sin-control") return <span className="text-[11px] text-slate-600">Sin control</span>;
+                        const tono = e.estado === "al-dia" ? "text-slate-300" : e.estado === "por-vencer" ? "text-amber-300" : "text-rose-300";
+                        return (
+                          <span className={"text-[12px] " + tono}>
+                            {e.estado === "al-dia" || e.estado === "por-vencer" ? "Hasta " : "Venció "}
+                            {diaEnColombia(e.vence)}
+                          </span>
+                        );
+                      })()}
+                    </td>
                     <td className="px-4 py-3">
                       {c.suspendedAt ? (
                         <span className="rounded-md bg-rose-500/15 px-2 py-0.5 text-[11px] font-bold text-rose-300">

@@ -33,6 +33,16 @@ const ARCHIVOS = "ten-paginas-archivos-" + VERSION;
 const MAX_PAGINAS = 150;
 const MAX_ARCHIVOS = 300;
 
+/**
+ * La licencia de este telefono: cuando confirmo por ultima vez que la cuenta
+ * sigue activa. Sin senal, lo guardado solo se abre si la confirmo hace menos
+ * de MAX_DIAS_SIN_CONEXION dias (igual que lib/pagos.ts). Asi una cuenta
+ * suspendida no sigue funcionando indefinidamente sin conexion.
+ */
+const LICENCIA = "ten-licencia-" + VERSION;
+const MAX_DIAS_SIN_CONEXION = 15;
+const DIA_MS = 86400000;
+
 /** Las pantallas que se ofrecen en el aviso, con el texto de su enlace. */
 const ENLACE = {
   "/panel": "Ir al inicio",
@@ -82,7 +92,7 @@ self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
-      const vivas = [ESTATICOS, PAGINAS, ARCHIVOS];
+      const vivas = [ESTATICOS, PAGINAS, ARCHIVOS, LICENCIA];
       for (const k of await caches.keys()) {
         if (k.startsWith("ten-") && !vivas.includes(k)) await caches.delete(k);
       }
@@ -90,6 +100,78 @@ self.addEventListener("activate", (event) => {
     })()
   );
 });
+
+const CLAVE_LICENCIA = "/__licencia";
+
+async function leerLicencia() {
+  try {
+    const r = await (await caches.open(LICENCIA)).match(self.location.origin + CLAVE_LICENCIA);
+    return r ? await r.json() : null;
+  } catch {
+    return null;
+  }
+}
+
+async function guardarLicencia(activa) {
+  try {
+    const c = await caches.open(LICENCIA);
+    await c.put(
+      self.location.origin + CLAVE_LICENCIA,
+      new Response(JSON.stringify({ activa, verificadoEn: Date.now() }), { headers: { "Content-Type": "application/json" } })
+    );
+    if (!activa) {
+      // Cuenta suspendida o sesion cerrada: lo guardado de esa cuenta no se
+      // puede seguir usando sin senal. Las colas de pendientes no se tocan.
+      for (const k of await caches.keys()) {
+        if (k.startsWith("ten-paginas")) await caches.delete(k);
+      }
+    }
+  } catch {
+    // Se intenta en la proxima confirmacion.
+  }
+}
+
+/** Null si lo guardado se puede usar sin senal; si no, por que no. */
+async function motivoDeBloqueo() {
+  const l = await leerLicencia();
+  if (!l) return "sin-confirmar";
+  if (!l.activa) return "inactiva";
+  const ahora = Date.now();
+  // Un reloj atrasado a proposito no alarga el plazo.
+  if (ahora < l.verificadoEn - DIA_MS) return "vencida";
+  if (ahora - l.verificadoEn > MAX_DIAS_SIN_CONEXION * DIA_MS) return "vencida";
+  return null;
+}
+
+function paginaBloqueada(motivo) {
+  const texto =
+    motivo === "inactiva"
+      ? "Tu sesión se cerró o la cuenta está suspendida. Conéctate a internet para volver a entrar."
+      : motivo === "vencida"
+        ? "Hace más de " + MAX_DIAS_SIN_CONEXION + " días que este teléfono no se conecta. Conéctate a internet para confirmar que tu cuenta sigue activa. Lo que tengas pendiente no se pierde."
+        : "Conéctate a internet una vez para confirmar tu cuenta en este teléfono.";
+  const html = `<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Conéctate a internet</title>
+<style>
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f7f7fa;
+       font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:#111116;padding:24px}
+  .caja{max-width:360px;width:100%;text-align:center}
+  h1{font-size:22px;margin:16px 0 8px}
+  p{color:#6e6e78;font-size:15px;line-height:1.5;margin:0 0 24px}
+  button{display:block;width:100%;padding:14px;border-radius:14px;font-size:16px;font-weight:600;border:0;background:#5856d6;color:#fff;cursor:pointer}
+</style></head>
+<body><div class="caja" data-licencia="${motivo}">
+  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#5856d6" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+  <h1>Conéctate a internet</h1>
+  <p>${texto}</p>
+  <button onclick="location.reload()">Reintentar</button>
+</div></body></html>`;
+  return new Response(html, {
+    status: 503,
+    headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" },
+  });
+}
 
 /** Borra lo mas viejo cuando se pasa del tope. */
 async function recortar(nombre, maximo) {
@@ -180,9 +262,16 @@ async function guardarPagina(ruta, conArchivos) {
     const clave = claveDe(url);
     if (Date.now() - (recientes.get(clave) ?? 0) < 120000) return;
     const r = await fetch(url.href, { credentials: "same-origin" });
-    // Una redireccion (al ingreso, o a Marcar para el empleado) no se guarda:
-    // abrir sin red mostraria otra pantalla con la direccion de esta.
+    // Mando al ingreso: la sesion ya no vale (cerrada o cuenta suspendida).
+    if (r.redirected && /^\/(login|salir)(\/|$)/.test(new URL(r.url).pathname)) {
+      await guardarLicencia(false);
+      return;
+    }
+    // Una redireccion (a Marcar para el empleado, a la bienvenida) no se
+    // guarda: abrir sin red mostraria otra pantalla con la direccion de esta.
     if (!r.ok || r.redirected || !(r.headers.get("content-type") || "").includes("text/html")) return;
+    // El servidor entrego la pantalla con esta sesion: la cuenta esta activa.
+    await guardarLicencia(true);
     recientes.set(clave, Date.now());
     const texto = conArchivos ? await r.clone().text() : null;
     const c = await caches.open(PAGINAS);
@@ -196,6 +285,11 @@ async function guardarPagina(ruta, conArchivos) {
 
 self.addEventListener("message", (event) => {
   const d = event.data || {};
+
+  // La respuesta de /api/licencia, que la pantalla pregunta cuando hay senal.
+  if (d.tipo === "licencia") {
+    event.waitUntil(guardarLicencia(d.activa === true));
+  }
 
   // La pantalla que se esta viendo, con los archivos que ya cargo.
   if (d.tipo === "guardar") {
@@ -267,14 +361,25 @@ self.addEventListener("fetch", (event) => {
       const guardable = esPantalla(url);
       try {
         const r = await fetch(req);
+        // Llegar al ingreso o a salir con senal es que la sesion termino (o la
+        // cuenta se suspendio): lo guardado deja de abrirse sin senal. Sin
+        // senal no se toca, para no bloquear a quien abre la app sin cobertura.
+        if (url.pathname === "/salir" || url.pathname === "/login") guardarLicencia(false);
         if (guardable && r.ok && !r.redirected && (r.headers.get("content-type") || "").includes("text/html")) {
           const copia = r.clone();
           caches.open(PAGINAS).then((c) => c.put(claveDe(url), copia)).catch(() => {});
           recientes.set(claveDe(url), Date.now());
+          // El servidor dejo ver la pantalla: la cuenta esta activa.
+          guardarLicencia(true);
+        } else if (guardable && r.redirected && /\/(login|salir)(\/|$|\?)/.test(new URL(r.url).pathname + "/")) {
+          // Mando al ingreso: sesion cerrada o cuenta suspendida.
+          guardarLicencia(false);
         }
         return r;
       } catch {
         if (guardable) {
+          const motivo = await motivoDeBloqueo();
+          if (motivo) return paginaBloqueada(motivo);
           const c = await caches.open(PAGINAS);
           const exacta = await c.match(claveDe(url));
           if (exacta) return exacta;
