@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { Icon } from "./Icon";
 import { BrandMark } from "./BrandMark";
 import { CompartirPortafolio } from "./CompartirPortafolio";
+import { InstalarApp } from "./InstalarApp";
 import type { NavItem } from "@/lib/nav";
 import { initials } from "@/lib/staff";
 
@@ -23,6 +24,7 @@ export function Shell({
   fotoPerfil = null,
   menuPropio = true,
   compartir,
+  instalar = false,
   logout,
   children,
 }: {
@@ -45,6 +47,8 @@ export function Shell({
   menuPropio?: boolean;
   /** Para compartir el portafolio con QR y enlace. Solo el dueno. */
   compartir?: { ruta: string; qr: string; negocio: string };
+  /** Boton para instalar la aplicacion en el celular. No en la cuenta con funciones limitadas. */
+  instalar?: boolean;
   logout: ReactNode;
   children: ReactNode;
 }) {
@@ -118,6 +122,7 @@ export function Shell({
           {bookingLabel}
         </Link>
       )}
+      {instalar && <InstalarApp variante="boton" />}
       {compartir && <CompartirPortafolio {...compartir} />}
       {/* Va aqui abajo y no en el menu a proposito: el objetivo de esta
           pantalla es tener menos botones, no uno mas. */}

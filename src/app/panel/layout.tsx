@@ -26,6 +26,7 @@ import { AvisoDePago } from "@/components/AvisoDePago";
 import { correoDeLaSesion, esAdmin } from "@/lib/admin";
 import { ProveedorSinSenal } from "@/components/SinSenal";
 import { SinPlanCompleto } from "@/components/SinPlanCompleto";
+import { InstalarApp } from "@/components/InstalarApp";
 import { enlaceActivarPlan, esPlanCompleto } from "@/lib/plan";
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
@@ -84,6 +85,12 @@ export default async function PanelLayout({ children }: { children: React.ReactN
         <>
           {/* Sin este enlace el navegador no ofrece instalar la aplicacion. */}
           <link rel="manifest" href="/manifest.webmanifest" />
+          {/* En iPhone se instala con Compartir y "Agregar a inicio": esto hace que abra como aplicacion. */}
+          <meta name="apple-mobile-web-app-capable" content="yes" />
+          <meta name="mobile-web-app-capable" content="yes" />
+          <meta name="apple-mobile-web-app-title" content="Todoen1" />
+          <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+          <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
           <PrepararSinConexion
             cuenta={staff.id}
             paginas={paginasSinConexion}
@@ -102,6 +109,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
         staffColor={staff.color}
         fotoPerfil={foto}
         menuPropio={staff.role === "DUENO"}
+        instalar={completo}
         logo={logo}
         bookingUrl={conPagina ? publicPath(user.businessType, user.slug) : undefined}
         bookingLabel="Ver mi portafolio"
@@ -112,6 +120,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
         <AvisoSinConexion />
         {/* Solo al dueño: es quien puede renovar el plan. */}
         {!empleado && staff.role === "DUENO" && <AvisoDePago paidUntil={user.paidUntil} trialEndsAt={user.trialEndsAt} businessName={user.businessName} />}
+        {completo && <InstalarApp variante="aviso" />}
         <ProveedorSinSenal cuenta={staff.id} sinConexion={completo} esDueno={staff.role === "DUENO"}>{children}</ProveedorSinSenal>
       </Shell>
       {/* La IA Snake flotante: solo si el servidor tiene la clave del modelo, y
