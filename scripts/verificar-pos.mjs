@@ -194,7 +194,9 @@ try {
   const cargaClientes = page.locator('[data-carga-masiva="clientes"]');
   await cargaClientes.locator("textarea").fill("Nombre\tCelular\tCorreo\nLuis Gómez\t3109876543\tluis@correo.com\nAna Pérez\t3001234567\tana@correo.com");
   ok(Boolean(await esperarHasta(() => cargaClientes.getByText(/Leímos/).count())), "muestra la vista previa");
-  await cargaClientes.getByRole("button", { name: "Cargar 2 clientes" }).click();
+  await cargaClientes.getByRole("button", { name: "Revisar y cargar 2 clientes" }).click();
+  ok(Boolean(await esperarHasta(() => cargaClientes.locator("[data-decision-carga]").count())), "pregunta qué hacer con el que ya estaba");
+  await cargaClientes.getByRole("button", { name: "Solo completar lo que falta" }).click();
   ok(Boolean(await esperarHasta(() => cargaClientes.getByText(/Listo: 1 nuevos, 1 actualizados/).count())), "carga uno nuevo y completa al que ya estaba");
   ok((await db.customer.count({ where: { userId: cuenta.id } })) === 3, "sin duplicar a Ana");
 
@@ -202,8 +204,10 @@ try {
   await page.goto(BASE + "/panel/catalogo", { waitUntil: "networkidle" });
   const cargaProductos = page.locator('[data-carga-masiva="productos"]');
   await cargaProductos.locator("textarea").fill("Nombre;Precio;Cantidad\nGorra;20.000;5\nCamisa prueba;13000;");
-  await cargaProductos.getByRole("button", { name: "Cargar 2 productos" }).click();
-  ok(Boolean(await esperarHasta(() => cargaProductos.getByText(/Listo: 1 nuevos, 1 actualizados/).count())), "crea la gorra y actualiza la camisa");
+  await cargaProductos.getByRole("button", { name: "Revisar y cargar 2 productos" }).click();
+  ok(Boolean(await esperarHasta(() => cargaProductos.locator("[data-decision-carga]").count())), "pregunta qué hacer con el que ya estaba");
+  await cargaProductos.getByRole("button", { name: /Sobrescribir con los datos del archivo|Cargar el nuevo/ }).click();
+  ok(Boolean(await esperarHasta(() => cargaProductos.getByText(/Listo: 1 nuevos, [01] actualizados/).count())), "crea la gorra y actualiza la camisa");
   const gorra = await db.service.findFirst({ where: { userId: cuenta.id, name: "Gorra" }, include: { variants: true } });
   const camisa = await db.service.findFirst({ where: { userId: cuenta.id, name: "Camisa prueba" } });
   ok(gorra?.price === 20000 && gorra?.variants[0]?.stock === 5 && camisa?.price === 13000, "con sus precios y la cantidad");

@@ -15,6 +15,7 @@ import {
   esInteraccion,
   llaveTelefono,
 } from "@/lib/crm";
+import { borrarClientes, type ResultadoBorrar } from "@/lib/borrar-clientes";
 
 export type CrmState = { error?: string; ok?: string } | undefined;
 
@@ -100,6 +101,14 @@ export async function borrarClienteAction(formData: FormData) {
   await db.customer.deleteMany({ where: { id, userId: user.id } });
   refrescar();
   redirect("/panel/clientes");
+}
+
+/** Borrar varios clientes: los marcados, o todos los de la busqueda (ver lib/borrar-clientes). */
+export async function borrarClientesAction(seleccion: unknown): Promise<ResultadoBorrar> {
+  const { user } = await requireOwner();
+  const r = await borrarClientes(user.id, seleccion);
+  if (r.ok && r.borrados > 0) refrescar();
+  return r;
 }
 
 export async function importarClientesAction(_prev: CrmState): Promise<CrmState> {

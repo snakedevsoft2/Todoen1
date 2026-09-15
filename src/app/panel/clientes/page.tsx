@@ -6,13 +6,14 @@ import { money } from "@/lib/format";
 import { diasSinContacto } from "@/lib/crm";
 import { whereDeSegmento } from "@/lib/clientes";
 import { iniciales, textoUltimoContacto } from "@/lib/crm-filas";
-import { Badge, Card, Empty, Stat } from "@/components/ui";
+import { Card, Empty, Stat } from "@/components/ui";
 import { ClienteForm, ImportarClientes } from "@/components/ClienteForm";
 import { CargaMasiva } from "@/components/CargaMasiva";
 import { Pastilla } from "@/components/EtiquetasCliente";
 import { Icon } from "@/components/Icon";
 import { esPlanCompleto } from "@/lib/plan";
 import { SoloPlanPago } from "@/components/SoloPlanPago";
+import { ListaClientes } from "@/components/ListaClientes";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +55,10 @@ export default async function ClientesPage({
   ]);
 
   const filtrando = Boolean(q || t);
+  // Para "elegir todos": cuantos coinciden con lo que se esta mirando, no solo los 200 que se ven.
+  const totalFiltro = filtrando
+    ? await db.customer.count({ where: whereDeSegmento(user.id, { q, etiquetas: t ? [t] : [] }) })
+    : total;
   const ahora = new Date();
   const conFiltro = (cambio: { q?: string; t?: string }) => {
     const u = new URLSearchParams();
@@ -137,53 +142,21 @@ export default async function ClientesPage({
                 />
               )
             ) : (
-              <ul className="animate-lista">
-                {clientes.map((c) => {
-                  const dias = diasSinContacto(c.lastContactAt, ahora);
-                  return (
-                    <li key={c.id} className="border-b border-line last:border-0">
-                      <Link
-                        href={"/panel/clientes/" + c.id}
-                        className="-mx-2 flex items-center gap-3 rounded-xl px-2 py-3 transition-colors duration-150 hover:bg-surface"
-                      >
-                        <span
-                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-600 text-sm font-bold text-white"
-                          aria-hidden
-                        >
-                          {iniciales(c.name)}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-semibold text-strong">{c.name}</span>
-                          <span className="block truncate text-xs text-muted">
-                            {c.phone ?? c.email ?? "Sin teléfono"}
-                            {" · "}
-                            {textoUltimoContacto(dias)}
-                          </span>
-                          {c.tags.length > 0 && (
-                            <span className="mt-1 flex flex-wrap gap-1">
-                              {c.tags.slice(0, 4).map((l) => (
-                                <Pastilla key={l.tag.id} etiqueta={l.tag} />
-                              ))}
-                            </span>
-                          )}
-                        </span>
-                        <span className="flex shrink-0 flex-col items-end gap-1">
-                          {c._count.followUps > 0 && (
-                            <Badge tone="amber">
-                              {c._count.followUps} {c._count.followUps === 1 ? "pendiente" : "pendientes"}
-                            </Badge>
-                          )}
-                          {c._count.deals > 0 && (
-                            <Badge tone="blue">
-                              {c._count.deals} {c._count.deals === 1 ? "venta abierta" : "ventas abiertas"}
-                            </Badge>
-                          )}
-                        </span>
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
+              <ListaClientes
+                clientes={clientes.map((c) => ({
+                  id: c.id,
+                  name: c.name,
+                  iniciales: iniciales(c.name),
+                  detalle:
+                    (c.phone ?? c.email ?? "Sin teléfono") + " · " + textoUltimoContacto(diasSinContacto(c.lastContactAt, ahora)),
+                  etiquetas: c.tags.slice(0, 4).map((l) => l.tag),
+                  pendientes: c._count.followUps,
+                  abiertas: c._count.deals,
+                }))}
+                puedeBorrar={esDueno}
+                totalFiltro={totalFiltro}
+                filtro={{ q, t }}
+              />
             )}
             {clientes.length === 200 && (
               <p className="mt-3 text-center text-xs text-subtle">
