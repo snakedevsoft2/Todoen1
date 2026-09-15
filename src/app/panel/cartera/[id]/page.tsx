@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireUser } from "@/lib/auth";
+import { requireSession } from "@/lib/auth";
+import { esDueno } from "@/lib/permisos-empleado";
 import { db } from "@/lib/db";
 import { todayIn } from "@/lib/dates";
 import { money, prettyDay, shortDay } from "@/lib/format";
@@ -27,14 +28,16 @@ import { esPlanCompleto } from "@/lib/plan";
 export const dynamic = "force-dynamic";
 
 export default async function DeudaPage({ params }: { params: Promise<{ id: string }> }) {
-  const user = await requireUser();
+  const { user, staff: me } = await requireSession();
   const { id } = await params;
 
   const deuda = await db.debt.findFirst({
     where: { id, userId: user.id },
     include: { payments: { orderBy: [{ day: "desc" }, { createdAt: "desc" }] } },
   });
-  if (!deuda) notFound();
+  // Con empleados de cuenta separada, cada uno solo abre las suyas: como si
+  // no existiera, igual que cuando el id no es de este negocio.
+  if (!deuda || (!esDueno(me.role) && deuda.staffId !== me.id)) notFound();
 
   const hoy = todayIn(user.timezone);
   const pendiente = saldo(deuda);

@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { requireUser } from "@/lib/auth";
+import { requireSession } from "@/lib/auth";
+import { esDueno } from "@/lib/permisos-empleado";
 import { db } from "@/lib/db";
 import { startOfMonth, todayIn } from "@/lib/dates";
 import { money, prettyDay, shortDay } from "@/lib/format";
@@ -28,21 +29,26 @@ export default async function CarteraPage({
 }: {
   searchParams: Promise<{ f?: string }>;
 }) {
-  const user = await requireUser();
+  const { user, staff: me } = await requireSession();
   const params = await searchParams;
   const filtro = FILTROS.some((f) => f.key === params.f) ? params.f! : "pendientes";
 
   const hoy = todayIn(user.timezone);
   const mes = startOfMonth(hoy);
 
+  // Si hay empleados con cuenta separada, cada uno ve solo las deudas que
+  // anoto y los abonos que recibio; el dueño las ve todas.
+  const propias = esDueno(me.role);
+  const soloMias = propias ? {} : { staffId: me.id };
+
   const [deudas, cobradoMes] = await Promise.all([
     db.debt.findMany({
-      where: { userId: user.id },
+      where: { userId: user.id, ...soloMias },
       orderBy: [{ status: "asc" }, { dueDay: "asc" }, { day: "asc" }],
-      include: { payments: { orderBy: { day: "desc" } } },
+      include: { payments: { orderBy: { day: "desc" } }, staff: { select: { name: true, color: true } } },
     }),
     db.debtPayment.aggregate({
-      where: { userId: user.id, day: { gte: mes, lte: hoy } },
+      where: { userId: user.id, day: { gte: mes, lte: hoy }, ...(propias ? {} : { staffId: me.id }) },
       _sum: { amount: true },
     }),
   ]);
@@ -144,9 +150,9 @@ export default async function CarteraPage({
       <PageHeader
         title={esCartera ? "Cuentas por cobrar" : "Cartera"}
         subtitle={
-          esCartera
+          (esCartera
             ? "A quién le toca pagar hoy, quién se atrasó y cuánto tienes en la calle"
-            : "Quién te debe, cuánto y desde cuándo"
+            : "Quién te debe, cuánto y desde cuándo") + (propias ? "" : " · Solo ves las tuyas")
         }
       />
 
@@ -289,6 +295,14 @@ export default async function CarteraPage({
                             ? " - " + deuda.payments.length + " abonos"
                             : ""}
                         </p>
+                        {/* A quien le toca: solo tiene sentido mostrarlo cuando hay
+                            mas de una persona anotando deudas, es decir, al dueño. */}
+                        {propias && deuda.staff && (
+                          <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted">
+                            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: deuda.staff.color }} />
+                            Anotó {deuda.staff.name}
+                          </p>
+                        )}
                       </div>
 
                       <div className="text-right">

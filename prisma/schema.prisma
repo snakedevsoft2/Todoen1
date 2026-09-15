@@ -280,6 +280,12 @@ model Debt {
   status      DebtStatus @default(PENDIENTE)
   notes       String?
 
+  /// Quien la anoto. Si el negocio tiene empleados con cuenta separada, cada
+  /// uno ve solo las suyas; sin este dato (deudas de antes de esto), solo el
+  /// dueño las ve. Ver lib/permisos-empleado.ts.
+  staffId String?
+  staff   Staff?  @relation(fields: [staffId], references: [id], onDelete: SetNull)
+
   /**
    * Si la venta ya se registro en Ventas cuando se entrego la mercancia.
    * Decide si los abonos entran a la caja del dia: si la venta ya se conto,
@@ -333,6 +339,7 @@ model Debt {
 
   @@index([userId, status])
   @@index([userId, dueDay])
+  @@index([userId, staffId])
 }
 
 /// Cada abono que el cliente hace sobre su deuda.
@@ -349,6 +356,9 @@ model DebtPayment {
   notes  String?
   /// Venta que genero este abono, cuando la deuda no estaba facturada.
   saleId String?
+  /// Quien lo recibio. Ver Debt.staffId.
+  staffId String?
+  staff   Staff?  @relation(fields: [staffId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
 
@@ -449,6 +459,8 @@ model Staff {
 
   appointments Appointment[]
   sales        Sale[]
+  debts        Debt[]
+  debtPayments DebtPayment[]
   workspace    WorkspaceConfig?
 
   passwordResets PasswordReset[]

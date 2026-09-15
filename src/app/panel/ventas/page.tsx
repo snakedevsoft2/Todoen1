@@ -6,7 +6,7 @@ import { money, prettyDay, shortDay } from "@/lib/format";
 import { ITEM_NOUN, logoUrl, photoUrl } from "@/lib/nav";
 import { variantLabel } from "@/lib/variants";
 import { hasTeam } from "@/lib/staff";
-import { getDaySummary } from "@/lib/queries";
+import { esDueno } from "@/lib/permisos-empleado";
 import { Card, Empty, PageHeader, Stat } from "@/components/ui";
 import { NewSaleForm, type VariantOption } from "@/components/NewSaleForm";
 import { InvoiceActions } from "@/components/InvoiceActions";
@@ -39,10 +39,14 @@ export default async function VentasPage({
   const today = todayIn(user.timezone);
   const day = params.d && isValidDay(params.d) ? params.d : today;
   const isClothing = user.businessType === "ROPA";
+  // Con empleados de cuenta separada, cada uno ve solo las ventas que hizo;
+  // el dueño las ve todas (ver lib/permisos-empleado.ts).
+  const propias = esDueno(me.role);
+  const soloMias = propias ? {} : { staffId: me.id };
 
-  const [sales, catalog, summary, team] = await Promise.all([
+  const [sales, catalog, team] = await Promise.all([
     db.sale.findMany({
-      where: { userId: user.id, day },
+      where: { userId: user.id, day, ...soloMias },
       orderBy: { createdAt: "desc" },
       include: { items: true, staff: { select: { name: true, color: true } }, electronicInvoice: true },
     }),
@@ -64,7 +68,6 @@ export default async function VentasPage({
         },
       },
     }),
-    getDaySummary(user.id, day),
     // La barberia reparte las ventas entre barberos; la tienda, entre empleados.
     hasTeam(user.businessType)
       ? db.staff.findMany({
@@ -91,14 +94,28 @@ export default async function VentasPage({
       : undefined,
   }));
 
-  // Cuanto hizo cada persona en el dia.
-  const porPersona = team
-    .map((person) => ({
-      ...person,
-      total: sales.filter((s) => s.staffId === person.id).reduce((sum, s) => sum + s.total, 0),
-      count: sales.filter((s) => s.staffId === person.id).length,
-    }))
-    .filter((row) => row.count > 0);
+  // De las mismas ventas que se muestran: si es un empleado, ya vienen
+  // filtradas a las suyas, y el resumen de arriba cuenta solo eso.
+  const totalSales = sales.reduce((s, x) => s + x.total, 0);
+  const itemsSold = sales.reduce((s, x) => s + x.items.reduce((n, i) => n + i.qty, 0), 0);
+  const summary = {
+    totalSales,
+    salesCount: sales.length,
+    itemsSold,
+    ticketAverage: sales.length ? Math.round(totalSales / sales.length) : 0,
+  };
+
+  // Cuanto hizo cada persona en el dia. Solo tiene sentido para el dueño: un
+  // empleado ya ve solo sus ventas, asi que aqui saldria nada mas su fila.
+  const porPersona = propias
+    ? team
+        .map((person) => ({
+          ...person,
+          total: sales.filter((s) => s.staffId === person.id).reduce((sum, s) => sum + s.total, 0),
+          count: sales.filter((s) => s.staffId === person.id).length,
+        }))
+        .filter((row) => row.count > 0)
+    : [];
 
   const logo = logoUrl(user.slug, user.logo, user.updatedAt);
 
@@ -151,7 +168,7 @@ export default async function VentasPage({
 
   return (
     <>
-      <PageHeader title="Ventas" subtitle={prettyDay(day)} />
+      <PageHeader title="Ventas" subtitle={prettyDay(day) + (propias ? "" : " · Solo se ven tus ventas")} />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <Link href={"/panel/ventas?d=" + addDays(day, -1)} className="btn-ghost btn-sm">

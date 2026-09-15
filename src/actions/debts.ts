@@ -101,6 +101,9 @@ export async function createDebtAction(
   await db.debt.create({
     data: {
       userId: user.id,
+      // Con quien queda: si el negocio tiene empleados con cuenta separada,
+      // cada uno ve solo lo suyo (ver lib/permisos-empleado.ts).
+      staffId: staff.id,
       clientName,
       clientPhone: str(formData.get("clientPhone")) || null,
       concept,
@@ -195,7 +198,7 @@ export async function addPaymentAction(
     }
 
     await tx.debtPayment.create({
-      data: { userId: user.id, debtId: debt.id, amount, day, method, notes, saleId },
+      data: { userId: user.id, debtId: debt.id, staffId: me.id, amount, day, method, notes, saleId },
     });
 
     // Si con este abono queda en cero, la deuda se cierra sola.
