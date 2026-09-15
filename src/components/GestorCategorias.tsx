@@ -110,7 +110,14 @@ function FilaCategoria({
 
   return (
     <li className="rounded-xl border border-line bg-surface p-3" data-fila-categoria={categoria.name}>
-      <div className="flex flex-wrap items-center gap-2">
+      {/* Dos filas fijas, no una sola que se envuelve: con "Productos" y
+          "Cambiar nombre" compitiendo por espacio en la misma fila que el
+          nombre, un nombre largo (o varias categorias con nombres largos)
+          hacia que el navegador lo aplastara letra por letra en vez de
+          bajarlo de linea. Asi el nombre siempre tiene toda la primera fila
+          (solo comparte con las flechas, que son angostas) y los botones
+          siempre van en la segunda, envolviendose entre ellos si hace falta. */}
+      <div className="flex items-center gap-2">
         <div className="flex shrink-0 gap-1">
           <form action={mover}>
             <input type="hidden" name="id" value={categoria.id} />
@@ -132,43 +139,43 @@ function FilaCategoria({
           {categoria.name}
           <span className="ml-1.5 text-xs font-normal text-muted">{productosTexto(categoria.cantidad)}</span>
         </p>
+      </div>
 
-        <div className="flex flex-wrap gap-1.5">
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        <button
+          type="button"
+          className="btn-ghost btn-sm"
+          onClick={() => alternar("productos")}
+          aria-expanded={abierto === "productos"}
+        >
+          Productos
+        </button>
+        <button
+          type="button"
+          className="btn-ghost btn-sm"
+          onClick={() => alternar("nombre")}
+          aria-expanded={abierto === "nombre"}
+        >
+          Cambiar nombre
+        </button>
+        <form action={borrar}>
+          <input type="hidden" name="id" value={categoria.id} />
           <button
-            type="button"
-            className="btn-ghost btn-sm"
-            onClick={() => alternar("productos")}
-            aria-expanded={abierto === "productos"}
+            type="submit"
+            className="btn-ghost btn-sm px-2 text-bad"
+            aria-label={"Borrar categoría " + categoria.name}
+            onClick={(e) => {
+              const texto =
+                "¿Borrar la categoría " +
+                categoria.name +
+                "?" +
+                (categoria.cantidad > 0 ? " Sus " + productosTexto(categoria.cantidad) + " no se borran: pasan a General." : "");
+              if (!window.confirm(texto)) e.preventDefault();
+            }}
           >
-            Productos
+            <Icon name="trash" className="h-4 w-4" />
           </button>
-          <button
-            type="button"
-            className="btn-ghost btn-sm"
-            onClick={() => alternar("nombre")}
-            aria-expanded={abierto === "nombre"}
-          >
-            Cambiar nombre
-          </button>
-          <form action={borrar}>
-            <input type="hidden" name="id" value={categoria.id} />
-            <button
-              type="submit"
-              className="btn-ghost btn-sm px-2 text-bad"
-              aria-label={"Borrar categoría " + categoria.name}
-              onClick={(e) => {
-                const texto =
-                  "¿Borrar la categoría " +
-                  categoria.name +
-                  "?" +
-                  (categoria.cantidad > 0 ? " Sus " + productosTexto(categoria.cantidad) + " no se borran: pasan a General." : "");
-                if (!window.confirm(texto)) e.preventDefault();
-              }}
-            >
-              <Icon name="trash" className="h-4 w-4" />
-            </button>
-          </form>
-        </div>
+        </form>
       </div>
 
       {error && (

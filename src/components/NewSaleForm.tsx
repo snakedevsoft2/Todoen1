@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Alert, Field } from "./ui";
 import { BarraCatalogo } from "./BarraCatalogo";
+import { ClienteSelector } from "./ClienteSelector";
 import { agruparPorCategoria, categoriasConCantidad, filtrarCatalogo } from "@/lib/categorias";
 import { money, parseMoney, pasoMoneda } from "@/lib/format";
 import { todayIn } from "@/lib/dates";
@@ -124,7 +125,10 @@ export function NewSaleForm({
   const [enviando, setEnviando] = useState(false);
   const [pendientes, setPendientes] = useState<VentaPendiente[]>([]);
   const [enLinea, setEnLinea] = useState(true);
-  const telRef = useRef<HTMLInputElement>(null);
+  // Cambia cada vez que se limpia el formulario: al usarlo como key, el
+  // selector de cliente vuelve a nacer vacio (su texto y su telefono son
+  // estado propio de React, y un reset() nativo no los toca).
+  const [clienteKey, setClienteKey] = useState(0);
   const [pago, setPago] = useState("EFECTIVO");
   const [comprobante, setComprobante] = useState<"normal" | "autorizada">(facturacion?.predeterminado ?? "normal");
   // La venta recien guardada que pidio factura autorizada.
@@ -301,6 +305,7 @@ export function NewSaleForm({
     setOpenSizes(null);
     formRef.current?.reset();
     setPago("EFECTIVO");
+    setClienteKey((k) => k + 1);
     ponerHoy();
   }
 
@@ -704,30 +709,12 @@ export function NewSaleForm({
               <option value="CREDITO">Cuentas por cobrar (fiado)</option>
             </select>
           </Field>
-          <Field label={pago === "CREDITO" ? "Cliente (quién queda debiendo)" : "Cliente (opcional)"}>
-            <input
-              className="input"
-              name="clientName"
-              placeholder="Mostrador"
-              list="clientes-guardados"
-              autoComplete="off"
-              onChange={(e) => {
-                // Al escoger un cliente guardado, se trae su telefono.
-                const c = clientes.find((x) => x.name.toLowerCase() === e.target.value.trim().toLowerCase());
-                if (c?.phone && telRef.current && !telRef.current.value) telRef.current.value = c.phone;
-              }}
-            />
-            <datalist id="clientes-guardados">
-              {clientes.map((c) => (
-                <option key={c.id} value={c.name}>
-                  {c.phone ?? ""}
-                </option>
-              ))}
-            </datalist>
-          </Field>
-          <Field label="Teléfono del cliente (opcional)" hint="Con el nombre queda guardado en Clientes.">
-            <input ref={telRef} className="input" name="clientPhone" inputMode="tel" placeholder="300 000 0000" />
-          </Field>
+          <ClienteSelector
+            key={clienteKey}
+            clientes={clientes}
+            nameLabel={pago === "CREDITO" ? "Cliente (quién queda debiendo)" : "Cliente (opcional)"}
+            phoneHint="Con el nombre queda guardado en Clientes."
+          />
           {pago === "CREDITO" && (
             <Field label="¿Cuándo paga? (opcional)" hint="No suma a la caja de hoy: cada abono entra el día en que te paguen.">
               <input className="input" type="date" name="dueDay" />
