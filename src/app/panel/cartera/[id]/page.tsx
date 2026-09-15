@@ -174,6 +174,7 @@ export default async function DeudaPage({ params }: { params: Promise<{ id: stri
                       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t-2 border-line pt-3">
                         <ReceiptActions
                           clientPhone={deuda.clientPhone}
+                          soloBluetooth={!esDueno(me.role)}
                           data={{
                             paymentId: pago.id,
                             businessName: user.businessName,

@@ -83,6 +83,7 @@ export function NewSaleForm({
   clientes = [],
   facturacion = null,
   marcaGratis = false,
+  esDueno = true,
 }: {
   services: ServiceRow[];
   /** El orden de categorias que armo el dueño. */
@@ -114,6 +115,8 @@ export function NewSaleForm({
   negocio: { nombre: string; telefono: string | null; direccion: string | null; correo: string | null; logoUrl: string | null };
   /** La version gratis: el recibo sale con la marca. */
   marcaGratis?: boolean;
+  /** Si quien vende es el dueño: el empleado solo imprime por Bluetooth. */
+  esDueno?: boolean;
 }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
@@ -483,6 +486,7 @@ export function NewSaleForm({
           etiquetaImpuesto={facturacion.etiquetaImpuesto}
           emisor={facturacion.emisor}
           abrirDeUna
+          soloBluetooth={!esDueno}
         />
       )}
 
@@ -493,6 +497,7 @@ export function NewSaleForm({
           logoUrl={ultima.logoUrl}
           label="Imprimir recibo"
           menu="izquierda"
+          soloBluetooth={!esDueno}
         />
       )}
 

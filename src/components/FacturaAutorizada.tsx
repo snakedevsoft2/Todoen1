@@ -87,6 +87,7 @@ export function FacturaAutorizada({
   etiquetaImpuesto,
   emisor,
   abrirDeUna = false,
+  soloBluetooth = false,
 }: {
   /** Abre los datos del comprador de una: recien vendida con "factura autorizada". */
   abrirDeUna?: boolean;
@@ -100,6 +101,8 @@ export function FacturaAutorizada({
   etiquetaImpuesto: string;
   /** RUC, razon social y sucursal, para el encabezado de la factura. */
   emisor: EmisorFactura;
+  /** El empleado solo imprime por la termica de mostrador, sin dialogo. */
+  soloBluetooth?: boolean;
 }) {
   const [factura, setFactura] = useState<FacturaVista | null>(inicial);
   const [abierto, setAbierto] = useState(abrirDeUna && !inicial);
@@ -225,6 +228,7 @@ export function FacturaAutorizada({
                   tirilla={() => invoiceTirilla(datosAutorizados(base, factura, etiquetaImpuesto, emisor))}
                   nombreArchivo={invoiceFileName(datosAutorizados(base, factura, etiquetaImpuesto, emisor))}
                   logoUrl={base.logoUrl}
+                  soloBluetooth={soloBluetooth}
                 />
                 {factura.publicUrl && (
                   <a href={factura.publicUrl} target="_blank" rel="noopener noreferrer" className="btn-ghost btn-sm">

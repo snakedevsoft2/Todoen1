@@ -252,6 +252,7 @@ export default async function VentasPage({
             esHoy={day === today}
             clientes={clientesGuardados}
             marcaGratis={!completo}
+            esDueno={propias}
             facturacion={
               completo && facturacion.enabled
                 ? {
@@ -355,7 +356,7 @@ export default async function VentasPage({
                   </div>
 
                   <div className="mt-2 flex flex-wrap gap-2">
-                    <InvoiceActions data={datosFactura(s)} />
+                    <InvoiceActions data={datosFactura(s)} soloBluetooth={!propias} />
                     <FacturaAutorizada
                       saleId={s.id}
                       pais={facturacion.country}
@@ -364,6 +365,7 @@ export default async function VentasPage({
                       base={datosFactura(s)}
                       etiquetaImpuesto={etiquetaImpuesto}
                       emisor={emisorFactura}
+                      soloBluetooth={!propias}
                     />
                   </div>
                 </li>

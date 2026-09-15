@@ -38,9 +38,12 @@ function canShareFile(file: File): boolean {
 export function ReceiptActions({
   data,
   clientPhone,
+  soloBluetooth = false,
 }: {
   data: ReceiptData;
   clientPhone: string | null;
+  /** El empleado solo imprime por la termica de mostrador, sin dialogo. */
+  soloBluetooth?: boolean;
 }) {
   const [busy, setBusy] = useState("");
   const [aviso, setAviso] = useState<{ kind: "ok" | "info" | "error"; text: string } | null>(null);
@@ -134,6 +137,7 @@ export function ReceiptActions({
         tirilla={() => receiptTirilla(data)}
         logoUrl={data.logoUrl}
         nombreArchivo={receiptFileName(data)}
+        soloBluetooth={soloBluetooth}
       />
       <button type="button" onClick={bajar} disabled={busy !== ""} className="btn-ghost btn-sm">
         <Icon name="download" className="h-4 w-4" />

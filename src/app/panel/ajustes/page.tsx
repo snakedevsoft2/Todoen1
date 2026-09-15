@@ -3,7 +3,6 @@ import { requireSession } from "@/lib/auth";
 import { BUSINESS_LABEL, publicPath } from "@/lib/nav";
 import { Card, PageHeader } from "@/components/ui";
 import { BusinessSettingsForm, PasswordForm } from "@/components/SettingsForms";
-import { StaffPasswordForm } from "@/components/StaffForms";
 import { CopyLink } from "@/components/CopyLink";
 import { PreguntaSeguridadForm } from "@/components/PreguntaSeguridadForm";
 import { logoutAction } from "@/actions/auth";
@@ -101,14 +100,16 @@ export default async function AjustesPage() {
           </Card>
         )}
 
-        {/* Para dueno y empleados por igual: es lo que les permite recuperar
-            su clave solos si el correo no llega. */}
-        <Card
-          title="Pregunta de seguridad"
-          subtitle="Para recuperar tu contraseña sin depender del correo"
-        >
-          <PreguntaSeguridadForm actual={isOwner ? user.securityQuestion : staff.securityQuestion} />
-        </Card>
+        {/* Solo el dueño: la clave y su recuperacion son de la cuenta que paga.
+            El empleado que entra con correo cambia la suya en Mi perfil. */}
+        {isOwner && (
+          <Card
+            title="Pregunta de seguridad"
+            subtitle="Para recuperar tu contraseña sin depender del correo"
+          >
+            <PreguntaSeguridadForm actual={user.securityQuestion} />
+          </Card>
+        )}
 
         {publicLink && (
           <Card
@@ -133,21 +134,25 @@ export default async function AjustesPage() {
           </Card>
         )}
 
-        <Card title="Seguridad" subtitle="Cambia tu contraseña">
-          {isOwner ? <PasswordForm /> : <StaffPasswordForm />}
-          <div className="mt-4 border-t border-line pt-4">
-            <p className="mb-2 text-xs text-subtle">
-              Tu correo de acceso es {isOwner ? user.email : staff.email}. Cada negocio ve unicamente
-              sus propios datos.
-            </p>
-            <form action={logoutAction}>
-              <SubmitButton className="btn-danger btn-sm" pendingText="Saliendo...">
-                <Icon name="logout" className="h-4 w-4" />
-                Cerrar sesión
-              </SubmitButton>
-            </form>
-          </div>
-        </Card>
+        {/* Solo el dueño: es la cuenta que paga y la unica que puede quedar
+            sin acceso si algo sale mal. El empleado cierra sesion desde el
+            menu, y si entra con correo cambia su clave en Mi perfil. */}
+        {isOwner && (
+          <Card title="Seguridad" subtitle="Cambia tu contraseña">
+            <PasswordForm />
+            <div className="mt-4 border-t border-line pt-4">
+              <p className="mb-2 text-xs text-subtle">
+                Tu correo de acceso es {user.email}. Cada negocio ve unicamente sus propios datos.
+              </p>
+              <form action={logoutAction}>
+                <SubmitButton className="btn-danger btn-sm" pendingText="Saliendo...">
+                  <Icon name="logout" className="h-4 w-4" />
+                  Cerrar sesión
+                </SubmitButton>
+              </form>
+            </div>
+          </Card>
+        )}
       </div>
     </>
   );

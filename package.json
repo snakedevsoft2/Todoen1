@@ -56,7 +56,8 @@
     "verificar:paises": "node scripts/verificar-paises.mjs",
     "verificar:categorias": "node scripts/verificar-categorias.mjs",
     "verificar:selector-clientes": "node scripts/verificar-selector-clientes.mjs",
-    "verificar:ventas-por-empleado": "node scripts/verificar-ventas-por-empleado.mjs"
+    "verificar:ventas-por-empleado": "node scripts/verificar-ventas-por-empleado.mjs",
+    "verificar:ajustes-empleado": "node scripts/verificar-ajustes-empleado.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

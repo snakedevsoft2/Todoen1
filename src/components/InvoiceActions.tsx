@@ -44,10 +44,13 @@ type Feedback = { kind: "ok" | "info" | "error"; text: string } | null;
 export function InvoiceActions({
   data,
   defaultPhone,
+  soloBluetooth = false,
 }: {
   data: InvoiceData;
   /** Telefono del cliente, si la venta lo tiene guardado. */
   defaultPhone?: string | null;
+  /** El empleado solo imprime por la termica de mostrador, sin dialogo. */
+  soloBluetooth?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [phone, setPhone] = useState(defaultPhone ?? "");
@@ -184,6 +187,7 @@ export function InvoiceActions({
           tirilla={() => invoiceTirilla(data)}
           logoUrl={data.logoUrl}
           nombreArchivo={invoiceFileName(data)}
+          soloBluetooth={soloBluetooth}
         />
         <button
           type="button"

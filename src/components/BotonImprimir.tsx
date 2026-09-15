@@ -29,6 +29,12 @@ export function BotonImprimir({
   className = "btn-ghost btn-sm",
   /** Hacia donde se abre el menu, para que no se salga de la pantalla. */
   menu = "derecha",
+  /**
+   * Para el empleado que solo tiene la termica del mostrador por Bluetooth:
+   * sin dialogo del sistema, sin USB ni puerto COM, y sin la hoja completa
+   * (que solo sale por el dialogo). Nada que elegir ni que se pueda enredar.
+   */
+  soloBluetooth = false,
 }: {
   tirilla: () => Linea[];
   nombreArchivo: string;
@@ -36,9 +42,11 @@ export function BotonImprimir({
   label?: string;
   className?: string;
   menu?: "derecha" | "izquierda";
+  soloBluetooth?: boolean;
 }) {
+  const formatos = soloBluetooth ? FORMATOS.filter((f) => f.value !== "a4") : FORMATOS;
   const [formato, setFormato] = useState<Formato | null>(null);
-  const [conexion, setConexion] = useState<Conexion>("sistema");
+  const [conexion, setConexion] = useState<Conexion>(soloBluetooth ? "bluetooth" : "sistema");
   const [disponibles, setDisponibles] = useState<Conexion[]>(["sistema"]);
   const [abierto, setAbierto] = useState(false);
   const [ocupado, setOcupado] = useState(false);
@@ -48,12 +56,13 @@ export function BotonImprimir({
   // Lo guardado solo existe en el navegador, asi que se lee despues de pintar:
   // leerlo antes haria que el servidor y el cliente no coincidan.
   useEffect(() => {
-    const hay = conexionesDisponibles();
+    const hay = soloBluetooth ? conexionesDisponibles().filter((c) => c === "bluetooth") : conexionesDisponibles();
+    const guardado = formatoGuardado();
     const guardada = conexionGuardada();
     setDisponibles(hay);
-    setFormato(formatoGuardado());
-    setConexion(guardada && hay.includes(guardada) ? guardada : "sistema");
-  }, []);
+    setFormato(soloBluetooth && guardado === "a4" ? "58" : guardado);
+    setConexion(guardada && hay.includes(guardada) ? guardada : soloBluetooth ? "bluetooth" : "sistema");
+  }, [soloBluetooth]);
 
   // Cerrar el menu al tocar por fuera. Sin esto se queda abierto tapando la
   // pantalla en el celular.
@@ -90,7 +99,10 @@ export function BotonImprimir({
       const texto = error instanceof Error ? error.message : "No pudimos preparar la impresión.";
       setAviso({
         tono: "error",
-        texto: directa && !/diálogo/.test(texto) ? texto + " También puedes imprimir con el diálogo de impresión." : texto,
+        texto:
+          directa && !soloBluetooth && !/diálogo/.test(texto)
+            ? texto + " También puedes imprimir con el diálogo de impresión."
+            : texto,
       });
     } finally {
       setOcupado(false);
@@ -143,7 +155,7 @@ export function BotonImprimir({
               Cerrar
             </button>
           </div>
-          {FORMATOS.map((f) => (
+          {formatos.map((f) => (
             <button
               key={f.value}
               type="button"
