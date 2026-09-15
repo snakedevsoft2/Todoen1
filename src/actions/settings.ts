@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { checkPassword, hashPassword, requireOwner, slugify } from "@/lib/auth";
-import { parseIntSafe, str } from "@/lib/format";
-import { TIMEZONES } from "@/lib/timezones";
+import { factorDe, parseIntSafe, str } from "@/lib/format";
+import { esMonedaValida, esPaisValido, esZonaValida } from "@/lib/paises";
 
 export type SettingsState = { error?: string; ok?: string } | undefined;
 
@@ -25,6 +25,32 @@ export async function updateBusinessAction(
   const days = formData.getAll("workDays").map((d) => parseIntSafe(d, 0)).filter((d) => d >= 1 && d <= 7);
   const timezone = str(formData.get("timezone"), user.timezone);
 
+  const paisIn = str(formData.get("country"), user.country);
+  const country = esPaisValido(paisIn) ? paisIn : user.country;
+  const monedaIn = str(formData.get("currency"), user.currency).toUpperCase().slice(0, 3);
+  const currency = esMonedaValida(monedaIn) ? monedaIn : user.currency;
+  const zonaValida = esZonaValida(timezone) ? timezone : user.timezone;
+
+  // Pasar a una moneda con o sin centavos cambiaria lo que ya esta guardado:
+  // 20.000 pesos quedarian como 200,00 dolares. Con datos no se deja.
+  if (factorDe(currency) !== factorDe(user.currency)) {
+    const [ventas, productos, gastos] = await Promise.all([
+      db.sale.count({ where: { userId: user.id } }),
+      db.service.count({ where: { userId: user.id } }),
+      db.expense.count({ where: { userId: user.id } }),
+    ]);
+    if (ventas + productos + gastos > 0) {
+      return {
+        error:
+          "No se puede pasar de " +
+          user.currency +
+          " a " +
+          currency +
+          ": una moneda usa centavos y la otra no, y cambiaría los precios y ventas que ya tienes. Escríbenos a soporte si necesitas hacerlo.",
+      };
+    }
+  }
+
   let slug = user.slug;
   const slugInput = slugify(str(formData.get("slug"), user.slug));
   if (slugInput && slugInput !== user.slug) {
@@ -40,8 +66,9 @@ export async function updateBusinessAction(
       ownerName,
       phone: str(formData.get("phone")) || null,
       address: str(formData.get("address")) || null,
-      currency: str(formData.get("currency"), user.currency).toUpperCase().slice(0, 3),
-      timezone: TIMEZONES.includes(timezone) ? timezone : user.timezone,
+      country,
+      currency,
+      timezone: zonaValida,
       openHour,
       closeHour,
       slotMinutes,

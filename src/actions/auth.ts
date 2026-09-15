@@ -12,6 +12,7 @@ import { finDePrueba } from "@/lib/plan";
 import { headers } from "next/headers";
 import { esUsuario, normalizarUsuario } from "@/lib/usuario";
 import { anotarIntentoDeUsuario, demasiadosIntentosDeUsuario } from "@/lib/seguridad";
+import { OTRO_PAIS, esMonedaValida, esZonaValida, paisPorCodigo, zonaParaPais } from "@/lib/paises";
 
 export type AuthState = { error?: string } | undefined;
 
@@ -42,6 +43,14 @@ export async function registerAction(_prev: AuthState, formData: FormData): Prom
   const businessName = String(formData.get("businessName") ?? "").trim();
   const businessType = String(formData.get("businessType") ?? "") as BusinessType;
   const phone = String(formData.get("phone") ?? "").trim();
+  // El pais pone la moneda y la zona; en "Otro pais" vienen elegidas a mano.
+  const paisIn = String(formData.get("country") ?? "").trim();
+  const pais = paisPorCodigo(paisIn);
+  const monedaIn = String(formData.get("currency") ?? "").trim().toUpperCase();
+  const zonaIn = String(formData.get("timezone") ?? "").trim();
+  const country = pais ? pais.code : paisIn === OTRO_PAIS ? OTRO_PAIS : "CO";
+  const currency = esMonedaValida(monedaIn) ? monedaIn : (pais?.moneda ?? "COP");
+  const timezone = pais ? zonaParaPais(pais.code, zonaIn) : esZonaValida(zonaIn) ? zonaIn : "America/Bogota";
 
   if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { error: "Escribe un correo valido." };
   if (password.length < 6) return { error: "La contrasena debe tener al menos 6 caracteres." };
@@ -62,6 +71,9 @@ export async function registerAction(_prev: AuthState, formData: FormData): Prom
       businessType,
       phone: phone || null,
       slug,
+      country,
+      currency,
+      timezone,
       brandColor: COLOR_POR_TIPO[businessType],
       // Unos dias con todo; despues, la version gratis hasta que pague.
       trialEndsAt: finDePrueba(),

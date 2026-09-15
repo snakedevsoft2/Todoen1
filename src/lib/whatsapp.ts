@@ -1,3 +1,5 @@
+import { PAISES } from "./paises";
+
 /**
  * Avisos por WhatsApp.
  *
@@ -45,30 +47,12 @@ export function normalizePhone(input: string | null | undefined): string | null 
 }
 
 /** Indicativos de pais conocidos, de los mas largos a los mas cortos. */
-const INDICATIVOS = ["593", "591", "595", "598", "502", "503", "504", "505", "506", "507", "57", "58", "56", "54", "52", "51", "34", "1"];
+const INDICATIVOS = [...new Set(PAISES.map((p) => p.indicativo))].sort((a, b) => b.length - a.length);
 
 /** El indicativo del pais por la zona horaria del negocio. */
-const INDICATIVO_POR_ZONA: Record<string, string> = {
-  "America/Bogota": "57",
-  "America/Guayaquil": "593",
-  "Pacific/Galapagos": "593",
-  "America/Lima": "51",
-  "America/Mexico_City": "52",
-  "America/Caracas": "58",
-  "America/Panama": "507",
-  "America/Santiago": "56",
-  "America/Argentina/Buenos_Aires": "54",
-  "America/La_Paz": "591",
-  "America/Asuncion": "595",
-  "America/Montevideo": "598",
-  "America/Costa_Rica": "506",
-  "America/Guatemala": "502",
-  "America/El_Salvador": "503",
-  "America/Tegucigalpa": "504",
-  "America/Managua": "505",
-  "America/New_York": "1",
-  "Europe/Madrid": "34",
-};
+const INDICATIVO_POR_ZONA: Record<string, string> = Object.fromEntries(
+  PAISES.flatMap((p) => p.zonas.map((z) => [z, p.indicativo]))
+);
 
 /**
  * El indicativo que se le pone a un numero local: el del WhatsApp del negocio
@@ -99,13 +83,21 @@ export function toInternational(
   let digits = String(phone ?? "").replace(/\D/g, "");
   if (digits.startsWith("00")) digits = digits.slice(2);
   if (digits.length < 7) return null;
-  if (digits.length >= 11 && !digits.startsWith("0")) return digits.slice(0, 15);
 
   const local = digits.replace(/^0+/, "");
   if (local.length < 7) return null;
   const prefijo = indicativoDe(ownerNumber, zona);
-  if (!prefijo) return local;
-  return (prefijo + local).slice(0, 15);
+
+  if (prefijo) {
+    // Ya trae el indicativo de su pais: "57 300...", "593 99...".
+    if (local.startsWith(prefijo) && local.length - prefijo.length >= 8) return local.slice(0, 15);
+    // Numero local (en Brasil tiene 11 digitos): se le pone el indicativo.
+    if (local.length <= 11) return (prefijo + local).slice(0, 15);
+    // Mas largo que cualquier numero local: trae el indicativo de otro pais.
+    return local.slice(0, 15);
+  }
+  // Sin saber el pais, con 11 digitos o mas se asume que ya trae indicativo.
+  return local.slice(0, 15);
 }
 
 /** Enlace que abre WhatsApp con el mensaje ya escrito. */

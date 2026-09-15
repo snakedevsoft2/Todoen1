@@ -12,7 +12,31 @@
  * Por eso todo lo que entra pasa por parseMoney y todo lo que sale por money:
  * ninguna pantalla deberia multiplicar o dividir por cien por su cuenta.
  */
-const SIN_DECIMALES = ["COP", "CLP", "PYG", "JPY", "KRW", "ISK", "VND"];
+const SIN_DECIMALES = ["COP", "CLP", "PYG", "JPY", "KRW", "ISK", "VND", "XOF", "XAF", "XPF", "UGX", "RWF", "KMF", "GNF", "DJF", "BIF", "VUV"];
+
+/**
+ * Como se escribe la plata en el pais de cada moneda: "S/ 3.00" en Peru,
+ * "$3.00" en Mexico, "R$ 3,00" en Brasil. Las que no estan (el peso
+ * colombiano, el dolar) siguen como siempre.
+ */
+const LOCALE_POR_MONEDA: Record<string, string> = {
+  MXN: "es-MX",
+  PEN: "es-PE",
+  CLP: "es-CL",
+  ARS: "es-AR",
+  DOP: "es-DO",
+  VES: "es-VE",
+  GTQ: "es-GT",
+  HNL: "es-HN",
+  NIO: "es-NI",
+  CRC: "es-CR",
+  BOB: "es-BO",
+  PYG: "es-PY",
+  UYU: "es-UY",
+  CUP: "es-CU",
+  BRL: "pt-BR",
+  EUR: "es-ES",
+};
 
 /** Cuantos decimales usa esta moneda: 0 o 2. */
 export function decimalesDe(currency = "COP"): 0 | 2 {
@@ -37,7 +61,7 @@ export function money(value: number, currency = "COP") {
   const decimals = decimalesDe(currency);
   const valor = value / factorDe(currency);
   try {
-    return new Intl.NumberFormat("es-CO", {
+    return new Intl.NumberFormat(LOCALE_POR_MONEDA[currency] ?? "es-CO", {
       style: "currency",
       currency,
       minimumFractionDigits: decimals,

@@ -144,6 +144,9 @@ model User {
 
   // Configuracion de agenda / caja
   currency    String  @default("COP")
+  /// Pais del negocio: codigo ISO de dos letras, u OTRO. De aqui salen la
+  /// moneda, la zona horaria y el indicativo de WhatsApp. Ver lib/paises.ts.
+  country     String  @default("CO")
   timezone    String  @default("America/Bogota")
   openHour    Int     @default(9) // 9 = 9:00 am
   closeHour   Int     @default(20) // 20 = 8:00 pm

@@ -46,6 +46,7 @@ export default async function AjustesPage() {
               ownerName: user.ownerName,
               phone: user.phone,
               address: user.address,
+              country: user.country,
               currency: user.currency,
               timezone: user.timezone,
               openHour: user.openHour,

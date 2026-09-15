@@ -4,13 +4,15 @@ import { useActionState } from "react";
 import { changePasswordAction, updateBusinessAction } from "@/actions/settings";
 import { SubmitButton } from "./SubmitButton";
 import { Alert, Field } from "./ui";
-import { CURRENCIES, TIMEZONES, WEEKDAYS } from "@/lib/timezones";
+import { WEEKDAYS } from "@/lib/timezones";
+import { PaisMonedaZona } from "./PaisMonedaZona";
 
 export type BusinessSettings = {
   businessName: string;
   ownerName: string;
   phone: string | null;
   address: string | null;
+  country: string;
   currency: string;
   timezone: string;
   openHour: number;
@@ -61,24 +63,7 @@ export function BusinessSettingsForm({
         <Field label="Dirección">
           <input className="input" name="address" defaultValue={settings.address ?? ""} />
         </Field>
-        <Field label="Moneda">
-          <select className="input" name="currency" defaultValue={settings.currency}>
-            {CURRENCIES.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Zona horaria" hint="Define a qué hora cambia el día en tus reportes.">
-          <select className="input" name="timezone" defaultValue={settings.timezone}>
-            {TIMEZONES.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-        </Field>
+        <PaisMonedaZona pais={settings.country} moneda={settings.currency} zona={settings.timezone} />
       </div>
 
       <div className="rounded-xl border border-line bg-surface p-3">

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { registerAction } from "@/actions/auth";
 import { SubmitButton } from "./SubmitButton";
 import { Alert, Field } from "./ui";
+import { PaisMonedaZona } from "./PaisMonedaZona";
 
 const TYPES = [
   { value: "BARBERIA", label: "Barbería", hint: "Turnos, cortes y caja" },
@@ -83,6 +84,8 @@ export function RegistroForm({
           ))}
         </div>
       </div>
+
+      <PaisMonedaZona registro />
 
       <Field label="Nombre del negocio">
         <input className="input" name="businessName" required placeholder={EJEMPLO_NOMBRE[type] ?? "Ej: Mi negocio"} />
