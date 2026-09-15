@@ -22,7 +22,7 @@ import { invoiceFileName, invoiceTirilla, type InvoiceData } from "@/lib/invoice
 import { Icon } from "./Icon";
 import { RegistrarSW } from "./RegistrarSW";
 import { BotonImprimir } from "./BotonImprimir";
-import { FacturaAutorizada } from "./FacturaAutorizada";
+import { FacturaAutorizada, type EmisorFactura } from "./FacturaAutorizada";
 import type { Pais } from "@/lib/facturacion/paises";
 
 export type VariantOption = {
@@ -108,9 +108,10 @@ export function NewSaleForm({
     entidad: string;
     predeterminado: "normal" | "autorizada";
     etiquetaImpuesto: string;
+    emisor: EmisorFactura;
   } | null;
   /** Lo que va en el encabezado del recibo impreso. */
-  negocio: { nombre: string; telefono: string | null; direccion: string | null; logoUrl: string | null };
+  negocio: { nombre: string; telefono: string | null; direccion: string | null; correo: string | null; logoUrl: string | null };
   /** La version gratis: el recibo sale con la marca. */
   marcaGratis?: boolean;
 }) {
@@ -358,10 +359,12 @@ export function NewSaleForm({
       businessName: negocio.nombre,
       businessPhone: negocio.telefono,
       businessAddress: negocio.direccion,
+      businessEmail: negocio.correo,
       logoUrl: negocio.logoUrl,
       currency,
       day: venta.day,
       clientName: venta.clientName.trim() || null,
+      clientPhone: venta.clientPhone?.trim() || null,
       paymentMethod: venta.paymentMethod,
       staffName: team.find((t) => t.id === venta.staffId)?.name ?? null,
       items:
@@ -478,6 +481,7 @@ export function NewSaleForm({
           inicial={null}
           base={ultima}
           etiquetaImpuesto={facturacion.etiquetaImpuesto}
+          emisor={facturacion.emisor}
           abrirDeUna
         />
       )}

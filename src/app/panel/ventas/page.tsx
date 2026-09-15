@@ -10,7 +10,7 @@ import { getDaySummary } from "@/lib/queries";
 import { Card, Empty, PageHeader, Stat } from "@/components/ui";
 import { NewSaleForm, type VariantOption } from "@/components/NewSaleForm";
 import { InvoiceActions } from "@/components/InvoiceActions";
-import { FacturaAutorizada } from "@/components/FacturaAutorizada";
+import { FacturaAutorizada, type EmisorFactura } from "@/components/FacturaAutorizada";
 import { configuracionFacturacion, facturaVista } from "@/lib/facturacion";
 import { TARIFAS, datosPais } from "@/lib/facturacion/paises";
 import type { InvoiceData } from "@/lib/invoice";
@@ -108,6 +108,13 @@ export default async function VentasPage({
   const completo = esPlanCompleto(user);
   const etiquetaImpuesto =
     TARIFAS[facturacion.country].find((t) => t.value === facturacion.taxKey)?.label ?? "Impuesto";
+  // Para el encabezado de la factura: RUC/NIT, razon social y, en Ecuador, la
+  // sucursal (el establecimiento del SRI; en Colombia ese concepto no aplica).
+  const emisorFactura: EmisorFactura = {
+    ruc: facturacion.taxId || null,
+    razonSocial: facturacion.legalName || null,
+    establecimiento: facturacion.country === "EC" ? facturacion.establishment || null : null,
+  };
 
   // Los clientes guardados, para escogerlos al vender.
   const clientesGuardados = await db.customer.findMany({
@@ -126,6 +133,10 @@ export default async function VentasPage({
     currency: user.currency,
     day: s.day,
     clientName: s.clientName,
+    // El telefono del cliente no queda guardado en la venta: solo se conoce
+    // justo al terminar (ver NewSaleForm), asi que en el historial no sale.
+    clientPhone: null,
+    businessEmail: user.email,
     paymentMethod: s.paymentMethod,
     staffName: s.staff?.name ?? null,
     items: s.items.map((i) => ({
@@ -231,6 +242,7 @@ export default async function VentasPage({
                     entidad: datosPais(facturacion.country).entidad,
                     predeterminado: facturacion.defaultDocument,
                     etiquetaImpuesto,
+                    emisor: emisorFactura,
                   }
                 : null
             }
@@ -238,6 +250,7 @@ export default async function VentasPage({
               nombre: user.businessName,
               telefono: user.phone,
               direccion: user.address,
+              correo: user.email,
               logoUrl: logo,
             }}
           />
@@ -333,6 +346,7 @@ export default async function VentasPage({
                       inicial={s.electronicInvoice ? facturaVista(s.electronicInvoice) : null}
                       base={datosFactura(s)}
                       etiquetaImpuesto={etiquetaImpuesto}
+                      emisor={emisorFactura}
                     />
                   </div>
                 </li>

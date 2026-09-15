@@ -28,7 +28,14 @@ function documentoDe(f: FacturaVista): string {
 }
 
 /** La factura normal con el bloque de la autorizacion encima. */
-export function datosAutorizados(base: InvoiceData, f: FacturaVista, etiquetaImpuesto: string): InvoiceData {
+export type EmisorFactura = { ruc: string | null; razonSocial: string | null; establecimiento: string | null };
+
+export function datosAutorizados(
+  base: InvoiceData,
+  f: FacturaVista,
+  etiquetaImpuesto: string,
+  emisor: EmisorFactura
+): InvoiceData {
   const factor = factorDe(base.currency);
   const autorizacion: AutorizacionFactura = {
     pais: f.pais,
@@ -40,6 +47,9 @@ export function datosAutorizados(base: InvoiceData, f: FacturaVista, etiquetaImp
     fecha: f.autorizadaEn,
     pruebas: f.ambiente === "pruebas",
     compradorDocumento: documentoDe(f),
+    emisorRuc: emisor.ruc,
+    emisorRazonSocial: emisor.razonSocial,
+    emisorEstablecimiento: emisor.establecimiento,
     subtotal: Math.round(f.subtotal * factor),
     impuesto: Math.round(f.impuesto * factor),
     etiquetaImpuesto,
@@ -75,6 +85,7 @@ export function FacturaAutorizada({
   inicial,
   base,
   etiquetaImpuesto,
+  emisor,
   abrirDeUna = false,
 }: {
   /** Abre los datos del comprador de una: recien vendida con "factura autorizada". */
@@ -87,6 +98,8 @@ export function FacturaAutorizada({
   /** La factura normal de la venta. */
   base: InvoiceData;
   etiquetaImpuesto: string;
+  /** RUC, razon social y sucursal, para el encabezado de la factura. */
+  emisor: EmisorFactura;
 }) {
   const [factura, setFactura] = useState<FacturaVista | null>(inicial);
   const [abierto, setAbierto] = useState(abrirDeUna && !inicial);
@@ -100,7 +113,7 @@ export function FacturaAutorizada({
 
   async function descargarPdf(f: FacturaVista) {
     try {
-      descargar(await buildInvoicePdf(datosAutorizados(base, f, etiquetaImpuesto)));
+      descargar(await buildInvoicePdf(datosAutorizados(base, f, etiquetaImpuesto, emisor)));
     } catch {
       setAviso({ tono: "error", texto: "No se pudo armar el PDF. Vuelve a intentarlo." });
     }
@@ -209,8 +222,8 @@ export function FacturaAutorizada({
                   PDF autorizado
                 </button>
                 <BotonImprimir
-                  tirilla={() => invoiceTirilla(datosAutorizados(base, factura, etiquetaImpuesto))}
-                  nombreArchivo={invoiceFileName(datosAutorizados(base, factura, etiquetaImpuesto))}
+                  tirilla={() => invoiceTirilla(datosAutorizados(base, factura, etiquetaImpuesto, emisor))}
+                  nombreArchivo={invoiceFileName(datosAutorizados(base, factura, etiquetaImpuesto, emisor))}
                   logoUrl={base.logoUrl}
                 />
                 {factura.publicUrl && (

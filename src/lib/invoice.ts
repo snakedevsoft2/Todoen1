@@ -26,6 +26,10 @@ export type InvoiceData = {
   currency: string;
   day: string;
   clientName: string | null;
+  /** Solo se tiene a mano justo al terminar la venta; en el historial no queda guardado. */
+  clientPhone?: string | null;
+  /** El correo del negocio (el de su cuenta), para el encabezado. */
+  businessEmail?: string | null;
   paymentMethod: string;
   staffName: string | null;
   items: InvoiceItem[];
@@ -62,6 +66,11 @@ export type AutorizacionFactura = {
   /** Ambiente de pruebas: la factura no tiene validez fiscal. */
   pruebas: boolean;
   compradorDocumento: string | null;
+  /** Los datos del negocio que exige la entidad, para el encabezado. */
+  emisorRuc: string | null;
+  emisorRazonSocial: string | null;
+  /** El establecimiento del SRI ("001"), o null en Colombia. */
+  emisorEstablecimiento: string | null;
   subtotal: number;
   impuesto: number;
   etiquetaImpuesto: string;
@@ -171,6 +180,13 @@ export function marcarVersionGratis(doc: Pdf, rightX: number) {
   doc.setFont("helvetica", "normal");
 }
 
+/**
+ * Factura en PDF, con todo centrado arriba (logo, razon social, RUC,
+ * direccion, sucursal, telefono, correo, numero) y los datos de la venta uno
+ * debajo del otro: el mismo estilo con el que Datil arma la factura
+ * autorizada, para que la propia y la autorizada se vean iguales. Sin color
+ * en ninguna parte: solo negro sobre blanco, tambien el aviso de pruebas.
+ */
 export async function buildInvoicePdf(data: InvoiceData): Promise<File> {
   // Carga diferida: jsPDF pesa, y solo hace falta cuando alguien pide la factura.
   const { jsPDF } = await import("jspdf");
@@ -178,83 +194,84 @@ export async function buildInvoicePdf(data: InvoiceData): Promise<File> {
 
   const marginX = 18;
   const rightX = 210 - marginX;
-  let y = 20;
+  const centerX = 105;
+  const anchoCentro = rightX - marginX;
+  let y = 16;
+
+  doc.setTextColor(0);
 
   const logo = data.logoUrl ? await loadLogo(data.logoUrl) : null;
   if (logo) {
+    const lado = 22;
     try {
-      doc.addImage(logo.data, logo.format, marginX, y - 6, 20, 20);
+      doc.addImage(logo.data, logo.format, centerX - lado / 2, y, lado, lado);
+      y += lado + 4;
     } catch {
       // Si el logo no se puede incrustar, la factura sale igual sin el.
     }
   }
 
-  const headerX = logo ? marginX + 26 : marginX;
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.text(data.businessName, headerX, y);
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(110);
-  let subY = y + 5;
-  if (data.businessAddress) {
-    doc.text(data.businessAddress, headerX, subY);
-    subY += 4;
-  }
-  if (data.businessPhone) {
-    doc.text("Tel: " + data.businessPhone, headerX, subY);
-    subY += 4;
+  /** Una linea (o varias, si no cabe) centrada en la hoja. */
+  function centrado(texto: string, tam: number, negrita = false) {
+    doc.setFont("helvetica", negrita ? "bold" : "normal");
+    doc.setFontSize(tam);
+    const lineas = doc.splitTextToSize(texto, anchoCentro) as string[];
+    for (const linea of lineas) {
+      doc.text(linea, centerX, y, { align: "center" });
+      y += tam >= 13 ? 6 : 4.3;
+    }
   }
 
-  doc.setTextColor(0);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.text(data.autorizacion ? "FACTURA ELECTRONICA DE VENTA" : "FACTURA DE VENTA", rightX, y, { align: "right" });
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(110);
-  doc.text("No. " + numeroDe(data), rightX, y + 5, { align: "right" });
-  doc.text(prettyDay(data.day), rightX, y + 9, { align: "right" });
+  const a = data.autorizacion;
+  centrado(a?.emisorRazonSocial || data.businessName, 13, true);
+  if (a?.emisorRuc) centrado("RUC: " + a.emisorRuc, 9);
+  if (data.businessAddress) centrado("Dirección: " + data.businessAddress, 9);
+  if (a?.emisorEstablecimiento) centrado("Sucursal: " + a.emisorEstablecimiento, 9);
+  if (data.businessPhone) centrado("Teléfono: " + data.businessPhone, 9);
+  if (data.businessEmail) centrado("Correo: " + data.businessEmail, 9);
+  centrado(data.provisional ? "Registrada sin señal" : "Recibo: " + numeroDe(data), 9, true);
 
-  y = Math.max(subY, y + 14) + 6;
+  y += 2;
   doc.setDrawColor(215);
   doc.line(marginX, y, rightX, y);
-  y += 8;
+  y += 7;
 
-  doc.setTextColor(0);
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "bold");
-  doc.text("Cliente", marginX, y);
-  doc.setFont("helvetica", "normal");
-  doc.text(data.clientName || "Mostrador", marginX + 22, y);
-  if (data.autorizacion?.compradorDocumento) {
-    doc.setFontSize(9);
-    doc.setTextColor(110);
-    doc.text(data.autorizacion.compradorDocumento, marginX + 22, y + 4.5);
-    doc.setTextColor(0);
-    doc.setFontSize(10);
-  }
-
-  if (data.staffName) {
+  // Los datos de la venta, uno debajo del otro: se leen igual de rapido
+  // impresos que en la pantalla del celular.
+  doc.setFontSize(9.5);
+  function fila(etiqueta: string, valor: string) {
     doc.setFont("helvetica", "bold");
-    doc.text("Atendio", 120, y);
+    doc.text(etiqueta + ":", marginX, y);
     doc.setFont("helvetica", "normal");
-    doc.text(data.staffName, 140, y);
+    doc.text(doc.splitTextToSize(valor, rightX - (marginX + 36)) as string[], marginX + 36, y);
+    y += 5;
   }
-  y += 10;
+  fila("Fecha", prettyDay(data.day));
+  fila("Cliente", data.clientName || "Consumidor final");
+  if (a?.compradorDocumento) fila("Identificación", a.compradorDocumento);
+  if (data.clientPhone) fila("Teléfono", data.clientPhone);
+  if (data.staffName) fila("Vendedor", data.staffName);
 
-  // Encabezado de la tabla.
-  doc.setFillColor(243, 244, 246);
-  doc.rect(marginX, y - 5, rightX - marginX, 8, "F");
+  y += 3;
+  doc.setDrawColor(215);
+  doc.line(marginX, y, rightX, y);
+  y += 7;
+
+  // Encabezado de la tabla: Cant | Descripcion | P.U | Total.
+  const xCant = marginX + 2;
+  const xDesc = marginX + 14;
+  const xPU = 158;
+  const xTotal = rightX - 2;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
-  doc.text("Descripcion", marginX + 2, y);
-  doc.text("Cant.", 128, y, { align: "right" });
-  doc.text("Precio", 158, y, { align: "right" });
-  doc.text("Total", rightX - 2, y, { align: "right" });
-  y += 9;
+  doc.text("Cant", xCant, y);
+  doc.text("Descripción", xDesc, y);
+  doc.text("P.U", xPU, y, { align: "right" });
+  doc.text("Total", xTotal, y, { align: "right" });
+  y += 2;
+  doc.setDrawColor(0);
+  doc.line(marginX, y, rightX, y);
+  y += 6;
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
@@ -264,48 +281,42 @@ export async function buildInvoicePdf(data: InvoiceData): Promise<File> {
       doc.addPage();
       y = 25;
     }
-    const name = doc.splitTextToSize(item.name, 100) as string[];
-    doc.text(name, marginX + 2, y);
-    doc.text(String(item.qty), 128, y, { align: "right" });
-    doc.text(money(item.unitPrice, data.currency), 158, y, { align: "right" });
-    doc.text(money(item.unitPrice * item.qty, data.currency), rightX - 2, y, { align: "right" });
-    y += Math.max(6, name.length * 5);
-    doc.setDrawColor(235);
+    const nombre = doc.splitTextToSize(item.name, xPU - 12 - xDesc) as string[];
+    doc.text(String(item.qty), xCant, y);
+    doc.text(nombre, xDesc, y);
+    doc.text(money(item.unitPrice, data.currency), xPU, y, { align: "right" });
+    doc.text(money(item.unitPrice * item.qty, data.currency), xTotal, y, { align: "right" });
+    y += Math.max(6, nombre.length * 5);
+    doc.setDrawColor(230);
     doc.line(marginX, y - 3, rightX, y - 3);
   }
 
   y += 4;
-  if (data.autorizacion) {
+  if (a) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.text("Subtotal", 140, y);
-    doc.text(money(data.autorizacion.subtotal, data.currency), rightX - 2, y, { align: "right" });
+    doc.text(money(a.subtotal, data.currency), xTotal, y, { align: "right" });
     y += 5;
-    doc.text(data.autorizacion.etiquetaImpuesto, 140, y);
-    doc.text(money(data.autorizacion.impuesto, data.currency), rightX - 2, y, { align: "right" });
+    doc.text(a.etiquetaImpuesto, 140, y);
+    doc.text(money(a.impuesto, data.currency), xTotal, y, { align: "right" });
     y += 7;
   }
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
   doc.text("TOTAL", 140, y);
-  doc.text(money(data.total, data.currency), rightX - 2, y, { align: "right" });
+  doc.text(money(data.total, data.currency), xTotal, y, { align: "right" });
 
   y += 8;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.setTextColor(110);
-  doc.text(
-    "Forma de pago: " + (PAYMENT_LABEL[data.paymentMethod] ?? data.paymentMethod),
-    marginX,
-    y
-  );
+  doc.text("Forma de pago: " + (PAYMENT_LABEL[data.paymentMethod] ?? data.paymentMethod), marginX, y);
   if (data.notes) {
     y += 5;
-    doc.text(doc.splitTextToSize("Nota: " + data.notes, rightX - marginX) as string[], marginX, y);
+    doc.text(doc.splitTextToSize("Nota: " + data.notes, anchoCentro) as string[], marginX, y);
   }
 
-  if (data.autorizacion) {
-    const a = data.autorizacion;
+  if (a) {
     // El bloque de la autorizacion: el QR a la izquierda y el codigo al lado.
     y += 10;
     if (y > 240) {
@@ -318,8 +329,8 @@ export async function buildInvoicePdf(data: InvoiceData): Promise<File> {
         const modulos = qrModulos(a.qr);
         const paso = lado / modulos.length;
         doc.setFillColor(0, 0, 0);
-        modulos.forEach((fila, my) =>
-          fila.forEach((negro, mx) => {
+        modulos.forEach((renglon, my) =>
+          renglon.forEach((negro, mx) => {
             if (negro) doc.rect(marginX + mx * paso, y + my * paso, paso, paso, "F");
           })
         );
@@ -329,7 +340,6 @@ export async function buildInvoicePdf(data: InvoiceData): Promise<File> {
     }
     const textoX = a.qr ? marginX + lado + 6 : marginX;
     const ancho = rightX - textoX;
-    doc.setTextColor(0);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
     doc.text(LEYENDA[a.pais], textoX, y + 4);
@@ -344,15 +354,14 @@ export async function buildInvoicePdf(data: InvoiceData): Promise<File> {
       doc.text((a.pais === "CO" ? "Validada: " : "Autorizada: ") + fecha, textoX, ty);
       ty += 4;
     }
+    // Sin rojo: tambien el aviso de pruebas va en negro, negrita para que se note.
     if (a.pruebas) {
-      doc.setTextColor(185, 28, 28);
       doc.setFont("helvetica", "bold");
       doc.text("AMBIENTE DE PRUEBAS - SIN VALIDEZ FISCAL", textoX, ty);
-      doc.setFont("helvetica", "normal");
     }
-    doc.setTextColor(110);
   }
 
+  doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.text("Gracias por tu compra.", marginX, 285);
   // La factura autorizada es un documento fiscal: la marca va solo en la normal.
@@ -370,27 +379,31 @@ export async function buildInvoicePdf(data: InvoiceData): Promise<File> {
  * y el nombre es justo lo que el cliente revisa.
  */
 export function invoiceTirilla(data: InvoiceData): Linea[] {
-  const lineas: Linea[] = [{ t: "titulo", text: data.businessName }];
+  const a = data.autorizacion;
+  const lineas: Linea[] = [{ t: "titulo", text: a?.emisorRazonSocial || data.businessName }];
 
-  if (data.businessAddress) lineas.push({ t: "centro", text: data.businessAddress, tenue: true });
-  if (data.businessPhone) lineas.push({ t: "centro", text: "Tel " + data.businessPhone, tenue: true });
+  if (a?.emisorRuc) lineas.push({ t: "centro", text: "RUC: " + a.emisorRuc, tenue: true });
+  if (data.businessAddress) lineas.push({ t: "centro", text: "Dirección: " + data.businessAddress, tenue: true });
+  if (a?.emisorEstablecimiento) lineas.push({ t: "centro", text: "Sucursal: " + a.emisorEstablecimiento, tenue: true });
+  if (data.businessPhone) lineas.push({ t: "centro", text: "Teléfono: " + data.businessPhone, tenue: true });
+  if (data.businessEmail) lineas.push({ t: "centro", text: "Correo: " + data.businessEmail, tenue: true });
 
   lineas.push(
     { t: "sep" },
-    { t: "centro", text: data.autorizacion ? "FACTURA ELECTRÓNICA DE VENTA" : "FACTURA DE VENTA", fuerte: true },
     {
       t: "centro",
-      text: data.provisional ? "Registrada sin señal" : "No. " + numeroDe(data),
-      tenue: true,
+      text: data.provisional ? "Registrada sin señal" : "Recibo: " + numeroDe(data),
+      fuerte: true,
     },
     { t: "centro", text: prettyDay(data.day), tenue: true },
     { t: "sep" }
   );
 
-  if (data.clientName) lineas.push({ t: "par", label: "Cliente", value: data.clientName });
-  if (data.autorizacion?.compradorDocumento) lineas.push({ t: "texto", text: data.autorizacion.compradorDocumento, tenue: true });
-  if (data.staffName) lineas.push({ t: "par", label: "Atendio", value: data.staffName });
-  if (data.clientName || data.staffName) lineas.push({ t: "sep" });
+  lineas.push({ t: "par", label: "Cliente", value: data.clientName || "Consumidor final" });
+  if (a?.compradorDocumento) lineas.push({ t: "par", label: "Identificación", value: a.compradorDocumento });
+  if (data.clientPhone) lineas.push({ t: "par", label: "Teléfono", value: data.clientPhone });
+  if (data.staffName) lineas.push({ t: "par", label: "Vendedor", value: data.staffName });
+  lineas.push({ t: "sep" });
 
   for (const item of data.items) {
     lineas.push({ t: "texto", text: item.name });
@@ -401,10 +414,10 @@ export function invoiceTirilla(data: InvoiceData): Linea[] {
     });
   }
 
-  if (data.autorizacion) {
+  if (a) {
     lineas.push(
-      { t: "par", label: "Subtotal", value: money(data.autorizacion.subtotal, data.currency) },
-      { t: "par", label: data.autorizacion.etiquetaImpuesto, value: money(data.autorizacion.impuesto, data.currency) }
+      { t: "par", label: "Subtotal", value: money(a.subtotal, data.currency) },
+      { t: "par", label: a.etiquetaImpuesto, value: money(a.impuesto, data.currency) }
     );
   }
   lineas.push(
@@ -414,8 +427,7 @@ export function invoiceTirilla(data: InvoiceData): Linea[] {
 
   if (data.notes) lineas.push({ t: "espacio" }, { t: "texto", text: data.notes, tenue: true });
 
-  if (data.autorizacion) {
-    const a = data.autorizacion;
+  if (a) {
     const fecha = fechaCorta(a.fecha);
     lineas.push(
       { t: "sep" },
