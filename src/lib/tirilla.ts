@@ -58,9 +58,11 @@ function clases(base: string, l: { fuerte?: boolean; tenue?: boolean }): string 
 /**
  * El recibo en HTML, del ancho del papel.
  *
- * El logo solo va en la hoja: en 58mm una imagen se come medio papel y no se
- * distingue. Si el logo no carga (sin senal y sin haberlo visto antes), se
- * quita antes de imprimir y el recibo sale igual.
+ * El logo va arriba de todo, centrado, tambien en la tirilla de 58 y 80mm:
+ * es del mismo tamano en los tres formatos, y en la tirilla angosta ocupa
+ * buena parte del ancho, como en un recibo de tienda de verdad. Si el logo
+ * no carga (sin senal y sin haberlo visto antes), se quita antes de imprimir
+ * y el recibo sale igual.
  */
 export function tirillaHtml(lineas: Linea[], formato: Formato, logoUrl?: string | null): string {
   const filas = lineas
@@ -85,7 +87,7 @@ export function tirillaHtml(lineas: Linea[], formato: Formato, logoUrl?: string 
       }
     })
     .join("");
-  const logo = formato === "a4" && logoUrl ? '<img class="ti-logo" alt="" src="' + esc(logoUrl) + '">' : "";
+  const logo = logoUrl ? '<img class="ti-logo" alt="" src="' + esc(logoUrl) + '">' : "";
   return '<div class="ti ti-' + formato + '">' + logo + filas + "</div>";
 }
 

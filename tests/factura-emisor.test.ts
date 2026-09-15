@@ -42,6 +42,7 @@ const base: InvoiceData = {
   staffName: "Usuario Demo",
   items: [{ name: "Servicio X", qty: 1, unitPrice: 20 }],
   total: 20,
+  notes: null,
 };
 
 describe("el encabezado de la factura autorizada", () => {

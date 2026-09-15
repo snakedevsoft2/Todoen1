@@ -99,9 +99,17 @@ describe("recibo por el dialogo de impresion", () => {
     expect(html).toContain("&lt;img");
   });
 
-  it("la tirilla no lleva logo y la hoja si", () => {
-    expect(tirillaHtml(venta, "58", "/logo.png")).not.toContain("<img");
-    expect(tirillaHtml(venta, "a4", "/logo.png")).toContain('src="/logo.png"');
+  it("el logo va arriba de todo, en los tres tamaños", () => {
+    for (const formato of ["58", "80", "a4"] as const) {
+      const html = tirillaHtml(venta, formato, "/logo.png");
+      expect(html).toContain('src="/logo.png"');
+      expect(html.indexOf("ti-logo")).toBeLessThan(html.indexOf("ti-titulo"));
+    }
+  });
+
+  it("sin logo el recibo sale igual, sin una imagen rota", () => {
+    expect(tirillaHtml(venta, "58", null)).not.toContain("<img");
+    expect(tirillaHtml(venta, "58")).not.toContain("<img");
   });
 
   it("la venta hecha sin senal dice que se registro asi, sin un numero que despues cambia", () => {
