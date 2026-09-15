@@ -1,16 +1,18 @@
 /**
- * Comprueba en un navegador la prueba gratis y la versión gratis.
+ * Comprueba en un navegador la prueba gratis, la version gratis y que instalar
+ * la aplicacion sea solo de la cuenta que pagó.
  *
  * Lo que se prueba:
  *   - Al registrarse, la cuenta queda con 7 días de prueba.
- *   - En la prueba tiene todo: el navegador deja instalarla y guarda las
+ *   - En la prueba tiene los módulos (carga masiva), pero no se instala ni
+ *     guarda pantallas para usar sin señal: eso es solo de la cuenta que pagó.
+ *   - Con el pago registrado: el navegador deja instalarla y guarda las
  *     pantallas para usarla sin señal.
- *   - Cuando se acaba la prueba: ya no se puede instalar, se borra lo guardado
- *     y sin señal no abre; carga masiva, reportes, factura autorizada y
- *     exportar muestran que son del plan pago; la aplicación ya instalada
- *     queda tapada con el aviso.
- *   - El administrador ve la cuenta en la versión gratis y, al darle
- *     cortesía, vuelve a tener todo.
+ *   - Versión gratis: ya no se puede instalar, se borra lo guardado y sin señal
+ *     no abre; carga masiva, reportes, factura autorizada y exportar quedan
+ *     inactivos; la aplicación ya instalada queda tapada con el aviso.
+ *   - El administrador le da cortesía: vuelven los módulos, pero sigue sin
+ *     instalarse.
  *
  * Antes:
  *   npm run build
@@ -93,6 +95,7 @@ try {
   vigilar(page);
   const cdp = await ctx.newCDPSession(page);
   const erroresDeInstalacion = async () => (await cdp.send("Page.getInstallabilityErrors")).installabilityErrors;
+  const licencia = async () => (await page.request.get(BASE + "/api/licencia")).status();
 
   console.log("\n1. Al registrarse empieza la prueba gratis");
   await page.goto(BASE + "/registro", { waitUntil: "load" });
@@ -107,19 +110,32 @@ try {
   ok(dias > 6.9 && dias <= 7, "la cuenta nueva queda con 7 días de prueba", String(dias));
   await ctx.clearCookies();
 
-  console.log("\n2. En la prueba tiene todo");
+  console.log("\n2. En la prueba tiene los módulos, pero no se instala");
   await entrar(page, cuenta.email);
   await page.goto(BASE + "/panel/catalogo", { waitUntil: "load" });
-  ok((await page.locator('link[rel="manifest"]').count()) === 1, "la página enlaza el manifiesto");
   ok((await page.locator('[data-aviso-pago="prueba"]').count()) === 1, "el dueño ve cuántos días de prueba le quedan");
   ok(page.url().includes("/panel/catalogo") && (await page.locator("[data-funcion-inactiva]").count()) === 0, "la carga masiva está disponible", page.url());
+  ok((await page.locator('link[rel="manifest"]').count()) === 0, "la página no enlaza el manifiesto");
+  ok((await page.locator("[data-boton-instalar], [data-aviso-instalar]").count()) === 0, "no le sale el botón ni el aviso de instalar");
+  await page.waitForTimeout(3000);
+  ok(!(await conTrabajador(page)), "no queda trabajador de fondo");
+  ok((await guardadas(page)) === 0, "no guarda pantallas para usar sin señal");
+  const enPrueba = await erroresDeInstalacion();
+  ok(enPrueba.length > 0, "el navegador no deja instalarla", JSON.stringify(enPrueba));
+  ok((await licencia()) === 403, "la licencia sin señal responde que no está activa");
+
+  console.log("\n3. Con el pago registrado sí se instala");
+  await db.user.update({ where: { id: cuenta.id }, data: { paidUntil: new Date(Date.now() + 30 * DIA) } });
+  await page.goto(BASE + "/panel/catalogo", { waitUntil: "load" });
+  ok((await page.locator('link[rel="manifest"]').count()) === 1, "la página enlaza el manifiesto");
   ok(Boolean(await esperarHasta(() => trabajadorActivo(page), 25000)), "el trabajador de fondo queda activo");
   ok(Boolean(await esperarHasta(async () => (await guardadas(page)) > 0, 25000)), "guarda pantallas para usar sin señal");
   const alInstalar = await erroresDeInstalacion();
   ok(alInstalar.length === 0, "el navegador deja instalarla", JSON.stringify(alInstalar));
+  ok((await licencia()) === 200, "la licencia sin señal está activa");
 
-  console.log("\n3. Se acaba la prueba: versión gratis");
-  await db.user.update({ where: { id: cuenta.id }, data: { trialEndsAt: new Date(Date.now() - DIA) } });
+  console.log("\n4. Sin pago y con la prueba vencida: versión gratis");
+  await db.user.update({ where: { id: cuenta.id }, data: { paidUntil: null, trialEndsAt: new Date(Date.now() - DIA) } });
   await page.goto(BASE + "/panel", { waitUntil: "load" });
   ok((await page.locator('link[rel="manifest"]').count()) === 0, "ya no enlaza el manifiesto");
   ok((await page.locator('[data-aviso-pago="limitada"]').count()) === 1, "el dueño ve que está en la versión gratis y cómo activar el plan");
@@ -151,7 +167,7 @@ try {
   ok(!abrio, "sin señal el panel no abre");
   await ctx.setOffline(false);
 
-  console.log("\n4. La aplicación ya instalada no abre en la versión gratis");
+  console.log("\n5. La aplicación ya instalada no abre sin pago");
   await cdp.send("Emulation.setEmulatedMedia", { features: [{ name: "display-mode", value: "standalone" }] }).catch(() => undefined);
   await page.goto(BASE + "/panel", { waitUntil: "load" });
   if (await page.evaluate(() => matchMedia("(display-mode: standalone)").matches)) {
@@ -175,7 +191,7 @@ try {
     ok((await page.locator("[data-app-inactiva]").count()) === 0, "en el navegador se sigue usando");
   }
 
-  console.log("\n5. El administrador le da cortesía y vuelve a tener todo");
+  console.log("\n6. El administrador le da cortesía: vuelven los módulos, sin instalar");
   const actx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const adm = await actx.newPage();
   vigilar(adm);
@@ -185,15 +201,17 @@ try {
   await adm.goto(BASE + "/admin/" + cuenta.id, { waitUntil: "load" });
   const pagos = adm.locator("[data-pagos-cuenta]");
   ok((await pagos.getByText(/Versión gratis/).count()) === 1, "la ficha dice desde cuándo está en la versión gratis");
-  await pagos.getByRole("button", { name: "Darle todo gratis (cortesía)" }).click();
+  await pagos.getByRole("button", { name: "Darle acceso gratis (cortesía, sin app instalable)" }).click();
   ok(Boolean(await esperarHasta(async () => (await db.user.findUnique({ where: { id: cuenta.id } })).trialEndsAt === null)), "queda de cortesía");
+  ok(Boolean(await esperarHasta(() => pagos.getByText(/no instala la app/).count())), "la ficha dice que la cortesía no instala la app");
   await actx.close();
 
-  await page.goto(BASE + "/panel", { waitUntil: "load" });
-  ok((await page.locator('link[rel="manifest"]').count()) === 1, "vuelve a enlazar el manifiesto");
-  ok(Boolean(await esperarHasta(() => trabajadorActivo(page), 25000)), "y vuelve a quedar lista para usar sin señal");
+  await page.goto(BASE + "/panel/catalogo", { waitUntil: "load" });
+  ok((await page.locator("[data-funcion-inactiva]").count()) === 0, "vuelve a tener la carga masiva");
+  ok((await page.locator('link[rel="manifest"]').count()) === 0, "pero no enlaza el manifiesto: la cortesía no instala la app");
+  ok((await licencia()) === 403, "ni usa la licencia sin señal");
 
-  console.log("\n6. Errores durante el recorrido");
+  console.log("\n7. Errores durante el recorrido");
   ok(errores.length === 0, "ningún error 500", errores.slice(0, 3).join(" | "));
 } finally {
   await ctx.close();

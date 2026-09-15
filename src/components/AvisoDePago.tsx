@@ -38,9 +38,9 @@ export function AvisoDePago({
         <span className="min-w-0 flex-1">
           {limitada
             ? "Algunas funciones no están activas en tu cuenta: la aplicación instalada, el uso sin internet, la factura autorizada, la ubicación del personal, la carga masiva y los reportes. Escríbenos si las necesitas."
-            : "Tu cuenta tiene todas las funciones activas " +
+            : "Tu cuenta tiene las funciones activas " +
               (plan.dias <= 1 ? "hasta hoy" : "por " + plan.dias + " días más") +
-              ". Si tienes dudas, escríbenos."}
+              ". Para instalar la aplicación en el celular, escríbenos."}
         </span>
         {soporte}
       </div>

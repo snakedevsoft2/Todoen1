@@ -183,6 +183,12 @@ export default async function AdminPage({
                           <span className={"text-[12px] " + tono}>
                             {e.estado === "al-dia" || e.estado === "por-vencer" ? "Hasta " : "Venció "}
                             {diaEnColombia(e.vence)}
+                            {/* Solo la cuenta con pago instala la aplicacion en el celular. */}
+                            {(e.estado === "al-dia" || e.estado === "por-vencer" || e.estado === "vencida") && !c.suspendedAt && (
+                              <span className="ml-1.5 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-bold text-emerald-300" data-instala-app>
+                                App
+                              </span>
+                            )}
                           </span>
                         );
                       })()}

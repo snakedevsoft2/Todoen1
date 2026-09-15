@@ -91,13 +91,13 @@ export function PagosCuenta({
         <form action={quitarControlPagoAction}>
           <input type="hidden" name="userId" value={userId} />
           <button type="submit" className="text-[11px] font-semibold text-slate-500 underline hover:text-slate-300">
-            {paidUntil ? "Quitar el control de pago (cortesía)" : "Darle todo gratis (cortesía)"}
+            {paidUntil ? "Quitar el control de pago (cortesía, sin app instalable)" : "Darle acceso gratis (cortesía, sin app instalable)"}
           </button>
         </form>
       )}
 
       <p className="text-[11px] leading-snug text-slate-500">
-        Las cuentas nuevas tienen 7 días de prueba con todo; después quedan en la versión gratis hasta que registres el pago. Se le avisa al dueño 7 días antes de vencer. Si vence, tiene 5 días de gracia y después la cuenta se suspende sola. Al registrar el
+        Solo las cuentas con pago registrado instalan la aplicación en el celular y la usan sin internet. Las cuentas nuevas tienen 7 días de prueba con todo lo demás; después quedan en la versión gratis hasta que registres el pago. Se le avisa al dueño 7 días antes de vencer. Si vence, tiene 5 días de gracia y después la cuenta se suspende sola. Al registrar el
         pago vuelve a quedar activa.
       </p>
     </div>

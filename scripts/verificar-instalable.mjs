@@ -29,6 +29,8 @@ const ok = (c, t, extra = "") => {
 const S = "inst-" + Date.now();
 const cuenta = await db.user.create({
   data: {
+    // Con pago: solo la cuenta que pago instala la app y la usa sin senal.
+    paidUntil: new Date(Date.now() + 30 * 86_400_000),
     email: S + "@test.local",
     passwordHash: bcrypt.hashSync("demo1234", 10),
     ownerName: "Dueña",

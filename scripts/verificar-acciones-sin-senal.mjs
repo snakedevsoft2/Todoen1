@@ -41,6 +41,8 @@ const S = "acc-" + Date.now();
 const hoy = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 const cuenta = await db.user.create({
   data: {
+    // Con pago: solo la cuenta que pago instala la app y la usa sin senal.
+    paidUntil: new Date(Date.now() + 30 * 86_400_000),
     email: "acc-" + S + "@test.local",
     passwordHash: bcrypt.hashSync("demo1234", 10),
     ownerName: "Dueña",

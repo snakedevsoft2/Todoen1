@@ -39,6 +39,8 @@ const esperarHasta = async (fn, ms = 20000) => {
 const S = "senal-" + Date.now();
 const cuenta = await db.user.create({
   data: {
+    // Con pago: solo la cuenta que pago instala la app y la usa sin senal.
+    paidUntil: new Date(Date.now() + 30 * 86_400_000),
     email: "caja-" + S + "@test.local",
     passwordHash: bcrypt.hashSync("demo1234", 10),
     ownerName: "Caja",

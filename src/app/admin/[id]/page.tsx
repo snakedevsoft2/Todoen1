@@ -68,12 +68,12 @@ export default async function AdminCuentaPage({ params }: { params: Promise<{ id
   const textoPago =
     pago.estado === "sin-control"
       ? plan.tipo === "prueba"
-        ? "Prueba gratis hasta el " + fechaLarga(plan.hasta) + " · faltan " + plan.dias + " días"
+        ? "Prueba gratis hasta el " + fechaLarga(plan.hasta) + " · faltan " + plan.dias + " días · no instala la app"
         : plan.tipo === "gratis"
           ? "Versión gratis (limitada) desde el " + fechaLarga(plan.desde) + " · registra el pago para darle todo"
-          : "Sin control de pago (cortesía)"
+          : "Sin control de pago (cortesía) · no instala la app"
       : pago.estado === "al-dia"
-        ? "Pagada hasta el " + fechaLarga(pago.vence) + " · faltan " + pago.dias + " días"
+        ? "Pagada hasta el " + fechaLarga(pago.vence) + " · faltan " + pago.dias + " días · instala la app"
         : pago.estado === "por-vencer"
           ? "Vence el " + fechaLarga(pago.vence) + (pago.dias <= 1 ? " (mañana)" : " · en " + pago.dias + " días")
           : pago.estado === "vencida"

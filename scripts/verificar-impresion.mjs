@@ -40,6 +40,8 @@ const hoy = new Date().toISOString().slice(0, 10);
 
 const cuenta = await db.user.create({
   data: {
+    // Con pago: sin senal solo la usa la cuenta que pago.
+    paidUntil: new Date(Date.now() + 30 * 86_400_000),
     email: CORREO,
     passwordHash: bcrypt.hashSync("demo1234", 10),
     ownerName: "Prestamista",

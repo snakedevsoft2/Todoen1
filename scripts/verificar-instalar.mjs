@@ -60,7 +60,8 @@ const nueva = (nombre, extra = {}) =>
       ...extra,
     },
   });
-const completa = await nueva("completa");
+// Con pago: solo la cuenta que pago instala la app.
+const completa = await nueva("completa", { paidUntil: new Date(Date.now() + 30 * 86_400_000) });
 const limitada = await nueva("limitada", { trialEndsAt: new Date(Date.now() - 86_400_000) });
 
 const errores = [];

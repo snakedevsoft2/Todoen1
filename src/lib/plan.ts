@@ -4,10 +4,11 @@ import { SUPPORT_WHATSAPP } from "./support";
  * El plan de una cuenta: completa o version gratis.
  *
  *   - Con fecha de pago manda el control de pagos (lib/pagos.ts): mientras no
- *     se suspenda, la cuenta tiene todo.
+ *     se suspenda, la cuenta tiene todo. Es la unica que instala la
+ *     aplicacion en el telefono y la usa sin senal (puedeInstalar).
  *   - Sin fecha de pago y sin prueba: cuenta de cortesia, o de antes de que
- *     existiera la prueba. Tiene todo.
- *   - Sin fecha de pago y con prueba: todo hasta que se acaba la prueba, y
+ *     existiera la prueba. Tiene todo menos instalar la aplicacion.
+ *   - Sin fecha de pago y con prueba: todo menos instalar hasta que se acaba la prueba, y
  *     despues la version gratis hasta que el administrador registre el pago.
  *
  * La version gratis se usa desde el navegador y con internet: no se instala
@@ -38,6 +39,15 @@ export function planDeCuenta(c: CuentaConPlan, ahora = new Date()): Plan {
 /** Si tiene todo: todo menos la version gratis. */
 export function esPlanCompleto(c: CuentaConPlan, ahora = new Date()): boolean {
   return planDeCuenta(c, ahora).tipo !== "gratis";
+}
+
+/**
+ * Si puede instalar la aplicacion en el telefono y usarla sin senal: solo la
+ * cuenta que pago. La prueba y la cortesia la usan desde el navegador. Una
+ * cuenta con el pago vencido la bloquea el control de pagos (lib/pagos.ts).
+ */
+export function puedeInstalar(c: CuentaConPlan, ahora = new Date()): boolean {
+  return planDeCuenta(c, ahora).tipo === "pago";
 }
 
 /** Hasta cuando va la prueba de una cuenta que se registra ahora. */

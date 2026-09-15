@@ -27,7 +27,7 @@ import { correoDeLaSesion, esAdmin } from "@/lib/admin";
 import { ProveedorSinSenal } from "@/components/SinSenal";
 import { SinPlanCompleto } from "@/components/SinPlanCompleto";
 import { InstalarApp } from "@/components/InstalarApp";
-import { enlaceActivarPlan, esPlanCompleto } from "@/lib/plan";
+import { enlaceActivarPlan, puedeInstalar } from "@/lib/plan";
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
   const sesion = await requireSession();
@@ -53,8 +53,8 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   const logo = logoUrl(user.slug, user.logo, user.updatedAt);
   const foto = fotoPerfil(staff);
 
-  // La version gratis no se instala ni se usa sin senal (ver lib/plan.ts).
-  const completo = esPlanCompleto(user);
+  // Solo la cuenta que pago instala la aplicacion y la usa sin senal (ver lib/plan.ts).
+  const instalable = puedeInstalar(user);
 
   // Las pantallas del menu quedan guardadas en el telefono para usarlas sin senal.
   const paginasSinConexion = Array.from(new Set(["/panel", ...nav.map((i) => i.href)])).filter(
@@ -81,7 +81,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
     <>
       <ThemeStyle brandColor={user.brandColor} theme={user.theme} />
       <RegistrarVisita rutas={rutas} />
-      {completo ? (
+      {instalable ? (
         <>
           {/* Sin este enlace el navegador no ofrece instalar la aplicacion. */}
           <link rel="manifest" href="/manifest.webmanifest" />
@@ -109,7 +109,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
         staffColor={staff.color}
         fotoPerfil={foto}
         menuPropio={staff.role === "DUENO"}
-        instalar={completo}
+        instalar={instalable}
         logo={logo}
         bookingUrl={conPagina ? publicPath(user.businessType, user.slug) : undefined}
         bookingLabel="Ver mi portafolio"
@@ -120,8 +120,8 @@ export default async function PanelLayout({ children }: { children: React.ReactN
         <AvisoSinConexion />
         {/* Solo al dueño: es quien puede renovar el plan. */}
         {!empleado && staff.role === "DUENO" && <AvisoDePago paidUntil={user.paidUntil} trialEndsAt={user.trialEndsAt} businessName={user.businessName} />}
-        {completo && <InstalarApp variante="aviso" />}
-        <ProveedorSinSenal cuenta={staff.id} sinConexion={completo} esDueno={staff.role === "DUENO"}>{children}</ProveedorSinSenal>
+        {instalable && <InstalarApp variante="aviso" />}
+        <ProveedorSinSenal cuenta={staff.id} sinConexion={instalable} esDueno={staff.role === "DUENO"}>{children}</ProveedorSinSenal>
       </Shell>
       {/* La IA Snake flotante: solo si el servidor tiene la clave del modelo, y
           no para el empleado del gestor, que solo tiene sus pantallas. */}
