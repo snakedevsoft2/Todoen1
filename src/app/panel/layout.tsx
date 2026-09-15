@@ -111,7 +111,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
         <AvisoSinConexion />
         {/* Solo al dueño: es quien puede renovar el plan. */}
         {!empleado && staff.role === "DUENO" && <AvisoDePago paidUntil={user.paidUntil} trialEndsAt={user.trialEndsAt} businessName={user.businessName} />}
-        <ProveedorSinSenal cuenta={staff.id} sinConexion={completo}>{children}</ProveedorSinSenal>
+        <ProveedorSinSenal cuenta={staff.id} sinConexion={completo} esDueno={staff.role === "DUENO"}>{children}</ProveedorSinSenal>
       </Shell>
       {/* La IA Snake flotante: solo si el servidor tiene la clave del modelo, y
           no para el empleado del gestor, que solo tiene sus pantallas. */}

@@ -60,7 +60,7 @@ const cuenta = await db.user.create({
     slug: "tienda-" + S,
     paidUntil: new Date(Date.now() + 3 * DIA),
     staff: { create: { name: "Cliente", role: "DUENO", ...listo } },
-    expenses: { create: { day: "2026-09-14", amount: 12000, description: "Gasto de prueba licencia" } },
+    expenses: { create: { day: new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()), amount: 12000, description: "Gasto de prueba licencia" } },
   },
 });
 

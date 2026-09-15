@@ -171,7 +171,13 @@ export default async function ClientesPage({
             <ClienteForm submitLabel="Agregar cliente" />
           </Card>
           <Card title="Subir muchos clientes de una vez" subtitle="Desde Excel o un archivo CSV">
-            {esPlanCompleto(user) ? <CargaMasiva tipo="clientes" /> : <SoloPlanPago que="Carga masiva" negocio={user.businessName} />}
+            {!esDueno ? (
+              <p className="text-[13px] text-muted">Solo el dueño del negocio sube listas de clientes.</p>
+            ) : esPlanCompleto(user) ? (
+              <CargaMasiva tipo="clientes" />
+            ) : (
+              <SoloPlanPago que="Carga masiva" negocio={user.businessName} />
+            )}
           </Card>
           {esDueno && (
             <Card title="Trae los que ya tienes">

@@ -62,6 +62,7 @@ export default async function EquipoPage() {
     id: s.id,
     name: s.name,
     email: s.email,
+    username: s.username,
     phone: s.phone,
     role: s.role,
     color: s.color,

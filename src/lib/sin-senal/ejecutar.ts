@@ -1,5 +1,6 @@
 import { db } from "../db";
 import { LLAVE_VALIDA, type Sesion } from "../informes";
+import { SOLO_DUENO, puedeHacer } from "../permisos-empleado";
 
 /**
  * Ejecuta las acciones del panel que se hicieron sin senal.
@@ -74,6 +75,11 @@ export async function ejecutarAcciones(
     const campos = leerCampos(a.campos);
     if (!campos) {
       rechazar("Los datos no son válidos.");
+      continue;
+    }
+    // El empleado no borra ni cambia lo registrado, tampoco desde la cola.
+    if (!puedeHacer(s.staff.role, nombre, campos)) {
+      rechazar(SOLO_DUENO);
       continue;
     }
 

@@ -122,6 +122,9 @@ export async function getCurrentSession(): Promise<Session | null> {
   });
   if (!staff) return null;
 
+  // Al empleado que le quitaron el usuario (y no tiene correo) se le cierra la sesion.
+  if (staff.role !== "DUENO" && !staff.username && !staff.email) return null;
+
   await marcarActividad(staff);
   return { user, staff };
 }

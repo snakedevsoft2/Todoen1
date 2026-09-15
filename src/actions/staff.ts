@@ -6,6 +6,7 @@ import { checkPassword, hashPassword, requireOwner, requireSession } from "@/lib
 import { parseIntSafe, str } from "@/lib/format";
 import { normalizeHex } from "@/lib/theme";
 import { STAFF_COLORS, teamNoun } from "@/lib/staff";
+import { USUARIO_INVALIDO, USUARIO_VALIDO, normalizarUsuario } from "@/lib/usuario";
 
 export type StaffState = { error?: string; ok?: string } | undefined;
 
@@ -16,6 +17,12 @@ async function emailTaken(email: string, ignoreStaffId?: string) {
   const owner = await db.user.findUnique({ where: { email }, select: { id: true } });
   if (owner) return true;
   const staff = await db.staff.findUnique({ where: { email }, select: { id: true } });
+  return Boolean(staff && staff.id !== ignoreStaffId);
+}
+
+/** El usuario de entrar no se repite en ningun negocio: el ingreso no sabe de que negocio es. */
+async function usuarioTomado(username: string, ignoreStaffId?: string) {
+  const staff = await db.staff.findUnique({ where: { username }, select: { id: true } });
   return Boolean(staff && staff.id !== ignoreStaffId);
 }
 
@@ -33,6 +40,7 @@ export async function createStaffAction(
   const email = str(formData.get("email")).toLowerCase();
   const password = String(formData.get("password") ?? "");
   const phone = str(formData.get("phone"));
+  const username = normalizarUsuario(str(formData.get("username")));
   const noun = teamNoun(user.businessType);
 
   if (!name) return { error: "Escribe el nombre del " + noun.singular + "." };
@@ -48,11 +56,17 @@ export async function createStaffAction(
     if (await emailTaken(email)) return { error: "Ya existe una cuenta con ese correo." };
   }
 
+  if (username) {
+    if (!USUARIO_VALIDO.test(username)) return { error: USUARIO_INVALIDO };
+    if (await usuarioTomado(username)) return { error: "Ese usuario ya lo tiene otra persona. Prueba agregándole el nombre del negocio." };
+  }
+
   await db.staff.create({
     data: {
       userId: user.id,
       name,
       email: email || null,
+      username: username || null,
       passwordHash: password ? hashPassword(password) : null,
       phone: phone || null,
       // El rol depende del negocio: barbero en la barberia, vendedor en la ropa.
@@ -68,7 +82,11 @@ export async function createStaffAction(
   revalidatePath("/panel/ventas");
   const nombre = noun.singular.charAt(0).toUpperCase() + noun.singular.slice(1);
   return {
-    ok: email ? nombre + " agregado. Ya puede entrar con su correo." : nombre + " agregado.",
+    ok: username
+      ? nombre + " agregado. Entra escribiendo el usuario " + username + ", sin contraseña."
+      : email
+        ? nombre + " agregado. Ya puede entrar con su correo."
+        : nombre + " agregado.",
   };
 }
 
@@ -107,29 +125,39 @@ export async function setStaffAccessAction(
     return { error: "El correo del dueno se cambia en Ajustes." };
   }
 
+  const username = normalizarUsuario(str(formData.get("username")));
   const email = str(formData.get("email")).toLowerCase();
   const password = String(formData.get("password") ?? "");
 
-  if (!EMAIL_RE.test(email)) return { error: "Escribe un correo valido." };
-  if (await emailTaken(email, staff.id)) return { error: "Ya existe una cuenta con ese correo." };
-  // Si ya tenia contrasena, dejarla en blanco significa "no la cambies".
-  if (!staff.passwordHash && password.length < 6) {
-    return { error: "La contrasena debe tener al menos 6 caracteres." };
+  if (!username && !email && !staff.email) return { error: "Escribe el usuario con el que va a entrar." };
+  if (username) {
+    if (!USUARIO_VALIDO.test(username)) return { error: USUARIO_INVALIDO };
+    if (await usuarioTomado(username, staff.id)) {
+      return { error: "Ese usuario ya lo tiene otra persona. Prueba agregándole el nombre del negocio." };
+    }
   }
-  if (password && password.length < 6) {
-    return { error: "La contrasena debe tener al menos 6 caracteres." };
+  if (email) {
+    if (!EMAIL_RE.test(email)) return { error: "Escribe un correo valido." };
+    if (await emailTaken(email, staff.id)) return { error: "Ya existe una cuenta con ese correo." };
+    // Si ya tenia contrasena, dejarla en blanco significa "no la cambies".
+    if (!staff.passwordHash && password.length < 6) return { error: "La contrasena debe tener al menos 6 caracteres." };
+    if (password && password.length < 6) return { error: "La contrasena debe tener al menos 6 caracteres." };
   }
 
   await db.staff.update({
     where: { id: staff.id },
     data: {
-      email,
-      passwordHash: password ? hashPassword(password) : staff.passwordHash,
+      username: username || null,
+      ...(email ? { email, passwordHash: password ? hashPassword(password) : staff.passwordHash } : {}),
     },
   });
 
   revalidatePath("/panel/equipo");
-  return { ok: "Listo. " + staff.name + " ya puede entrar con " + email + "." };
+  return {
+    ok: username
+      ? "Listo. " + staff.name + " entra escribiendo " + username + ", sin contraseña."
+      : "Listo. " + staff.name + " entra con su correo.",
+  };
 }
 
 /** Le quita el acceso a la aplicacion, pero lo deja en la agenda. */
@@ -141,7 +169,7 @@ export async function removeStaffAccessAction(formData: FormData) {
 
   await db.staff.update({
     where: { id: staff.id },
-    data: { email: null, passwordHash: null },
+    data: { email: null, passwordHash: null, username: null },
   });
   revalidatePath("/panel/equipo");
 }
@@ -167,15 +195,17 @@ export async function deleteStaffAction(formData: FormData): Promise<void> {
   const staff = await db.staff.findFirst({ where: { id, userId: user.id } });
   if (!staff || staff.role === "DUENO") return;
 
-  const [turnos, ventas] = await Promise.all([
+  const [turnos, ventas, actividad] = await Promise.all([
     db.appointment.count({ where: { staffId: staff.id } }),
     db.sale.count({ where: { staffId: staff.id } }),
+    db.staffActivity.count({ where: { staffId: staff.id } }),
   ]);
 
-  if (turnos > 0 || ventas > 0) {
+  // Con historial no se borra: se desactiva, para no perder lo que hizo.
+  if (turnos > 0 || ventas > 0 || actividad > 0) {
     await db.staff.update({
       where: { id: staff.id },
-      data: { active: false, email: null, passwordHash: null },
+      data: { active: false, email: null, passwordHash: null, username: null },
     });
   } else {
     await db.staff.delete({ where: { id: staff.id } });

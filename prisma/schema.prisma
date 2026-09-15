@@ -229,6 +229,7 @@ model User {
   scheduledMessages  ScheduledMessage[]
   billingConfig      BillingConfig?
   electronicInvoices ElectronicInvoice[]
+  staffActivities    StaffActivity[]
 
   @@index([slug])
 }
@@ -381,6 +382,9 @@ model Staff {
   name         String
   /// Correo con el que entra a la aplicacion. Si esta vacio, no tiene acceso.
   email        String? @unique
+  /// Usuario con el que entra el empleado que agrego el dueño, sin contraseña.
+  /// Sin arroba, sin tildes y en minusculas; unico entre todos los negocios.
+  username     String? @unique
   passwordHash String?
 
   /**
@@ -450,6 +454,7 @@ model Staff {
   novelties      Novelty[]       @relation("NovedadesDeLaPersona")
   locationPings  LocationPing[]  @relation("UbicacionesDeLaPersona")
   siteVisits     SiteVisit[]     @relation("VisitasDeLaPersona")
+  activities     StaffActivity[]
 
   @@index([userId, active])
 }
@@ -1654,3 +1659,20 @@ model OfflineAction {
   @@index([userId, createdAt])
 }
 
+/// Lo que hizo cada persona del equipo: ventas, cobros, gastos, abonos,
+/// clientes, caja, inventario, y lo que el dueño borro o cambio. Lo ve el dueño
+/// en Empleados. Ver lib/actividad.ts.
+model StaffActivity {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  staffId   String
+  staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  tipo      String
+  detalle   String
+  monto     Int?
+  createdAt DateTime @default(now())
+
+  @@index([userId, staffId, createdAt])
+  @@index([userId, createdAt])
+}

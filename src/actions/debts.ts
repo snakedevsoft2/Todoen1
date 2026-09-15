@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { PaymentMethod } from "@prisma/client";
 import { db } from "@/lib/db";
 import { anotarCliente } from "@/lib/clientes";
-import { requireSession, requireUser } from "@/lib/auth";
+import { requireOwner, requireSession } from "@/lib/auth";
 import { isValidDay, todayIn } from "@/lib/dates";
 import { parseIntSafe, parseMoney, str, texto } from "@/lib/format";
 import { saldo } from "@/lib/debts";
@@ -14,6 +14,8 @@ import {
   totalConInteres,
   type Frecuencia,
 } from "@/lib/prestamos";
+import { anotarActividad } from "@/lib/actividad";
+import { SOLO_DUENO, esDueno } from "@/lib/permisos-empleado";
 
 export type DebtState = { error?: string; ok?: string } | undefined;
 
@@ -35,7 +37,7 @@ export async function createDebtAction(
   _prev: DebtState,
   formData: FormData
 ): Promise<DebtState> {
-  const user = await requireUser();
+  const { user, staff } = await requireSession();
 
   const clientName = str(formData.get("clientName"));
   if (!clientName) return { error: "Escribe quien debe." };
@@ -119,6 +121,10 @@ export async function createDebtAction(
       guarantorAddress: str(formData.get("guarantorAddress")) || null,
     },
   });
+  await anotarActividad(
+    { user, staff },
+    { tipo: "deuda", detalle: (esPrestamo ? "Anotó un préstamo a " : "Anotó una deuda de ") + clientName + ": " + concept, monto: amount }
+  );
 
   await anotarCliente(user.id, {
     name: clientName,
@@ -197,20 +203,24 @@ export async function addPaymentAction(
       await tx.debt.update({ where: { id: debt.id }, data: { status: "PAGADA" } });
     }
   });
+  await anotarActividad(
+    { user, staff: me },
+    { tipo: "abono", detalle: "Recibió un abono de " + debt.clientName + " (" + debt.concept + ")", monto: amount }
+  );
 
   refresh(debt.id);
   revalidatePath("/panel/ventas");
   return { ok: amount >= pendiente ? "Deuda pagada por completo." : "Abono registrado." };
 }
 
-/** Borra un abono. Si genero una venta, se va con el. */
+/** Borra un abono. Si genero una venta, se va con el. Solo el dueño. */
 export async function deletePaymentAction(formData: FormData) {
-  const user = await requireUser();
+  const { user, staff } = await requireOwner();
   const id = str(formData.get("id"));
 
   const pago = await db.debtPayment.findFirst({
     where: { id, userId: user.id },
-    include: { debt: { select: { id: true } } },
+    include: { debt: { select: { id: true, clientName: true } } },
   });
   if (!pago) return;
 
@@ -225,6 +235,7 @@ export async function deletePaymentAction(formData: FormData) {
       data: { status: "PENDIENTE" },
     });
   });
+  await anotarActividad({ user, staff }, { tipo: "borrado", detalle: "Borró un abono de " + pago.debt.clientName, monto: pago.amount });
 
   refresh(pago.debtId);
   revalidatePath("/panel/ventas");
@@ -232,7 +243,7 @@ export async function deletePaymentAction(formData: FormData) {
 
 /** Deja anotado que ya se le cobro, para no acosar al cliente. */
 export async function markCollectedAction(formData: FormData) {
-  const user = await requireUser();
+  const { user } = await requireOwner();
   const id = str(formData.get("id"));
   await db.debt.updateMany({
     where: { id, userId: user.id },
@@ -241,12 +252,13 @@ export async function markCollectedAction(formData: FormData) {
   refresh(id);
 }
 
-/** Cambiar el vencimiento cuando se acuerda un nuevo plazo. */
+/** Cambiar el vencimiento cuando se acuerda un nuevo plazo. Solo el dueño. */
 export async function updateDueDayAction(
   _prev: DebtState,
   formData: FormData
 ): Promise<DebtState> {
-  const user = await requireUser();
+  const { user, staff } = await requireSession();
+  if (!esDueno(staff.role)) return { error: SOLO_DUENO };
   const id = str(formData.get("id"));
   const dueInput = str(formData.get("dueDay"));
 
@@ -262,19 +274,22 @@ export async function updateDueDayAction(
   return { ok: dueInput ? "Nuevo plazo guardado." : "Se quito la fecha de vencimiento." };
 }
 
-/** Anular: la deuda se da por perdida o estaba mal anotada. */
+/** Anular: la deuda se da por perdida o estaba mal anotada. Solo el dueño. */
 export async function cancelDebtAction(formData: FormData) {
-  const user = await requireUser();
+  const { user, staff } = await requireOwner();
   const id = str(formData.get("id"));
+  const deuda = await db.debt.findFirst({ where: { id, userId: user.id }, select: { clientName: true, amount: true } });
+  if (!deuda) return;
   await db.debt.updateMany({
     where: { id, userId: user.id },
     data: { status: "ANULADA" },
   });
+  await anotarActividad({ user, staff }, { tipo: "cambio", detalle: "Anuló la deuda de " + deuda.clientName, monto: deuda.amount });
   refresh(id);
 }
 
 export async function reopenDebtAction(formData: FormData) {
-  const user = await requireUser();
+  const { user } = await requireOwner();
   const id = str(formData.get("id"));
   await db.debt.updateMany({
     where: { id, userId: user.id, status: "ANULADA" },
@@ -285,11 +300,13 @@ export async function reopenDebtAction(formData: FormData) {
 
 /**
  * Borrar del todo. Solo si no tiene abonos: si ya cobro algo, se anula, para
- * que no se pierda el rastro de la plata que si entro.
+ * que no se pierda el rastro de la plata que si entro. Solo el dueño.
  */
 export async function deleteDebtAction(formData: FormData) {
-  const user = await requireUser();
+  const { user, staff } = await requireOwner();
   const id = str(formData.get("id"));
+  const deuda = await db.debt.findFirst({ where: { id, userId: user.id }, select: { clientName: true, amount: true } });
+  if (!deuda) return;
 
   const cuantos = await db.debtPayment.count({ where: { debtId: id, userId: user.id } });
   if (cuantos > 0) {
@@ -297,6 +314,10 @@ export async function deleteDebtAction(formData: FormData) {
   } else {
     await db.debt.deleteMany({ where: { id, userId: user.id } });
   }
+  await anotarActividad(
+    { user, staff },
+    { tipo: "borrado", detalle: (cuantos > 0 ? "Anuló la deuda de " : "Borró la deuda de ") + deuda.clientName, monto: deuda.amount }
+  );
 
   refresh(id);
 }

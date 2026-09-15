@@ -4,7 +4,7 @@
  * Antes el menú mostraba "Empleados" y al tocarlo volvía al inicio. Lo que se
  * prueba:
  *   - Otro negocio abre Empleados y agrega a alguien con su usuario.
- *   - Esa persona entra con su correo y su contraseña.
+ *   - Esa persona entra solo con su usuario, sin contraseña.
  *   - En Ventas ya se puede elegir quién atendió.
  *   - Un restaurante con Empleados prendido también abre la pantalla.
  *
@@ -53,7 +53,7 @@ const resto = await db.user.create({
     accountModules: { create: { moduleKey: "equipo", enabled: true } },
   },
 });
-const correoEmpleado = "juliana-" + S + "@test.local";
+const usuarioEmpleado = "juliana." + S.replace(/[^a-z0-9]/g, "");
 
 const errores = [];
 const browser = await chromium.launch({ channel: "msedge" });
@@ -63,7 +63,7 @@ async function entrar(ctx, email, clavePlana = "demo1234") {
   page.on("response", (r) => r.status() >= 500 && r.status() !== 503 && errores.push(r.status() + " " + r.url()));
   await page.goto(BASE + "/login", { waitUntil: "load" });
   await page.fill('input[name="email"]', email);
-  await page.fill('input[name="password"]', clavePlana);
+  if (clavePlana) await page.fill('input[name="password"]', clavePlana);
   await page.click('button[type="submit"]');
   await page.waitForURL(/\/panel/, { timeout: 25000 });
   return page;
@@ -81,18 +81,17 @@ try {
   console.log("\n2. Agrega un empleado con su usuario");
   const form = duena.locator("form", { has: duena.getByRole("button", { name: "Agregar empleado" }) });
   await form.locator('input[name="name"]').fill("Juliana Intriago");
-  await form.locator('input[name="email"]').fill(correoEmpleado);
-  await form.locator('input[name="password"]').fill("clave123");
+  await form.locator('input[name="username"]').fill(usuarioEmpleado);
   await form.getByRole("button", { name: "Agregar empleado" }).click();
   ok(Boolean(await duena.getByText(/Empleado agregado/).waitFor({ timeout: 15000 }).then(() => true, () => false)), "confirma que quedó agregado");
-  const persona = await db.staff.findFirst({ where: { userId: otro.id, email: correoEmpleado } });
+  const persona = await db.staff.findFirst({ where: { userId: otro.id, username: usuarioEmpleado } });
   ok(persona?.role === "VENDEDOR", "queda como empleado, no como barbero", persona?.role);
   await duena.reload({ waitUntil: "load" });
   ok((await duena.getByText("Juliana Intriago").count()) > 0, "aparece en la lista del equipo");
 
   console.log("\n3. El empleado entra con su usuario");
   const ctxEmp = await browser.newContext({ viewport: { width: 390, height: 844 } });
-  const empleada = await entrar(ctxEmp, correoEmpleado, "clave123");
+  const empleada = await entrar(ctxEmp, usuarioEmpleado, "");
   ok(/\/panel/.test(empleada.url()), "entra al panel", empleada.url());
   await ctxEmp.close();
 

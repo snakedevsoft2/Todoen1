@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
 import {
   changeStaffPasswordAction,
@@ -19,6 +20,7 @@ export type StaffRow = {
   id: string;
   name: string;
   email: string | null;
+  username: string | null;
   phone: string | null;
   role: string;
   color: string;
@@ -148,31 +150,23 @@ export function NewStaffForm({ businessType = "BARBERIA" }: { businessType?: str
         </label>
         <p className="mt-1 text-xs text-muted">
           {agenda
-            ? "Con esto el barbero entra con su correo y su contraseña, y ve la agenda y las ventas del negocio."
+            ? "Con esto el barbero entra con su usuario, sin contraseña, y ve la agenda y las ventas del negocio."
             : asistencia
-              ? "Con esto entra con su correo y su contraseña, marca su entrada y su salida desde el teléfono, avisa sus novedades y hace sus reportes con fotos."
-              : "Con esto el empleado entra con su correo y su contraseña, y puede vender, ver el inventario y los reportes."}{" "}
-          No puede cambiar los ajustes ni el equipo.
+              ? "Con esto entra con su usuario, sin contraseña, marca su entrada y su salida desde el teléfono, avisa sus novedades y hace sus reportes con fotos."
+              : "Con esto el empleado entra con su usuario, sin contraseña, y registra las ventas, los gastos y lo del día."}{" "}
+          No puede borrar ni cambiar lo que ya está registrado, ni los ajustes ni el equipo, y todo lo que hace queda en su historial.
         </p>
 
         {withAccess && (
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <Field label="Correo">
+          <div className="mt-3">
+            <Field label="Usuario para entrar" hint="Entra escribiendo solo este usuario, sin contraseña. Letras, números, punto o guion.">
               <input
                 className="input"
-                type="email"
-                name="email"
-                placeholder={agenda ? "barbero@correo.com" : "empleado@correo.com"}
+                name="username"
+                placeholder="Ej: juliana.tienda"
                 autoComplete="off"
-              />
-            </Field>
-            <Field label="Contraseña" hint="Mínimo 6 caracteres. Después la puede cambiar.">
-              <input
-                className="input"
-                type="text"
-                name="password"
-                placeholder="Ej: tienda123"
-                autoComplete="new-password"
+                autoCapitalize="none"
+                spellCheck={false}
               />
             </Field>
           </div>
@@ -196,35 +190,22 @@ function AccessForm({ staff }: { staff: StaffRow }) {
       {state?.error && <Alert kind="error">{state.error}</Alert>}
       {state?.ok && <Alert kind="ok">{state.ok}</Alert>}
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Correo para entrar">
-          <input
-            className="input"
-            type="email"
-            name="email"
-            defaultValue={staff.email ?? ""}
-            placeholder="barbero@correo.com"
-            required
-            autoComplete="off"
-          />
-        </Field>
-        <Field
-          label={staff.hasPassword ? "Nueva contraseña" : "Contraseña"}
-          hint={staff.hasPassword ? "Déjala vacía si no la quieres cambiar." : "Mínimo 6 caracteres."}
-        >
-          <input
-            className="input"
-            type="text"
-            name="password"
-            placeholder={staff.hasPassword ? "Sin cambios" : "Ej: barberia123"}
-            autoComplete="new-password"
-          />
-        </Field>
-      </div>
+      <Field label="Usuario para entrar" hint="Entra escribiendo solo este usuario, sin contraseña.">
+        <input
+          className="input"
+          name="username"
+          defaultValue={staff.username ?? ""}
+          placeholder="Ej: juliana.tienda"
+          autoComplete="off"
+          autoCapitalize="none"
+          spellCheck={false}
+        />
+      </Field>
+      {staff.email && <p className="text-xs text-muted">También puede entrar con su correo {staff.email} y su contraseña.</p>}
 
       <div className="flex flex-wrap gap-2">
         <SubmitButton className="btn-primary btn-sm" pendingText="Guardando...">
-          {staff.hasPassword ? "Guardar acceso" : "Crear su usuario"}
+          {staff.username || staff.email ? "Guardar acceso" : "Crear su usuario"}
         </SubmitButton>
       </div>
     </form>
@@ -269,10 +250,10 @@ export function StaffCard({
               {!staff.active && <Badge tone="red">Inactivo</Badge>}
             </p>
             <p className="mt-0.5 truncate text-xs text-muted">
-              {staff.email ? (
+              {staff.username || staff.email ? (
                 <>
                   <Icon name="user" className="mr-1 inline h-3 w-3" />
-                  {staff.email}
+                  {staff.username ? "Usuario: " + staff.username : staff.email}
                 </>
               ) : isOwner ? (
                 "Entra con el correo del negocio"
@@ -286,7 +267,7 @@ export function StaffCard({
                   ? "Los clientes lo pueden elegir"
                   : "No aparece en las reservas"
                 : asistencia
-                  ? staff.email
+                  ? staff.email || staff.username
                     ? "Marca desde su teléfono"
                     : "Dale un usuario para que pueda marcar"
                   : staff.active
@@ -322,6 +303,11 @@ export function StaffCard({
           Editar
         </button>
 
+        <Link href={"/panel/equipo/" + staff.id} className="btn-ghost btn-sm">
+          <Icon name="clock" className="h-4 w-4" />
+          Ver lo que hizo
+        </Link>
+
         {!isOwner && (
           <button
             type="button"
@@ -329,11 +315,11 @@ export function StaffCard({
             className="btn-ghost btn-sm"
           >
             <Icon name="lock" className="h-4 w-4" />
-            {staff.email ? "Cambiar acceso" : "Darle usuario"}
+            {staff.email || staff.username ? "Cambiar acceso" : "Darle usuario"}
           </button>
         )}
 
-        {!isOwner && staff.email && (
+        {!isOwner && (staff.email || staff.username) && (
           <form action={removeStaffAccessAction}>
             <input type="hidden" name="id" value={staff.id} />
             <SubmitButton

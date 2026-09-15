@@ -49,7 +49,8 @@
     "verificar:plan-gratis": "node scripts/verificar-plan-gratis.mjs",
     "verificar:eliminar-cuenta": "node scripts/verificar-eliminar-cuenta.mjs",
     "verificar:empleados": "node scripts/verificar-empleados.mjs",
-    "verificar:carga-clientes": "node scripts/verificar-carga-clientes.mjs"
+    "verificar:carga-clientes": "node scripts/verificar-carga-clientes.mjs",
+    "verificar:empleado-usuario": "node scripts/verificar-empleado-usuario.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

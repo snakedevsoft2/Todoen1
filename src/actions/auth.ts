@@ -9,6 +9,9 @@ import { SUPPORT_WHATSAPP_PRETTY } from "@/lib/support";
 import { suspenderSiVencio } from "@/lib/pagos";
 import { CATALOGO_POR_TIPO, COLOR_POR_TIPO, esTipoElegible } from "@/lib/tipo-negocio";
 import { finDePrueba } from "@/lib/plan";
+import { headers } from "next/headers";
+import { esUsuario, normalizarUsuario } from "@/lib/usuario";
+import { anotarIntentoDeUsuario, demasiadosIntentosDeUsuario } from "@/lib/seguridad";
 
 export type AuthState = { error?: string } | undefined;
 
@@ -106,7 +109,10 @@ export async function loginAction(_prev: AuthState, formData: FormData): Promise
   // Sin "Recordarme" la cookie muere al cerrar el navegador: es lo que se
   // espera en el computador del local, donde entra mas de una persona.
   const remember = formData.get("remember") === "on";
-  if (!email || !password) return { error: "Escribe tu correo y contrasena." };
+  if (!email) return { error: "Escribe tu correo o tu usuario." };
+  // Sin arroba es el usuario de un empleado: entra sin contraseña.
+  if (esUsuario(email)) return entrarConUsuario(jar, email, remember);
+  if (!password) return { error: "Escribe tu correo y contrasena." };
 
   const user = await db.user.findUnique({ where: { email } });
 
@@ -148,6 +154,45 @@ export async function loginAction(_prev: AuthState, formData: FormData): Promise
     await signSession({
       uid: staff.userId,
       email,
+      type: staff.user.businessType,
+      sid: staff.id,
+      role: staff.role,
+    }),
+    remember
+  );
+  redirect("/panel");
+}
+
+/**
+ * El empleado que agrego el dueño entra solo con su usuario, sin contraseña.
+ *
+ * Para que no se puedan probar usuarios a ciegas, los intentos con usuarios
+ * que no existen se cuentan por conexion y se frenan un rato. Por aqui solo
+ * entra un empleado: el dueño entra con su correo y su contraseña.
+ */
+async function entrarConUsuario(
+  jar: Awaited<ReturnType<typeof cookieJar>>,
+  escrito: string,
+  remember: boolean
+): Promise<AuthState> {
+  const origen = ((await headers()).get("x-forwarded-for") ?? "").split(",")[0].trim() || "local";
+  if (await demasiadosIntentosDeUsuario(origen)) {
+    return { error: "Demasiados intentos seguidos. Espera unos minutos y vuelve a intentarlo." };
+  }
+  const username = normalizarUsuario(escrito);
+  const staff = await db.staff.findUnique({ where: { username }, include: { user: true } });
+  if (!staff || staff.role === "DUENO") {
+    await anotarIntentoDeUsuario(origen);
+    return { error: "No encontramos ese usuario. Escríbelo como te lo dio el dueño del negocio." };
+  }
+  if (!staff.active) return { error: "Tu usuario esta desactivado. Pidele al dueno que lo active." };
+  if (staff.user.suspendedAt || (await suspenderSiVencio(staff.user))) return { error: mensajeSuspendida(staff.user) };
+
+  writeSessionCookie(
+    jar,
+    await signSession({
+      uid: staff.userId,
+      email: "usuario:" + username,
       type: staff.user.businessType,
       sid: staff.id,
       role: staff.role,

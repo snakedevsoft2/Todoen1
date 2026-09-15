@@ -67,6 +67,7 @@ export default async function EscanerPage() {
                         {esDueno && d.staffId && nombres.get(d.staffId) ? " · " + nombres.get(d.staffId) : ""}
                       </span>
                     </span>
+                    {esDueno && (
                     <form action={borrarDocumentoAction}>
                       <input type="hidden" name="id" value={d.id} />
                       <SubmitButton
@@ -78,6 +79,7 @@ export default async function EscanerPage() {
                         <Icon name="trash" className="h-4 w-4" />
                       </SubmitButton>
                     </form>
+                    )}
                   </div>
                   {d.text && (
                     <details className="mt-1.5 pl-7">

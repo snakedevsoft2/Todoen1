@@ -183,3 +183,28 @@ export function correoAvisoCambio(nombre: string) {
       "</div>",
   };
 }
+
+// ------------------------------------------------- INGRESO CON USUARIO
+
+const FALLOS_USUARIO_CORTO = 10;
+const FALLOS_USUARIO_DIA = 50;
+const llaveUsuario = (origen: string) => "usuario@" + origen.slice(0, 80);
+
+/** Si desde esta conexion ya se probaron demasiados usuarios que no existen. */
+export async function demasiadosIntentosDeUsuario(origen: string): Promise<boolean> {
+  const llave = llaveUsuario(origen);
+  const ahora = Date.now();
+  const [corto, dia] = await Promise.all([
+    db.securityAttempt.count({
+      where: { email: llave, success: false, createdAt: { gte: new Date(ahora - MINUTOS_CORTO * 60000) } },
+    }),
+    db.securityAttempt.count({
+      where: { email: llave, success: false, createdAt: { gte: new Date(ahora - 24 * 3600000) } },
+    }),
+  ]);
+  return corto >= FALLOS_USUARIO_CORTO || dia >= FALLOS_USUARIO_DIA;
+}
+
+export async function anotarIntentoDeUsuario(origen: string): Promise<void> {
+  await db.securityAttempt.create({ data: { email: llaveUsuario(origen), success: false } });
+}

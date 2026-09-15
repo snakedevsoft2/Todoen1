@@ -429,7 +429,7 @@ export default async function ClientePage({ params }: { params: Promise<{ id: st
                       </span>
                     </span>
                     <Badge tone={ESTADOS_MENSAJE[m.status].tone}>{ESTADOS_MENSAJE[m.status].label}</Badge>
-                    {(m.status === "PENDIENTE" || m.status === "MANUAL") && (
+                    {esDueno && (m.status === "PENDIENTE" || m.status === "MANUAL") && (
                       <form action={cancelarMensajeAction}>
                         <input type="hidden" name="id" value={m.id} />
                         <SubmitButton className="btn-ghost btn-sm px-1.5 text-subtle" pendingText="..." ariaLabel="Cancelar mensaje">

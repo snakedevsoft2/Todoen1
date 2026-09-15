@@ -5,6 +5,7 @@ import { parseMoney } from "./format";
 import { applyStockMove, variantLabel } from "./inventory";
 import { LLAVE_VALIDA, falla, textoDe, type Resultado, type Sesion } from "./informes";
 import { anotarCliente } from "./clientes";
+import { anotarActividad } from "./actividad";
 
 /**
  * Registrar una venta directa, con senal o sin ella.
@@ -209,6 +210,7 @@ export async function registrarVenta(
       throw e;
     }
     await anotarCliente(user.id, { name: clientName, phone: clientPhone || null, source: "cartera" });
+    await anotarActividad(s, { tipo: "deuda", detalle: "Vendió a cuentas por cobrar a " + clientName, monto: total });
     return { ok: true, datos: { id: deuda.id, repetido: false, tipo: "deuda" } };
   }
 
@@ -259,5 +261,6 @@ export async function registrarVenta(
 
   // El cliente que se escribio en la venta queda guardado en Clientes.
   if (clientName) await anotarCliente(user.id, { name: clientName, phone: clientPhone || null, source: "venta" });
+  await anotarActividad(s, { tipo: "venta", detalle: "Registró una venta" + (clientName ? " a " + clientName : ""), monto: total });
   return { ok: true, datos: { id: venta.id, repetido: false, tipo: "venta" } };
 }

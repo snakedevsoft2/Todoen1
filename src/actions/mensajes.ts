@@ -3,7 +3,7 @@
 import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireSession } from "@/lib/auth";
+import { requireOwner, requireSession } from "@/lib/auth";
 import { str, texto } from "@/lib/format";
 import { cuandoAValor, enviarProgramados, programarMensaje } from "@/lib/envios-crm";
 
@@ -55,8 +55,9 @@ export async function programarSegmentoAction(
   };
 }
 
+/** Cancelar un mensaje programado es solo del dueño. */
 export async function cancelarMensajeAction(formData: FormData): Promise<void> {
-  const { user } = await requireSession();
+  const { user } = await requireOwner();
   await db.scheduledMessage.updateMany({
     where: { id: str(formData.get("id")), userId: user.id, status: { in: ["PENDIENTE", "MANUAL"] } },
     data: { status: "CANCELADO" },

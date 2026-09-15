@@ -94,6 +94,8 @@ export function LoginForm({
   const [state, formAction] = useActionState(loginAction, undefined);
   const [verClave, setVerClave] = useState(false);
   const [email, setEmail] = useState("");
+  // Sin arroba es el usuario de un empleado: entra sin contraseña.
+  const conUsuario = email.trim() !== "" && !email.includes("@");
 
   /*
    * Al llegar al ingreso se borran las paginas guardadas para abrir sin senal.
@@ -145,24 +147,31 @@ export function LoginForm({
       <form action={formAction} className="mt-6 space-y-5">
         <div>
           <label htmlFor="email" className="auth-label">
-            Correo electrónico
+            Correo o usuario
           </label>
           <input
             id="email"
             className={"auth-input" + (conError ? " auth-input-error" : "")}
-            type="email"
+            type="text"
             name="email"
-            autoComplete="email"
-            inputMode="email"
+            autoComplete="username"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
             required
             autoFocus
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="tucorreo@ejemplo.com"
+            placeholder="tucorreo@ejemplo.com o tu usuario"
             aria-invalid={conError}
           />
         </div>
 
+        {conUsuario ? (
+          <p className="rounded-[10px] bg-slate-50 px-3.5 py-3 text-[13px] leading-relaxed text-slate-600" data-ingreso-usuario>
+            Entras con tu usuario de empleado, sin contraseña.
+          </p>
+        ) : (
         <div>
           <div className="mb-1.5 flex items-baseline justify-between gap-3">
             <label htmlFor="password" className="auth-label mb-0">
@@ -206,6 +215,7 @@ export function LoginForm({
             </button>
           </div>
         </div>
+        )}
 
         <label className="flex cursor-pointer items-center gap-2.5 text-[14px] text-slate-600">
           <input

@@ -16,6 +16,8 @@ import {
   llaveTelefono,
 } from "@/lib/crm";
 import { borrarClientes, type ResultadoBorrar } from "@/lib/borrar-clientes";
+import { anotarActividad } from "@/lib/actividad";
+import { SOLO_DUENO, esDueno } from "@/lib/permisos-empleado";
 
 export type CrmState = { error?: string; ok?: string } | undefined;
 
@@ -46,8 +48,10 @@ async function personaDelNegocio(userId: string, id: string) {
  * solo del dueno.
  */
 export async function guardarClienteAction(_prev: CrmState, formData: FormData): Promise<CrmState> {
-  const { user } = await requireSession();
+  const { user, staff } = await requireSession();
   const id = str(formData.get("id"));
+  // Cambiar la ficha de un cliente que ya existe es del dueño; crearla, de todos.
+  if (id && !esDueno(staff.role)) return { error: SOLO_DUENO };
 
   const name = str(formData.get("name"));
   if (!name) return { error: "Escribe el nombre del cliente." };
@@ -91,6 +95,7 @@ export async function guardarClienteAction(_prev: CrmState, formData: FormData):
   if (cuantos >= LIMITE_CLIENTES) return { error: "Llegaste al máximo de clientes." };
 
   const nuevo = await db.customer.create({ data: { ...data, userId: user.id, source: "manual" } });
+  await anotarActividad({ user, staff }, { tipo: "cliente", detalle: "Creó el cliente " + name });
   refrescar();
   redirect("/panel/clientes/" + nuevo.id);
 }
@@ -155,7 +160,7 @@ export async function crearEtiquetaAction(_prev: CrmState, formData: FormData): 
 
 /** Pone o quita una etiqueta. */
 export async function alternarEtiquetaAction(formData: FormData) {
-  const { user } = await requireSession();
+  const { user } = await requireOwner();
   const [cliente, tag] = await Promise.all([
     clienteDelNegocio(user.id, str(formData.get("customerId"))),
     db.customerTag.findFirst({ where: { id: str(formData.get("tagId")), userId: user.id }, select: { id: true } }),
@@ -236,6 +241,7 @@ export async function borrarInteraccionAction(formData: FormData) {
 export async function guardarOportunidadAction(_prev: CrmState, formData: FormData): Promise<CrmState> {
   const { user, staff: yo } = await requireSession();
   const id = str(formData.get("id"));
+  if (id && !esDueno(yo.role)) return { error: SOLO_DUENO };
 
   const title = str(formData.get("title"));
   if (!title) return { error: "Escribe qué le quieres vender." };
@@ -300,7 +306,8 @@ export async function moverOportunidadAction(
   id: string,
   etapa: string
 ): Promise<{ ok: boolean; error?: string }> {
-  const { user } = await requireSession();
+  const { user, staff } = await requireSession();
+  if (!esDueno(staff.role)) return { ok: false, error: SOLO_DUENO };
   if (!esEtapa(etapa)) return { ok: false, error: "Esa columna no existe." };
 
   const actual = await db.deal.findFirst({
@@ -381,7 +388,7 @@ export async function crearSeguimientoAction(_prev: CrmState, formData: FormData
 
 /** Lo marca hecho, o lo vuelve a abrir si ya estaba hecho. */
 export async function completarSeguimientoAction(formData: FormData) {
-  const { user } = await requireSession();
+  const { user } = await requireOwner();
   const id = str(formData.get("id"));
   const s = await db.followUp.findFirst({ where: { id, userId: user.id }, select: { doneAt: true, customerId: true } });
   if (!s) return;
@@ -391,7 +398,7 @@ export async function completarSeguimientoAction(formData: FormData) {
 
 /** Lo borra el dueno, quien lo creo o a quien se lo asignaron. */
 export async function borrarSeguimientoAction(formData: FormData) {
-  const { user, staff } = await requireSession();
+  const { user, staff } = await requireOwner();
   const id = str(formData.get("id"));
   const s = await db.followUp.findFirst({
     where: { id, userId: user.id },

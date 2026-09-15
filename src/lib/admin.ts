@@ -41,6 +41,9 @@ export function esAdmin(correo: string | null | undefined): boolean {
  * User. Se mira el de la persona primero porque es el que de verdad tecleo.
  */
 export function correoDeLaSesion(sesion: Session): string {
+  // El empleado sin correo (entra con usuario) no hereda el correo del dueño:
+  // si el dueño administra la plataforma, su empleado no.
+  if (sesion.staff.role !== "DUENO") return sesion.staff.email ?? "";
   return sesion.staff.email ?? sesion.user.email;
 }
 

@@ -2,17 +2,21 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { requireOwner, requireSession } from "@/lib/auth";
 import { crudo, parseIntSafe, parseMoney, str, texto } from "@/lib/format";
+import { anotarActividad } from "@/lib/actividad";
+import { SOLO_DUENO, esDueno } from "@/lib/permisos-empleado";
 
 export type ActionState = { error?: string; ok?: string } | undefined;
 
 const MAX_PHOTO_BYTES = 400 * 1024;
 const ALLOWED_PHOTO = /^data:image\/(png|jpeg|jpg|webp);base64,[A-Za-z0-9+/=]+$/;
 
+/** Crear un producto lo puede hacer el empleado; cambiar uno que ya existe, solo el dueño. */
 export async function saveServiceAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const user = await requireUser();
+  const { user, staff } = await requireSession();
   const id = str(formData.get("id"));
+  if (id && !esDueno(staff.role)) return { error: SOLO_DUENO };
   const name = str(formData.get("name"));
   if (!name) return { error: "El nombre es obligatorio." };
 
@@ -70,8 +74,10 @@ export async function saveServiceAction(_prev: ActionState, formData: FormData):
     // El where incluye userId: nadie puede editar el catalogo de otro negocio.
     const updated = await db.service.updateMany({ where: { id, userId: user.id }, data });
     if (updated.count === 0) return { error: "No encontramos ese item en tu catalogo." };
+    await anotarActividad({ user, staff }, { tipo: "cambio", detalle: "Cambió el producto " + name, monto: price });
   } else {
     await db.service.create({ data: { ...data, userId: user.id } });
+    await anotarActividad({ user, staff }, { tipo: "producto", detalle: "Agregó el producto " + name, monto: price });
   }
 
   revalidatePath("/panel/catalogo");
@@ -81,8 +87,9 @@ export async function saveServiceAction(_prev: ActionState, formData: FormData):
   return { ok: id ? "Item actualizado." : "Item agregado." };
 }
 
+/** Pausar o activar un producto es solo del dueño. */
 export async function toggleServiceAction(formData: FormData) {
-  const user = await requireUser();
+  const { user } = await requireOwner();
   const id = str(formData.get("id"));
   const service = await db.service.findFirst({ where: { id, userId: user.id } });
   if (!service) return;
@@ -92,10 +99,14 @@ export async function toggleServiceAction(formData: FormData) {
   revalidatePath("/catalogo/" + user.slug);
 }
 
+/** Borrar un producto es solo del dueño. */
 export async function deleteServiceAction(formData: FormData) {
-  const user = await requireUser();
+  const { user, staff } = await requireOwner();
   const id = str(formData.get("id"));
+  const service = await db.service.findFirst({ where: { id, userId: user.id }, select: { name: true } });
+  if (!service) return;
   await db.service.deleteMany({ where: { id, userId: user.id } });
+  await anotarActividad({ user, staff }, { tipo: "borrado", detalle: "Borró el producto " + service.name });
   revalidatePath("/panel/catalogo");
   revalidatePath("/panel/inventario");
   revalidatePath("/catalogo/" + user.slug);

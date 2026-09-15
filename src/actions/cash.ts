@@ -2,10 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { requireOwner, requireSession } from "@/lib/auth";
 import { isValidDay, todayIn } from "@/lib/dates";
 import { parseMoney, str } from "@/lib/format";
 import { getDaySummary } from "@/lib/queries";
+import { anotarActividad } from "@/lib/actividad";
 
 export type CashState = { error?: string; ok?: string } | undefined;
 
@@ -14,7 +15,7 @@ export type CashState = { error?: string; ok?: string } | undefined;
  * pago, y guarda la diferencia frente al efectivo contado a mano.
  */
 export async function closeCashAction(_prev: CashState, formData: FormData): Promise<CashState> {
-  const user = await requireUser();
+  const { user, staff } = await requireSession();
   const dayInput = str(formData.get("day"));
   const day = isValidDay(dayInput) ? dayInput : todayIn(user.timezone);
 
@@ -48,16 +49,19 @@ export async function closeCashAction(_prev: CashState, formData: FormData): Pro
     create: { userId: user.id, day, ...data },
     update: data,
   });
+  await anotarActividad({ user, staff }, { tipo: "caja", detalle: "Cerró la caja del " + day, monto: summary.netTotal });
 
   revalidatePath("/panel/caja");
   revalidatePath("/panel");
   return { ok: "Caja cerrada para el " + day + "." };
 }
 
+/** Reabrir la caja deshace un cierre: solo el dueño. */
 export async function reopenCashAction(formData: FormData) {
-  const user = await requireUser();
+  const { user, staff } = await requireOwner();
   const day = str(formData.get("day"));
-  await db.cashClosure.deleteMany({ where: { userId: user.id, day } });
+  const r = await db.cashClosure.deleteMany({ where: { userId: user.id, day } });
+  if (r.count > 0) await anotarActividad({ user, staff }, { tipo: "cambio", detalle: "Reabrió la caja del " + day });
   revalidatePath("/panel/caja");
   revalidatePath("/panel");
 }

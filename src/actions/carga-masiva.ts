@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireSession, requireUser } from "@/lib/auth";
+import { requireOwner } from "@/lib/auth";
 import {
   analizarClientes,
   analizarProductos,
@@ -20,7 +20,7 @@ const modoDe = (m: unknown, porDefecto: ModoCarga): ModoCarga => (m === "complet
 
 /** Revisa la lista contra los clientes que ya hay, sin guardar nada. */
 export async function analizarClientesAction(filas: unknown): Promise<RespuestaAnalisis> {
-  const { user } = await requireSession();
+  const { user } = await requireOwner();
   const sinPlan = motivoSinPlan(user);
   if (sinPlan) return { ok: false, error: sinPlan };
   if (!Array.isArray(filas) || filas.length === 0) return { ok: false, error: "No hay clientes para cargar." };
@@ -28,7 +28,7 @@ export async function analizarClientesAction(filas: unknown): Promise<RespuestaA
 }
 
 export async function cargarClientesAction(filas: unknown, modo?: unknown): Promise<RespuestaCarga> {
-  const { user } = await requireSession();
+  const { user } = await requireOwner();
   const sinPlan = motivoSinPlan(user);
   if (sinPlan) return { ok: false, error: sinPlan };
   if (!Array.isArray(filas) || filas.length === 0) return { ok: false, error: "No hay clientes para cargar." };
@@ -39,7 +39,7 @@ export async function cargarClientesAction(filas: unknown, modo?: unknown): Prom
 
 /** Revisa la lista contra los productos que ya hay, sin guardar nada. */
 export async function analizarProductosAction(filas: unknown): Promise<RespuestaAnalisis> {
-  const user = await requireUser();
+  const { user } = await requireOwner();
   const sinPlan = motivoSinPlan(user);
   if (sinPlan) return { ok: false, error: sinPlan };
   if (!Array.isArray(filas) || filas.length === 0) return { ok: false, error: "No hay productos para cargar." };
@@ -47,7 +47,7 @@ export async function analizarProductosAction(filas: unknown): Promise<Respuesta
 }
 
 export async function cargarProductosAction(filas: unknown, modo?: unknown): Promise<RespuestaCarga> {
-  const user = await requireUser();
+  const { user } = await requireOwner();
   const sinPlan = motivoSinPlan(user);
   if (sinPlan) return { ok: false, error: sinPlan };
   if (!Array.isArray(filas) || filas.length === 0) return { ok: false, error: "No hay productos para cargar." };

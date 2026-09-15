@@ -5,11 +5,12 @@ import type { AppointmentStatus, PaymentMethod } from "@prisma/client";
 import { db } from "@/lib/db";
 import { anotarCliente } from "@/lib/clientes";
 import { reservarTurno } from "@/lib/reservas";
-import { requireSession, requireUser } from "@/lib/auth";
+import { requireOwner, requireSession } from "@/lib/auth";
 import { isValidDay } from "@/lib/dates";
 import { endTimeFor } from "@/lib/slots";
 import { parseIntSafe, str } from "@/lib/format";
 import { waLink } from "@/lib/whatsapp";
+import { anotarActividad } from "@/lib/actividad";
 
 export type BookingState =
   | {
@@ -168,13 +169,18 @@ export async function createAppointmentAction(
     source: "turno",
   });
 
+  await anotarActividad(
+    { user, staff: me },
+    { tipo: "turno", detalle: "Agendó un turno de " + clientName + " el " + day + " a las " + startTime }
+  );
+
   revalidatePath("/panel/turnos");
   revalidatePath("/panel");
   return { ok: staff ? "Turno agregado para " + staff.name + "." : "Turno agregado." };
 }
 
 export async function setAppointmentStatusAction(formData: FormData) {
-  const user = await requireUser();
+  const { user } = await requireOwner();
   const id = str(formData.get("id"));
   const status = str(formData.get("status")) as AppointmentStatus;
   if (!VALID_STATUS.includes(status)) return;
@@ -184,7 +190,7 @@ export async function setAppointmentStatusAction(formData: FormData) {
 }
 
 export async function updateAppointmentAction(formData: FormData) {
-  const user = await requireUser();
+  const { user } = await requireOwner();
   const id = str(formData.get("id"));
   const appointment = await db.appointment.findFirst({ where: { id, userId: user.id } });
   if (!appointment) return;
@@ -224,7 +230,7 @@ export async function updateAppointmentAction(formData: FormData) {
 
 /** Le pasa el turno a otro barbero desde la agenda. */
 export async function setAppointmentStaffAction(formData: FormData) {
-  const user = await requireUser();
+  const { user } = await requireOwner();
   const id = str(formData.get("id"));
   const appointment = await db.appointment.findFirst({ where: { id, userId: user.id } });
   if (!appointment) return;
@@ -263,7 +269,7 @@ export async function setAppointmentStaffAction(formData: FormData) {
 }
 
 export async function deleteAppointmentAction(formData: FormData) {
-  const user = await requireUser();
+  const { user } = await requireOwner();
   const id = str(formData.get("id"));
   await db.appointment.deleteMany({ where: { id, userId: user.id } });
   revalidatePath("/panel/turnos");
@@ -275,7 +281,7 @@ export async function deleteAppointmentAction(formData: FormData) {
  * Es el boton "cerrar venta" del panel de barberia.
  */
 export async function closeAppointmentSaleAction(formData: FormData) {
-  const user = await requireUser();
+  const { user, staff } = await requireSession();
   const id = str(formData.get("id"));
   const appointment = await db.appointment.findFirst({
     where: { id, userId: user.id },
@@ -312,6 +318,7 @@ export async function closeAppointmentSaleAction(formData: FormData) {
     }),
     db.appointment.update({ where: { id: appointment.id }, data: { status: "ATENDIDO" } }),
   ]);
+  await anotarActividad({ user, staff }, { tipo: "cobro", detalle: "Cobró el turno de " + appointment.clientName, monto: amount });
 
   revalidatePath("/panel/turnos");
   revalidatePath("/panel/ventas");

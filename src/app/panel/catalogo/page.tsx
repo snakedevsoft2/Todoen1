@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireUser } from "@/lib/auth";
+import { requireSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { money } from "@/lib/format";
 import { BUSINESS_LABEL, ITEM_NOUN, photoUrl } from "@/lib/nav";
@@ -17,7 +17,8 @@ import { SoloPlanPago } from "@/components/SoloPlanPago";
 export const dynamic = "force-dynamic";
 
 export default async function CatalogoPage() {
-  const user = await requireUser();
+  const { user, staff } = await requireSession();
+  const esDueno = staff.role === "DUENO";
   const isBarber = user.businessType === "BARBERIA";
   const isClothing = user.businessType === "ROPA";
   const noun = ITEM_NOUN[user.businessType];
@@ -101,7 +102,13 @@ export default async function CatalogoPage() {
           />
         </Card>
         <Card title={"Subir muchos " + noun.plural + " de una vez"} subtitle="Desde Excel o un archivo CSV">
-          {esPlanCompleto(user) ? <CargaMasiva tipo="productos" /> : <SoloPlanPago que="Carga masiva" negocio={user.businessName} />}
+          {!esDueno ? (
+            <p className="text-[13px] text-muted">Solo el dueño del negocio sube listas de productos.</p>
+          ) : esPlanCompleto(user) ? (
+            <CargaMasiva tipo="productos" />
+          ) : (
+            <SoloPlanPago que="Carga masiva" negocio={user.businessName} />
+          )}
         </Card>
         </div>
 

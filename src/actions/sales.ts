@@ -3,14 +3,24 @@
 import { revalidatePath } from "next/cache";
 import type { PaymentMethod } from "@prisma/client";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { requireOwner } from "@/lib/auth";
 import { str } from "@/lib/format";
 import { applyStockMove } from "@/lib/inventory";
+import { anotarActividad } from "@/lib/actividad";
 
 // Registrar una venta ya no pasa por aqui: va por /api/ventas (lib/ventas.ts),
 // para que la venta hecha sin senal se guarde en el telefono y se suba sola.
+//
+// Borrar una venta o cambiarle el pago es solo del dueño (lib/permisos-empleado).
 
 const VALID_PAYMENTS: PaymentMethod[] = ["EFECTIVO", "TARJETA", "TRANSFERENCIA", "OTRO"];
+
+const PAGO_LABEL: Record<string, string> = {
+  EFECTIVO: "efectivo",
+  TARJETA: "tarjeta",
+  TRANSFERENCIA: "transferencia",
+  OTRO: "otro",
+};
 
 function readPayment(value: FormDataEntryValue | null): PaymentMethod {
   const v = String(value ?? "EFECTIVO") as PaymentMethod;
@@ -18,7 +28,7 @@ function readPayment(value: FormDataEntryValue | null): PaymentMethod {
 }
 
 export async function deleteSaleAction(formData: FormData) {
-  const user = await requireUser();
+  const { user, staff } = await requireOwner();
   const id = str(formData.get("id"));
   const sale = await db.sale.findFirst({
     where: { id, userId: user.id },
@@ -69,6 +79,15 @@ export async function deleteSaleAction(formData: FormData) {
     await tx.sale.delete({ where: { id: sale.id } });
   });
 
+  await anotarActividad(
+    { user, staff },
+    {
+      tipo: "borrado",
+      detalle: "Borró una venta del " + sale.day + (sale.clientName ? " (" + sale.clientName + ")" : ""),
+      monto: sale.total,
+    }
+  );
+
   revalidatePath("/panel/ventas");
   revalidatePath("/panel/turnos");
   revalidatePath("/panel/cuentas");
@@ -77,12 +96,16 @@ export async function deleteSaleAction(formData: FormData) {
 }
 
 export async function updateSalePaymentAction(formData: FormData) {
-  const user = await requireUser();
+  const { user, staff } = await requireOwner();
   const id = str(formData.get("id"));
-  await db.sale.updateMany({
+  const pago = readPayment(formData.get("paymentMethod"));
+  const r = await db.sale.updateMany({
     where: { id, userId: user.id },
-    data: { paymentMethod: readPayment(formData.get("paymentMethod")) },
+    data: { paymentMethod: pago },
   });
+  if (r.count > 0) {
+    await anotarActividad({ user, staff }, { tipo: "cambio", detalle: "Cambió la forma de pago de una venta a " + PAGO_LABEL[pago] });
+  }
   revalidatePath("/panel/ventas");
   revalidatePath("/panel/caja");
 }

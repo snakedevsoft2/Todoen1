@@ -3,11 +3,13 @@
 import { revalidatePath } from "next/cache";
 import type { StockMoveType } from "@prisma/client";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { requireOwner, requireSession } from "@/lib/auth";
 import { isValidDay, todayIn } from "@/lib/dates";
 import { parseIntSafe, parseMoney, str } from "@/lib/format";
 import { applyStockMove, variantLabel } from "@/lib/inventory";
 import { normalizeCode } from "@/lib/variants";
+import { anotarActividad } from "@/lib/actividad";
+import { SOLO_DUENO, esDueno } from "@/lib/permisos-empleado";
 
 export type InventoryState = { error?: string; ok?: string } | undefined;
 
@@ -38,13 +40,16 @@ function cleanColor(value: FormDataEntryValue | null) {
  * El stock no se edita aqui a proposito: se mueve con entradas, salidas o
  * ajustes para que el historial siempre explique por que cambio. La unica
  * excepcion es el stock inicial al crearla, que queda como una ENTRADA.
+ *
+ * El empleado puede crear tallas; editar una que ya existe es del dueño.
  */
 export async function saveVariantAction(
   _prev: InventoryState,
   formData: FormData
 ): Promise<InventoryState> {
-  const user = await requireUser();
+  const { user, staff } = await requireSession();
   const id = str(formData.get("id"));
+  if (id && !esDueno(staff.role)) return { error: SOLO_DUENO };
   const serviceId = str(formData.get("serviceId"));
 
   const service = await db.service.findFirst({ where: { id: serviceId, userId: user.id } });
@@ -89,6 +94,10 @@ export async function saveVariantAction(
       data: { size, color, minStock, cost, price, sku },
     });
     if (updated.count === 0) return { error: "No encontramos esa talla en tu inventario." };
+    await anotarActividad(
+      { user, staff },
+      { tipo: "cambio", detalle: "Cambió la talla " + variantLabel({ size, color }) + " de " + service.name }
+    );
     refresh();
     return { ok: "Talla actualizada." };
   }
@@ -112,6 +121,13 @@ export async function saveVariantAction(
       });
     }
   });
+  await anotarActividad(
+    { user, staff },
+    {
+      tipo: "inventario",
+      detalle: "Agregó la talla " + variantLabel({ size, color }) + " de " + service.name + (initial > 0 ? " con " + initial + " unidades" : ""),
+    }
+  );
 
   refresh();
   return { ok: "Talla agregada." };
@@ -125,7 +141,7 @@ export async function createVariantsBulkAction(
   _prev: InventoryState,
   formData: FormData
 ): Promise<InventoryState> {
-  const user = await requireUser();
+  const { user, staff } = await requireSession();
   const serviceId = str(formData.get("serviceId"));
   const service = await db.service.findFirst({ where: { id: serviceId, userId: user.id } });
   if (!service) return { error: "No encontramos esa prenda en tu catalogo." };
@@ -192,6 +208,10 @@ export async function createVariantsBulkAction(
       }
     }
   });
+  await anotarActividad(
+    { user, staff },
+    { tipo: "inventario", detalle: "Creó " + pending.length + (pending.length === 1 ? " talla" : " tallas") + " de " + service.name }
+  );
 
   refresh();
   return { ok: pending.length + (pending.length === 1 ? " talla creada." : " tallas creadas.") };
@@ -207,7 +227,7 @@ export async function stockMoveAction(
   _prev: InventoryState,
   formData: FormData
 ): Promise<InventoryState> {
-  const user = await requireUser();
+  const { user, staff } = await requireSession();
   const variantId = str(formData.get("variantId"));
   const rawType = str(formData.get("type")) as StockMoveType;
   if (!MOVE_TYPES.includes(rawType)) return { error: "Elige que tipo de movimiento es." };
@@ -267,6 +287,16 @@ export async function stockMoveAction(
   if (!result.ok) return { error: result.error };
 
   const label = variant.service.name + " " + variantLabel(variant);
+  await anotarActividad(
+    { user, staff },
+    {
+      tipo: "inventario",
+      detalle:
+        rawType === "AJUSTE"
+          ? "Contó " + label + ": quedaron " + result.stockAfter
+          : (rawType === "ENTRADA" ? "Entrada de " : "Salida de ") + Math.abs(delta) + " de " + label + (reason ? " (" + reason + ")" : ""),
+    }
+  );
   refresh();
   if (rawType === "AJUSTE") {
     return { ok: label + " quedo en " + result.stockAfter + " unidades." };
@@ -291,12 +321,17 @@ export async function stockMoveAction(
  * nada: la fila ya muestra cuantas quedan.
  */
 export async function quickStockAction(formData: FormData) {
-  const user = await requireUser();
+  const { user, staff } = await requireSession();
   const variantId = str(formData.get("variantId"));
   const delta = parseIntSafe(formData.get("delta"), 0);
   if (delta === 0) return;
+  const variante = await db.productVariant.findFirst({
+    where: { id: variantId, userId: user.id },
+    include: { service: { select: { name: true } } },
+  });
+  if (!variante) return;
 
-  await db.$transaction((tx) =>
+  const result = await db.$transaction((tx) =>
     applyStockMove(tx, {
       userId: user.id,
       variantId,
@@ -306,12 +341,22 @@ export async function quickStockAction(formData: FormData) {
       reason: "Ajuste rapido",
     })
   );
+  if (result.ok) {
+    await anotarActividad(
+      { user, staff },
+      {
+        tipo: "inventario",
+        detalle: (delta > 0 ? "Sumó " : "Restó ") + Math.abs(delta) + " a " + variante.service.name + " " + variantLabel(variante),
+      }
+    );
+  }
 
   refresh();
 }
 
+/** Pausar o activar una talla es solo del dueño. */
 export async function toggleVariantAction(formData: FormData) {
-  const user = await requireUser();
+  const { user } = await requireOwner();
   const id = str(formData.get("id"));
   const variant = await db.productVariant.findFirst({ where: { id, userId: user.id } });
   if (!variant) return;
@@ -322,9 +367,16 @@ export async function toggleVariantAction(formData: FormData) {
   refresh();
 }
 
+/** Borrar una talla es solo del dueño. */
 export async function deleteVariantAction(formData: FormData) {
-  const user = await requireUser();
+  const { user, staff } = await requireOwner();
   const id = str(formData.get("id"));
+  const variante = await db.productVariant.findFirst({
+    where: { id, userId: user.id },
+    include: { service: { select: { name: true } } },
+  });
+  if (!variante) return;
   await db.productVariant.deleteMany({ where: { id, userId: user.id } });
+  await anotarActividad({ user, staff }, { tipo: "borrado", detalle: "Borró la talla " + variantLabel(variante) + " de " + variante.service.name });
   refresh();
 }

@@ -19,7 +19,9 @@ export const dynamic = "force-dynamic";
  * y lo que ya salio.
  */
 export default async function MensajesPage() {
-  const { user } = await requireSession();
+  const { user, staff } = await requireSession();
+  // Cancelar un mensaje programado es del dueño.
+  const esDueno = staff.role === "DUENO";
   const canales = canalesDe(user);
   const cuando = (d: Date) => shortDay(dayIn(d, user.timezone)) + " · " + pretty12h(timeIn(d, user.timezone));
   const incluir = { customer: { select: { id: true, name: true, phone: true } } } as const;
@@ -72,12 +74,14 @@ export default async function MensajesPage() {
                       <span className="block truncate text-[12px] text-muted">{aplicarPlantilla(m.text, { nombre: m.customer.name, negocio: user.businessName })}</span>
                     </span>
                     {href && <EnviarAMano id={m.id} href={href} />}
+                    {esDueno && (
                     <form action={cancelarMensajeAction}>
                       <input type="hidden" name="id" value={m.id} />
                       <SubmitButton className="btn-ghost btn-sm px-2 text-subtle" pendingText="..." ariaLabel="Cancelar mensaje">
                         <Icon name="x" className="h-4 w-4" />
                       </SubmitButton>
                     </form>
+                    )}
                   </li>
                 );
               })}
@@ -101,7 +105,7 @@ export default async function MensajesPage() {
                     </span>
                   </span>
                   <Badge tone={ESTADOS_MENSAJE[m.status].tone}>{ESTADOS_MENSAJE[m.status].label}</Badge>
-                  {m.status === "PENDIENTE" && (
+                  {esDueno && m.status === "PENDIENTE" && (
                     <form action={cancelarMensajeAction}>
                       <input type="hidden" name="id" value={m.id} />
                       <SubmitButton className="btn-ghost btn-sm" pendingText="...">
