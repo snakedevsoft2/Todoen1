@@ -6,6 +6,7 @@ import { requireOwner, requireSession } from "@/lib/auth";
 import { crudo, parseIntSafe, parseMoney, str, texto } from "@/lib/format";
 import { anotarActividad } from "@/lib/actividad";
 import { SOLO_DUENO, esDueno } from "@/lib/permisos-empleado";
+import { asegurarCategorias } from "@/lib/categorias-negocio";
 
 export type ActionState = { error?: string; ok?: string } | undefined;
 
@@ -54,13 +55,18 @@ export async function saveServiceAction(_prev: ActionState, formData: FormData):
     }
   }
 
+  // La categoria queda creada si es nueva, y con el nombre ya guardado si solo
+  // cambian mayusculas o tildes ("bebidas" entra a "Bebidas").
+  const categoriaPedida = str(formData.get("category"), "General");
+  const category = (await asegurarCategorias(user.id, [categoriaPedida])).get(categoriaPedida) ?? "General";
+
   const data = {
     name,
     description: texto(formData.get("description"), 500) || null,
     price,
     cost: parseMoney(formData.get("cost"), user.currency),
     durationMin: Math.max(5, parseIntSafe(formData.get("durationMin"), 30)),
-    category: str(formData.get("category"), "General"),
+    category,
     bookable: formData.get("bookable") === "on",
     active: formData.get("active") !== null ? formData.get("active") === "on" : true,
     ...(formData.has("brand") ? { brand: str(formData.get("brand")) || null } : {}),
@@ -84,6 +90,7 @@ export async function saveServiceAction(_prev: ActionState, formData: FormData):
   revalidatePath("/panel/inventario");
   revalidatePath("/catalogo/" + user.slug);
   revalidatePath("/panel");
+  revalidatePath("/panel/ventas");
   return { ok: id ? "Item actualizado." : "Item agregado." };
 }
 

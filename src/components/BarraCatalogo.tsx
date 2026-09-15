@@ -94,7 +94,12 @@ export function BarraCatalogo({
       )}
 
       {conCategorias && (
-        <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:thin]" data-categorias-catalogo>
+        // contain:inline-size: la fila no pide mas ancho del que hay; si no, en
+        // una grilla ensancha toda la pagina en el celular en vez de deslizarse.
+        <div
+          className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 [contain:inline-size] [scrollbar-width:thin]"
+          data-categorias-catalogo
+        >
           <button type="button" onClick={() => onCategoria("")} className={chip(categoria === "")} data-categoria="" aria-pressed={categoria === ""}>
             Todo <span className="opacity-70">{total}</span>
           </button>

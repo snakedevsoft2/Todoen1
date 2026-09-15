@@ -19,6 +19,7 @@ import { Icon } from "@/components/Icon";
 import { deleteSaleAction, updateSalePaymentAction } from "@/actions/sales";
 import { FormSinSenal } from "@/components/SinSenal";
 import { esPlanCompleto } from "@/lib/plan";
+import { ordenDeCategorias } from "@/lib/categorias-negocio";
 
 export const dynamic = "force-dynamic";
 
@@ -189,7 +190,7 @@ export default async function VentasPage({
         </div>
       )}
 
-      <div className="mt-5 grid gap-4 lg:grid-cols-[420px_1fr]">
+      <div className="mt-5 grid gap-4 lg:grid-cols-[420px_1fr] [&>*]:min-w-0">
         <Card
           title="Registrar una venta"
           subtitle={
@@ -211,6 +212,7 @@ export default async function VentasPage({
           )}
           <NewSaleForm
             services={services}
+            ordenCategorias={await ordenDeCategorias(user.id)}
             currency={user.currency}
             today={day}
             itemLabel={ITEM_NOUN[user.businessType].plural}

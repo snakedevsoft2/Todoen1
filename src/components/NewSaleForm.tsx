@@ -67,6 +67,7 @@ type Mensaje = { kind: "ok" | "error" | "info"; text: string };
  * corregirlo.
  */
 export function NewSaleForm({
+  ordenCategorias,
   services,
   currency,
   today,
@@ -83,6 +84,8 @@ export function NewSaleForm({
   marcaGratis = false,
 }: {
   services: ServiceRow[];
+  /** El orden de categorias que armo el dueño. */
+  ordenCategorias?: string[];
   currency: string;
   today: string;
   itemLabel: string;
@@ -198,10 +201,15 @@ export function NewSaleForm({
   // Categoria tocada y busqueda: con muchos productos no hay que bajar por todo.
   const [categoria, setCategoria] = useState("");
   const [busqueda, setBusqueda] = useState("");
-  const categorias = useMemo(() => categoriasConCantidad(services), [services]);
+  const categorias = useMemo(() => categoriasConCantidad(services, ordenCategorias), [services, ordenCategorias]);
   const grouped = useMemo(
-    () => agruparPorCategoria(filtrarCatalogo(services, categoria, busqueda, (s) => [s.name, s.category])),
-    [services, categoria, busqueda]
+    () =>
+      agruparPorCategoria(
+        filtrarCatalogo(services, categoria, busqueda, (s) => [s.name, s.category]),
+        "nombre",
+        ordenCategorias
+      ),
+    [services, categoria, busqueda, ordenCategorias]
   );
 
   function addService(service: ServiceRow) {

@@ -14,6 +14,9 @@ import { FormSinSenal } from "@/components/SinSenal";
 import { esPlanCompleto } from "@/lib/plan";
 import { SoloPlanPago } from "@/components/SoloPlanPago";
 import { CatalogoFiltrado } from "@/components/CatalogoFiltrado";
+import { GestorCategorias } from "@/components/GestorCategorias";
+import { categoriasDelNegocio, sincronizarCategorias } from "@/lib/categorias-negocio";
+import { CATEGORIA_GENERAL, nombreCategoria } from "@/lib/categorias";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +26,10 @@ export default async function CatalogoPage() {
   const isBarber = user.businessType === "BARBERIA";
   const isClothing = user.businessType === "ROPA";
   const noun = ITEM_NOUN[user.businessType];
+
+  // Las categorias escritas a mano o que llegaron desde Excel quedan creadas
+  // (al final) antes de mostrar la lista.
+  if (esDueno) await sincronizarCategorias(user.id);
 
   const [services, suppliers] = await Promise.all([
     db.service.findMany({
@@ -40,7 +47,9 @@ export default async function CatalogoPage() {
       : Promise.resolve([]),
   ]);
 
-  const categories = [...new Set(services.map((s) => s.category))].sort();
+  const propias = await categoriasDelNegocio(user.id);
+  const ordenCategorias = propias.map((c) => c.name);
+  const categories = [...new Set([...ordenCategorias, ...services.map((s) => nombreCategoria(s.category))])];
   const activeCount = services.filter((s) => s.active).length;
   const avgPrice = activeCount
     ? Math.round(services.filter((s) => s.active).reduce((s, i) => s + i.price, 0) / activeCount)
@@ -77,7 +86,7 @@ export default async function CatalogoPage() {
         )}
       </div>
 
-      <div className="mt-5 grid gap-4 lg:grid-cols-[420px_1fr]">
+      <div className="mt-5 grid gap-4 lg:grid-cols-[420px_1fr] [&>*]:min-w-0">
         <div className="space-y-4">
         <Card
           title={"Agregar " + noun.singular}
@@ -106,6 +115,22 @@ export default async function CatalogoPage() {
             <SoloPlanPago que="Carga masiva" negocio={user.businessName} />
           )}
         </Card>
+        {esDueno && (
+          <Card
+            title="Tus categorías"
+            subtitle="Créalas con el nombre que quieras, ordénalas con las flechas y elige qué productos van en cada una"
+          >
+            <GestorCategorias
+              categorias={propias.map((c) => ({
+                id: c.id,
+                name: c.name,
+                cantidad: services.filter((s) => s.category === c.name).length,
+              }))}
+              productos={services.map((s) => ({ id: s.id, name: s.name, category: nombreCategoria(s.category) }))}
+              enGeneral={services.filter((s) => nombreCategoria(s.category) === CATEGORIA_GENERAL).length}
+            />
+          </Card>
+        )}
         </div>
 
         <Card
@@ -123,6 +148,7 @@ export default async function CatalogoPage() {
             />
           ) : (
             <CatalogoFiltrado
+              ordenCategorias={ordenCategorias}
               items={services.map((s) => {
                 const variants = s.variants;
                 const stock = variants.reduce((sum, v) => sum + Math.max(0, v.stock), 0);

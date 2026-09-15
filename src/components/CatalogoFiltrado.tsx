@@ -34,20 +34,27 @@ const ABIERTAS_HASTA = 12;
  * Las fichas no se desmontan al filtrar: solo se esconden, para que un
  * "Editar" a medio llenar no se pierda al tocar otra categoria.
  */
-export function CatalogoFiltrado({ items }: { items: ItemCatalogo[] }) {
+export function CatalogoFiltrado({
+  items,
+  ordenCategorias,
+}: {
+  items: ItemCatalogo[];
+  /** El orden de categorias que armo el dueño. */
+  ordenCategorias?: string[];
+}) {
   const [categoria, setCategoria] = useState("");
   const [busqueda, setBusqueda] = useState("");
   const [orden, setOrden] = useState<OrdenCatalogo>("nombre");
   const [abiertas, setAbiertas] = useState<Record<string, boolean>>({});
 
-  const categorias = useMemo(() => categoriasConCantidad(items), [items]);
+  const categorias = useMemo(() => categoriasConCantidad(items, ordenCategorias), [items, ordenCategorias]);
   const grupos = useMemo(() => {
     // Los inactivos, al final de su categoria.
-    return agruparPorCategoria(items, orden).map((g) => ({
+    return agruparPorCategoria(items, orden, ordenCategorias).map((g) => ({
       ...g,
       items: [...g.items.filter((i) => i.active), ...g.items.filter((i) => !i.active)],
     }));
-  }, [items, orden]);
+  }, [items, orden, ordenCategorias]);
 
   const buscando = busqueda.trim() !== "";
   const unaSola = categorias.length <= 1;

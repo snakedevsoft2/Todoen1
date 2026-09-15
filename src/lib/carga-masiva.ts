@@ -6,6 +6,7 @@ import { todayIn } from "./dates";
 import { money, parseMoney } from "./format";
 import { applyStockMove } from "./inventory";
 import { LIMITE_FILAS } from "./importar";
+import { sincronizarCategorias } from "./categorias-negocio";
 
 /**
  * Subir de una vez la lista de clientes o de productos que el negocio ya
@@ -434,6 +435,8 @@ async function procesarProductos(user: Negocio, crudo: unknown, modo: ModoCarga,
     const hecho = await db.service.createMany({ data: sinStock });
     r.creados += hecho.count;
   }
+  // Las categorias del archivo quedan creadas y sin repetidas.
+  if (escribir) await sincronizarCategorias(user.id);
   return { resultado: r, analisis: a };
 }
 

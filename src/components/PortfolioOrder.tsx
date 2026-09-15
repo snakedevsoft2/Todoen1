@@ -54,6 +54,7 @@ export function PortfolioOrder({
   itemNoun,
   orderNote,
   wholesale,
+  ordenCategorias,
 }: {
   items: PortfolioItem[];
   categories: string[];
@@ -66,6 +67,8 @@ export function PortfolioOrder({
   orderNote: string | null;
   /** Promociones por cantidad. Null si el negocio no vende al por mayor. */
   wholesale: Wholesale | null;
+  /** El orden de categorias que armo el dueño. */
+  ordenCategorias?: string[];
 }) {
   const [categoria, setCategoria] = useState("");
   const [lineas, setLineas] = useState<Linea[]>([]);
@@ -75,7 +78,7 @@ export function PortfolioOrder({
   const [busqueda, setBusqueda] = useState("");
   const [orden, setOrden] = useState<OrdenCatalogo>("nombre");
 
-  const conteo = useMemo(() => categoriasConCantidad(items), [items]);
+  const conteo = useMemo(() => categoriasConCantidad(items, ordenCategorias), [items, ordenCategorias]);
   const visibles = useMemo(
     () =>
       ordenarItems(
@@ -86,8 +89,8 @@ export function PortfolioOrder({
   );
   // Viendo todo, cada categoria con su titulo: se entiende que hay y donde.
   const grupos = useMemo(
-    () => (categoria === "" && busqueda.trim() === "" && categories.length > 1 ? agruparPorCategoria(visibles, orden) : null),
-    [visibles, categoria, busqueda, orden, categories.length]
+    () => (categoria === "" && busqueda.trim() === "" && categories.length > 1 ? agruparPorCategoria(visibles, orden, ordenCategorias) : null),
+    [visibles, categoria, busqueda, orden, categories.length, ordenCategorias]
   );
 
   const tiers = useMemo(() => wholesale?.tiers ?? [], [wholesale]);

@@ -11,6 +11,9 @@
 
 export const CATEGORIA_GENERAL = "General";
 
+/** Largo maximo del nombre de una categoria. */
+export const MAX_CATEGORIA = 40;
+
 export type OrdenCatalogo = "nombre" | "precio-menor" | "precio-mayor" | "recientes";
 
 export const ORDENES: { valor: OrdenCatalogo; nombre: string }[] = [
@@ -44,18 +47,40 @@ export function coincideBusqueda(textos: (string | null | undefined)[], busqueda
   return palabras.every((p) => donde.includes(p));
 }
 
+/** Sin espacios de sobra y del largo permitido. */
+export function limpiarNombreCategoria(nombre: string | null | undefined): string {
+  return String(nombre ?? "").replace(/\s+/g, " ").trim().slice(0, MAX_CATEGORIA).trim();
+}
+
 /** El nombre de la categoria como se muestra: vacia cuenta como "General". */
 export function nombreCategoria(categoria: string | null | undefined): string {
-  const limpia = String(categoria ?? "").trim();
-  return limpia || CATEGORIA_GENERAL;
+  return limpiarNombreCategoria(categoria) || CATEGORIA_GENERAL;
+}
+
+/** "Bebidas" y "bébidas " son la misma categoria. */
+export function mismaCategoria(a: string, b: string): boolean {
+  return textoBusqueda(a) === textoBusqueda(b);
+}
+
+export function validarNombreCategoria(nombre: string | null | undefined): { nombre: string } | { error: string } {
+  const limpio = limpiarNombreCategoria(nombre);
+  if (!limpio) return { error: "Escribe el nombre de la categoría." };
+  if (mismaCategoria(limpio, CATEGORIA_GENERAL)) {
+    return { error: "General ya existe: es donde queda lo que no tiene categoría." };
+  }
+  return { nombre: limpio };
 }
 
 /**
- * Las categorias con cuantos productos tiene cada una. En orden alfabetico
- * ("Talla 2" antes que "Talla 10"), con "General" al final: lo que el negocio
- * se tomo el trabajo de categorizar va primero.
+ * Las categorias con cuantos productos tiene cada una. Primero en el orden
+ * que armo el dueño; las que no estan en ese orden, en orden alfabetico
+ * ("Talla 2" antes que "Talla 10"); y "General" al final.
  */
-export function categoriasConCantidad(items: { category: string }[]): { nombre: string; cantidad: number }[] {
+export function categoriasConCantidad(
+  items: { category: string }[],
+  ordenPropio: string[] = []
+): { nombre: string; cantidad: number }[] {
+  const lugar = new Map(ordenPropio.map((n, i) => [n, i]));
   const cuenta = new Map<string, number>();
   for (const i of items) {
     const c = nombreCategoria(i.category);
@@ -66,6 +91,11 @@ export function categoriasConCantidad(items: { category: string }[]): { nombre: 
     .sort((a, b) => {
       if (a.nombre === CATEGORIA_GENERAL) return 1;
       if (b.nombre === CATEGORIA_GENERAL) return -1;
+      const la = lugar.get(a.nombre);
+      const lb = lugar.get(b.nombre);
+      if (la !== undefined && lb !== undefined) return la - lb;
+      if (la !== undefined) return -1;
+      if (lb !== undefined) return 1;
       return comparar(a.nombre, b.nombre);
     });
 }
@@ -86,10 +116,11 @@ export function ordenarItems<T extends Ordenable>(items: T[], orden: OrdenCatalo
 /** Los productos agrupados por categoria, en el orden de categoriasConCantidad. */
 export function agruparPorCategoria<T extends Ordenable & { category: string }>(
   items: T[],
-  orden: OrdenCatalogo = "nombre"
+  orden: OrdenCatalogo = "nombre",
+  ordenPropio: string[] = []
 ): { nombre: string; items: T[] }[] {
   const ordenados = ordenarItems(items, orden);
-  return categoriasConCantidad(items).map(({ nombre }) => ({
+  return categoriasConCantidad(items, ordenPropio).map(({ nombre }) => ({
     nombre,
     items: ordenados.filter((i) => nombreCategoria(i.category) === nombre),
   }));

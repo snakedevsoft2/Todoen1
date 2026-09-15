@@ -19,6 +19,7 @@ import {
   type PortfolioItem,
   type Wholesale,
 } from "@/components/PortfolioOrder";
+import { ordenDeCategorias } from "@/lib/categorias-negocio";
 
 export const dynamic = "force-dynamic";
 
@@ -91,6 +92,8 @@ export default async function PortafolioPage({
       },
     },
   });
+
+  const ordenCategorias = await ordenDeCategorias(shop.id);
 
   // Escalas del mayorista. Solo se consultan si el negocio encendio el
   // apartado: quien vende al detal no tiene por que pagar una consulta mas.
@@ -302,6 +305,7 @@ export default async function PortafolioPage({
             itemNoun={noun.plural}
             orderNote={shop.publicOrderNote}
             wholesale={wholesale}
+            ordenCategorias={ordenCategorias}
           />
         )}
       </main>

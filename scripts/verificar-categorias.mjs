@@ -5,6 +5,9 @@
  * Lo que se prueba, con 30 productos en 4 categorias:
  *   - En Catálogo las categorias arrancan cerradas; al tocar una se ve solo esa,
  *     y el buscador encuentra sin tildes. Ordenar por precio cambia el orden.
+ *   - El dueño crea su propia categoria, no la deja repetir, la sube al primer
+ *     lugar, le pasa un producto, le cambia el nombre y la borra (el producto
+ *     vuelve a General).
  *   - En Ventas tocar una categoria deja solo sus productos y se pueden agregar.
  *   - En el portafolio publico se ven los titulos por categoria, el buscador y
  *     el filtro por categoria, en un celular.
@@ -80,6 +83,7 @@ try {
   ok((await barra.locator('[data-categoria="Bebidas"]').innerText()).includes("13"), "cada categoría con su cantidad");
   ok((await visibles(page, "[data-producto]")) === 0, "con muchos productos arrancan cerradas");
   ok((await page.locator("[data-grupo-categoria]").last().getAttribute("data-grupo-categoria")) === "General", "General queda de última");
+  ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "la página no se sale del ancho del celular");
 
   await barra.locator('[data-categoria="Postres"]').click();
   ok(Boolean(await esperarHasta(async () => (await visibles(page, "[data-producto]")) === 10)), "al tocar Postres se ven solo sus 10");
@@ -96,9 +100,49 @@ try {
   const primera = await page.locator('[data-grupo-categoria="Bebidas"] [data-producto]').first().getAttribute("data-producto");
   ok(primera === "Bebida 12", "ordenar por precio pone la más cara primero", primera);
 
+  console.log("\n1b. Categorías propias");
+  page.on("dialog", (d) => d.accept());
+  await page.goto(BASE + "/panel/catalogo", { waitUntil: "load" });
+  const gestor = page.locator("[data-gestor-categorias]");
+  const crear = async (nombre) => {
+    await gestor.locator('[data-crear-categoria] input[name="name"]').fill(nombre);
+    await gestor.locator("[data-crear-categoria]").getByRole("button", { name: "Crear" }).click();
+  };
+  ok((await db.productCategory.count({ where: { userId: cuenta.id } })) === 3, "las categorías que ya tenía quedan guardadas");
+  await crear("Promos");
+  ok(Boolean(await esperarHasta(() => gestor.locator('[data-fila-categoria="Promos"]').count())), "crea una categoría nueva");
+  await crear("promos");
+  ok(Boolean(await esperarHasta(() => gestor.getByText("Ya tienes la categoría Promos.").count())), "no deja repetirla con otras mayúsculas");
+
+  for (let n = 0; n < 3; n++) {
+    await gestor.getByRole("button", { name: "Subir Promos", exact: true }).click();
+    await esperarHasta(async () => (await db.productCategory.findFirst({ where: { userId: cuenta.id, name: "Promos" } }))?.position === 2 - n);
+  }
+  ok((await db.productCategory.findFirst({ where: { userId: cuenta.id, name: "Promos" } }))?.position === 0, "con las flechas queda de primera");
+
+  const filaPromos = gestor.locator('[data-fila-categoria="Promos"]');
+  await filaPromos.getByRole("button", { name: "Productos", exact: true }).click();
+  await filaPromos.getByLabel("Bolsa", { exact: true }).check();
+  await filaPromos.getByRole("button", { name: "Guardar productos" }).click();
+  ok(Boolean(await esperarHasta(async () => (await db.service.findFirst({ where: { userId: cuenta.id, name: "Bolsa" } }))?.category === "Promos")), "le pasa la Bolsa a Promos");
+  await page.reload({ waitUntil: "load" });
+  ok((await page.locator("[data-barra-catalogo] [data-categoria]").nth(1).getAttribute("data-categoria")) === "Promos", "y Promos sale primera en la fila de categorías");
+
+  await gestor.locator('[data-fila-categoria="Promos"]').getByRole("button", { name: "Cambiar nombre" }).click();
+  await gestor.locator('[data-fila-categoria="Promos"] [data-renombrar]').fill("Ofertas del día");
+  await gestor.locator('[data-fila-categoria="Promos"]').getByRole("button", { name: "Guardar nombre" }).click();
+  ok(Boolean(await esperarHasta(async () => (await db.service.findFirst({ where: { userId: cuenta.id, name: "Bolsa" } }))?.category === "Ofertas del día")), "al cambiarle el nombre, la Bolsa se va con ella");
+
+  await gestor.getByRole("button", { name: "Borrar categoría Ofertas del día" }).click();
+  ok(
+    Boolean(await esperarHasta(async () => (await db.service.findFirst({ where: { userId: cuenta.id, name: "Bolsa" } }))?.category === "General" && (await db.productCategory.count({ where: { userId: cuenta.id } })) === 3)),
+    "al borrarla, la Bolsa no se borra: vuelve a General"
+  );
+
   console.log("\n2. Ventas");
   await page.goto(BASE + "/panel/ventas", { waitUntil: "load" });
   const barraVenta = page.locator("[data-barra-catalogo]").first();
+  ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "la venta no se sale del ancho del celular");
   await barraVenta.locator('[data-categoria="Combos"]').click();
   ok(Boolean(await esperarHasta(async () => (await page.getByRole("button", { name: /^Combo \d/ }).count()) === 6 && (await page.getByRole("button", { name: /^Bebida \d/ }).count()) === 0)), "tocar Combos deja solo los 6 combos");
   await barraVenta.locator('[data-categoria=""]').click();

@@ -194,6 +194,7 @@ model User {
   staff          Staff[]
   accountModules AccountModule[]
   services       Service[]
+  productCategories ProductCategory[]
   appointments   Appointment[]
   sales          Sale[]
   expenses       Expense[]
@@ -463,6 +464,21 @@ model Staff {
 }
 
 /// Servicios (cortes) o productos (platos, bebidas...) que el negocio vende.
+/// Las categorias de productos que arma cada negocio y en que orden salen.
+/// El producto guarda el nombre (Service.category). "General" no se guarda:
+/// es donde queda lo que no tiene categoria. Ver lib/categorias-negocio.ts.
+model ProductCategory {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, name])
+  @@index([userId, position])
+}
+
 model Service {
   id          String  @id @default(cuid())
   userId      String
