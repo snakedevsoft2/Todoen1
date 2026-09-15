@@ -191,6 +191,8 @@ export async function detalleDeCuenta(id: string) {
           orders: true,
           variants: true,
           suppliers: true,
+          customers: true,
+          electronicInvoices: true,
         },
       },
     },

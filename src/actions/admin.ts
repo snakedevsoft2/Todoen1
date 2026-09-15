@@ -2,11 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireAdmin } from "@/lib/admin";
+import { esAdmin, requireAdmin } from "@/lib/admin";
 import { str } from "@/lib/format";
 import { mailEnabled, sendMail } from "@/lib/mail";
 import { correoDeEnlace, crearEnlace, direccionBase, type Destino } from "@/lib/reset";
 import { quitarControlDePago, registrarPago } from "@/lib/pagos";
+import { redirect } from "next/navigation";
+import { eliminarCuenta } from "@/lib/eliminar-cuenta";
 
 export type AdminState = { error?: string; ok?: string } | undefined;
 
@@ -258,3 +260,19 @@ export async function quitarControlPagoAction(formData: FormData): Promise<void>
   refrescar(userId);
 }
 
+/**
+ * Eliminar una cuenta para siempre (ver lib/eliminar-cuenta.ts). Al terminar
+ * vuelve a la lista, porque la ficha de la cuenta ya no existe.
+ */
+export async function eliminarCuentaAction(_prev: AdminState, formData: FormData): Promise<AdminState> {
+  const admin = await requireAdmin();
+  const r = await eliminarCuenta({
+    userId: str(formData.get("userId")),
+    confirmacion: str(formData.get("confirmacion")),
+    adminUserId: admin.user.id,
+    esAdmin,
+  });
+  if (!r.ok) return { error: r.error };
+  revalidatePath("/admin");
+  redirect("/admin?eliminada=" + encodeURIComponent(r.businessName));
+}

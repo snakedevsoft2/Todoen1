@@ -15,6 +15,8 @@ import { OPCIONES_TIPO } from "@/lib/tipo-negocio";
 import { PagosCuenta } from "@/components/admin/PagosCuenta";
 import { estadoDePago, fechaLarga } from "@/lib/pagos";
 import { planDeCuenta } from "@/lib/plan";
+import { EliminarCuentaForm } from "@/components/admin/EliminarCuentaForm";
+import { esAdmin } from "@/lib/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -251,6 +253,26 @@ export default async function AdminCuentaPage({ params }: { params: Promise<{ id
               </>
             ) : (
               <SuspenderForm userId={cuenta.id} businessName={cuenta.businessName} />
+            )}
+          </Bloque>
+
+          <Bloque titulo="Eliminar la cuenta">
+            {esAdmin(cuenta.email) || cuenta.staff.some((p) => esAdmin(p.email)) ? (
+              <p className="text-[12px] leading-snug text-slate-400">
+                Es una cuenta de administrador: no se puede eliminar desde aquí. Si de verdad quieres eliminarla, primero
+                quita su correo de ADMIN_EMAILS en Vercel.
+              </p>
+            ) : (
+              <EliminarCuentaForm
+                userId={cuenta.id}
+                businessName={cuenta.businessName}
+                resumen={[
+                  ...todos,
+                  { label: "Clientes", n: cuenta._count.customers },
+                  { label: "Facturas autorizadas", n: cuenta._count.electronicInvoices },
+                  { label: "Personas del equipo", n: cuenta.staff.length },
+                ].filter((m) => m.n > 0)}
+              />
             )}
           </Bloque>
 

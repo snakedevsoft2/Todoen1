@@ -44,9 +44,9 @@ function Numero({
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; eliminada?: string }>;
 }) {
-  const { q = "" } = await searchParams;
+  const { q = "", eliminada } = await searchParams;
   const [resumen, cuentas] = await Promise.all([resumenPlataforma(), listaDeCuentas(q)]);
   const diaEnColombia = (d: Date) =>
     new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota", year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
@@ -58,6 +58,12 @@ export default async function AdminPage({
       <p className="mt-1 text-sm text-slate-400">
         Quién se registró, quién sigue entrando y qué le puedes prender o apagar.
       </p>
+
+      {eliminada && (
+        <p data-cuenta-eliminada className="mt-4 rounded-lg bg-emerald-500/15 px-3 py-2 text-sm text-emerald-300">
+          Se eliminó la cuenta «{eliminada.slice(0, 120)}» con todo lo que tenía.
+        </p>
+      )}
 
       <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-7">
         <Numero label="Negocios" valor={resumen.negocios} pie="registrados en total" />
