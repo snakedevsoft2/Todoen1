@@ -44,7 +44,8 @@
     "verificar:panel-sin-senal": "node scripts/verificar-panel-sin-senal.mjs",
     "verificar:licencia": "node scripts/verificar-licencia.mjs",
     "verificar:acciones-sin-senal": "node scripts/verificar-acciones-sin-senal.mjs",
-    "clave": "node scripts/cambiar-clave.mjs"
+    "clave": "node scripts/cambiar-clave.mjs",
+    "verificar:instalable": "node scripts/verificar-instalable.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
