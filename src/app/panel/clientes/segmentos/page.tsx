@@ -9,6 +9,7 @@ import { Pastilla } from "@/components/EtiquetasCliente";
 import { MensajeSegmento } from "@/components/MensajeSegmento";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Icon } from "@/components/Icon";
+import { FormSinSenal } from "@/components/SinSenal";
 
 export const dynamic = "force-dynamic";
 
@@ -148,7 +149,7 @@ export default async function SegmentosPage({
                   <span className="text-xs text-muted">
                     {e._count.links} {e._count.links === 1 ? "cliente" : "clientes"}
                   </span>
-                  <form action={borrarEtiquetaAction} className="ml-auto">
+                  <FormSinSenal accion="borrarEtiquetaAction" servidor={borrarEtiquetaAction} className="ml-auto">
                     <input type="hidden" name="id" value={e.id} />
                     <SubmitButton
                       className="btn-ghost btn-sm px-2 text-subtle hover:text-bad"
@@ -158,7 +159,7 @@ export default async function SegmentosPage({
                     >
                       <Icon name="trash" className="h-4 w-4" />
                     </SubmitButton>
-                  </form>
+                  </FormSinSenal>
                 </li>
               ))}
             </ul>

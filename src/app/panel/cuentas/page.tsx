@@ -9,6 +9,7 @@ import { Icon } from "@/components/Icon";
 import { NewOrderForm } from "@/components/NewOrderForm";
 import { SubmitButton } from "@/components/SubmitButton";
 import { cancelOrderAction, deleteOrderAction } from "@/actions/orders";
+import { FormSinSenal } from "@/components/SinSenal";
 
 export const dynamic = "force-dynamic";
 
@@ -93,7 +94,7 @@ export default async function CuentasPage() {
                         Cargar y cobrar
                       </Link>
                       {units === 0 ? (
-                        <form action={deleteOrderAction}>
+                        <FormSinSenal accion="deleteOrderAction" servidor={deleteOrderAction}>
                           <input type="hidden" name="orderId" value={o.id} />
                           <SubmitButton
                             className="btn-ghost btn-sm"
@@ -102,9 +103,9 @@ export default async function CuentasPage() {
                           >
                             Borrar
                           </SubmitButton>
-                        </form>
+                        </FormSinSenal>
                       ) : (
-                        <form action={cancelOrderAction}>
+                        <FormSinSenal accion="cancelOrderAction" servidor={cancelOrderAction}>
                           <input type="hidden" name="orderId" value={o.id} />
                           <SubmitButton
                             className="btn-danger btn-sm"
@@ -113,7 +114,7 @@ export default async function CuentasPage() {
                           >
                             Cancelar
                           </SubmitButton>
-                        </form>
+                        </FormSinSenal>
                       )}
                     </div>
                   </li>

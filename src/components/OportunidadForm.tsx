@@ -6,6 +6,7 @@ import { ETAPAS, type Etapa } from "@/lib/crm";
 import { aCampo, pasoMoneda } from "@/lib/format";
 import { SubmitButton } from "./SubmitButton";
 import { Alert, Field } from "./ui";
+import { useAccionSinSenal } from "@/components/SinSenal";
 
 type Opcion = { id: string; name: string };
 
@@ -38,7 +39,7 @@ export function OportunidadForm({
   submitLabel: string;
   onDone?: () => void;
 }) {
-  const [state, formAction] = useActionState(guardarOportunidadAction, undefined);
+  const [state, formAction] = useActionState(useAccionSinSenal("guardarOportunidadAction", guardarOportunidadAction), undefined);
   const [stage, setStage] = useState<Etapa>(deal?.stage ?? "NUEVO");
   const form = useRef<HTMLFormElement>(null);
   const editando = Boolean(deal);

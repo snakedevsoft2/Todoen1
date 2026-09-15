@@ -8,6 +8,7 @@ import { Card, Empty, PageHeader, Stat } from "@/components/ui";
 import { CashCloseForm } from "@/components/CashCloseForm";
 import { SubmitButton } from "@/components/SubmitButton";
 import { reopenCashAction } from "@/actions/cash";
+import { FormSinSenal } from "@/components/SinSenal";
 
 export const dynamic = "force-dynamic";
 
@@ -117,7 +118,7 @@ export default async function CajaPage({
                 </div>
               )}
               {closure.notes && <p className="text-xs italic text-good/70">{closure.notes}</p>}
-              <form action={reopenCashAction} className="pt-1">
+              <FormSinSenal accion="reopenCashAction" servidor={reopenCashAction} className="pt-1">
                 <input type="hidden" name="day" value={day} />
                 <SubmitButton
                   className="btn-ghost btn-sm w-full"
@@ -126,7 +127,7 @@ export default async function CajaPage({
                 >
                   Reabrir la caja
                 </SubmitButton>
-              </form>
+              </FormSinSenal>
             </div>
           )}
 

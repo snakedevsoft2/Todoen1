@@ -4,9 +4,10 @@ import { useActionState } from "react";
 import { createOrderAction } from "@/actions/orders";
 import { SubmitButton } from "./SubmitButton";
 import { Alert, Field } from "./ui";
+import { useAccionSinSenal } from "@/components/SinSenal";
 
 export function NewOrderForm({ suggestion }: { suggestion: string }) {
-  const [state, formAction] = useActionState(createOrderAction, undefined);
+  const [state, formAction] = useActionState(useAccionSinSenal("createOrderAction", createOrderAction), undefined);
 
   return (
     <form action={formAction} className="space-y-3">

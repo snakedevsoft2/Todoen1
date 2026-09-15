@@ -13,6 +13,8 @@ import type { EstadoSeguimiento } from "@/lib/crm";
 import { SubmitButton } from "./SubmitButton";
 import { Alert, Badge, Field } from "./ui";
 import { Icon } from "./Icon";
+import { FormSinSenal } from "@/components/SinSenal";
+import { useAccionSinSenal } from "@/components/SinSenal";
 
 type Opcion = { id: string; name: string };
 
@@ -38,7 +40,7 @@ export function SeguimientoForm({
   customerId?: string;
   dealId?: string;
 }) {
-  const [state, formAction] = useActionState(crearSeguimientoAction, undefined);
+  const [state, formAction] = useActionState(useAccionSinSenal("crearSeguimientoAction", crearSeguimientoAction), undefined);
   const [dia, setDia] = useState(addDays(hoy, 1));
   const form = useRef<HTMLFormElement>(null);
 
@@ -164,7 +166,7 @@ const ESTADO: Record<EstadoSeguimiento, { label: string; tone: "red" | "amber" |
 export function SeguimientoFila({ s, conCliente = true }: { s: SeguimientoRow; conCliente?: boolean }) {
   return (
     <li className="flex items-start gap-3 border-b border-line py-3 last:border-0">
-      <form action={completarSeguimientoAction} className="pt-0.5">
+      <FormSinSenal accion="completarSeguimientoAction" servidor={completarSeguimientoAction} className="pt-0.5">
         <input type="hidden" name="id" value={s.id} />
         <SubmitButton
           className={
@@ -176,7 +178,7 @@ export function SeguimientoFila({ s, conCliente = true }: { s: SeguimientoRow; c
         >
           {s.hecho ? <Icon name="check" className="h-3.5 w-3.5" /> : <span />}
         </SubmitButton>
-      </form>
+      </FormSinSenal>
 
       <div className="min-w-0 flex-1">
         <p
@@ -223,7 +225,7 @@ export function SeguimientoFila({ s, conCliente = true }: { s: SeguimientoRow; c
           </a>
         )}
         {s.puedeBorrar && (
-          <form action={borrarSeguimientoAction}>
+          <FormSinSenal accion="borrarSeguimientoAction" servidor={borrarSeguimientoAction}>
             <input type="hidden" name="id" value={s.id} />
             <SubmitButton
               className="btn-ghost btn-sm px-2 text-subtle hover:text-bad"
@@ -233,7 +235,7 @@ export function SeguimientoFila({ s, conCliente = true }: { s: SeguimientoRow; c
             >
               <Icon name="trash" className="h-4 w-4" />
             </SubmitButton>
-          </form>
+          </FormSinSenal>
         )}
       </div>
     </li>

@@ -24,6 +24,7 @@ import { PrepararSinConexion } from "@/components/PrepararSinConexion";
 import { AvisoSinConexion } from "@/components/AvisoSinConexion";
 import { AvisoDePago } from "@/components/AvisoDePago";
 import { correoDeLaSesion, esAdmin } from "@/lib/admin";
+import { ProveedorSinSenal } from "@/components/SinSenal";
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
   const sesion = await requireSession();
@@ -97,7 +98,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
         <AvisoSinConexion />
         {/* Solo al dueño: es quien puede renovar el plan. */}
         {!empleado && staff.role === "DUENO" && <AvisoDePago paidUntil={user.paidUntil} businessName={user.businessName} />}
-        {children}
+        <ProveedorSinSenal cuenta={staff.id}>{children}</ProveedorSinSenal>
       </Shell>
       {/* La IA Snake flotante: solo si el servidor tiene la clave del modelo, y
           no para el empleado del gestor, que solo tiene sus pantallas. */}

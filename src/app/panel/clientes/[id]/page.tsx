@@ -28,6 +28,7 @@ import { SeguimientoFila, SeguimientoForm } from "@/components/Seguimientos";
 import { EditarOportunidad, OportunidadForm } from "@/components/OportunidadForm";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Icon } from "@/components/Icon";
+import { FormSinSenal } from "@/components/SinSenal";
 
 export const dynamic = "force-dynamic";
 
@@ -238,7 +239,7 @@ export default async function ClientePage({ params }: { params: Promise<{ id: st
             }}
           />
           {esDueno && (
-            <form action={borrarClienteAction} className="ml-auto">
+            <FormSinSenal accion="borrarClienteAction" servidor={borrarClienteAction} className="ml-auto">
               <input type="hidden" name="id" value={cliente.id} />
               <SubmitButton
                 className="btn-ghost btn-sm text-bad"
@@ -252,7 +253,7 @@ export default async function ClientePage({ params }: { params: Promise<{ id: st
                 <Icon name="trash" className="h-4 w-4" />
                 Borrar ficha
               </SubmitButton>
-            </form>
+            </FormSinSenal>
           )}
         </div>
       </section>
@@ -290,7 +291,7 @@ export default async function ClientePage({ params }: { params: Promise<{ id: st
                         <p className="mt-0.5 text-xs text-subtle">{e.cuando}</p>
                       </div>
                       {e.borrar && (
-                        <form action={borrarInteraccionAction}>
+                        <FormSinSenal accion="borrarInteraccionAction" servidor={borrarInteraccionAction}>
                           <input type="hidden" name="id" value={e.borrar} />
                           <SubmitButton
                             className="btn-ghost btn-sm px-2 text-subtle hover:text-bad"
@@ -300,7 +301,7 @@ export default async function ClientePage({ params }: { params: Promise<{ id: st
                           >
                             <Icon name="trash" className="h-3.5 w-3.5" />
                           </SubmitButton>
-                        </form>
+                        </FormSinSenal>
                       )}
                     </div>
                   </li>
@@ -369,7 +370,7 @@ export default async function ClientePage({ params }: { params: Promise<{ id: st
                           }}
                         />
                         {esDueno && (
-                          <form action={borrarOportunidadAction}>
+                          <FormSinSenal accion="borrarOportunidadAction" servidor={borrarOportunidadAction}>
                             <input type="hidden" name="id" value={d.id} />
                             <SubmitButton
                               className="btn-ghost btn-sm px-2 text-subtle hover:text-bad"
@@ -379,7 +380,7 @@ export default async function ClientePage({ params }: { params: Promise<{ id: st
                             >
                               <Icon name="trash" className="h-4 w-4" />
                             </SubmitButton>
-                          </form>
+                          </FormSinSenal>
                         )}
                       </div>
                     </li>

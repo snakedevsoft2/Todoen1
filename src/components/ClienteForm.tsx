@@ -5,6 +5,7 @@ import { guardarClienteAction, importarClientesAction } from "@/actions/crm";
 import { SubmitButton } from "./SubmitButton";
 import { Alert, Field } from "./ui";
 import { Icon } from "./Icon";
+import { useAccionSinSenal } from "@/components/SinSenal";
 
 export type ClienteRow = {
   id: string;
@@ -26,7 +27,7 @@ export function ClienteForm({
   submitLabel: string;
   onDone?: () => void;
 }) {
-  const [state, formAction] = useActionState(guardarClienteAction, undefined);
+  const [state, formAction] = useActionState(useAccionSinSenal("guardarClienteAction", guardarClienteAction), undefined);
 
   useEffect(() => {
     if (state?.ok) onDone?.();

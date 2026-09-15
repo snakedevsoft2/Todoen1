@@ -17,11 +17,13 @@ export { nuevaLlave };
 
 const BASE = "ten_pendientes";
 // Version 2: se sumaron las ubicaciones de la jornada y las llegadas.
-const VERSION = 2;
+// Version 3: las acciones del panel hechas sin senal.
+const VERSION = 3;
 const VENTAS = "ventas";
 const DOCUMENTOS = "documentos";
 const UBICACIONES = "ubicaciones";
 const VISITAS = "visitas";
+const ACCIONES = "acciones";
 
 export type VentaPendiente = {
   clientKey: string;
@@ -63,7 +65,7 @@ function abrir(): Promise<IDBDatabase> {
     const req = indexedDB.open(BASE, VERSION);
     req.onupgradeneeded = () => {
       const db = req.result;
-      for (const t of [VENTAS, DOCUMENTOS, UBICACIONES, VISITAS]) {
+      for (const t of [VENTAS, DOCUMENTOS, UBICACIONES, VISITAS, ACCIONES]) {
         if (!db.objectStoreNames.contains(t)) db.createObjectStore(t, { keyPath: "clientKey" });
       }
     };
@@ -285,3 +287,70 @@ export const subirVisitas = unoALaVez((cuenta: string) =>
     accuracyM: v.accuracyM,
   }))
 );
+
+// ------------------------------------------------ acciones del panel
+
+/** Una accion del panel (un gasto, un abono...) hecha sin senal. */
+export type AccionPendiente = {
+  clientKey: string;
+  cuenta: string;
+  /** El nombre de la accion del servidor, del registro de lib/sin-senal. */
+  accion: string;
+  /** Los campos del formulario, tal cual. */
+  campos: [string, string][];
+  /** Lo que se le muestra a la persona mientras espera. */
+  resumen: string;
+  creadoEn: string;
+  /** Si el servidor la rechazo, por que. Esa no se reintenta sola. */
+  error: string | null;
+};
+
+export async function guardarAccion(a: AccionPendiente): Promise<void> {
+  await conTienda(ACCIONES, "readwrite", (t) => t.put(a));
+}
+
+export function accionesPendientes(cuenta: string): Promise<AccionPendiente[]> {
+  return todos<AccionPendiente>(ACCIONES, cuenta);
+}
+
+export async function borrarAccion(clientKey: string): Promise<void> {
+  await conTienda(ACCIONES, "readwrite", (t) => t.delete(clientKey));
+}
+
+export type ResultadoAcciones = { enviados: number; rechazados: number; huboRed: boolean; sinSesion: boolean };
+
+/**
+ * Sube las acciones pendientes, en el orden en que se hicieron. Las que el
+ * servidor rechaza quedan con el motivo para mostrarlas; las que tienen que
+ * reintentarse se quedan como estaban.
+ */
+export const subirAcciones = unoALaVez(async (cuenta: string): Promise<ResultadoAcciones> => {
+  const cola = (await accionesPendientes(cuenta)).filter((a) => !a.error).slice(0, 25);
+  if (cola.length === 0) return { enviados: 0, rechazados: 0, huboRed: true, sinSesion: false };
+  let r: Response;
+  try {
+    r = await fetch("/api/sin-senal", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ acciones: cola.map((a) => ({ clientKey: a.clientKey, accion: a.accion, campos: a.campos })) }),
+    });
+  } catch {
+    return { enviados: 0, rechazados: 0, huboRed: false, sinSesion: false };
+  }
+  const datos = (await r.json().catch(() => ({}))) as { resultados?: ResultadoItem[] | { clientKey: string; estado: string; motivo?: string }[] };
+  let enviados = 0;
+  let rechazados = 0;
+  for (const x of (datos.resultados ?? []) as { clientKey: string; estado: string; motivo?: string }[]) {
+    const accion = cola.find((a) => a.clientKey === x.clientKey);
+    if (!accion) continue;
+    if (x.estado === "guardado" || x.estado === "repetido") {
+      await borrarAccion(x.clientKey);
+      enviados += 1;
+    } else if (x.estado === "rechazado") {
+      await guardarAccion({ ...accion, error: x.motivo ?? "No se pudo guardar." });
+      rechazados += 1;
+    }
+  }
+  return { enviados, rechazados, huboRed: true, sinSesion: r.status === 401 };
+});
+

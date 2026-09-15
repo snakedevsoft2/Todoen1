@@ -7,6 +7,7 @@ import { SubmitButton } from "./SubmitButton";
 import { CamposFiador, CamposPrestamo } from "./PrestamoFields";
 import { Alert, Field } from "./ui";
 import { Icon } from "./Icon";
+import { useAccionSinSenal } from "@/components/SinSenal";
 
 /**
  * Anotar que alguien quedo debiendo.
@@ -26,7 +27,7 @@ export function NewDebtForm({
   currency: string;
   prestamos?: boolean;
 }) {
-  const [state, formAction] = useActionState(createDebtAction, undefined);
+  const [state, formAction] = useActionState(useAccionSinSenal("createDebtAction", createDebtAction), undefined);
 
   return (
     <form action={formAction} className="space-y-3">
@@ -117,7 +118,7 @@ export function PaymentForm({
   /** true si este abono se suma a la caja del dia. */
   entraACaja: boolean;
 }) {
-  const [state, formAction] = useActionState(addPaymentAction, undefined);
+  const [state, formAction] = useActionState(useAccionSinSenal("addPaymentAction", addPaymentAction), undefined);
 
   return (
     <form action={formAction} className="space-y-3">
@@ -173,7 +174,7 @@ export function PaymentForm({
 
 /** Cambiar el plazo cuando se acuerda uno nuevo. */
 export function DueDayForm({ debtId, dueDay }: { debtId: string; dueDay: string | null }) {
-  const [state, formAction] = useActionState(updateDueDayAction, undefined);
+  const [state, formAction] = useActionState(useAccionSinSenal("updateDueDayAction", updateDueDayAction), undefined);
 
   return (
     <form action={formAction} className="space-y-2">

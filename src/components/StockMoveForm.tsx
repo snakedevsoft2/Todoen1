@@ -7,6 +7,7 @@ import { SubmitButton } from "./SubmitButton";
 import { ScanButton } from "./ScanButton";
 import { Alert, Field } from "./ui";
 import { Icon } from "./Icon";
+import { useAccionSinSenal } from "@/components/SinSenal";
 
 export type MovableVariant = {
   id: string;
@@ -62,7 +63,7 @@ export function StockMoveForm({
   /** A quien se le compra. Solo se pregunta en las entradas. */
   suppliers?: { id: string; name: string }[];
 }) {
-  const [state, formAction] = useActionState(stockMoveAction, undefined);
+  const [state, formAction] = useActionState(useAccionSinSenal("stockMoveAction", stockMoveAction), undefined);
   const [type, setType] = useState("ENTRADA");
   const [variantId, setVariantId] = useState(
     defaultVariantId && variants.some((v) => v.id === defaultVariantId)

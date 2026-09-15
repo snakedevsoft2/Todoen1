@@ -13,6 +13,8 @@ import { SubmitButton } from "./SubmitButton";
 import { ScanButton } from "./ScanButton";
 import { Alert, Badge, Field } from "./ui";
 import { Icon } from "./Icon";
+import { FormSinSenal } from "@/components/SinSenal";
+import { useAccionSinSenal } from "@/components/SinSenal";
 
 export type VariantRow = {
   id: string;
@@ -121,13 +123,13 @@ function VariantLine({
           <button type="button" onClick={() => setOpen(!open)} className="btn-ghost btn-sm">
             {open ? "Cerrar" : "Editar"}
           </button>
-          <form action={toggleVariantAction}>
+          <FormSinSenal accion="toggleVariantAction" servidor={toggleVariantAction}>
             <input type="hidden" name="id" value={variant.id} />
             <SubmitButton className="btn-ghost btn-sm" pendingText="...">
               {variant.active ? "Desactivar" : "Activar"}
             </SubmitButton>
-          </form>
-          <form action={deleteVariantAction}>
+          </FormSinSenal>
+          <FormSinSenal accion="deleteVariantAction" servidor={deleteVariantAction}>
             <input type="hidden" name="id" value={variant.id} />
             <SubmitButton
               className="btn-ghost btn-sm px-2 text-bad"
@@ -141,7 +143,7 @@ function VariantLine({
             >
               <Icon name="trash" className="h-4 w-4" />
             </SubmitButton>
-          </form>
+          </FormSinSenal>
         </div>
       </div>
 
@@ -160,7 +162,7 @@ function VariantLine({
 }
 
 function BulkForm({ serviceId, currency }: { serviceId: string; currency: string }) {
-  const [state, formAction] = useActionState(createVariantsBulkAction, undefined);
+  const [state, formAction] = useActionState(useAccionSinSenal("createVariantsBulkAction", createVariantsBulkAction), undefined);
   const [sizes, setSizes] = useState("S, M, L, XL");
 
   return (
@@ -246,7 +248,7 @@ function SingleForm({
   onDone?: () => void;
   currency: string;
 }) {
-  const [state, formAction] = useActionState(saveVariantAction, undefined);
+  const [state, formAction] = useActionState(useAccionSinSenal("saveVariantAction", saveVariantAction), undefined);
   const [sku, setSku] = useState(variant?.sku ?? "");
 
   // Cuando guarda bien, cerramos la ficha de edicion.

@@ -6,6 +6,7 @@ import { SubmitButton } from "./SubmitButton";
 import { PhotoField } from "./PhotoField";
 import { aCampo, pasoMoneda } from "@/lib/format";
 import { Alert, Field } from "./ui";
+import { useAccionSinSenal } from "@/components/SinSenal";
 
 export type EditableService = {
   id: string;
@@ -48,7 +49,7 @@ export function ServiceForm({
   /** A quien se le puede comprar esta prenda. Vacio si no hay proveedores. */
   suppliers?: { id: string; name: string }[];
 }) {
-  const [state, formAction] = useActionState(saveServiceAction, undefined);
+  const [state, formAction] = useActionState(useAccionSinSenal("saveServiceAction", saveServiceAction), undefined);
 
   return (
     <form action={formAction} className="space-y-3">

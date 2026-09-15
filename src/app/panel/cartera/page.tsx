@@ -12,6 +12,7 @@ import { CobrosDeHoy, type Cobro } from "@/components/CobrosDeHoy";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Icon } from "@/components/Icon";
 import { markCollectedAction } from "@/actions/debts";
+import { FormSinSenal } from "@/components/SinSenal";
 
 export const dynamic = "force-dynamic";
 
@@ -318,12 +319,12 @@ export default async function CarteraPage({
                             <Icon name="whatsapp" className="h-4 w-4" />
                             Cobrar
                           </a>
-                          <form action={markCollectedAction}>
+                          <FormSinSenal accion="markCollectedAction" servidor={markCollectedAction}>
                             <input type="hidden" name="id" value={deuda.id} />
                             <SubmitButton className="btn-ghost btn-sm" pendingText="...">
                               Ya le cobre
                             </SubmitButton>
-                          </form>
+                          </FormSinSenal>
                         </>
                       )}
 

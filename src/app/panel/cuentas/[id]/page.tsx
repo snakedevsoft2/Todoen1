@@ -12,6 +12,7 @@ import {
   closeOrderAction,
   removeOrderItemAction,
 } from "@/actions/orders";
+import { FormSinSenal } from "@/components/SinSenal";
 
 export const dynamic = "force-dynamic";
 
@@ -78,7 +79,7 @@ export default async function CuentaDetallePage({
                       </p>
                       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                         {list.map((s) => (
-                          <form key={s.id} action={addOrderItemAction}>
+                          <FormSinSenal key={s.id} accion="addOrderItemAction" servidor={addOrderItemAction}>
                             <input type="hidden" name="orderId" value={order.id} />
                             <input type="hidden" name="serviceId" value={s.id} />
                             <input type="hidden" name="qty" value="1" />
@@ -93,7 +94,7 @@ export default async function CuentaDetallePage({
                                 {money(s.price, user.currency)}
                               </span>
                             </SubmitButton>
-                          </form>
+                          </FormSinSenal>
                         ))}
                       </div>
                     </div>
@@ -105,7 +106,7 @@ export default async function CuentaDetallePage({
                 <summary className="cursor-pointer text-sm font-medium text-brand-600">
                   Agregar algo que no esta en el catalogo
                 </summary>
-                <form action={addOrderItemAction} className="mt-3 grid gap-2 sm:grid-cols-[1fr_120px_90px_auto]">
+                <FormSinSenal accion="addOrderItemAction" servidor={addOrderItemAction} className="mt-3 grid gap-2 sm:grid-cols-[1fr_120px_90px_auto]">
                   <input type="hidden" name="orderId" value={order.id} />
                   <input className="input" name="name" placeholder="Nombre del item" required />
                   <input
@@ -121,7 +122,7 @@ export default async function CuentaDetallePage({
                   <SubmitButton className="btn-primary" pendingText="...">
                     Agregar
                   </SubmitButton>
-                </form>
+                </FormSinSenal>
               </details>
             </Card>
           )}
@@ -141,34 +142,34 @@ export default async function CuentaDetallePage({
                     </div>
                     <div className="flex items-center gap-2">
                       {isOpen && (
-                        <form action={changeOrderItemQtyAction}>
+                        <FormSinSenal accion="changeOrderItemQtyAction" servidor={changeOrderItemQtyAction}>
                           <input type="hidden" name="itemId" value={item.id} />
                           <input type="hidden" name="delta" value="-1" />
                           <SubmitButton className="btn-ghost btn-sm px-2.5" pendingText="...">
                             -
                           </SubmitButton>
-                        </form>
+                        </FormSinSenal>
                       )}
                       <span className="w-8 text-center text-sm font-bold text-strong">{item.qty}</span>
                       {isOpen && (
-                        <form action={changeOrderItemQtyAction}>
+                        <FormSinSenal accion="changeOrderItemQtyAction" servidor={changeOrderItemQtyAction}>
                           <input type="hidden" name="itemId" value={item.id} />
                           <input type="hidden" name="delta" value="1" />
                           <SubmitButton className="btn-ghost btn-sm px-2.5" pendingText="...">
                             +
                           </SubmitButton>
-                        </form>
+                        </FormSinSenal>
                       )}
                       <span className="w-24 text-right text-sm font-bold text-brand-600">
                         {money(item.unitPrice * item.qty, user.currency)}
                       </span>
                       {isOpen && (
-                        <form action={removeOrderItemAction}>
+                        <FormSinSenal accion="removeOrderItemAction" servidor={removeOrderItemAction}>
                           <input type="hidden" name="itemId" value={item.id} />
                           <SubmitButton className="btn-ghost btn-sm px-2 text-bad" pendingText="...">
                             <Icon name="trash" className="h-4 w-4" />
                           </SubmitButton>
-                        </form>
+                        </FormSinSenal>
                       )}
                     </div>
                   </li>
@@ -189,7 +190,7 @@ export default async function CuentaDetallePage({
                 {order.sale.paymentMethod.toLowerCase()}. Ya quedo en las ventas del dia.
               </div>
             ) : isOpen ? (
-              <form action={closeOrderAction} className="mt-4 space-y-3">
+              <FormSinSenal accion="closeOrderAction" servidor={closeOrderAction} className="mt-4 space-y-3">
                 <input type="hidden" name="orderId" value={order.id} />
                 <label className="block">
                   <span className="label">Metodo de pago</span>
@@ -224,7 +225,7 @@ export default async function CuentaDetallePage({
                     Agrega al menos un item antes de cerrar la cuenta.
                   </p>
                 )}
-              </form>
+              </FormSinSenal>
             ) : (
               <p className="mt-4 text-sm text-muted">Esta cuenta esta {order.status.toLowerCase()}.</p>
             )}

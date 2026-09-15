@@ -10,6 +10,7 @@ import { VariantsPanel } from "@/components/VariantsPanel";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Icon } from "@/components/Icon";
 import { deleteServiceAction, toggleServiceAction } from "@/actions/services";
+import { FormSinSenal } from "@/components/SinSenal";
 
 export const dynamic = "force-dynamic";
 
@@ -177,13 +178,13 @@ export default async function CatalogoPage() {
                             </div>
 
                             <div className="flex flex-wrap gap-2">
-                              <form action={toggleServiceAction}>
+                              <FormSinSenal accion="toggleServiceAction" servidor={toggleServiceAction}>
                                 <input type="hidden" name="id" value={s.id} />
                                 <SubmitButton className="btn-ghost btn-sm" pendingText="...">
                                   {s.active ? "Desactivar" : "Activar"}
                                 </SubmitButton>
-                              </form>
-                              <form action={deleteServiceAction}>
+                              </FormSinSenal>
+                              <FormSinSenal accion="deleteServiceAction" servidor={deleteServiceAction}>
                                 <input type="hidden" name="id" value={s.id} />
                                 <SubmitButton
                                   className="btn-ghost btn-sm px-2 text-bad"
@@ -198,7 +199,7 @@ export default async function CatalogoPage() {
                                 >
                                   <Icon name="trash" className="h-4 w-4" />
                                 </SubmitButton>
-                              </form>
+                              </FormSinSenal>
                             </div>
                           </div>
 

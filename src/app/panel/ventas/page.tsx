@@ -17,6 +17,7 @@ import type { InvoiceData } from "@/lib/invoice";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Icon } from "@/components/Icon";
 import { deleteSaleAction, updateSalePaymentAction } from "@/actions/sales";
+import { FormSinSenal } from "@/components/SinSenal";
 
 export const dynamic = "force-dynamic";
 
@@ -279,7 +280,7 @@ export default async function VentasPage({
                       )}
                     </div>
                     <div className="flex items-center gap-2">
-                      <form action={updateSalePaymentAction} className="flex items-center gap-1">
+                      <FormSinSenal accion="updateSalePaymentAction" servidor={updateSalePaymentAction} className="flex items-center gap-1">
                         <input type="hidden" name="id" value={s.id} />
                         <select
                           name="paymentMethod"
@@ -294,9 +295,9 @@ export default async function VentasPage({
                         <SubmitButton className="btn-ghost btn-sm px-2" pendingText="...">
                           <Icon name="check" className="h-4 w-4" />
                         </SubmitButton>
-                      </form>
+                      </FormSinSenal>
                       {!(s.electronicInvoice && ["AUTORIZADA", "ENVIANDO"].includes(s.electronicInvoice.status)) && (
-                      <form action={deleteSaleAction}>
+                      <FormSinSenal accion="deleteSaleAction" servidor={deleteSaleAction}>
                         <input type="hidden" name="id" value={s.id} />
                         <SubmitButton
                           className="btn-ghost btn-sm px-2 text-bad"
@@ -311,7 +312,7 @@ export default async function VentasPage({
                         >
                           <Icon name="trash" className="h-4 w-4" />
                         </SubmitButton>
-                      </form>
+                      </FormSinSenal>
                       )}
                     </div>
                   </div>

@@ -5,6 +5,7 @@ import { closeCashAction } from "@/actions/cash";
 import { SubmitButton } from "./SubmitButton";
 import { Alert, Field } from "./ui";
 import { aCampo, money, parseMoney } from "@/lib/format";
+import { useAccionSinSenal } from "@/components/SinSenal";
 
 export function CashCloseForm({
   day,
@@ -21,7 +22,7 @@ export function CashCloseForm({
   defaultOpening: number;
   alreadyClosed: boolean;
 }) {
-  const [state, formAction] = useActionState(closeCashAction, undefined);
+  const [state, formAction] = useActionState(useAccionSinSenal("closeCashAction", closeCashAction), undefined);
   const [opening, setOpening] = useState(aCampo(defaultOpening, currency));
   const [counted, setCounted] = useState("");
 

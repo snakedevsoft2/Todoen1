@@ -5,6 +5,7 @@ import { pasoMoneda } from "@/lib/format";
 import { createExpenseAction } from "@/actions/expenses";
 import { SubmitButton } from "./SubmitButton";
 import { Alert, Field } from "./ui";
+import { useAccionSinSenal } from "@/components/SinSenal";
 
 const CATEGORIES = [
   "General",
@@ -19,7 +20,7 @@ const CATEGORIES = [
 ];
 
 export function NewExpenseForm({ day, currency = "COP" }: { day: string; currency?: string }) {
-  const [state, formAction] = useActionState(createExpenseAction, undefined);
+  const [state, formAction] = useActionState(useAccionSinSenal("createExpenseAction", createExpenseAction), undefined);
 
   return (
     <form action={formAction} className="space-y-3">

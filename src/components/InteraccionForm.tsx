@@ -5,10 +5,11 @@ import { anotarInteraccionAction } from "@/actions/crm";
 import { INTERACCIONES, type TipoInteraccion } from "@/lib/crm";
 import { SubmitButton } from "./SubmitButton";
 import { Alert } from "./ui";
+import { useAccionSinSenal } from "@/components/SinSenal";
 
 /** Anotar lo que paso con el cliente: una llamada, un WhatsApp, una nota. */
 export function InteraccionForm({ customerId }: { customerId: string }) {
-  const [state, formAction] = useActionState(anotarInteraccionAction, undefined);
+  const [state, formAction] = useActionState(useAccionSinSenal("anotarInteraccionAction", anotarInteraccionAction), undefined);
   const [kind, setKind] = useState<TipoInteraccion>("LLAMADA");
   const form = useRef<HTMLFormElement>(null);
 

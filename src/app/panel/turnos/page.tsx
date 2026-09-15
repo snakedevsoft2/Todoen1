@@ -21,6 +21,7 @@ import {
   setAppointmentStaffAction,
   setAppointmentStatusAction,
 } from "@/actions/appointments";
+import { FormSinSenal } from "@/components/SinSenal";
 
 export const dynamic = "force-dynamic";
 
@@ -434,13 +435,13 @@ export default async function TurnosPage({
                       })()}
 
                       {a.status === "PENDIENTE" && (
-                        <form action={setAppointmentStatusAction}>
+                        <FormSinSenal accion="setAppointmentStatusAction" servidor={setAppointmentStatusAction}>
                           <input type="hidden" name="id" value={a.id} />
                           <input type="hidden" name="status" value="CONFIRMADO" />
                           <SubmitButton className="btn-ghost btn-sm" pendingText="...">
                             Confirmar
                           </SubmitButton>
-                        </form>
+                        </FormSinSenal>
                       )}
 
                       {varios && a.status !== "CANCELADO" && (
@@ -449,8 +450,8 @@ export default async function TurnosPage({
                             <Icon name="users" className="h-4 w-4" />
                             Pasar a otro barbero
                           </summary>
-                          <form
-                            action={setAppointmentStaffAction}
+                          <FormSinSenal
+                            accion="setAppointmentStaffAction" servidor={setAppointmentStaffAction}
                             className="mt-2 flex flex-wrap items-end gap-2 rounded-xl border border-line bg-panel p-3"
                           >
                             <input type="hidden" name="id" value={a.id} />
@@ -471,7 +472,7 @@ export default async function TurnosPage({
                             <SubmitButton className="btn-primary btn-sm" pendingText="Pasando...">
                               Pasar turno
                             </SubmitButton>
-                          </form>
+                          </FormSinSenal>
                         </details>
                       )}
 
@@ -480,8 +481,8 @@ export default async function TurnosPage({
                           <summary className="btn-success btn-sm cursor-pointer list-none">
                             Cerrar venta
                           </summary>
-                          <form
-                            action={closeAppointmentSaleAction}
+                          <FormSinSenal
+                            accion="closeAppointmentSaleAction" servidor={closeAppointmentSaleAction}
                             className="mt-2 flex flex-wrap items-end gap-2 rounded-xl border border-line bg-panel p-3"
                           >
                             <input type="hidden" name="id" value={a.id} />
@@ -509,31 +510,31 @@ export default async function TurnosPage({
                             <SubmitButton className="btn-success btn-sm" pendingText="Cerrando...">
                               Guardar venta
                             </SubmitButton>
-                          </form>
+                          </FormSinSenal>
                         </details>
                       )}
 
                       {a.status !== "CANCELADO" && !a.sale && (
-                        <form action={setAppointmentStatusAction}>
+                        <FormSinSenal accion="setAppointmentStatusAction" servidor={setAppointmentStatusAction}>
                           <input type="hidden" name="id" value={a.id} />
                           <input type="hidden" name="status" value="NO_ASISTIO" />
                           <SubmitButton className="btn-ghost btn-sm" pendingText="...">
                             No asistio
                           </SubmitButton>
-                        </form>
+                        </FormSinSenal>
                       )}
 
                       {a.status !== "CANCELADO" && !a.sale && (
-                        <form action={setAppointmentStatusAction}>
+                        <FormSinSenal accion="setAppointmentStatusAction" servidor={setAppointmentStatusAction}>
                           <input type="hidden" name="id" value={a.id} />
                           <input type="hidden" name="status" value="CANCELADO" />
                           <SubmitButton className="btn-danger btn-sm" pendingText="...">
                             Cancelar
                           </SubmitButton>
-                        </form>
+                        </FormSinSenal>
                       )}
 
-                      <form action={deleteAppointmentAction} className="ml-auto">
+                      <FormSinSenal accion="deleteAppointmentAction" servidor={deleteAppointmentAction} className="ml-auto">
                         <input type="hidden" name="id" value={a.id} />
                         <SubmitButton
                           className="btn-ghost btn-sm text-bad"
@@ -542,7 +543,7 @@ export default async function TurnosPage({
                         >
                           <Icon name="trash" className="h-4 w-4" />
                         </SubmitButton>
-                      </form>
+                      </FormSinSenal>
                     </div>
                   </li>
                 ))}

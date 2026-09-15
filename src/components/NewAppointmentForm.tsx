@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { createAppointmentAction } from "@/actions/appointments";
 import { SubmitButton } from "./SubmitButton";
 import { Alert, Field } from "./ui";
+import { useAccionSinSenal } from "@/components/SinSenal";
 
 export type ServiceOption = { id: string; name: string; price: number; durationMin: number };
 export type StaffOption = { id: string; name: string; color: string };
@@ -22,7 +23,7 @@ export function NewAppointmentForm({
   /** Quien queda atendiendo por defecto: el filtro activo o quien esta usando la app. */
   defaultStaffId?: string;
 }) {
-  const [state, formAction] = useActionState(createAppointmentAction, undefined);
+  const [state, formAction] = useActionState(useAccionSinSenal("createAppointmentAction", createAppointmentAction), undefined);
   const fallback = team.some((t) => t.id === defaultStaffId) ? defaultStaffId : team[0]?.id ?? "";
 
   return (

@@ -221,6 +221,7 @@ model User {
   scanDocuments      ScanDocument[]
   locationPings      LocationPing[]
   siteVisits         SiteVisit[]
+  offlineActions     OfflineAction[]
   scheduledMessages  ScheduledMessage[]
   billingConfig      BillingConfig?
   electronicInvoices ElectronicInvoice[]
@@ -1625,5 +1626,27 @@ model SiteVisit {
 
   @@index([userId, arrivedAt])
   @@index([staffId, arrivedAt])
+}
+
+// ------------------------------------------------ ACCIONES HECHAS SIN SENAL
+
+/// Una accion del panel (un gasto, un abono, un producto...) que se hizo sin
+/// senal y ya llego al servidor. La llave del telefono impide que un
+/// reintento la repita: si ya esta, se responde lo mismo sin volver a hacerla.
+model OfflineAction {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  staffId   String
+  clientKey String   @unique
+  accion    String
+  /// PROCESANDO, HECHO o RECHAZADO.
+  estado    String   @default("PROCESANDO")
+  /// Por que se rechazo.
+  mensaje   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
 }
 

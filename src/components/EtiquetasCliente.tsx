@@ -5,6 +5,8 @@ import { alternarEtiquetaAction, crearEtiquetaAction } from "@/actions/crm";
 import { COLORES_ETIQUETA } from "@/lib/crm";
 import { SubmitButton } from "./SubmitButton";
 import { Alert } from "./ui";
+import { FormSinSenal } from "@/components/SinSenal";
+import { useAccionSinSenal } from "@/components/SinSenal";
 
 export type Etiqueta = { id: string; name: string; color: string };
 
@@ -37,7 +39,7 @@ export function EtiquetasCliente({
   todas: Etiqueta[];
   puestas: string[];
 }) {
-  const [state, formAction] = useActionState(crearEtiquetaAction, undefined);
+  const [state, formAction] = useActionState(useAccionSinSenal("crearEtiquetaAction", crearEtiquetaAction), undefined);
   const [color, setColor] = useState(COLORES_ETIQUETA[0]);
   const form = useRef<HTMLFormElement>(null);
   const activas = new Set(puestas);
@@ -54,7 +56,7 @@ export function EtiquetasCliente({
             const on = activas.has(t.id);
             return (
               <li key={t.id}>
-                <form action={alternarEtiquetaAction}>
+                <FormSinSenal accion="alternarEtiquetaAction" servidor={alternarEtiquetaAction}>
                   <input type="hidden" name="customerId" value={customerId} />
                   <input type="hidden" name="tagId" value={t.id} />
                   <button
@@ -65,7 +67,7 @@ export function EtiquetasCliente({
                   >
                     <Pastilla etiqueta={t} puesta={on} />
                   </button>
-                </form>
+                </FormSinSenal>
               </li>
             );
           })}

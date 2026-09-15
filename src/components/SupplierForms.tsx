@@ -9,6 +9,8 @@ import {
 import { SubmitButton } from "./SubmitButton";
 import { Alert, Badge, Field } from "./ui";
 import { Icon } from "./Icon";
+import { FormSinSenal } from "@/components/SinSenal";
+import { useAccionSinSenal } from "@/components/SinSenal";
 
 export type SupplierRow = {
   id: string;
@@ -28,7 +30,7 @@ export function SupplierForm({
   submitLabel: string;
   onDone?: () => void;
 }) {
-  const [state, formAction] = useActionState(saveSupplierAction, undefined);
+  const [state, formAction] = useActionState(useAccionSinSenal("saveSupplierAction", saveSupplierAction), undefined);
 
   // Al guardar bien cerramos la ficha de edicion.
   useEffect(() => {
@@ -156,13 +158,13 @@ export function SupplierCard({
             Pedir
           </a>
         )}
-        <form action={toggleSupplierAction}>
+        <FormSinSenal accion="toggleSupplierAction" servidor={toggleSupplierAction}>
           <input type="hidden" name="id" value={supplier.id} />
           <SubmitButton className="btn-ghost btn-sm" pendingText="...">
             {supplier.active ? "Desactivar" : "Activar"}
           </SubmitButton>
-        </form>
-        <form action={deleteSupplierAction}>
+        </FormSinSenal>
+        <FormSinSenal accion="deleteSupplierAction" servidor={deleteSupplierAction}>
           <input type="hidden" name="id" value={supplier.id} />
           <SubmitButton
             className="btn-ghost btn-sm px-2 text-bad"
@@ -174,7 +176,7 @@ export function SupplierCard({
           >
             <Icon name="trash" className="h-4 w-4" />
           </SubmitButton>
-        </form>
+        </FormSinSenal>
       </div>
 
       {abierto && (

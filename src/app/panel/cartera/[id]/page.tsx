@@ -21,6 +21,7 @@ import {
   markCollectedAction,
   reopenDebtAction,
 } from "@/actions/debts";
+import { FormSinSenal } from "@/components/SinSenal";
 
 export const dynamic = "force-dynamic";
 
@@ -94,12 +95,12 @@ export default async function DeudaPage({ params }: { params: Promise<{ id: stri
         <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-line bg-surface px-4 py-3 text-sm text-muted">
           <Icon name="alert" className="h-4 w-4 shrink-0" />
           <span>Esta deuda esta anulada. No cuenta en los totales de cartera.</span>
-          <form action={reopenDebtAction} className="ml-auto">
+          <FormSinSenal accion="reopenDebtAction" servidor={reopenDebtAction} className="ml-auto">
             <input type="hidden" name="id" value={deuda.id} />
             <SubmitButton className="btn-ghost btn-sm" pendingText="...">
               Reactivar
             </SubmitButton>
-          </form>
+          </FormSinSenal>
         </div>
       )}
 
@@ -189,7 +190,7 @@ export default async function DeudaPage({ params }: { params: Promise<{ id: stri
                           }}
                         />
 
-                        <form action={deletePaymentAction}>
+                        <FormSinSenal accion="deletePaymentAction" servidor={deletePaymentAction}>
                           <input type="hidden" name="id" value={pago.id} />
                           <SubmitButton
                             className="btn-ghost btn-sm px-2 text-bad"
@@ -203,7 +204,7 @@ export default async function DeudaPage({ params }: { params: Promise<{ id: stri
                           >
                             <Icon name="trash" className="h-4 w-4" />
                           </SubmitButton>
-                        </form>
+                        </FormSinSenal>
                       </div>
                     </li>
                   );
@@ -245,12 +246,12 @@ export default async function DeudaPage({ params }: { params: Promise<{ id: stri
                     <Icon name="whatsapp" className="h-5 w-5" />
                     Cobrar por WhatsApp
                   </a>
-                  <form action={markCollectedAction} className="mt-2">
+                  <FormSinSenal accion="markCollectedAction" servidor={markCollectedAction} className="mt-2">
                     <input type="hidden" name="id" value={deuda.id} />
                     <SubmitButton className="btn-ghost btn-sm w-full" pendingText="...">
                       Marcar que ya le cobre
                     </SubmitButton>
-                  </form>
+                  </FormSinSenal>
                   {deuda.lastReminderAt && (
                     <p className="mt-2 text-xs text-subtle">
                       Ultimo cobro:{" "}
@@ -297,7 +298,7 @@ export default async function DeudaPage({ params }: { params: Promise<{ id: stri
 
             <div className="mt-4 flex flex-wrap gap-2 border-t border-line pt-4">
               {!anulada && (
-                <form action={cancelDebtAction}>
+                <FormSinSenal accion="cancelDebtAction" servidor={cancelDebtAction}>
                   <input type="hidden" name="id" value={deuda.id} />
                   <SubmitButton
                     className="btn-ghost btn-sm"
@@ -310,9 +311,9 @@ export default async function DeudaPage({ params }: { params: Promise<{ id: stri
                   >
                     Anular
                   </SubmitButton>
-                </form>
+                </FormSinSenal>
               )}
-              <form action={deleteDebtAction}>
+              <FormSinSenal accion="deleteDebtAction" servidor={deleteDebtAction}>
                 <input type="hidden" name="id" value={deuda.id} />
                 <SubmitButton
                   className="btn-ghost btn-sm text-bad"
@@ -326,7 +327,7 @@ export default async function DeudaPage({ params }: { params: Promise<{ id: stri
                   <Icon name="trash" className="h-4 w-4" />
                   Borrar
                 </SubmitButton>
-              </form>
+              </FormSinSenal>
             </div>
           </Card>
         </div>

@@ -9,6 +9,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { Icon } from "@/components/Icon";
 import { deleteExpenseAction } from "@/actions/expenses";
 import { getDaySummary } from "@/lib/queries";
+import { FormSinSenal } from "@/components/SinSenal";
 
 export const dynamic = "force-dynamic";
 
@@ -96,7 +97,7 @@ export default async function GastosPage({
                       <span className="text-sm font-bold text-bad">
                         -{money(e.amount, user.currency)}
                       </span>
-                      <form action={deleteExpenseAction}>
+                      <FormSinSenal accion="deleteExpenseAction" servidor={deleteExpenseAction}>
                         <input type="hidden" name="id" value={e.id} />
                         <SubmitButton
                           className="btn-ghost btn-sm px-2 text-bad"
@@ -105,7 +106,7 @@ export default async function GastosPage({
                         >
                           <Icon name="trash" className="h-4 w-4" />
                         </SubmitButton>
-                      </form>
+                      </FormSinSenal>
                     </div>
                   </li>
                 ))}

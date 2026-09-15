@@ -12,6 +12,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { StockMoveForm, type MovableVariant } from "@/components/StockMoveForm";
 import { InventorySearch } from "@/components/InventorySearch";
 import { quickStockAction } from "@/actions/inventory";
+import { FormSinSenal } from "@/components/SinSenal";
 
 export const dynamic = "force-dynamic";
 
@@ -300,7 +301,7 @@ export default async function InventarioPage({
                           </div>
 
                           <div className="flex items-center gap-1.5">
-                            <form action={quickStockAction}>
+                            <FormSinSenal accion="quickStockAction" servidor={quickStockAction}>
                               <input type="hidden" name="variantId" value={v.id} />
                               <input type="hidden" name="delta" value="-1" />
                               <SubmitButton
@@ -311,7 +312,7 @@ export default async function InventarioPage({
                               >
                                 -
                               </SubmitButton>
-                            </form>
+                            </FormSinSenal>
 
                             <span
                               className={
@@ -326,7 +327,7 @@ export default async function InventarioPage({
                               {v.stock}
                             </span>
 
-                            <form action={quickStockAction}>
+                            <FormSinSenal accion="quickStockAction" servidor={quickStockAction}>
                               <input type="hidden" name="variantId" value={v.id} />
                               <input type="hidden" name="delta" value="1" />
                               <SubmitButton
@@ -336,7 +337,7 @@ export default async function InventarioPage({
                               >
                                 +
                               </SubmitButton>
-                            </form>
+                            </FormSinSenal>
 
                             <Link href={keepQuery({ v: v.id }) + "#mover"} className="btn-ghost btn-sm">
                               Mover
