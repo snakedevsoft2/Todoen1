@@ -199,6 +199,7 @@ model User {
   sales          Sale[]
   expenses       Expense[]
   orders         Order[]
+  tables         Table[]
   cashClosures   CashClosure[]
   notifications  Notification[]
   variants       ProductVariant[]
@@ -637,11 +638,42 @@ model Order {
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
+  /// La mesa fisica, cuando la cuenta se abrio desde ahi (a mano o por QR).
+  /// Nulo en domicilios, mostrador o negocios que no numeran mesas.
+  tableId String?
+  table   Table?  @relation(fields: [tableId], references: [id], onDelete: SetNull)
+
+  /// El cliente pidio algo por el QR que el mesero todavia no ha visto. Se
+  /// prende al pedir por QR y se apaga al abrir la cuenta en el panel.
+  hasNewFromCustomer Boolean @default(false)
+
   items OrderItem[]
   sale  Sale?
 
   @@index([userId, status])
   @@index([userId, day])
+  @@index([tableId])
+}
+
+/// Una mesa fisica del restaurante, con su propio codigo QR para pedir.
+/// Aparte de la cuenta (Order): la mesa existe siempre, tenga o no un pedido
+/// abierto ahora mismo.
+model Table {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// 1, 2, 3... el numero que lleva pintado o pegado en la mesa.
+  number    Int
+  /// Token del QR: no es el id para no dejar adivinar cuantas mesas hay ni
+  /// numerarlas desde afuera.
+  qrToken   String   @unique @default(cuid())
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  orders Order[]
+
+  @@unique([userId, number])
+  @@index([userId, active])
 }
 
 model OrderItem {

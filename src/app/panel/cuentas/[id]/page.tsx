@@ -8,11 +8,13 @@ import { Icon } from "@/components/Icon";
 import { SubmitButton } from "@/components/SubmitButton";
 import {
   addOrderItemAction,
+  cancelOrderAction,
   changeOrderItemQtyAction,
   closeOrderAction,
   removeOrderItemAction,
 } from "@/actions/orders";
 import { FormSinSenal } from "@/components/SinSenal";
+import { marcarPedidoVisto } from "@/lib/mesas";
 
 export const dynamic = "force-dynamic";
 
@@ -32,9 +34,15 @@ export default async function CuentaDetallePage({
     include: {
       items: { orderBy: { createdAt: "asc" } },
       sale: { select: { id: true, total: true, paymentMethod: true } },
+      table: { select: { number: true, qrToken: true } },
     },
   });
   if (!order) notFound();
+
+  // Al abrirla, el aviso de "pedido nuevo" ya cumplio su trabajo: se apaga
+  // aqui, pero el mensaje de esta pantalla igual lo muestra una vez.
+  const pedidoNuevo = order.hasNewFromCustomer;
+  if (pedidoNuevo) await marcarPedidoVisto(user.id, order.id);
 
   const services = await db.service.findMany({
     where: { userId: user.id, active: true },
@@ -55,11 +63,29 @@ export default async function CuentaDetallePage({
       <PageHeader title={order.label} subtitle={"Cuenta del " + order.day}>
         <div className="flex items-center gap-2">
           <StatusBadge status={order.status} />
+          {order.table && (
+            <a
+              href={"/qr/mesa/" + order.table.qrToken}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-ghost btn-sm"
+            >
+              <Icon name="scan" className="h-4 w-4" />
+              QR de la mesa
+            </a>
+          )}
           <Link href="/panel/cuentas" className="btn-ghost btn-sm">
             Volver
           </Link>
         </div>
       </PageHeader>
+
+      {pedidoNuevo && (
+        <div className="mb-4 flex items-center gap-2 rounded-xl border border-bad/30 bg-bad-soft px-4 py-3 text-sm font-semibold text-bad" data-pedido-nuevo>
+          <Icon name="alert" className="h-4 w-4 shrink-0" />
+          El cliente pidió esto desde el código QR de la mesa.
+        </div>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
         <div className="space-y-4">
@@ -226,7 +252,22 @@ export default async function CuentaDetallePage({
                   </p>
                 )}
               </FormSinSenal>
-            ) : (
+            ) : null}
+
+            {isOpen && (
+              <FormSinSenal accion="cancelOrderAction" servidor={cancelOrderAction} className="mt-2">
+                <input type="hidden" name="orderId" value={order.id} />
+                <SubmitButton
+                  className="btn-ghost w-full text-bad"
+                  pendingText="Cancelando..."
+                  confirm={"Cancelar la cuenta " + order.label + " sin cobrarla"}
+                >
+                  Cancelar esta cuenta
+                </SubmitButton>
+              </FormSinSenal>
+            )}
+
+            {!isOpen && !order.sale && (
               <p className="mt-4 text-sm text-muted">Esta cuenta esta {order.status.toLowerCase()}.</p>
             )}
           </Card>

@@ -10,16 +10,22 @@ import { NewOrderForm } from "@/components/NewOrderForm";
 import { SubmitButton } from "@/components/SubmitButton";
 import { cancelOrderAction, deleteOrderAction } from "@/actions/orders";
 import { FormSinSenal } from "@/components/SinSenal";
+import { ConfigurarMesasForm } from "@/components/ConfigurarMesasForm";
+import { PisoDeMesas, type MesaPiso } from "@/components/PisoDeMesas";
 
 export const dynamic = "force-dynamic";
+
+/** Los negocios que reciben gente en mesas fisicas: ahi tiene sentido el piso con QR. */
+const CON_MESAS: string[] = ["RESTAURANTE", "COMIDAS_RAPIDAS"];
 
 export default async function CuentasPage() {
   const user = await requireUser();
   if (user.businessType === "BARBERIA") redirect("/panel");
 
   const today = todayIn(user.timezone);
+  const conMesas = CON_MESAS.includes(user.businessType);
 
-  const [openOrders, closedToday, catalogCount] = await Promise.all([
+  const [openOrders, closedToday, catalogCount, tablas] = await Promise.all([
     db.order.findMany({
       where: { userId: user.id, status: "ABIERTA" },
       orderBy: { createdAt: "asc" },
@@ -31,14 +37,41 @@ export default async function CuentasPage() {
       include: { sale: { select: { total: true, paymentMethod: true } }, items: true },
     }),
     db.service.count({ where: { userId: user.id, active: true } }),
+    conMesas
+      ? db.table.findMany({
+          where: { userId: user.id, active: true },
+          orderBy: { number: "asc" },
+          include: { orders: { where: { status: "ABIERTA" }, include: { items: true }, take: 1 } },
+        })
+      : Promise.resolve([]),
   ]);
+
+  // Las cuentas de mesa ya se ven en el piso de mesas: en "En curso" solo van
+  // las que no son de una mesa (domicilio, mostrador).
+  const enCurso = conMesas ? openOrders.filter((o) => !o.tableId) : openOrders;
+  const mesasPiso: MesaPiso[] = tablas.map((t) => {
+    const orden = t.orders[0];
+    return {
+      id: t.id,
+      number: t.number,
+      qrToken: t.qrToken,
+      orden: orden
+        ? {
+            id: orden.id,
+            total: orden.items.reduce((s, i) => s + i.unitPrice * i.qty, 0),
+            items: orden.items.reduce((s, i) => s + i.qty, 0),
+            hasNewFromCustomer: orden.hasNewFromCustomer,
+          }
+        : null,
+    };
+  });
 
   const openTotal = openOrders.reduce(
     (sum, o) => sum + o.items.reduce((s, i) => s + i.unitPrice * i.qty, 0),
     0
   );
   const paidTotal = closedToday.reduce((sum, o) => sum + (o.sale?.total ?? 0), 0);
-  const suggestion = "Mesa " + (openOrders.length + 1);
+  const suggestion = conMesas ? "Domicilio" : "Mesa " + (openOrders.length + 1);
 
   return (
     <>
@@ -62,16 +95,43 @@ export default async function CuentasPage() {
       )}
 
       <div className="mt-5 space-y-4">
-        <Card title="Abrir una cuenta nueva" subtitle="Una por mesa, domicilio o cliente">
+        {conMesas && (
+          <Card
+            title="Tus mesas"
+            subtitle="Toca una mesa para cargarle el pedido, o dale su QR para que pidan solos"
+          >
+            <div className="mb-4 border-b border-line pb-4">
+              <ConfigurarMesasForm total={tablas.length} />
+            </div>
+            {tablas.length === 0 ? (
+              <Empty title="Todavía no configuras tus mesas" hint="Escribe cuántas tienes arriba." />
+            ) : (
+              <PisoDeMesas mesas={mesasPiso} currency={user.currency} />
+            )}
+          </Card>
+        )}
+
+        <Card
+          title={conMesas ? "Domicilios y otras cuentas" : "Abrir una cuenta nueva"}
+          subtitle={conMesas ? "Lo que no es una mesa: domicilios, para llevar" : "Una por mesa, domicilio o cliente"}
+        >
           <NewOrderForm suggestion={suggestion} />
         </Card>
 
-        <Card title="En curso" subtitle="Toca una cuenta para cargarle productos y cobrarla">
-          {openOrders.length === 0 ? (
-            <Empty title="No hay cuentas abiertas" hint="Abre la primera cuenta del día arriba." />
+        <Card
+          title="En curso"
+          subtitle={
+            conMesas ? "Domicilios y otras cuentas que no son de una mesa" : "Toca una cuenta para cargarle productos y cobrarla"
+          }
+        >
+          {enCurso.length === 0 ? (
+            <Empty
+              title={conMesas ? "No hay domicilios ni otras cuentas abiertas" : "No hay cuentas abiertas"}
+              hint="Abre la primera cuenta del día arriba."
+            />
           ) : (
             <ul className="grid gap-3 sm:grid-cols-2">
-              {openOrders.map((o) => {
+              {enCurso.map((o) => {
                 const total = o.items.reduce((s, i) => s + i.unitPrice * i.qty, 0);
                 const units = o.items.reduce((s, i) => s + i.qty, 0);
                 return (
