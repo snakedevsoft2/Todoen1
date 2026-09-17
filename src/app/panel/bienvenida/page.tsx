@@ -14,6 +14,7 @@ import { WorkspaceForm, type WorkspaceItem } from "@/components/WorkspaceForm";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Card } from "@/components/ui";
 import { Icon } from "@/components/Icon";
+import { videoEmbed, welcomeVideoUrl } from "@/lib/welcome-video";
 
 export const dynamic = "force-dynamic";
 
@@ -175,6 +176,8 @@ export default async function BienvenidaPage() {
             </p>
           </Card>
 
+          <VideoBienvenida />
+
           <Card title={"Tu negocio es " + BUSINESS_LABEL[user.businessType].toLowerCase()}>
             <p className="text-sm text-body">
               Por eso te preparamos{" "}
@@ -318,5 +321,43 @@ export default async function BienvenidaPage() {
         {GRUPO_LABEL.CONFIGURACION}: puedes volver a ver esto desde Ajustes cuando quieras.
       </p>
     </div>
+  );
+}
+
+/**
+ * El video de "como usar la aplicacion". Con WELCOME_VIDEO_URL puesto en el
+ * servidor se incrusta; sin ella, un aviso de que viene pronto para no dejar
+ * el hueco vacio.
+ */
+function VideoBienvenida() {
+  const url = welcomeVideoUrl();
+  const video = url ? videoEmbed(url) : null;
+
+  return (
+    <Card title="Cómo usar Todoen1" subtitle="Un vistazo rápido antes de entrar">
+      <div className="aspect-video overflow-hidden rounded-xl bg-strong/5">
+        {video ? (
+          video.tipo === "iframe" ? (
+            <iframe
+              src={video.src}
+              title="Cómo usar Todoen1"
+              className="h-full w-full"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          ) : (
+            <video src={video.src} controls className="h-full w-full" />
+          )
+        ) : (
+          <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
+            <Icon name="play" className="h-8 w-8 text-subtle" />
+            <p className="text-sm font-semibold text-strong">Video próximamente</p>
+            <p className="max-w-xs text-xs text-subtle">
+              Mientras tanto, cada apartado de la aplicación trae su propia explicación.
+            </p>
+          </div>
+        )}
+      </div>
+    </Card>
   );
 }
