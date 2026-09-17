@@ -57,7 +57,7 @@ const ERRORES: Record<string, string> = {
 function BotonEntrar() {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" className="auth-btn-primary" disabled={pending}>
+    <button type="submit" className="auth-btn-primary bg-brand-600 hover:bg-brand-700" disabled={pending}>
       {pending ? (
         <>
           <span
@@ -117,10 +117,9 @@ export function LoginForm({
 
   return (
     <div className="w-full">
-      <h1 className="text-[28px] font-bold leading-tight tracking-[-0.02em] text-slate-900">
-        Bienvenido de nuevo
+      <h1 className="text-center text-[26px] font-bold leading-tight tracking-[-0.02em] text-slate-900">
+        Iniciar sesión
       </h1>
-      <p className="mt-2 text-[15px] text-slate-500">Ingresa a tu cuenta para continuar.</p>
 
       {/* Viene de /recuperar/[token]. Se muestra hasta que intente entrar: si
           la accion devuelve un error, ese manda. */}
@@ -142,6 +141,31 @@ export function LoginForm({
           <Icon name="alert" className="mt-px h-4 w-4 shrink-0" />
           <span>{aviso}</span>
         </div>
+      )}
+
+      {(googleReady || facebookReady) && (
+        <>
+          <div className={"mt-6 " + (googleReady && facebookReady ? "grid grid-cols-2 gap-3" : "")}>
+            {googleReady && (
+              <a href="/auth/google" className="auth-btn-outline">
+                <GoogleMark />
+                Google
+              </a>
+            )}
+            {facebookReady && (
+              <a href="/auth/facebook" className="auth-btn-outline">
+                <FacebookMark />
+                Facebook
+              </a>
+            )}
+          </div>
+
+          <div className="my-6 flex items-center gap-4">
+            <span className="h-px flex-1 bg-slate-200" />
+            <span className="text-[13px] text-slate-400">o</span>
+            <span className="h-px flex-1 bg-slate-200" />
+          </div>
+        </>
       )}
 
       <form action={formAction} className="mt-6 space-y-5">
@@ -222,7 +246,7 @@ export function LoginForm({
             type="checkbox"
             name="remember"
             defaultChecked
-            className="h-4 w-4 rounded border-slate-300 accent-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40"
+            className="h-4 w-4 rounded border-slate-300 accent-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40"
           />
           Recordarme
         </label>
@@ -230,32 +254,13 @@ export function LoginForm({
         <BotonEntrar />
       </form>
 
-      {(googleReady || facebookReady) && (
-        <>
-          <div className="my-6 flex items-center gap-4">
-            <span className="h-px flex-1 bg-slate-200" />
-            <span className="text-[13px] text-slate-400">o continúa con</span>
-            <span className="h-px flex-1 bg-slate-200" />
-          </div>
+      <p className="mt-6 text-center text-[14px]">
+        <Link href="/recuperar/pregunta" className="auth-link">
+          ¿No puedes ingresar a tu cuenta?
+        </Link>
+      </p>
 
-          <div className={googleReady && facebookReady ? "grid grid-cols-2 gap-3" : ""}>
-            {googleReady && (
-              <a href="/auth/google" className="auth-btn-outline">
-                <GoogleMark />
-                Google
-              </a>
-            )}
-            {facebookReady && (
-              <a href="/auth/facebook" className="auth-btn-outline">
-                <FacebookMark />
-                Facebook
-              </a>
-            )}
-          </div>
-        </>
-      )}
-
-      <p className="mt-8 text-center text-[14px] text-slate-500">
+      <p className="mt-3 text-center text-[14px] text-slate-500">
         ¿No tienes una cuenta?{" "}
         <Link href="/registro" className="auth-link">
           Crear cuenta

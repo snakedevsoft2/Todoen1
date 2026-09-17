@@ -8,7 +8,6 @@ import { APP_NAME } from "@/lib/brand";
 import { Logo } from "@/components/Logo";
 import { CanalesOficiales } from "@/components/CanalesOficiales";
 import { LoginForm } from "@/components/LoginForm";
-import { AuthVisual } from "@/components/AuthVisual";
 
 export const dynamic = "force-dynamic";
 
@@ -22,23 +21,19 @@ export default async function LoginPage({
   const { error, cambiada } = await searchParams;
 
   return (
-    <div className="auth-page lg:grid lg:grid-cols-[1fr_minmax(0,540px)] xl:grid-cols-[1.15fr_minmax(0,560px)]">
-      {/* Lado visual. En celular no aparece: ahi lo unico que importa es entrar. */}
-      <aside className="hidden border-r border-slate-200 bg-slate-50/60 lg:block">
-        <AuthVisual />
-      </aside>
+    <div className="auth-page flex flex-col bg-[#F5F4FB]">
+      <header className="px-6 py-6 sm:px-10">
+        <Link href="/" className="inline-flex items-center gap-2.5">
+          <Logo className="h-8 w-8" />
+          <span className="text-[17px] font-bold tracking-[-0.01em] text-slate-900">
+            {APP_NAME.slice(0, -1)}
+            <span className="text-brand-600">{APP_NAME.slice(-1)}</span>
+          </span>
+        </Link>
+      </header>
 
-      <main className="flex min-h-dvh flex-col justify-center px-5 py-10 sm:px-10 lg:px-14">
-        <div className="mx-auto w-full max-w-[400px]">
-          {/* La marca va aqui solo cuando no hay panel al lado. */}
-          <div className="mb-9 flex items-center gap-3 lg:hidden">
-            <Logo className="h-9 w-9" />
-            <span className="text-[19px] font-bold tracking-[-0.01em] text-slate-900">
-              {APP_NAME.slice(0, -1)}
-              <span className="text-brand-600">{APP_NAME.slice(-1)}</span>
-            </span>
-          </div>
-
+      <main className="flex flex-1 items-center justify-center px-5 py-6">
+        <div className="w-full max-w-[440px] rounded-2xl border border-slate-200 bg-white p-8 shadow-[0_20px_50px_-12px_rgba(15,23,42,0.12)] sm:p-10">
           <LoginForm
             googleReady={googleEnabled()}
             facebookReady={facebookEnabled()}
@@ -47,25 +42,18 @@ export default async function LoginPage({
             cambiada={cambiada === "1"}
           />
         </div>
-
-        <div className="mx-auto mt-10 w-full max-w-[400px]">
-          <Link
-            href="/"
-            className="text-[13px] text-slate-400 transition-colors hover:text-slate-600"
-          >
-            Volver al inicio
-          </Link>
-
-          {/* Quien no logra entrar necesita por donde escribirnos, y este es
-              el sitio donde ya esta atascado. */}
-          <div className="mt-6 border-t border-slate-200 pt-5">
-            <p className="text-center text-[12px] text-slate-400">
-              Escribenos por nuestros canales oficiales
-            </p>
-            <CanalesOficiales className="mt-3" />
-          </div>
-        </div>
       </main>
+
+      {/* Quien no logra entrar necesita por donde escribirnos, y este es el
+          sitio donde ya esta atascado. */}
+      <footer className="mx-auto w-full max-w-[440px] px-5 pb-10">
+        <div className="border-t border-slate-200 pt-5">
+          <p className="text-center text-[12px] text-slate-400">
+            Escribenos por nuestros canales oficiales
+          </p>
+          <CanalesOficiales className="mt-3" />
+        </div>
+      </footer>
     </div>
   );
 }
