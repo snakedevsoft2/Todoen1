@@ -97,7 +97,7 @@ export default async function CuentasPage() {
       <div className="mt-5 space-y-4">
         {conMesas && (
           <Card
-            title="Tus mesas"
+            title="Pedido de mesa"
             subtitle="Toca una mesa para cargarle el pedido, o dale su QR para que pidan solos"
           >
             <div className="mb-4 border-b border-line pb-4">

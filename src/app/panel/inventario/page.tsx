@@ -6,6 +6,7 @@ import { money, shortDay } from "@/lib/format";
 import { photoUrl } from "@/lib/nav";
 import { variantLabel, getInventorySummary, type InventorySummary } from "@/lib/inventory";
 import { normalizeCode } from "@/lib/variants";
+import { ITEM_NOUN } from "@/lib/nav";
 import { Badge, Card, Empty, PageHeader, Stat } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -39,6 +40,13 @@ export default async function InventarioPage({
   const user = await requireUser();
   const params = await searchParams;
   const today = todayIn(user.timezone);
+
+  // "Talla y color" es de ropa; el resto de oficios lleva stock por variante
+  // (tamaños, presentaciones...), y sus productos no son "prendas".
+  const esRopa = user.businessType === "ROPA";
+  const noun = ITEM_NOUN[user.businessType];
+  const unidad = esRopa ? "talla" : "variante";
+  const unidades = esRopa ? "tallas" : "variantes";
 
   const query = (params.q ?? "").trim().toLowerCase();
   const category = (params.cat ?? "").trim();
@@ -142,20 +150,23 @@ export default async function InventarioPage({
 
   return (
     <>
-      <PageHeader title="Inventario" subtitle="Cuanta ropa tienes, por talla y por color">
+      <PageHeader
+        title="Inventario"
+        subtitle={esRopa ? "Cuanta ropa tienes, por talla y por color" : "Cuánto stock tienes de cada " + noun.singular}
+      >
         <Link href="/panel/catalogo" className="btn-primary btn-sm">
           <Icon name="plus" className="h-4 w-4" />
-          Agregar prenda
+          Agregar {noun.singular}
         </Link>
       </PageHeader>
 
-      <InventoryStats summary={summary} currency={user.currency} />
+      <InventoryStats summary={summary} currency={user.currency} noun={noun} unidad={unidad} unidades={unidades} />
 
       {summary.lowCount + summary.outCount > 0 && (
         <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-warn-line bg-warn-soft px-4 py-3 text-sm text-warn">
           <Icon name="alert" className="h-4 w-4 shrink-0" />
           <span>
-            Tienes {summary.outCount} {summary.outCount === 1 ? "talla agotada" : "tallas agotadas"} y{" "}
+            Tienes {summary.outCount} {summary.outCount === 1 ? unidad + " agotada" : unidades + " agotadas"} y{" "}
             {summary.lowCount} por acabarse.
           </span>
           <Link href={keepQuery({ filtro: "bajo" })} className="link ml-auto">
@@ -172,6 +183,7 @@ export default async function InventarioPage({
               defaultQuery={params.q ?? ""}
               defaultCategory={category}
               filtro={filtro}
+              placeholder={esRopa ? "Prenda, talla, color o código" : "Nombre, " + unidad + " o código"}
             />
 
             <div className="mt-3 flex flex-wrap gap-2">
@@ -189,11 +201,11 @@ export default async function InventarioPage({
 
           {sinTallas.length > 0 && !filtering && (
             <Card
-              title="Prendas sin tallas"
+              title={noun.plural.charAt(0).toUpperCase() + noun.plural.slice(1) + " sin " + unidades}
               subtitle="Ya están en tu catálogo, pero todavía no tienen stock que contar"
               action={
                 <Link href="/panel/catalogo" className="btn-primary btn-sm">
-                  Agregar tallas
+                  Agregar {unidades}
                 </Link>
               }
             >
@@ -208,8 +220,8 @@ export default async function InventarioPage({
                 ))}
               </ul>
               <p className="mt-3 text-xs text-subtle">
-                Abre la prenda en Productos y usa <strong>Crear en lote</strong> para cargar S, M, L
-                y XL de una vez.
+                Abre {esRopa ? "la prenda" : "el " + noun.singular} en Productos y usa <strong>Crear en lote</strong>{" "}
+                {esRopa ? "para cargar S, M, L y XL de una vez." : "para cargar varias " + unidades + " de una vez."}
               </p>
             </Card>
           )}
@@ -219,17 +231,17 @@ export default async function InventarioPage({
               <Empty
                 title={
                   services.length === 0
-                    ? "Todavía no tienes prendas con inventario"
+                    ? "Todavía no tienes " + noun.plural + " con inventario"
                     : filtering
                       ? "Nada coincide con esa búsqueda"
-                      : "Tus prendas todavía no tienen tallas"
+                      : "Tus " + noun.plural + " todavía no tienen " + unidades
                 }
                 hint={
                   services.length === 0
-                    ? "Crea una prenda en Productos, marcala para llevar inventario y agregale sus tallas."
+                    ? "Crea un " + noun.singular + " en Productos, marcalo para llevar inventario y agregale sus " + unidades + "."
                     : filtering
-                      ? "Prueba con otro nombre, otra talla o quita los filtros."
-                      : "Agregales las tallas desde Productos y aquí las cargas con su stock."
+                      ? "Prueba con otro nombre, otra " + unidad + " o quita los filtros."
+                      : "Agregales las " + unidades + " desde Productos y aquí las cargas con su stock."
                 }
               />
             </Card>
@@ -251,7 +263,7 @@ export default async function InventarioPage({
                           loading="lazy"
                         />
                       ) : (
-                        <Icon name="shirt" className="h-7 w-7 text-subtle" />
+                        <Icon name={esRopa ? "shirt" : "box"} className="h-7 w-7 text-subtle" />
                       )}
                     </div>
 
@@ -266,13 +278,13 @@ export default async function InventarioPage({
                         {money(service.price, user.currency)}
                       </p>
                       <p className="mt-0.5 text-xs text-subtle">
-                        {totalStock} {totalStock === 1 ? "prenda" : "prendas"} en{" "}
-                        {variants.length} {variants.length === 1 ? "talla" : "tallas"}
+                        {totalStock} {esRopa ? (totalStock === 1 ? "prenda" : "prendas") : totalStock === 1 ? "unidad" : "unidades"} en{" "}
+                        {variants.length} {variants.length === 1 ? unidad : unidades}
                       </p>
                     </div>
 
                     <Link href="/panel/catalogo" className="btn-ghost btn-sm">
-                      Editar prenda
+                      Editar {noun.singular}
                     </Link>
                   </div>
 
@@ -366,6 +378,11 @@ export default async function InventarioPage({
                 today={today}
                 defaultVariantId={preseleccion}
                 suppliers={suppliers}
+                mensajeVacio={
+                  esRopa
+                    ? "Primero crea una prenda con sus tallas en Productos, y aquí le cargas la mercancía."
+                    : "Primero crea un " + noun.singular + " con sus " + unidades + " en Productos, y aquí le cargas la mercancía."
+                }
               />
             </Card>
           </div>
@@ -411,16 +428,22 @@ export default async function InventarioPage({
 function InventoryStats({
   summary,
   currency,
+  noun,
+  unidad,
+  unidades,
 }: {
   summary: InventorySummary;
   currency: string;
+  noun: { singular: string; plural: string };
+  unidad: string;
+  unidades: string;
 }) {
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       <Stat
-        label="Prendas en tienda"
+        label={noun.plural.charAt(0).toUpperCase() + noun.plural.slice(1) + " en stock"}
         value={String(summary.units)}
-        hint={summary.variantCount + " tallas distintas"}
+        hint={summary.variantCount + " " + unidades + " distintas"}
         tone="brand"
       />
       <Stat
@@ -435,7 +458,7 @@ function InventoryStats({
         tone="good"
       />
       <Stat
-        label="Tallas en rojo"
+        label={unidades.charAt(0).toUpperCase() + unidades.slice(1) + " en rojo"}
         value={String(summary.lowCount + summary.outCount)}
         hint={summary.outCount + " agotadas"}
         tone={summary.lowCount + summary.outCount > 0 ? "bad" : "default"}

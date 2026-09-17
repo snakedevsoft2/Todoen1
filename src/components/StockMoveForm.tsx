@@ -55,6 +55,7 @@ export function StockMoveForm({
   defaultVariantId,
   suppliers = [],
   currency = "COP",
+  mensajeVacio = "Primero crea una prenda con sus tallas en Productos, y aquí le cargas la mercancía.",
 }: {
   currency?: string;
   variants: MovableVariant[];
@@ -62,6 +63,8 @@ export function StockMoveForm({
   defaultVariantId?: string;
   /** A quien se le compra. Solo se pregunta en las entradas. */
   suppliers?: { id: string; name: string }[];
+  /** Que decirle cuando todavia no hay nada que mover. Cambia segun el oficio. */
+  mensajeVacio?: string;
 }) {
   const [state, formAction] = useActionState(useAccionSinSenal("stockMoveAction", stockMoveAction), undefined);
   const [type, setType] = useState("ENTRADA");
@@ -94,11 +97,7 @@ export function StockMoveForm({
   );
 
   if (variants.length === 0) {
-    return (
-      <p className="text-sm text-muted">
-        Primero crea una prenda con sus tallas en Productos, y aqui le cargas la mercancia.
-      </p>
-    );
+    return <p className="text-sm text-muted">{mensajeVacio}</p>;
   }
 
   return (

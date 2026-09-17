@@ -21,11 +21,13 @@ export function InventorySearch({
   defaultQuery,
   defaultCategory,
   filtro,
+  placeholder = "Prenda, talla, color o código",
 }: {
   categories: string[];
   defaultQuery: string;
   defaultCategory: string;
   filtro: string;
+  placeholder?: string;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState(defaultQuery);
@@ -74,7 +76,7 @@ export function InventorySearch({
             className="input"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Prenda, talla, color o código"
+            placeholder={placeholder}
           />
           <ScanButton
             onScan={escaneado}

@@ -86,7 +86,7 @@ try {
   await duena.click('button[type="submit"]');
   await duena.waitForURL(/\/panel/, { timeout: 25000 });
   await duena.goto(BASE + "/panel/cuentas", { waitUntil: "load" });
-  ok((await duena.getByRole("heading", { name: "Tus mesas" }).count()) === 1, "aparece la tarjeta de mesas");
+  ok((await duena.getByRole("heading", { name: "Pedido de mesa" }).count()) === 1, "aparece la tarjeta de mesas");
 
   await duena.fill('input[name="cantidad"]', "3");
   await duena.getByRole("button", { name: "Guardar" }).click();
@@ -158,7 +158,7 @@ try {
   await otro.click('button[type="submit"]');
   await otro.waitForURL(/\/panel/, { timeout: 25000 });
   await otro.goto(BASE + "/panel/cuentas", { waitUntil: "load" });
-  ok((await otro.getByRole("heading", { name: "Tus mesas" }).count()) === 0, "sin la tarjeta de mesas");
+  ok((await otro.getByRole("heading", { name: "Pedido de mesa" }).count()) === 0, "sin la tarjeta de mesas");
 
   console.log("\n7. Una mesa que ya no existe avisa en vez de reventar");
   const res = await cliente.goto(BASE + "/mesa/token-que-no-existe", { waitUntil: "load" });
