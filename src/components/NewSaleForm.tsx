@@ -142,6 +142,35 @@ export function NewSaleForm({
 
   const total = useMemo(() => cart.reduce((s, r) => s + r.unitPrice * r.qty, 0), [cart]);
 
+  // El recibo sale de lo que se vio en pantalla, no del servidor: asi se puede
+  // imprimir tambien sin senal, tanto la que se acaba de guardar como
+  // cualquiera que siga esperando en la cola del telefono.
+  const reciboDe = useCallback(
+    (venta: VentaPendiente, saleId: string, provisional: boolean): InvoiceData => ({
+      saleId,
+      provisional,
+      businessName: negocio.nombre,
+      businessPhone: negocio.telefono,
+      businessAddress: negocio.direccion,
+      businessEmail: negocio.correo,
+      logoUrl: negocio.logoUrl,
+      currency,
+      day: venta.day,
+      clientName: venta.clientName.trim() || null,
+      clientPhone: venta.clientPhone?.trim() || null,
+      paymentMethod: venta.paymentMethod,
+      staffName: team.find((t) => t.id === venta.staffId)?.name ?? null,
+      items:
+        venta.items.length > 0
+          ? venta.items.map((i) => ({ name: i.name, qty: i.qty, unitPrice: i.unitPrice }))
+          : [{ name: venta.concept.trim() || "Venta", qty: 1, unitPrice: venta.total }],
+      total: venta.total,
+      notes: venta.notes.trim() || null,
+      marcaGratis,
+    }),
+    [negocio, currency, team, marcaGratis]
+  );
+
   // Si la pagina se abrio sin senal, puede ser la copia guardada de otro dia:
   // la fecha de hoy se toma del telefono, en la zona del negocio.
   const ponerHoy = useCallback(() => {
@@ -354,37 +383,12 @@ export function NewSaleForm({
       error: null,
     };
 
-    // El recibo sale de lo que se vio en pantalla, no del servidor: asi se puede
-    // imprimir tambien sin senal.
-    const recibo = (saleId: string, provisional: boolean): InvoiceData => ({
-      saleId,
-      provisional,
-      businessName: negocio.nombre,
-      businessPhone: negocio.telefono,
-      businessAddress: negocio.direccion,
-      businessEmail: negocio.correo,
-      logoUrl: negocio.logoUrl,
-      currency,
-      day: venta.day,
-      clientName: venta.clientName.trim() || null,
-      clientPhone: venta.clientPhone?.trim() || null,
-      paymentMethod: venta.paymentMethod,
-      staffName: team.find((t) => t.id === venta.staffId)?.name ?? null,
-      items:
-        venta.items.length > 0
-          ? venta.items.map((i) => ({ name: i.name, qty: i.qty, unitPrice: i.unitPrice }))
-          : [{ name: venta.concept.trim() || "Venta", qty: 1, unitPrice: valor }],
-      total: valor,
-      notes: venta.notes.trim() || null,
-      marcaGratis,
-    });
-
     setEnviando(true);
     setMensaje(null);
     setUltima(null);
     setVentaParaFactura(null);
     try {
-      let aviso = "Sin señal: la venta quedó guardada en este teléfono y se sube sola cuando vuelva.";
+      let aviso = "Sin señal: la venta quedó guardada en este teléfono. Ya puedes imprimir su recibo abajo, y se sube sola cuando vuelva la señal.";
       if (navigator.onLine) {
         const p = await enviar("/api/ventas", cuerpoDeVenta(venta));
         if (p.ok) {
@@ -394,7 +398,7 @@ export function NewSaleForm({
             // A credito no hay factura de venta: queda la deuda del cliente.
             setMensaje({ kind: "ok", text: "Quedó en Cuentas por cobrar a nombre de " + venta.clientName.trim() + "." });
           } else {
-            setUltima(recibo(id, false));
+            setUltima(reciboDe(venta, id, false));
             setMensaje({ kind: "ok", text: "Venta registrada." });
             if (facturacion && comprobante === "autorizada") setVentaParaFactura(id);
           }
@@ -406,7 +410,7 @@ export function NewSaleForm({
           setMensaje({ kind: "error", text: p.motivo });
           return;
         }
-        if (p.conRed) aviso = p.motivo + " La venta quedó guardada en este teléfono.";
+        if (p.conRed) aviso = p.motivo + " La venta quedó guardada en este teléfono, con su recibo listo para imprimir.";
       }
 
       // Sin red, o el servidor no respondio: a la cola, con la misma llave.
@@ -418,7 +422,7 @@ export function NewSaleForm({
       }
       limpiar();
       await refrescar();
-      if (!aCredito) setUltima(recibo(venta.clientKey, true));
+      if (!aCredito) setUltima(reciboDe(venta, venta.clientKey, true));
       setMensaje({ kind: "info", text: aviso });
     } finally {
       setEnviando(false);
@@ -436,8 +440,8 @@ export function NewSaleForm({
 
       {!enLinea && (
         <p data-sin-senal className="rounded-xl border border-warn-line bg-warn-soft px-3 py-2 text-[13px] text-warn">
-          Sin señal: puedes seguir vendiendo. Las ventas se guardan en este teléfono y se suben solas cuando vuelva. La lista
-          del día puede no estar al día.
+          Sin señal: puedes seguir vendiendo e imprimiendo. Cada venta se guarda en este teléfono con su recibo listo
+          para imprimir, y se suben solas cuando vuelva la señal. La lista del día puede no estar al día.
         </p>
       )}
 
@@ -451,6 +455,9 @@ export function NewSaleForm({
               currency
             )}
           </p>
+          <p className="mt-0.5 text-[11px] text-warn/80">
+            Cada una trae su botón para imprimir el recibo, aunque siga sin señal.
+          </p>
           <ul className="mt-2 space-y-1.5">
             {pendientes.map((v) => (
               <li key={v.clientKey} className="flex items-center gap-2 text-[13px]">
@@ -462,6 +469,17 @@ export function NewSaleForm({
                     {v.error ? "No se pudo subir: " + v.error : !enLinea ? "Esperando señal" : "Subiendo…"}
                   </span>
                 </span>
+                {v.paymentMethod !== "CREDITO" && (
+                  <BotonImprimir
+                    tirilla={() => invoiceTirilla(reciboDe(v, v.clientKey, true))}
+                    nombreArchivo={invoiceFileName(reciboDe(v, v.clientKey, true))}
+                    logoUrl={negocio.logoUrl}
+                    label="Imprimir"
+                    className="btn-ghost btn-sm"
+                    menu="izquierda"
+                    soloBluetooth={!esDueno}
+                  />
+                )}
                 {v.error && (
                   <button type="button" className="btn-ghost btn-sm" onClick={() => descartar(v.clientKey)}>
                     Descartar

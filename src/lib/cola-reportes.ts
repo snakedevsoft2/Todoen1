@@ -128,14 +128,33 @@ export type Paso =
   | { ok: true; datos: Record<string, unknown> }
   | { ok: false; conRed: boolean; motivo: string; reintentar: boolean };
 
+/**
+ * Cuanto se espera antes de darla por caida.
+ *
+ * El celular muchas veces dice "conectado" (a un wifi sin internet de
+ * verdad, o con una señal que no pasa datos) aunque no haya como llegar al
+ * servidor. Sin este tope, ese fetch se queda colgado y la persona ve el
+ * boton de guardar pegado, como si la aplicacion no dejara vender. Con el
+ * tope, a los 15 segundos se da por sin señal y la venta se va a la cola del
+ * telefono, igual que si nunca hubiera habido conexion.
+ */
+const TIMEOUT_MS = 15000;
+
 export async function enviar(url: string, cuerpo: Record<string, unknown>): Promise<Paso> {
   let r: Response;
   try {
-    r = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(cuerpo),
-    });
+    const vencido = new AbortController();
+    const reloj = setTimeout(() => vencido.abort(), TIMEOUT_MS);
+    try {
+      r = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(cuerpo),
+        signal: vencido.signal,
+      });
+    } finally {
+      clearTimeout(reloj);
+    }
   } catch {
     return { ok: false, conRed: false, motivo: "Sin señal.", reintentar: true };
   }
