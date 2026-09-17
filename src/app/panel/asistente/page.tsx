@@ -1,6 +1,7 @@
-import { requireUser } from "@/lib/auth";
+import { requireSession } from "@/lib/auth";
 import { aiEnabled } from "@/lib/ai";
 import { SUGERENCIAS_IA } from "@/lib/sugerencias-ia";
+import { esDueno } from "@/lib/permisos-empleado";
 import { Card, PageHeader } from "@/components/ui";
 import { AssistantChat } from "@/components/AssistantChat";
 import { Icon } from "@/components/Icon";
@@ -8,14 +9,19 @@ import { Icon } from "@/components/Icon";
 export const dynamic = "force-dynamic";
 
 export default async function AsistentePage() {
-  const user = await requireUser();
+  const { user, staff } = await requireSession();
   const listo = aiEnabled();
+  const puedeCrear = esDueno(staff.role);
 
   return (
     <>
       <PageHeader
         title="IA Snake"
-        subtitle="Tu asistente: pregúntale por tu negocio o por cómo se hace algo aquí"
+        subtitle={
+          puedeCrear
+            ? "Pregúntale por tu negocio, o dile qué crear: \"tengo hamburguesa 14000 y papas 8000\""
+            : "Tu asistente: pregúntale por tu negocio o por cómo se hace algo aquí"
+        }
       />
 
       {!listo && (

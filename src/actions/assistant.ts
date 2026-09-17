@@ -1,9 +1,18 @@
 "use server";
 
-import { requireUser } from "@/lib/auth";
+import { requireSession } from "@/lib/auth";
 import { BUSINESS_LABEL } from "@/lib/nav";
-import { aiEnabled, askAi, type ChatTurn } from "@/lib/ai";
+import { aiEnabled, askAi, conversarConHerramientas, type ChatTurn, type Contenido } from "@/lib/ai";
 import { businessSnapshot, systemPrompt } from "@/lib/ai-context";
+import { esDueno } from "@/lib/permisos-empleado";
+import {
+  actualizarNegocioIA,
+  agregarEmpleadoIA,
+  configurarMesasIA,
+  crearCategoriaIA,
+  crearProductoIA,
+  herramientasDeConfiguracion,
+} from "@/lib/ia-herramientas";
 
 export type AssistantState =
   | { turns: ChatTurn[]; error?: string }
@@ -22,12 +31,17 @@ const MAX_LARGO = 1000;
  *
  * El resumen de cifras se arma aqui, en el servidor, a partir del negocio de la
  * sesion: el navegador no decide de que negocio son los numeros.
+ *
+ * Al dueño se le da ademas la posibilidad de que el asistente cree cosas
+ * (productos, categorias, mesas, equipo, datos del negocio) cuando se lo pide,
+ * para que un negocio nuevo quede armado de una vez. Al empleado no: el
+ * asistente solo le contesta, nunca le cambia nada al negocio.
  */
 export async function askAssistantAction(
   _prev: AssistantState,
   formData: FormData
 ): Promise<AssistantState> {
-  const user = await requireUser();
+  const { user, staff } = await requireSession();
 
   const previas: ChatTurn[] = leerHistorial(formData.get("history"));
   const pregunta = String(formData.get("question") ?? "").trim().slice(0, MAX_LARGO);
@@ -44,13 +58,42 @@ export async function askAssistantAction(
   }
 
   const snapshot = await businessSnapshot(user);
-  const system = systemPrompt(snapshot, BUSINESS_LABEL[user.businessType]);
+  const puedeCrear = esDueno(staff.role);
+  const system = systemPrompt(snapshot, BUSINESS_LABEL[user.businessType], puedeCrear);
 
   // Solo los ultimos turnos: la conversacion vieja no aporta y cuesta.
-  const resultado = await askAi(system, turns.slice(-MAX_TURNOS));
+  const recientes = turns.slice(-MAX_TURNOS);
+
+  if (!puedeCrear) {
+    const resultado = await askAi(system, recientes);
+    if (!resultado.ok) return { turns, error: resultado.error };
+    return { turns: [...turns, { role: "model", text: resultado.text }] };
+  }
+
+  const contents: Contenido[] = recientes.map((t) => ({ role: t.role, parts: [{ text: t.text }] }));
+  const resultado = await conversarConHerramientas({
+    system,
+    contents,
+    herramientas: herramientasDeConfiguracion(user.businessType),
+    ejecutar: (name, args) => {
+      switch (name) {
+        case "crear_producto":
+          return crearProductoIA(user.id, user.currency, args);
+        case "crear_categoria":
+          return crearCategoriaIA(user.id, args);
+        case "configurar_mesas":
+          return configurarMesasIA(user.id, args);
+        case "agregar_empleado":
+          return agregarEmpleadoIA(user.id, user.businessType, args);
+        case "actualizar_negocio":
+          return actualizarNegocioIA(user.id, args);
+        default:
+          return Promise.resolve({ ok: false, error: "Esa función no existe." });
+      }
+    },
+  });
 
   if (!resultado.ok) return { turns, error: resultado.error };
-
   return { turns: [...turns, { role: "model", text: resultado.text }] };
 }
 
