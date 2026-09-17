@@ -4,6 +4,7 @@ import { Icon } from "@/components/Icon";
 import { AnimatedBackdrop } from "@/components/AnimatedBackdrop";
 import { CanalesOficiales } from "@/components/CanalesOficiales";
 import { Logo } from "@/components/Logo";
+import { OfertaDelMes } from "@/components/OfertaDelMes";
 
 const FEATURES = [
   {
@@ -47,6 +48,7 @@ export default function LandingPage() {
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-16">
       <AnimatedBackdrop />
+      <OfertaDelMes />
 
       <header className="animate-entrar flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
