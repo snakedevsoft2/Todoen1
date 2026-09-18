@@ -10,6 +10,7 @@ import { esDueno } from "@/lib/permisos-empleado";
 import { Card, Empty, PageHeader, Stat } from "@/components/ui";
 import { NewSaleForm, type VariantOption } from "@/components/NewSaleForm";
 import { InvoiceActions } from "@/components/InvoiceActions";
+import { ImprimirVenta } from "@/components/ImprimirVenta";
 import { FacturaAutorizada, type EmisorFactura } from "@/components/FacturaAutorizada";
 import { configuracionFacturacion, facturaVista } from "@/lib/facturacion";
 import { TARIFAS, datosPais } from "@/lib/facturacion/paises";
@@ -357,6 +358,7 @@ export default async function VentasPage({
 
                   <div className="mt-2 flex flex-wrap gap-2">
                     <InvoiceActions data={datosFactura(s)} soloBluetooth={!propias} />
+                    <ImprimirVenta data={datosFactura(s)} soloBluetooth={!propias} />
                     <FacturaAutorizada
                       saleId={s.id}
                       pais={facturacion.country}
