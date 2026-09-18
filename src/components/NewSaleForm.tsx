@@ -804,6 +804,11 @@ export function NewSaleForm({
                                 </span>
                               )}
                             </span>
+                            {llevo > 0 && (
+                              <span className="block text-[11px] font-semibold text-brand-700">
+                                Llevas {llevo}
+                              </span>
+                            )}
                           </span>
                           {llevo > 0 && (
                             <span
