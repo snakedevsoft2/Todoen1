@@ -146,6 +146,7 @@ export function NewSaleForm({
 }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
+  const raizRef = useRef<HTMLDivElement>(null);
   const diaRef = useRef<HTMLInputElement>(null);
   const [cart, setCart] = useState<CartRow[]>([]);
   const [openSizes, setOpenSizes] = useState<string | null>(null);
@@ -165,6 +166,14 @@ export function NewSaleForm({
   const [ventaParaFactura, setVentaParaFactura] = useState<string | null>(null);
   /** La ultima venta guardada, para imprimirle el recibo aunque no haya senal. */
   const [ultima, setUltima] = useState<InvoiceData | null>(null);
+
+  // Al vender desde la isla el aviso y el boton de imprimir quedan arriba: si
+  // esa parte se salio de la pantalla, se sube hasta ahi para que se vea.
+  useEffect(() => {
+    if (!mensaje) return;
+    const raiz = raizRef.current;
+    if (raiz && raiz.getBoundingClientRect().top < 0) raiz.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [mensaje]);
 
   const total = useMemo(() => cart.reduce((s, r) => s + r.unitPrice * r.qty, 0), [cart]);
 
@@ -361,6 +370,23 @@ export function NewSaleForm({
     );
   }
 
+  /**
+   * El boton de la isla: vende con lo que ya esta puesto en el formulario (pago,
+   * quien atendio...) sin bajar. Si falta algo que no se puede adivinar, el
+   * nombre del cliente en un fiado, lleva hasta el formulario en vez de fallar.
+   */
+  function venderDesdeIsla() {
+    const form = formRef.current;
+    if (!form || enviando) return;
+    const fd = new FormData(form);
+    if (String(fd.get("paymentMethod") ?? "") === "CREDITO" && !String(fd.get("clientName") ?? "").trim()) {
+      form.scrollIntoView({ behavior: "smooth", block: "start" });
+      setMensaje({ kind: "error", text: "Para dejarla en cuentas por cobrar escribe el nombre del cliente." });
+      return;
+    }
+    form.requestSubmit();
+  }
+
   function remove(key: string) {
     setCart((prev) => prev.filter((r) => r.key !== key));
   }
@@ -469,8 +495,26 @@ export function NewSaleForm({
   }
 
   return (
-    <div className="space-y-4">
+    <div ref={raizRef} className="space-y-4">
       <RegistrarSW guardarEstaPagina />
+
+      {cart.length > 0 && (
+        <div
+          data-isla-venta
+          className="sticky top-[4.25rem] z-20 flex items-center gap-3 rounded-2xl border border-line bg-panel px-3 py-2 shadow-lg lg:top-3"
+        >
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-medium uppercase tracking-[0.04em] text-muted">
+              {cart.reduce((n, r) => n + r.qty, 0)} {cart.reduce((n, r) => n + r.qty, 0) === 1 ? "producto" : "productos"}
+            </p>
+            <p className="truncate text-lg font-bold leading-tight text-strong">{money(total, currency)}</p>
+          </div>
+          <button type="button" onClick={venderDesdeIsla} disabled={enviando} className="btn-success">
+            <Icon name="check" className="h-4 w-4" />
+            {enviando ? "Guardando..." : pago === "CREDITO" ? "Fiar" : "Vender"}
+          </button>
+        </div>
+      )}
 
       {!enLinea && (
         <p data-sin-senal className="rounded-xl border border-warn-line bg-warn-soft px-3 py-2 text-[13px] text-warn">
