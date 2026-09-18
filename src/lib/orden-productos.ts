@@ -26,7 +26,7 @@ export function ordenParaNegocio(nombreNegocio: string): FilaOrden[] | undefined
 
 const FILAS_CHOPO_SNACKS: FilaOrden[] = [
   [["papa natural grande"], ["papa natural mediana"]],
-  [["papa baston grande", "papa baston"], ["papa picante grande"]],
+  [["papa picante grande", "papa baston"], ["papa baston grande"]],
   [
     ["dulce grande", "chifle de dulce grande", "chifle dulce grande"],
     ["dulce mediano", "chifle de dulce mediano", "chifle dulce mediano", "chicle de dulce mediano"],
