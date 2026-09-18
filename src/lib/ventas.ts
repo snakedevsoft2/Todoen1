@@ -183,6 +183,7 @@ export async function registrarVenta(
             day,
             dueDay: dueDay || null,
             notes: textoDe(d.notes, 200) || null,
+            staffId: staff?.id ?? s.staff.id,
             // No se conto como venta: cada abono si entra a la caja.
             alreadyInvoiced: false,
             clientKey,

@@ -427,7 +427,9 @@ export function NewSaleForm({
           limpiar();
           const id = typeof p.datos.id === "string" ? p.datos.id : venta.clientKey;
           if (p.datos.tipo === "deuda") {
-            // A credito no hay factura de venta: queda la deuda del cliente.
+            // A credito no hay factura de venta: queda la deuda del cliente,
+            // pero si se le puede entregar el recibo del fiado.
+            setUltima(reciboDe(venta, id, false));
             setMensaje({ kind: "ok", text: "Quedó en Cuentas por cobrar a nombre de " + venta.clientName.trim() + "." });
           } else {
             setUltima(reciboDe(venta, id, false));
@@ -454,7 +456,7 @@ export function NewSaleForm({
       }
       limpiar();
       await refrescar();
-      if (!aCredito) setUltima(reciboDe(venta, venta.clientKey, true));
+      setUltima(reciboDe(venta, venta.clientKey, true));
       setMensaje({ kind: "info", text: aviso });
     } finally {
       setEnviando(false);
@@ -501,7 +503,7 @@ export function NewSaleForm({
                     {v.error ? "No se pudo subir: " + v.error : !enLinea ? "Esperando señal" : "Subiendo…"}
                   </span>
                 </span>
-                {v.paymentMethod !== "CREDITO" && (
+                {(
                   <BotonImprimir
                     tirilla={() => invoiceTirilla(reciboDe(v, v.clientKey, true))}
                     nombreArchivo={invoiceFileName(reciboDe(v, v.clientKey, true))}

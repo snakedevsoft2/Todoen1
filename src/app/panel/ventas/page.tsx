@@ -45,11 +45,18 @@ export default async function VentasPage({
   const propias = esDueno(me.role);
   const soloMias = propias ? {} : { staffId: me.id };
 
-  const [sales, catalog, team] = await Promise.all([
+  const [sales, fiados, catalog, team] = await Promise.all([
     db.sale.findMany({
       where: { userId: user.id, day, ...soloMias },
       orderBy: { createdAt: "desc" },
       include: { items: true, staff: { select: { name: true, color: true } }, electronicInvoice: true },
+    }),
+    // Los fiados hechos desde esta pantalla (llevan llave): no son plata que
+    // entro, asi que salen en la lista pero no suman en el resumen de arriba.
+    db.debt.findMany({
+      where: { userId: user.id, day, clientKey: { not: null }, ...soloMias },
+      orderBy: { createdAt: "desc" },
+      include: { staff: { select: { name: true, color: true } } },
     }),
     db.service.findMany({
       where: { userId: user.id, active: true },
@@ -140,6 +147,25 @@ export default async function VentasPage({
     orderBy: { updatedAt: "desc" },
     take: 500,
     select: { id: true, name: true, phone: true },
+  });
+
+  const datosFiado = (f: (typeof fiados)[number]): InvoiceData => ({
+    saleId: f.id,
+    businessName: user.businessName,
+    businessPhone: user.phone,
+    businessAddress: user.address,
+    logoUrl: logo,
+    currency: user.currency,
+    day: f.day,
+    clientName: f.clientName,
+    clientPhone: f.clientPhone,
+    businessEmail: user.email,
+    paymentMethod: "CREDITO",
+    staffName: f.staff?.name ?? null,
+    items: [{ name: f.concept, qty: 1, unitPrice: f.amount }],
+    total: f.amount,
+    notes: f.notes,
+    marcaGratis: !completo,
   });
 
   const datosFactura = (s: (typeof sales)[number]): InvoiceData => ({
@@ -275,8 +301,8 @@ export default async function VentasPage({
           />
         </Card>
 
-        <Card title="Ventas del día" subtitle={sales.length + " movimientos"}>
-          {sales.length === 0 ? (
+        <Card title="Ventas del día" subtitle={sales.length + fiados.length + " movimientos"}>
+          {sales.length + fiados.length === 0 ? (
             <Empty title="No hay ventas en este día" hint="Registra la primera venta a la izquierda." />
           ) : (
             <ul className="space-y-2">
@@ -369,6 +395,33 @@ export default async function VentasPage({
                       emisor={emisorFactura}
                       soloBluetooth={!propias}
                     />
+                  </div>
+                </li>
+              ))}
+              {fiados.map((f) => (
+                <li key={f.id} className="rounded-xl border border-line bg-surface p-3">
+                  <p className="text-sm font-semibold text-strong">
+                    {money(f.amount, user.currency)}
+                    <span className="ml-2 rounded-full border border-warn-line bg-warn-soft px-2 py-0.5 text-[10px] uppercase tracking-wide text-warn">
+                      Fiado
+                    </span>
+                  </p>
+                  <p className="mt-1 text-xs text-body">{f.concept}</p>
+                  <p className="mt-0.5 text-xs text-subtle">
+                    {f.clientName} - {shortDay(f.day)}
+                  </p>
+                  {f.staff && (
+                    <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted">
+                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: f.staff.color }} />
+                      {isClothing ? "Vendio " : "Atendio "}
+                      {f.staff.name}
+                    </p>
+                  )}
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <ImprimirVenta data={datosFiado(f)} soloBluetooth={!propias} />
+                    <Link href={"/panel/cartera"} className="btn-ghost btn-sm">
+                      Ver en Cuentas por cobrar
+                    </Link>
                   </div>
                 </li>
               ))}

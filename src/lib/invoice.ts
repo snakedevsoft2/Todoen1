@@ -92,6 +92,7 @@ const PAYMENT_LABEL: Record<string, string> = {
   TARJETA: "Tarjeta",
   TRANSFERENCIA: "Transferencia",
   OTRO: "Otro",
+  CREDITO: "Fiado (por cobrar)",
 };
 
 /** Numero corto y legible de la factura, sacado del id de la venta. */
