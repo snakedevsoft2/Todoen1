@@ -67,6 +67,32 @@ type Mensaje = { kind: "ok" | "error" | "info"; text: string };
  * alcanza el stock, por ejemplo) el carrito se queda como estaba para
  * corregirlo.
  */
+/**
+ * Cantidad que se puede escribir con el teclado numerico. Mientras se teclea
+ * deja el campo vacio sin borrar la linea; al salir vuelve al ultimo valor
+ * valido.
+ */
+function CantidadEditable({ qty, max, onChange }: { qty: number; max?: number; onChange: (qty: number) => void }) {
+  const [texto, setTexto] = useState<string | null>(null);
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      aria-label="Cantidad"
+      value={texto ?? String(qty)}
+      onFocus={(e) => e.currentTarget.select()}
+      onChange={(e) => {
+        const limpio = e.target.value.replace(/\D/g, "").slice(0, 4);
+        setTexto(limpio);
+        const n = Number(limpio);
+        if (n > 0) onChange(max !== undefined ? Math.min(n, max) : n);
+      }}
+      onBlur={() => setTexto(null)}
+      className="input w-12 px-1 py-1 text-center text-sm font-bold"
+    />
+  );
+}
+
 export function NewSaleForm({
   ordenCategorias,
   services,
@@ -326,6 +352,12 @@ export function NewSaleForm({
           return { ...r, qty };
         })
         .filter((r) => r.qty > 0)
+    );
+  }
+
+  function setQty(key: string, qty: number) {
+    setCart((prev) =>
+      prev.map((r) => (r.key === key ? { ...r, qty: r.max !== undefined ? Math.min(qty, r.max) : qty } : r))
     );
   }
 
@@ -673,7 +705,7 @@ export function NewSaleForm({
                   <button type="button" onClick={() => bump(r.key, -1)} className="btn-ghost btn-sm px-2.5">
                     -
                   </button>
-                  <span className="w-7 text-center text-sm font-bold">{r.qty}</span>
+                  <CantidadEditable qty={r.qty} max={r.max} onChange={(qty) => setQty(r.key, qty)} />
                   <button
                     type="button"
                     onClick={() => bump(r.key, 1)}
