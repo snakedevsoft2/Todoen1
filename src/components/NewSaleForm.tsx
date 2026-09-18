@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Alert, Field } from "./ui";
 import { BarraCatalogo } from "./BarraCatalogo";
 import { ClienteSelector } from "./ClienteSelector";
+import { ordenarEnFilas, type FilaOrden } from "@/lib/orden-productos";
 import { agruparPorCategoria, categoriasConCantidad, filtrarCatalogo } from "@/lib/categorias";
 import { money, parseMoney, pasoMoneda } from "@/lib/format";
 import { todayIn } from "@/lib/dates";
@@ -95,6 +96,7 @@ function CantidadEditable({ qty, max, onChange }: { qty: number; max?: number; o
 
 export function NewSaleForm({
   ordenCategorias,
+  filasOrden,
   services,
   currency,
   today,
@@ -114,6 +116,8 @@ export function NewSaleForm({
   services: ServiceRow[];
   /** El orden de categorias que armo el dueño. */
   ordenCategorias?: string[];
+  /** Orden a mano de los productos en filas de dos columnas (solo algunos negocios). */
+  filasOrden?: FilaOrden[];
   currency: string;
   today: string;
   itemLabel: string;
@@ -760,7 +764,9 @@ export function NewSaleForm({
             <div key={category}>
               <p className="mb-1.5 text-[11px] text-subtle">{category}</p>
               <div className="grid grid-cols-2 gap-2">
-                {list.map((s) => {
+                {(filasOrden ? ordenarEnFilas(list, filasOrden, !busqueda.trim()) : list).map((s, lugar) => {
+                  // Casilla vacia de la lista: mantiene al siguiente en su columna.
+                  if (!s) return <div key={"hueco-" + lugar} aria-hidden="true" />;
                   const sizes = s.variants ?? [];
                   const stock = sizes.reduce((sum, v) => sum + Math.max(0, v.stock), 0);
                   const soldOut = sizes.length > 0 && stock <= 0;
