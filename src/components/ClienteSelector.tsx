@@ -30,6 +30,10 @@ export function ClienteSelector({
   nameFieldName = "clientName",
   phoneFieldName = "clientPhone",
   required = false,
+  texto,
+  telefono,
+  onTexto,
+  onTelefono,
 }: {
   clientes: ClienteOpcion[];
   nameLabel: string;
@@ -38,9 +42,15 @@ export function ClienteSelector({
   nameFieldName?: string;
   phoneFieldName?: string;
   required?: boolean;
+  /**
+   * El texto y el telefono viven en quien lo usa, para poder mostrar el mismo
+   * selector en dos sitios a la vez (el formulario y la isla de la venta).
+   */
+  texto: string;
+  telefono: string;
+  onTexto: (texto: string) => void;
+  onTelefono: (telefono: string) => void;
 }) {
-  const [texto, setTexto] = useState("");
-  const [telefono, setTelefono] = useState("");
   const [abierto, setAbierto] = useState(false);
   const [resaltado, setResaltado] = useState(0);
   const cajaRef = useRef<HTMLDivElement>(null);
@@ -59,9 +69,9 @@ export function ClienteSelector({
   }, []);
 
   function elegir(c: ClienteOpcion) {
-    setTexto(c.name);
+    onTexto(c.name);
     // Si ya habia un telefono escrito a mano, se respeta.
-    setTelefono((antes) => antes || c.phone || "");
+    onTelefono(telefono || c.phone || "");
     setAbierto(false);
   }
 
@@ -74,7 +84,7 @@ export function ClienteSelector({
             name={nameFieldName}
             value={texto}
             onChange={(e) => {
-              setTexto(e.target.value);
+              onTexto(e.target.value);
               setAbierto(true);
               setResaltado(0);
             }}
@@ -151,7 +161,7 @@ export function ClienteSelector({
           name={phoneFieldName}
           inputMode="tel"
           value={telefono}
-          onChange={(e) => setTelefono(e.target.value)}
+          onChange={(e) => onTelefono(e.target.value)}
           placeholder="300 000 0000"
         />
       </Field>

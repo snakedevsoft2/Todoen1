@@ -147,7 +147,6 @@ export function NewSaleForm({
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const raizRef = useRef<HTMLDivElement>(null);
-  const diaRef = useRef<HTMLInputElement>(null);
   const [cart, setCart] = useState<CartRow[]>([]);
   const [openSizes, setOpenSizes] = useState<string | null>(null);
   const [freeName, setFreeName] = useState("");
@@ -159,7 +158,12 @@ export function NewSaleForm({
   // Cambia cada vez que se limpia el formulario: al usarlo como key, el
   // selector de cliente vuelve a nacer vacio (su texto y su telefono son
   // estado propio de React, y un reset() nativo no los toca).
-  const [clienteKey, setClienteKey] = useState(0);
+  // Lo que se llena de la venta vive aqui para poder editarlo tanto en el
+  // formulario como desde la isla, sin bajar.
+  const [dia, setDia] = useState(today);
+  const [clienteTexto, setClienteTexto] = useState("");
+  const [clienteTel, setClienteTel] = useState("");
+  const [vence, setVence] = useState("");
   const [pago, setPago] = useState("EFECTIVO");
   const [islaAbierta, setIslaAbierta] = useState(false);
   const [comprobante, setComprobante] = useState<"normal" | "autorizada">(facturacion?.predeterminado ?? "normal");
@@ -216,7 +220,7 @@ export function NewSaleForm({
   // Si la pagina se abrio sin senal, puede ser la copia guardada de otro dia:
   // la fecha de hoy se toma del telefono, en la zona del negocio.
   const ponerHoy = useCallback(() => {
-    if (esHoy && diaRef.current) diaRef.current.value = todayIn(timezone);
+    if (esHoy) setDia(todayIn(timezone));
   }, [esHoy, timezone]);
   useEffect(ponerHoy, [ponerHoy]);
 
@@ -404,7 +408,9 @@ export function NewSaleForm({
     setOpenSizes(null);
     formRef.current?.reset();
     setPago("EFECTIVO");
-    setClienteKey((k) => k + 1);
+    setClienteTexto("");
+    setClienteTel("");
+    setVence("");
     ponerHoy();
   }
 
@@ -502,6 +508,58 @@ export function NewSaleForm({
     await refrescar();
   }
 
+  // Dia, pago, cliente y telefono. Se pinta dos veces (formulario e isla): la
+  // copia de la isla no lleva `name`, asi que solo la del formulario se envia.
+  const camposVenta = (enForm: boolean) => (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <Field label="Día de la venta">
+        <input
+          className="input"
+          type="date"
+          name={enForm ? "day" : undefined}
+          value={dia}
+          onChange={(e) => setDia(e.target.value)}
+        />
+      </Field>
+      <Field label="Método de pago">
+        <select
+          className="input"
+          name={enForm ? "paymentMethod" : undefined}
+          value={pago}
+          onChange={(e) => setPago(e.target.value)}
+        >
+          <option value="EFECTIVO">Efectivo</option>
+          <option value="TARJETA">Tarjeta</option>
+          <option value="TRANSFERENCIA">Transferencia</option>
+          <option value="OTRO">Otro</option>
+          <option value="CREDITO">Cuentas por cobrar (fiado)</option>
+        </select>
+      </Field>
+      <ClienteSelector
+        clientes={clientes}
+        nameLabel={pago === "CREDITO" ? "Cliente (quién queda debiendo)" : "Cliente (opcional)"}
+        phoneHint={enForm ? "Con el nombre queda guardado en Clientes." : undefined}
+        nameFieldName={enForm ? "clientName" : ""}
+        phoneFieldName={enForm ? "clientPhone" : ""}
+        texto={clienteTexto}
+        telefono={clienteTel}
+        onTexto={setClienteTexto}
+        onTelefono={setClienteTel}
+      />
+      {pago === "CREDITO" && (
+        <Field label="¿Cuándo paga? (opcional)" hint="No suma a la caja de hoy: cada abono entra el día en que te paguen.">
+          <input
+            className="input"
+            type="date"
+            name={enForm ? "dueDay" : undefined}
+            value={vence}
+            onChange={(e) => setVence(e.target.value)}
+          />
+        </Field>
+      )}
+    </div>
+  );
+
   // Las mismas lineas se ven en la lista de abajo y en la isla de arriba.
   const lineasCarrito = (
     <ul className="divide-y divide-line">
@@ -570,7 +628,8 @@ export function NewSaleForm({
             {islaAbierta && (
               <div className="mt-2 max-h-[70vh] overflow-y-auto rounded-2xl border border-line bg-panel p-3 shadow-lg">
                 {lineasCarrito}
-                <div className="mt-2 flex items-center justify-between gap-3 border-t border-line pt-3">
+                <div className="mt-3 border-t border-line pt-3">{camposVenta(false)}</div>
+                <div className="mt-3 flex items-center justify-between gap-3 border-t border-line pt-3">
                   <div>
                     <p className="text-[11px] text-muted">Total de la venta</p>
                     <p className="text-xl font-bold leading-tight text-strong">{money(total, currency)}</p>
@@ -705,6 +764,8 @@ export function NewSaleForm({
                   const sizes = s.variants ?? [];
                   const stock = sizes.reduce((sum, v) => sum + Math.max(0, v.stock), 0);
                   const soldOut = sizes.length > 0 && stock <= 0;
+                  // Cuantas van de este producto (sumando todas sus tallas).
+                  const llevo = cart.reduce((n, r) => (r.serviceId === s.id ? n + r.qty : n), 0);
 
                   return (
                     <div key={s.id} className="contents">
@@ -715,7 +776,8 @@ export function NewSaleForm({
                         className={
                           "btn-ghost w-full flex-col items-start gap-0 px-3 py-2.5 text-left " +
                           (soldOut ? "opacity-50" : "") +
-                          (openSizes === s.id ? " bg-brand-50" : "")
+                          (openSizes === s.id ? " bg-brand-50" : "") +
+                          (llevo > 0 ? " border-brand-500 bg-brand-50" : "")
                         }
                       >
                         <span className="flex w-full items-center gap-2">
@@ -743,6 +805,15 @@ export function NewSaleForm({
                               )}
                             </span>
                           </span>
+                          {llevo > 0 && (
+                            <span
+                              data-llevo
+                              aria-label={llevo + " en la venta"}
+                              className="grid h-6 min-w-6 shrink-0 place-items-center rounded-full bg-brand-600 px-1.5 text-[12px] font-bold text-white"
+                            >
+                              {llevo}
+                            </span>
+                          )}
                         </span>
                       </button>
 
@@ -834,31 +905,7 @@ export function NewSaleForm({
           </Field>
         )}
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Día de la venta">
-            <input ref={diaRef} className="input" type="date" name="day" defaultValue={today} />
-          </Field>
-          <Field label="Método de pago">
-            <select className="input" name="paymentMethod" value={pago} onChange={(e) => setPago(e.target.value)}>
-              <option value="EFECTIVO">Efectivo</option>
-              <option value="TARJETA">Tarjeta</option>
-              <option value="TRANSFERENCIA">Transferencia</option>
-              <option value="OTRO">Otro</option>
-              <option value="CREDITO">Cuentas por cobrar (fiado)</option>
-            </select>
-          </Field>
-          <ClienteSelector
-            key={clienteKey}
-            clientes={clientes}
-            nameLabel={pago === "CREDITO" ? "Cliente (quién queda debiendo)" : "Cliente (opcional)"}
-            phoneHint="Con el nombre queda guardado en Clientes."
-          />
-          {pago === "CREDITO" && (
-            <Field label="¿Cuándo paga? (opcional)" hint="No suma a la caja de hoy: cada abono entra el día en que te paguen.">
-              <input className="input" type="date" name="dueDay" />
-            </Field>
-          )}
-        </div>
+        {camposVenta(true)}
 
         {cart.length === 0 && (
           <div className="grid gap-3 sm:grid-cols-2">
