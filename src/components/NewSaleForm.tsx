@@ -161,6 +161,7 @@ export function NewSaleForm({
   // estado propio de React, y un reset() nativo no los toca).
   const [clienteKey, setClienteKey] = useState(0);
   const [pago, setPago] = useState("EFECTIVO");
+  const [islaAbierta, setIslaAbierta] = useState(false);
   const [comprobante, setComprobante] = useState<"normal" | "autorizada">(facturacion?.predeterminado ?? "normal");
   // La venta recien guardada que pidio factura autorizada.
   const [ventaParaFactura, setVentaParaFactura] = useState<string | null>(null);
@@ -175,6 +176,12 @@ export function NewSaleForm({
     if (raiz && raiz.getBoundingClientRect().top < 0) raiz.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [mensaje]);
 
+  // Con el carrito vacio la isla se cierra, para que la proxima venta empiece limpia.
+  useEffect(() => {
+    if (cart.length === 0) setIslaAbierta(false);
+  }, [cart.length]);
+
+  const unidades =cart.reduce((n, r) => n + r.qty, 0);
   const total = useMemo(() => cart.reduce((s, r) => s + r.unitPrice * r.qty, 0), [cart]);
 
   // El recibo sale de lo que se vio en pantalla, no del servidor: asi se puede
@@ -384,6 +391,7 @@ export function NewSaleForm({
       setMensaje({ kind: "error", text: "Para dejarla en cuentas por cobrar escribe el nombre del cliente." });
       return;
     }
+    setIslaAbierta(false);
     form.requestSubmit();
   }
 
@@ -494,25 +502,87 @@ export function NewSaleForm({
     await refrescar();
   }
 
+  // Las mismas lineas se ven en la lista de abajo y en la isla de arriba.
+  const lineasCarrito = (
+    <ul className="divide-y divide-line">
+      {cart.map((r) => (
+        <li key={r.key} className="flex items-center justify-between gap-2 py-2">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium text-strong">{r.name}</p>
+            <p className="text-xs text-muted">
+              {money(r.unitPrice, currency)} c/u
+              {r.max !== undefined ? " - quedan " + r.max : ""}
+            </p>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button type="button" onClick={() => bump(r.key, -1)} className="btn-ghost btn-sm px-2.5">
+              -
+            </button>
+            <CantidadEditable qty={r.qty} max={r.max} onChange={(qty) => setQty(r.key, qty)} />
+            <button
+              type="button"
+              onClick={() => bump(r.key, 1)}
+              disabled={r.max !== undefined && r.qty >= r.max}
+              className="btn-ghost btn-sm px-2.5"
+            >
+              +
+            </button>
+            <span className="w-24 text-right text-sm font-bold text-brand-600">
+              {money(r.unitPrice * r.qty, currency)}
+            </span>
+            <button
+              type="button"
+              onClick={() => remove(r.key)}
+              className="btn-ghost btn-sm px-2 text-bad"
+              aria-label="Quitar"
+            >
+              <Icon name="x" className="h-4 w-4" />
+            </button>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+
   return (
     <div ref={raizRef} className="space-y-4">
       <RegistrarSW guardarEstaPagina />
 
       {cart.length > 0 && (
-        <div
-          data-isla-venta
-          className="sticky top-[4.25rem] z-20 flex items-center gap-3 rounded-2xl border border-line bg-panel px-3 py-2 shadow-lg lg:top-3"
-        >
-          <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-medium uppercase tracking-[0.04em] text-muted">
-              {cart.reduce((n, r) => n + r.qty, 0)} {cart.reduce((n, r) => n + r.qty, 0) === 1 ? "producto" : "productos"}
-            </p>
-            <p className="truncate text-lg font-bold leading-tight text-strong">{money(total, currency)}</p>
+        <div data-isla-venta className="pointer-events-none sticky top-[4.25rem] z-20 flex justify-end lg:top-3">
+          <div className="pointer-events-auto relative w-full max-w-sm">
+            <button
+              type="button"
+              onClick={() => setIslaAbierta((v) => !v)}
+              aria-expanded={islaAbierta}
+              className="ml-auto flex items-center gap-2 rounded-full border border-line bg-panel py-1.5 pl-3 pr-3.5 shadow-lg"
+            >
+              <span className="grid h-6 min-w-6 place-items-center rounded-full bg-brand-600 px-1.5 text-[12px] font-bold text-white">
+                {unidades}
+              </span>
+              <span className="text-[11px] text-muted">{unidades === 1 ? "unidad" : "unidades"}</span>
+              <span className="text-sm font-bold text-strong">{money(total, currency)}</span>
+              <span aria-hidden="true" className="text-[10px] text-muted">
+                {islaAbierta ? "▴" : "▾"}
+              </span>
+            </button>
+
+            {islaAbierta && (
+              <div className="mt-2 max-h-[70vh] overflow-y-auto rounded-2xl border border-line bg-panel p-3 shadow-lg">
+                {lineasCarrito}
+                <div className="mt-2 flex items-center justify-between gap-3 border-t border-line pt-3">
+                  <div>
+                    <p className="text-[11px] text-muted">Total de la venta</p>
+                    <p className="text-xl font-bold leading-tight text-strong">{money(total, currency)}</p>
+                  </div>
+                  <button type="button" onClick={venderDesdeIsla} disabled={enviando} className="btn-success">
+                    <Icon name="check" className="h-4 w-4" />
+                    {enviando ? "Guardando..." : pago === "CREDITO" ? "Fiar" : "Vender"}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
-          <button type="button" onClick={venderDesdeIsla} disabled={enviando} className="btn-success">
-            <Icon name="check" className="h-4 w-4" />
-            {enviando ? "Guardando..." : pago === "CREDITO" ? "Fiar" : "Vender"}
-          </button>
         </div>
       )}
 
@@ -737,44 +807,7 @@ export function NewSaleForm({
             Todavia no agregas nada a esta venta.
           </p>
         ) : (
-          <ul className="divide-y divide-line">
-            {cart.map((r) => (
-              <li key={r.key} className="flex items-center justify-between gap-2 py-2">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-strong">{r.name}</p>
-                  <p className="text-xs text-muted">
-                    {money(r.unitPrice, currency)} c/u
-                    {r.max !== undefined ? " - quedan " + r.max : ""}
-                  </p>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <button type="button" onClick={() => bump(r.key, -1)} className="btn-ghost btn-sm px-2.5">
-                    -
-                  </button>
-                  <CantidadEditable qty={r.qty} max={r.max} onChange={(qty) => setQty(r.key, qty)} />
-                  <button
-                    type="button"
-                    onClick={() => bump(r.key, 1)}
-                    disabled={r.max !== undefined && r.qty >= r.max}
-                    className="btn-ghost btn-sm px-2.5"
-                  >
-                    +
-                  </button>
-                  <span className="w-24 text-right text-sm font-bold text-brand-600">
-                    {money(r.unitPrice * r.qty, currency)}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => remove(r.key)}
-                    className="btn-ghost btn-sm px-2 text-bad"
-                    aria-label="Quitar"
-                  >
-                    <Icon name="x" className="h-4 w-4" />
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
+          lineasCarrito
         )}
         <div className="mt-3 flex items-center justify-between border-t border-line pt-3">
           <span className="text-sm text-muted">Total de la venta</span>
