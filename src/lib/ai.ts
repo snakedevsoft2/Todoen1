@@ -334,9 +334,19 @@ export async function probarIa(): Promise<{ clave: boolean; modelo: string; simp
   };
 }
 
-/** Modelo de Gemini que dibuja imagenes. Se puede cambiar por env si Google lo renombra. */
-function modeloDeImagen(): string {
-  return process.env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image";
+/**
+ * Modelos de Gemini que dibujan imagenes, en el orden en que se prueban.
+ * Se puede poner el primero por env si Google renombra alguno. Algunos no
+ * estan en la capa gratuita (cuota 0), por eso se prueba con el siguiente.
+ */
+function modelosDeImagen(): string[] {
+  const lista = [
+    process.env.GEMINI_IMAGE_MODEL,
+    "gemini-2.5-flash-image",
+    "gemini-2.0-flash-preview-image-generation",
+    "gemini-2.0-flash-exp-image-generation",
+  ];
+  return lista.filter((m, i, l): m is string => Boolean(m) && l.indexOf(m) === i);
 }
 
 export type ImagenResult = { ok: true; mime: string; base64: string } | { ok: false; error: string };
@@ -353,15 +363,31 @@ export async function editarImagen(
   imagen: { mime: string; base64: string },
   timeoutMs = 55000
 ): Promise<ImagenResult> {
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) return { ok: false, error: "La IA no está configurada." };
+  if (!process.env.GEMINI_API_KEY) return { ok: false, error: "La IA no está configurada." };
 
+  let ultimo: ImagenResult = { ok: false, error: "No se pudo generar la imagen." };
+  for (const m of modelosDeImagen()) {
+    const r = await editarConModelo(m, instruccion, imagen, timeoutMs);
+    if (r.ok) return r;
+    ultimo = r;
+    // Solo se prueba otro modelo si este no existe o no esta en el plan.
+    if (!r.otroModelo) break;
+  }
+  return ultimo;
+}
+
+async function editarConModelo(
+  m: string,
+  instruccion: string,
+  imagen: { mime: string; base64: string },
+  timeoutMs: number
+): Promise<ImagenResult & { otroModelo?: boolean }> {
   const control = new AbortController();
   const timer = setTimeout(() => control.abort(), timeoutMs);
   try {
-    const response = await fetch(base() + modeloDeImagen() + ":generateContent", {
+    const response = await fetch(base() + m + ":generateContent", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+      headers: { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY! },
       signal: control.signal,
       cache: "no-store",
       body: JSON.stringify({
@@ -375,14 +401,19 @@ export async function editarImagen(
 
     if (!response.ok) {
       const motivo = (data.error?.message ?? "").slice(0, 300);
-      console.error("Gemini (imagen) respondio " + response.status + ": " + motivo);
-      if (response.status === 429) {
-        return { ok: false, error: "Se acabaron las imágenes gratuitas de Gemini por ahora. Prueba más tarde." };
+      console.error("Gemini (imagen) respondio " + response.status + " (" + m + "): " + motivo);
+      const s = response.status;
+      const sinCupo = s === 429 && /limit:\s*0|free.?tier|not available/i.test(motivo);
+      const porMinuto = s === 429 && !sinCupo;
+      if (porMinuto) {
+        return { ok: false, error: "Se llegó al límite de imágenes por ahora. Espera un minuto y prueba otra vez." };
       }
-      if (response.status === 403 || response.status === 404) {
-        return { ok: false, error: "Esta clave de Gemini no tiene acceso al modelo de imágenes. " + motivo };
-      }
-      return { ok: false, error: "Gemini respondió " + response.status + ": " + (motivo || "sin detalle") };
+      const texto = sinCupo
+        ? "Tu clave gratuita no incluye imágenes con " + m + " (cuota 0). "
+        : s === 403 || s === 404
+          ? "Tu clave no tiene acceso a " + m + ". "
+          : "Gemini respondió " + s + " con " + m + ". ";
+      return { ok: false, error: texto + motivo, otroModelo: sinCupo || s === 403 || s === 404 || s === 400 };
     }
     if (data.promptFeedback?.blockReason) {
       return { ok: false, error: "La IA no aceptó esta foto. Prueba con otra." };
