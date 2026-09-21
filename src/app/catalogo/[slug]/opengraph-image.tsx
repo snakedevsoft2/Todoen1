@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import sharp from "sharp";
 import { db } from "@/lib/db";
 import { APP_NAME } from "@/lib/brand";
 
@@ -13,18 +14,27 @@ import { APP_NAME } from "@/lib/brand";
  * negocio cambia su portada o su nombre.
  *
  * Una limitacion que manda sobre el diseno: el generador de imagenes solo lee
- * PNG y JPEG, y las fotos que se achican en el telefono a veces quedan en WebP.
- * Una portada en WebP no se puede poner de fondo; ahi la tarjeta sale con el
- * color del negocio, que tambien se ve bien. Es mejor eso que una miniatura rota.
+ * PNG y JPEG, y las fotos que se achican en el telefono suelen quedar en WebP.
+ * Por eso el logo y la portada se pasan primero por `sharp`, que los convierte
+ * a PNG/JPEG. Si algo no se puede convertir (un SVG, un archivo danado), esa
+ * parte se omite y la tarjeta sale igual, con el color del negocio.
  */
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 export const alt = "Portafolio del negocio";
 
-/** Solo lo que el generador sabe pintar. */
-function usable(dataUrl: string | null | undefined): string | null {
-  return dataUrl && /^data:image\/(png|jpeg|jpg);base64,/.test(dataUrl) ? dataUrl : null;
+/** Convierte un data URL de imagen a algo que el generador sabe pintar, o null. */
+async function usable(dataUrl: string | null | undefined, ancho: number, formato: "png" | "jpeg"): Promise<string | null> {
+  const m = dataUrl ? /^data:image\/(png|jpeg|jpg|webp);base64,(.+)$/.exec(dataUrl) : null;
+  if (!m) return null;
+  try {
+    const base = sharp(Buffer.from(m[2], "base64")).resize({ width: ancho, withoutEnlargement: true });
+    const salida = formato === "png" ? await base.png().toBuffer() : await base.jpeg({ quality: 82 }).toBuffer();
+    return "data:image/" + formato + ";base64," + salida.toString("base64");
+  } catch {
+    return null;
+  }
 }
 
 export default async function Image({
@@ -74,8 +84,8 @@ export default async function Image({
     );
   }
 
-  const portada = usable(shop.publicCover);
-  const logo = usable(shop.logo);
+  const portada = await usable(shop.publicCover, 1200, "jpeg");
+  const logo = await usable(shop.logo, 240, "png");
   const color = /^#[0-9a-f]{6}$/i.test(shop.brandColor) ? shop.brandColor : "#5856d6";
   const subtitulo = shop.publicHeadline || shop.tagline || "Mira el catálogo y pide por WhatsApp";
 
