@@ -403,17 +403,16 @@ async function editarConModelo(
       const motivo = (data.error?.message ?? "").slice(0, 300);
       console.error("Gemini (imagen) respondio " + response.status + " (" + m + "): " + motivo);
       const s = response.status;
-      const sinCupo = s === 429 && /limit:\s*0|free.?tier|not available/i.test(motivo);
-      const porMinuto = s === 429 && !sinCupo;
-      if (porMinuto) {
-        return { ok: false, error: "Se llegó al límite de imágenes por ahora. Espera un minuto y prueba otra vez." };
-      }
-      const texto = sinCupo
-        ? "Tu clave gratuita no incluye imágenes con " + m + " (cuota 0). "
-        : s === 403 || s === 404
-          ? "Tu clave no tiene acceso a " + m + ". "
-          : "Gemini respondió " + s + " con " + m + ". ";
-      return { ok: false, error: texto + motivo, otroModelo: sinCupo || s === 403 || s === 404 || s === 400 };
+      // Un 429 puede ser "cuota 0" de este modelo (la capa gratuita no lo
+      // incluye) o el limite por minuto: el mensaje de Google no siempre lo
+      // distingue, asi que se prueba con otro modelo y se muestra tal cual.
+      const texto =
+        s === 429
+          ? "Google dice que no hay cuota para " + m + " (el plan gratuito puede no incluir imágenes). "
+          : s === 403 || s === 404
+            ? "Tu clave no tiene acceso a " + m + ". "
+            : "Gemini respondió " + s + " con " + m + ". ";
+      return { ok: false, error: texto + motivo, otroModelo: s === 429 || s === 403 || s === 404 || s === 400 };
     }
     if (data.promptFeedback?.blockReason) {
       return { ok: false, error: "La IA no aceptó esta foto. Prueba con otra." };
