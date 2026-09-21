@@ -195,6 +195,7 @@ model User {
   accountModules AccountModule[]
   services       Service[]
   productCategories ProductCategory[]
+  productViews      ProductView[]
   appointments   Appointment[]
   sales          Sale[]
   expenses       Expense[]
@@ -525,6 +526,7 @@ model Service {
   saleItems    SaleItem[]
   orderItems   OrderItem[]
   variants     ProductVariant[]
+  views        ProductView[]
 
   @@index([userId, active])
 }
@@ -1738,4 +1740,21 @@ model StaffActivity {
 
   @@index([userId, staffId, createdAt])
   @@index([userId, createdAt])
+}
+
+/// Una vista extra de un producto para el giro 360, generada con IA a partir
+/// de la foto. `angle` son los grados a los que se gira desde la foto original
+/// (90, 180, 270). Se guarda como data URL, igual que la foto del producto.
+model ProductView {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serviceId String
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  angle     Int
+  image     String
+  createdAt DateTime @default(now())
+
+  @@unique([serviceId, angle])
+  @@index([userId])
 }

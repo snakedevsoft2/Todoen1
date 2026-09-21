@@ -90,6 +90,7 @@ export default async function PortafolioPage({
         where: { active: true },
         orderBy: [{ size: "asc" }, { color: "asc" }],
       },
+      views: { orderBy: { angle: "asc" }, select: { id: true } },
     },
   });
 
@@ -128,6 +129,11 @@ export default async function PortafolioPage({
       price: p.price,
       category: p.category,
       photo: photoUrl(p.id, p.image, p.updatedAt),
+      // Frente + las vistas de la IA, solo si el producto tiene foto y las tres vistas.
+      giro:
+        p.image && p.views.length === 3
+          ? [photoUrl(p.id, p.image, p.updatedAt)!, ...p.views.map((v) => "/vista/" + v.id)]
+          : undefined,
       description: p.description,
       brand: p.brand,
       variants: conStock.map((v) => ({ id: v.id, label: variantLabel(v) })),

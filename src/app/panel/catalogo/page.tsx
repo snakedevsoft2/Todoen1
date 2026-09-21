@@ -16,6 +16,8 @@ import { SoloPlanPago } from "@/components/SoloPlanPago";
 import { CatalogoFiltrado } from "@/components/CatalogoFiltrado";
 import { GestorCategorias } from "@/components/GestorCategorias";
 import { categoriasDelNegocio, sincronizarCategorias } from "@/lib/categorias-negocio";
+import { aiEnabled } from "@/lib/ai";
+import { Vistas360Panel } from "@/components/Vistas360Panel";
 import { CATEGORIA_GENERAL, nombreCategoria } from "@/lib/categorias";
 
 export const dynamic = "force-dynamic";
@@ -36,7 +38,10 @@ export default async function CatalogoPage() {
     where: { userId: user.id },
     orderBy: [{ active: "desc" }, { category: "asc" }, { name: "asc" }],
     // Los negocios que no llevan inventario simplemente traen la lista vacia.
-      include: { variants: { orderBy: [{ active: "desc" }, { size: "asc" }, { color: "asc" }] } },
+      include: {
+        variants: { orderBy: [{ active: "desc" }, { size: "asc" }, { color: "asc" }] },
+        views: { orderBy: { angle: "asc" }, select: { id: true, angle: true } },
+      },
     }),
     isClothing
       ? db.supplier.findMany({
@@ -259,6 +264,15 @@ export default async function CatalogoPage() {
                                   }))}
                                 />
                               </div>
+                            </details>
+                          )}
+
+                          {esDueno && aiEnabled() && (
+                            <details className="mt-3">
+                              <summary className="cursor-pointer text-xs font-semibold text-brand-600">
+                                Vista 360 con IA{s.views.length > 0 ? " (lista)" : ""}
+                              </summary>
+                              <Vistas360Panel serviceId={s.id} conFoto={Boolean(s.image)} vistas={s.views} />
                             </details>
                           )}
 

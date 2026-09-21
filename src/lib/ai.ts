@@ -333,3 +333,74 @@ export async function probarIa(): Promise<{ clave: boolean; modelo: string; simp
     herramientas: herramientas.ok ? { ok: true, detalle: "Respondió bien." } : { ok: false, detalle: herramientas.error },
   };
 }
+
+/** Modelo de Gemini que dibuja imagenes. Se puede cambiar por env si Google lo renombra. */
+function modeloDeImagen(): string {
+  return process.env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image";
+}
+
+export type ImagenResult = { ok: true; mime: string; base64: string } | { ok: false; error: string };
+
+/**
+ * Pide una imagen nueva a partir de otra y un texto.
+ *
+ * Aparte de `pedir` porque los modelos de imagen no aceptan instrucciones de
+ * sistema ni el tope de tokens, y devuelven la imagen dentro de `inlineData`.
+ * Nunca lanza.
+ */
+export async function editarImagen(
+  instruccion: string,
+  imagen: { mime: string; base64: string },
+  timeoutMs = 55000
+): Promise<ImagenResult> {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) return { ok: false, error: "La IA no está configurada." };
+
+  const control = new AbortController();
+  const timer = setTimeout(() => control.abort(), timeoutMs);
+  try {
+    const response = await fetch(base() + modeloDeImagen() + ":generateContent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+      signal: control.signal,
+      cache: "no-store",
+      body: JSON.stringify({
+        contents: [
+          { role: "user", parts: [{ text: instruccion }, { inlineData: { mimeType: imagen.mime, data: imagen.base64 } }] },
+        ],
+        generationConfig: { responseModalities: ["IMAGE", "TEXT"] },
+      }),
+    });
+    const data = (await response.json().catch(() => ({}))) as GeminiResponse;
+
+    if (!response.ok) {
+      const motivo = (data.error?.message ?? "").slice(0, 300);
+      console.error("Gemini (imagen) respondio " + response.status + ": " + motivo);
+      if (response.status === 429) {
+        return { ok: false, error: "Se acabaron las imágenes gratuitas de Gemini por ahora. Prueba más tarde." };
+      }
+      if (response.status === 403 || response.status === 404) {
+        return { ok: false, error: "Esta clave de Gemini no tiene acceso al modelo de imágenes. " + motivo };
+      }
+      return { ok: false, error: "Gemini respondió " + response.status + ": " + (motivo || "sin detalle") };
+    }
+    if (data.promptFeedback?.blockReason) {
+      return { ok: false, error: "La IA no aceptó esta foto. Prueba con otra." };
+    }
+
+    const partes = (data.candidates?.[0]?.content?.parts ?? []) as { inlineData?: { mimeType?: string; data?: string } }[];
+    const hallada = partes.find((p) => p.inlineData?.data);
+    if (!hallada?.inlineData?.data) {
+      return { ok: false, error: "La IA no devolvió una imagen. Intenta otra vez." };
+    }
+    return { ok: true, mime: hallada.inlineData.mimeType || "image/png", base64: hallada.inlineData.data };
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      return { ok: false, error: "La IA se demoró demasiado. Intenta otra vez." };
+    }
+    console.error("No se pudo conectar con Gemini (imagen):", error);
+    return { ok: false, error: "No pudimos conectar con la IA." };
+  } finally {
+    clearTimeout(timer);
+  }
+}

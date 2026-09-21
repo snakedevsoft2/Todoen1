@@ -5,6 +5,7 @@ import { money } from "@/lib/format";
 import { sortTiers, tierPrice, wholesaleTotals, type Tier } from "@/lib/wholesale";
 import { Icon } from "./Icon";
 import { BarraCatalogo } from "./BarraCatalogo";
+import { Visor360 } from "./Visor360";
 import {
   agruparPorCategoria,
   categoriasConCantidad,
@@ -26,6 +27,8 @@ export type PortfolioItem = {
   price: number;
   category: string;
   photo: string | null;
+  /** Fotos en orden para girar el producto (frente, derecha, atras, izquierda). */
+  giro?: string[];
   description: string | null;
   brand: string | null;
   /** Tallas con stock. Vacio en los negocios que no llevan inventario. */
@@ -71,6 +74,7 @@ export function PortfolioOrder({
   ordenCategorias?: string[];
 }) {
   const [categoria, setCategoria] = useState("");
+  const [girando, setGirando] = useState<PortfolioItem | null>(null);
   const [lineas, setLineas] = useState<Linea[]>([]);
   const [nombre, setNombre] = useState("");
   const [nota, setNota] = useState("");
@@ -180,6 +184,15 @@ export function PortfolioOrder({
             ) : (
               <Icon name="image" className="h-6 w-6 text-subtle" />
             )}
+            {item.giro && (
+              <button
+                type="button"
+                onClick={() => setGirando(item)}
+                className="absolute bottom-2 left-2 rounded-full border border-line bg-panel/90 px-2.5 py-1 text-[11px] font-semibold text-strong shadow-soft"
+              >
+                Ver 360°
+              </button>
+            )}
             {item.soldOut && (
               <span className="absolute right-2 top-2 rounded-md border border-line bg-bad px-2 py-0.5 text-[11px] font-medium uppercase text-white">
                 Agotado
@@ -253,6 +266,7 @@ export function PortfolioOrder({
 
   return (
     <>
+      {girando?.giro && <Visor360 nombre={girando.name} fotos={girando.giro} onCerrar={() => setGirando(null)} />}
       {/* Apartado de mayoristas: quien compra en cantidad ve de una cuanto le
           rebajan y desde cuantas unidades, sin tener que preguntar. */}
       {wholesale && wholesale.tiers.length > 0 && (
