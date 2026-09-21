@@ -354,7 +354,7 @@ export function NewSaleForm({
       const lugar = new Map(guardado.map((id, i) => [id, i]));
       return [...list].sort((a, b) => (lugar.get(a.id) ?? 1e9) - (lugar.get(b.id) ?? 1e9));
     }
-    return filasOrden ? ordenarEnFilas(list, filasOrden, !busqueda.trim()) : list;
+    return filasOrden ? ordenarEnFilas(list, filasOrden, false) : list;
   }
   function alSoltar(category: string, ids: string[], e: DragEndEvent) {
     const { active, over } = e;
