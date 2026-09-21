@@ -21,7 +21,7 @@ import { deleteSaleAction, updateSalePaymentAction } from "@/actions/sales";
 import { FormSinSenal } from "@/components/SinSenal";
 import { esPlanCompleto } from "@/lib/plan";
 import { ordenDeCategorias } from "@/lib/categorias-negocio";
-import { ordenParaNegocio } from "@/lib/orden-productos";
+import { categoriasVisiblesParaNegocio, ordenParaNegocio, soloTotalVendido } from "@/lib/orden-productos";
 
 export const dynamic = "force-dynamic";
 
@@ -218,12 +218,16 @@ export default async function VentasPage({
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Total vendido" value={money(summary.totalSales, user.currency)} tone="brand" />
-        <Stat label="Ventas cerradas" value={String(summary.salesCount)} />
-        <Stat
-          label={isClothing ? "Prendas vendidas" : "Items vendidos"}
-          value={String(summary.itemsSold)}
-        />
-        <Stat label="Ticket promedio" value={money(summary.ticketAverage, user.currency)} />
+        {!soloTotalVendido(user.businessName) && (
+          <>
+            <Stat label="Ventas cerradas" value={String(summary.salesCount)} />
+            <Stat
+              label={isClothing ? "Prendas vendidas" : "Items vendidos"}
+              value={String(summary.itemsSold)}
+            />
+            <Stat label="Ticket promedio" value={money(summary.ticketAverage, user.currency)} />
+          </>
+        )}
       </div>
 
       {porPersona.length > 1 && (
@@ -270,6 +274,9 @@ export default async function VentasPage({
             services={services}
             ordenCategorias={await ordenDeCategorias(user.id)}
             filasOrden={ordenParaNegocio(user.businessName)}
+            categoriasVisibles={categoriasVisiblesParaNegocio(user.businessName)}
+            sinValorManual={soloTotalVendido(user.businessName)}
+            claveOrden={"orden-ventas:" + user.id}
             currency={user.currency}
             today={day}
             itemLabel={ITEM_NOUN[user.businessType].plural}

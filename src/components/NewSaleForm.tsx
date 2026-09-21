@@ -2,7 +2,18 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  DndContext,
+  PointerSensor,
+  TouchSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { SortableContext, arrayMove, rectSortingStrategy } from "@dnd-kit/sortable";
 import { Alert, Field } from "./ui";
+import { FichaArrastrable } from "./FichaArrastrable";
 import { BarraCatalogo } from "./BarraCatalogo";
 import { ClienteSelector } from "./ClienteSelector";
 import { ordenarEnFilas, type FilaOrden } from "@/lib/orden-productos";
@@ -97,6 +108,9 @@ function CantidadEditable({ qty, max, onChange }: { qty: number; max?: number; o
 export function NewSaleForm({
   ordenCategorias,
   filasOrden,
+  categoriasVisibles,
+  sinValorManual,
+  claveOrden,
   services,
   currency,
   today,
@@ -118,6 +132,12 @@ export function NewSaleForm({
   ordenCategorias?: string[];
   /** Orden a mano de los productos en filas de dos columnas (solo algunos negocios). */
   filasOrden?: FilaOrden[];
+  /** Si se da, solo estas categorias salen como botones (y no "Todo"). */
+  categoriasVisibles?: string[];
+  /** Oculta "O registra solo el valor" y su concepto: solo se vende con productos. */
+  sinValorManual?: boolean;
+  /** Donde se guarda, en este aparato, el orden que el usuario le da a los productos arrastrando. */
+  claveOrden?: string;
   currency: string;
   today: string;
   itemLabel: string;
@@ -298,6 +318,52 @@ export function NewSaleForm({
       ),
     [services, categoria, busqueda, ordenCategorias]
   );
+
+  // Orden a mano: por categoria, la lista de ids como el usuario la dejo.
+  const [ordenLibre, setOrdenLibre] = useState<Record<string, string[]>>({});
+  useEffect(() => {
+    if (!claveOrden) return;
+    try {
+      const v = JSON.parse(localStorage.getItem(claveOrden) ?? "null");
+      if (v && typeof v === "object") setOrdenLibre(v);
+    } catch {
+      /* sin almacenamiento: queda el orden de siempre */
+    }
+  }, [claveOrden]);
+  function guardarOrden(nuevo: Record<string, string[]>) {
+    setOrdenLibre(nuevo);
+    if (!claveOrden) return;
+    try {
+      if (Object.keys(nuevo).length === 0) localStorage.removeItem(claveOrden);
+      else localStorage.setItem(claveOrden, JSON.stringify(nuevo));
+    } catch {
+      /* no se pudo guardar; sigue valiendo mientras la pagina este abierta */
+    }
+  }
+  // Mouse: se arrastra de una. Celular: hay que dejar el dedo un momento.
+  const sensoresOrden = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } })
+  );
+  const puedeMover = !!claveOrden && !busqueda.trim();
+
+  /** Los productos de una categoria en el orden que se ve (el guardado manda sobre el fijo). */
+  function enOrden(category: string, list: ServiceRow[]): (ServiceRow | null)[] {
+    const guardado = ordenLibre[category];
+    if (guardado && puedeMover) {
+      const lugar = new Map(guardado.map((id, i) => [id, i]));
+      return [...list].sort((a, b) => (lugar.get(a.id) ?? 1e9) - (lugar.get(b.id) ?? 1e9));
+    }
+    return filasOrden ? ordenarEnFilas(list, filasOrden, !busqueda.trim()) : list;
+  }
+  function alSoltar(category: string, ids: string[], e: DragEndEvent) {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const de = ids.indexOf(String(active.id));
+    const a = ids.indexOf(String(over.id));
+    if (de < 0 || a < 0) return;
+    guardarOrden({ ...ordenLibre, [category]: arrayMove(ids, de, a) });
+  }
 
   function addService(service: ServiceRow) {
     // Si la prenda tiene tallas, primero hay que decir cual se vendio.
@@ -568,15 +634,15 @@ export function NewSaleForm({
   const lineasCarrito = (
     <ul className="divide-y divide-line">
       {cart.map((r) => (
-        <li key={r.key} className="flex items-center justify-between gap-2 py-2">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-strong">{r.name}</p>
+        <li key={r.key} className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 py-2">
+          <div className="min-w-0 basis-full sm:flex-1 sm:basis-0">
+            <p className="break-words text-sm font-medium text-strong">{r.name}</p>
             <p className="text-xs text-muted">
               {money(r.unitPrice, currency)} c/u
               {r.max !== undefined ? " - quedan " + r.max : ""}
             </p>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="ml-auto flex items-center gap-1.5">
             <button type="button" onClick={() => bump(r.key, -1)} className="btn-ghost btn-sm px-2.5">
               -
             </button>
@@ -736,7 +802,8 @@ export function NewSaleForm({
             Toca para agregar {itemLabel}
           </p>
           <BarraCatalogo
-            categorias={categorias}
+            categorias={categoriasVisibles ? categorias.filter((c) => categoriasVisibles.includes(c.nombre)) : categorias}
+            sinTodo={!!categoriasVisibles}
             total={services.length}
             categoria={categoria}
             onCategoria={setCategoria}
@@ -763,8 +830,23 @@ export function NewSaleForm({
           {grouped.map(({ nombre: category, items: list }) => (
             <div key={category}>
               <p className="mb-1.5 text-[11px] text-subtle">{category}</p>
+              <DndContext
+                sensors={sensoresOrden}
+                collisionDetection={closestCenter}
+                onDragEnd={(e) =>
+                  alSoltar(
+                    category,
+                    enOrden(category, list).flatMap((x) => (x ? [x.id] : [])),
+                    e
+                  )
+                }
+              >
+              <SortableContext
+                items={enOrden(category, list).flatMap((x) => (x ? [x.id] : []))}
+                strategy={rectSortingStrategy}
+              >
               <div className="grid grid-cols-2 gap-2">
-                {(filasOrden ? ordenarEnFilas(list, filasOrden, !busqueda.trim()) : list).map((s, lugar) => {
+                {enOrden(category, list).map((s, lugar) => {
                   // Casilla vacia de la lista: mantiene al siguiente en su columna.
                   if (!s) return <div key={"hueco-" + lugar} aria-hidden="true" />;
                   const sizes = s.variants ?? [];
@@ -775,6 +857,7 @@ export function NewSaleForm({
 
                   return (
                     <div key={s.id} className="contents">
+                      <FichaArrastrable id={s.id} activa={puedeMover}>
                       <button
                         type="button"
                         onClick={() => addService(s)}
@@ -827,6 +910,7 @@ export function NewSaleForm({
                           )}
                         </span>
                       </button>
+                      </FichaArrastrable>
 
                       {openSizes === s.id && sizes.length > 0 && (
                         <div className="col-span-2 rounded-xl border border-line bg-brand-50 p-2.5">
@@ -858,8 +942,25 @@ export function NewSaleForm({
                   );
                 })}
               </div>
+              </SortableContext>
+              </DndContext>
+              {puedeMover && ordenLibre[category] && (
+                <button
+                  type="button"
+                  className="link mt-1.5 text-[11px]"
+                  onClick={() => {
+                    const { [category]: _quitar, ...resto } = ordenLibre;
+                    guardarOrden(resto);
+                  }}
+                >
+                  Volver al orden de siempre
+                </button>
+              )}
             </div>
           ))}
+          {puedeMover && (
+            <p className="text-[11px] text-subtle">Deja el dedo sobre un producto y arrástralo para moverlo.</p>
+          )}
         </div>
       )}
 
@@ -918,7 +1019,7 @@ export function NewSaleForm({
 
         {camposVenta(true)}
 
-        {cart.length === 0 && (
+        {cart.length === 0 && !sinValorManual && (
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="O registra solo el valor" hint="Util cuando no quieres detallar la venta.">
               <input

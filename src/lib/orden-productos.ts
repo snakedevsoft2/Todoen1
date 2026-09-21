@@ -19,6 +19,16 @@ export function normalizar(texto: string): string {
     .trim();
 }
 
+/** Chopo Snacks solo muestra estas categorias como botones (el resto sigue en la lista). */
+export function categoriasVisiblesParaNegocio(nombreNegocio: string): string[] | undefined {
+  return normalizar(nombreNegocio) === "chopo snacks" ? ["SNACKS", "SNACKS FAMILIAR"] : undefined;
+}
+
+/** Chopo Snacks pidio ver en Ventas solo el total vendido, sin las otras tarjetas. */
+export function soloTotalVendido(nombreNegocio: string): boolean {
+  return normalizar(nombreNegocio) === "chopo snacks";
+}
+
 /** Solo el negocio Chopo Snacks tiene este orden. */
 export function ordenParaNegocio(nombreNegocio: string): FilaOrden[] | undefined {
   return normalizar(nombreNegocio) === "chopo snacks" ? FILAS_CHOPO_SNACKS : undefined;
@@ -26,7 +36,7 @@ export function ordenParaNegocio(nombreNegocio: string): FilaOrden[] | undefined
 
 const FILAS_CHOPO_SNACKS: FilaOrden[] = [
   [["papa natural grande"], ["papa natural mediana"]],
-  [["papa picante grande"], ["papa baston grande"]],
+  [["papa picante grande"], ["papa picante mediana"]],
   [
     ["dulce grande", "chifle de dulce grande", "chifle dulce grande"],
     ["dulce mediano", "chifle de dulce mediano", "chifle dulce mediano", "chicle de dulce mediano"],
@@ -53,6 +63,15 @@ const FILAS_CHOPO_SNACKS: FilaOrden[] = [
       "cuerito limon x12",
       "cuero limon x12",
       "cuero limon x 12",
+      "cuero limon 12",
+      "cuero de limon x12",
+      "cuero de limon x 12",
+      "cuero de limon 12",
+      "cuerito limon x 12",
+      "cuerito limon 12",
+      "cuero limon pic x12",
+      "cuero limon pic x 12",
+      "cuero limon pic 12",
     ],
   ],
   [["remixto grande"], ["remixto mediano"]],

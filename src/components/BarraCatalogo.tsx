@@ -22,6 +22,7 @@ export function BarraCatalogo({
   buscador = true,
   placeholder = "Buscar por nombre",
   pegajosa = false,
+  sinTodo = false,
   className = "",
 }: {
   categorias: { nombre: string; cantidad: number }[];
@@ -37,6 +38,8 @@ export function BarraCatalogo({
   buscador?: boolean;
   placeholder?: string;
   pegajosa?: boolean;
+  /** Oculta el boton "Todo". */
+  sinTodo?: boolean;
   className?: string;
 }) {
   const conCategorias = categorias.length > 1;
@@ -100,9 +103,9 @@ export function BarraCatalogo({
           className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 [contain:inline-size] [scrollbar-width:thin]"
           data-categorias-catalogo
         >
-          <button type="button" onClick={() => onCategoria("")} className={chip(categoria === "")} data-categoria="" aria-pressed={categoria === ""}>
+          {!sinTodo && <button type="button" onClick={() => onCategoria("")} className={chip(categoria === "")} data-categoria="" aria-pressed={categoria === ""}>
             Todo <span className="opacity-70">{total}</span>
-          </button>
+          </button>}
           {categorias.map((c) => (
             <button
               key={c.nombre}
