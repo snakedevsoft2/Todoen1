@@ -87,6 +87,17 @@ export function InvoiceActions({
       return { kind: "ok", text: "Factura descargada." };
     });
 
+  // Abre el PDF en una pestaña nueva, sin guardarlo en el dispositivo. El
+  // navegador la revoca sola al cerrar la pestaña; le damos un minuto de
+  // margen antes por si tarda en cargar.
+  const onView = () =>
+    withPdf("ver", async (file) => {
+      const url = URL.createObjectURL(file);
+      window.open(url, "_blank", "noopener");
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      return { kind: "ok", text: "Factura abierta en una pestaña nueva." };
+    });
+
   const onWhatsapp = () =>
     withPdf("wa", async (file) => {
       if (canShareFile(file)) {
@@ -189,6 +200,10 @@ export function InvoiceActions({
           nombreArchivo={invoiceFileName(data)}
           soloBluetooth={soloBluetooth}
         />
+        <button type="button" onClick={onView} disabled={busy !== ""} className="btn-ghost btn-sm">
+          <Icon name="eye" className="h-4 w-4" />
+          {busy === "ver" ? "Abriendo..." : "Ver factura"}
+        </button>
         <button
           type="button"
           onClick={onDownload}

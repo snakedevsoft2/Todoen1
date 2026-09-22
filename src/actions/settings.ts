@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { checkPassword, hashPassword, requireOwner, slugify } from "@/lib/auth";
 import { factorDe, parseIntSafe, str } from "@/lib/format";
 import { esMonedaValida, esPaisValido, esZonaValida } from "@/lib/paises";
+import { cookieJar, signSession, writeSessionCookie } from "@/lib/session";
 
 export type SettingsState = { error?: string; ok?: string } | undefined;
 
@@ -90,7 +91,8 @@ export async function changePasswordAction(
   _prev: SettingsState,
   formData: FormData
 ): Promise<SettingsState> {
-  const { user } = await requireOwner();
+  const jar = await cookieJar();
+  const { user, staff } = await requireOwner();
   const current = String(formData.get("currentPassword") ?? "");
   const next = String(formData.get("newPassword") ?? "");
   const confirm = String(formData.get("confirmPassword") ?? "");
@@ -101,6 +103,24 @@ export async function changePasswordAction(
   if (next.length < 6) return { error: "La nueva contrasena debe tener al menos 6 caracteres." };
   if (next !== confirm) return { error: "Las contrasenas nuevas no coinciden." };
 
-  await db.user.update({ where: { id: user.id }, data: { passwordHash: hashPassword(next) } });
+  // Subir sessionVersion tumba cualquier otra cookie que quedara por ahi con
+  // la clave vieja. La de este mismo aparato se vuelve a firmar de una con la
+  // version nueva, para no cerrarle la sesion a quien acaba de cambiarla.
+  const updated = await db.user.update({
+    where: { id: user.id },
+    data: { passwordHash: hashPassword(next), sessionVersion: { increment: 1 } },
+  });
+  writeSessionCookie(
+    jar,
+    await signSession({
+      uid: updated.id,
+      email: updated.email,
+      type: updated.businessType,
+      sid: staff.id,
+      role: staff.role,
+      uv: updated.sessionVersion,
+      sv: staff.sessionVersion,
+    })
+  );
   return { ok: "Contrasena actualizada." };
 }

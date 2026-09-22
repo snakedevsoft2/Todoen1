@@ -612,3 +612,74 @@ input[type="date"]:hover::-webkit-calendar-picker-indicator {
   font-size: 0.75rem;
   color: rgb(var(--text-muted));
 }
+
+/*
+  Onboarding premium (3 pantallas antes del login).
+
+  Paleta fija, aparte del tema de marca del negocio: aqui todavia no hay
+  negocio, asi que no tiene sentido leer sus variables. Mismo espiritu que
+  .auth-*: un lenguaje visual propio, que no se mezcla con el resto.
+*/
+.onboarding-page {
+  --ob-ink: #05070f;
+  --ob-panel: #0b1120;
+  --ob-line: rgba(148, 163, 253, 0.16);
+  --ob-electric: #3b82f6;
+  --ob-electric-soft: rgba(59, 130, 246, 0.16);
+  background: var(--ob-ink);
+  color: #f4f6ff;
+}
+
+.onboarding-glow {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(60px);
+  background: radial-gradient(circle, var(--ob-electric) 0%, transparent 70%);
+  opacity: 0.35;
+  animation: onboarding-drift 16s ease-in-out infinite;
+}
+
+.onboarding-phone {
+  border: 6px solid rgba(226, 232, 255, 0.14);
+  background: linear-gradient(180deg, #0d1424 0%, #070b16 100%);
+  box-shadow:
+    0 30px 80px -20px rgba(59, 130, 246, 0.35),
+    0 0 0 1px rgba(148, 163, 253, 0.08) inset;
+  transition: transform 500ms var(--ease-suave);
+}
+
+.onboarding-chip {
+  border: 1px solid var(--ob-line);
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(10px);
+  animation: onboarding-chip-in 500ms var(--ease-suave) both, onboarding-float 6s ease-in-out infinite;
+}
+
+.onboarding-dot {
+  transition: width 250ms var(--ease-suave), background-color 250ms var(--ease-suave);
+}
+
+@keyframes onboarding-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(4%, -6%, 0) scale(1.08); }
+}
+
+@keyframes onboarding-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes onboarding-chip-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.92); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onboarding-glow,
+  .onboarding-chip {
+    animation: none;
+  }
+  .onboarding-phone {
+    transition: none;
+  }
+}

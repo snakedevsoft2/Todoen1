@@ -4,6 +4,7 @@ import type { Staff, User } from "@prisma/client";
 import { db } from "./db";
 import { suspenderSiVencio } from "./pagos";
 import { readSession } from "./session";
+import { esEmpleadoDeAsistencia } from "./permisos";
 
 /**
  * Usamos la version sincronica de bcrypt a proposito.
@@ -108,6 +109,12 @@ export async function getCurrentSession(): Promise<Session | null> {
   // envio diario.
   if (await suspenderSiVencio(user)) return null;
 
+  // La cookie trae la version que tenia la clave del negocio al firmarse. Si
+  // el dueno cambio su contrasena despues (desde este u otro aparato), todas
+  // las cookies viejas quedan invalidas de una, sin esperar a que caduquen
+  // solas. Sesiones firmadas antes de este campo (uv vacio) no se tocan.
+  if (session.uv !== undefined && session.uv !== user.sessionVersion) return null;
+
   // Sesiones viejas (antes del equipo) no traen sid: eran del dueno.
   if (!session.sid) {
     const dueno = await ensureOwnerStaff(user);
@@ -122,6 +129,9 @@ export async function getCurrentSession(): Promise<Session | null> {
   });
   if (!staff) return null;
 
+  // Misma idea que con el dueno, pero con la clave propia del empleado.
+  if (session.sv !== undefined && session.sv !== staff.sessionVersion) return null;
+
   // Al empleado que le quitaron el usuario (y no tiene correo) se le cierra la sesion.
   if (staff.role !== "DUENO" && !staff.username && !staff.email) return null;
 
@@ -129,10 +139,24 @@ export async function getCurrentSession(): Promise<Session | null> {
   return { user, staff };
 }
 
-/** Sesion obligatoria. Si no hay, manda al login. */
-export async function requireSession(): Promise<Session> {
+/**
+ * Sesion obligatoria. Si no hay, manda al login.
+ *
+ * El menu del empleado de asistencia ya lo bloquea por pantalla
+ * (panel/layout.tsx), pero eso no alcanza: una Server Action se puede invocar
+ * directo sin pasar por esa pantalla. Por defecto esta funcion repite el
+ * mismo bloqueo aqui, para que "solo puede ver 5 pantallas" tambien valga
+ * para lo que esas pantallas pueden mandar a guardar. Las acciones que SI son
+ * parte de esas 5 pantallas (marcar, novedades, informes, escaner, perfil, y
+ * lo que es de la persona y no del negocio, como su propia clave) llaman
+ * requireSession({ asistenciaOk: true }) para no quedar bloqueadas tambien.
+ */
+export async function requireSession(opts?: { asistenciaOk?: boolean }): Promise<Session> {
   const session = await getCurrentSession();
   if (!session) redirect("/salir");
+  if (!opts?.asistenciaOk && esEmpleadoDeAsistencia(session.user, session.staff)) {
+    redirect("/panel/marcar");
+  }
   return session;
 }
 

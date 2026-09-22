@@ -148,6 +148,6 @@ export async function marcarAManoAction(
 
 /** Para la pantalla del empleado: saber si sigue habiendo sesion. */
 export async function pingSesionAction(): Promise<boolean> {
-  const s = await requireSession();
+  const s = await requireSession({ asistenciaOk: true });
   return Boolean(s);
 }

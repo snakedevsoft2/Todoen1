@@ -110,10 +110,19 @@ export async function cambiarConEnlaceAction(
   const passwordHash = hashPassword(clave);
 
   await db.$transaction(async (tx) => {
+    // sessionVersion sube para que cualquier cookie que quedara abierta con
+    // la clave anterior deje de servir; aqui no hay que volver a firmar nada
+    // porque este flujo no abre sesion sola, manda a /login.
     if (enlace.userId) {
-      await tx.user.update({ where: { id: enlace.userId }, data: { passwordHash } });
+      await tx.user.update({
+        where: { id: enlace.userId },
+        data: { passwordHash, sessionVersion: { increment: 1 } },
+      });
     } else if (enlace.staffId) {
-      await tx.staff.update({ where: { id: enlace.staffId }, data: { passwordHash } });
+      await tx.staff.update({
+        where: { id: enlace.staffId },
+        data: { passwordHash, sessionVersion: { increment: 1 } },
+      });
     }
     await tx.passwordReset.update({
       where: { id: enlace.id },

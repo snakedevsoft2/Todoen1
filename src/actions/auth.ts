@@ -11,7 +11,12 @@ import { CATALOGO_POR_TIPO, COLOR_POR_TIPO, esTipoElegible } from "@/lib/tipo-ne
 import { finDePrueba } from "@/lib/plan";
 import { headers } from "next/headers";
 import { esUsuario, normalizarUsuario } from "@/lib/usuario";
-import { anotarIntentoDeUsuario, demasiadosIntentosDeUsuario } from "@/lib/seguridad";
+import {
+  anotarIntentoDeLogin,
+  anotarIntentoDeUsuario,
+  demasiadosIntentosDeLogin,
+  demasiadosIntentosDeUsuario,
+} from "@/lib/seguridad";
 import { OTRO_PAIS, esMonedaValida, esZonaValida, paisPorCodigo, zonaParaPais } from "@/lib/paises";
 
 export type AuthState = { error?: string } | undefined;
@@ -109,6 +114,8 @@ export async function registerAction(_prev: AuthState, formData: FormData): Prom
       type: user.businessType,
       sid: user.staff[0]?.id,
       role: "DUENO",
+      uv: user.sessionVersion,
+      sv: user.staff[0]?.sessionVersion,
     })
   );
   redirect("/panel");
@@ -126,11 +133,19 @@ export async function loginAction(_prev: AuthState, formData: FormData): Promise
   if (esUsuario(email)) return entrarConUsuario(jar, email, remember);
   if (!password) return { error: "Escribe tu correo y contrasena." };
 
+  // Freno de fuerza bruta por conexion: sin esto, alguien podia probar
+  // contrasenas sin limite contra el correo de un dueno.
+  const origen = ((await headers()).get("x-forwarded-for") ?? "").split(",")[0].trim() || "local";
+  if (await demasiadosIntentosDeLogin(origen)) {
+    return { error: "Demasiados intentos seguidos. Espera unos minutos y vuelve a intentarlo." };
+  }
+
   const user = await db.user.findUnique({ where: { email } });
 
   // 1. El dueno del negocio.
   if (user) {
     if (!checkPassword(password, user.passwordHash)) {
+      await anotarIntentoDeLogin(origen);
       return { error: "Correo o contrasena incorrectos." };
     }
     // La cuenta suspendida se avisa despues de comprobar la contrasena, no
@@ -145,6 +160,8 @@ export async function loginAction(_prev: AuthState, formData: FormData): Promise
         type: user.businessType,
         sid: owner.id,
         role: owner.role,
+        uv: user.sessionVersion,
+        sv: owner.sessionVersion,
       }),
       remember
     );
@@ -154,6 +171,7 @@ export async function loginAction(_prev: AuthState, formData: FormData): Promise
   // 2. Un barbero con usuario propio dentro de un negocio.
   const staff = await db.staff.findUnique({ where: { email }, include: { user: true } });
   if (!staff || !staff.passwordHash || !checkPassword(password, staff.passwordHash)) {
+    await anotarIntentoDeLogin(origen);
     return { error: "Correo o contrasena incorrectos." };
   }
   if (!staff.active) {
@@ -169,6 +187,8 @@ export async function loginAction(_prev: AuthState, formData: FormData): Promise
       type: staff.user.businessType,
       sid: staff.id,
       role: staff.role,
+      uv: staff.user.sessionVersion,
+      sv: staff.sessionVersion,
     }),
     remember
   );
@@ -208,6 +228,8 @@ async function entrarConUsuario(
       type: staff.user.businessType,
       sid: staff.id,
       role: staff.role,
+      uv: staff.user.sessionVersion,
+      sv: staff.sessionVersion,
     }),
     remember
   );

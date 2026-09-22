@@ -143,9 +143,11 @@ export async function intentarRecuperar(
 
   const passwordHash = hashPassword(nuevaClave);
   await db.$transaction([
+    // sessionVersion sube por la misma razon que en el reset por enlace: este
+    // flujo tampoco abre sesion sola, manda a /login.
     cuenta.tipo === "negocio"
-      ? db.user.update({ where: { id: cuenta.id }, data: { passwordHash } })
-      : db.staff.update({ where: { id: cuenta.id }, data: { passwordHash } }),
+      ? db.user.update({ where: { id: cuenta.id }, data: { passwordHash, sessionVersion: { increment: 1 } } })
+      : db.staff.update({ where: { id: cuenta.id }, data: { passwordHash, sessionVersion: { increment: 1 } } }),
     // Si habia un enlace de recuperacion vivo, ya no debe servir: la clave
     // acaba de cambiar por otro camino.
     db.passwordReset.updateMany({
@@ -207,4 +209,36 @@ export async function demasiadosIntentosDeUsuario(origen: string): Promise<boole
 
 export async function anotarIntentoDeUsuario(origen: string): Promise<void> {
   await db.securityAttempt.create({ data: { email: llaveUsuario(origen), success: false } });
+}
+
+// ------------------------------------------------- INGRESO CON CORREO Y CLAVE
+
+const FALLOS_LOGIN_CORTO = 10;
+const FALLOS_LOGIN_DIA = 50;
+const llaveLogin = (origen: string) => "login@" + origen.slice(0, 80);
+
+/**
+ * Freno del ingreso con correo y contrasena.
+ *
+ * Se cuenta por conexion (IP), no por correo: si se contara por correo,
+ * cualquiera podria bloquear la cuenta de otro con solo escribir mal la clave
+ * seguido. Mismos topes que el ingreso por usuario: 10 fallos en 15 minutos o
+ * 50 en un dia.
+ */
+export async function demasiadosIntentosDeLogin(origen: string): Promise<boolean> {
+  const llave = llaveLogin(origen);
+  const ahora = Date.now();
+  const [corto, dia] = await Promise.all([
+    db.securityAttempt.count({
+      where: { email: llave, success: false, createdAt: { gte: new Date(ahora - MINUTOS_CORTO * 60000) } },
+    }),
+    db.securityAttempt.count({
+      where: { email: llave, success: false, createdAt: { gte: new Date(ahora - 24 * 3600000) } },
+    }),
+  ]);
+  return corto >= FALLOS_LOGIN_CORTO || dia >= FALLOS_LOGIN_DIA;
+}
+
+export async function anotarIntentoDeLogin(origen: string): Promise<void> {
+  await db.securityAttempt.create({ data: { email: llaveLogin(origen), success: false } });
 }

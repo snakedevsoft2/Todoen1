@@ -18,7 +18,7 @@ import { BarraCatalogo } from "./BarraCatalogo";
 import { ClienteSelector } from "./ClienteSelector";
 import { ordenarEnFilas, type FilaOrden } from "@/lib/orden-productos";
 import { agruparPorCategoria, categoriasConCantidad, filtrarCatalogo } from "@/lib/categorias";
-import { money, parseMoney, pasoMoneda } from "@/lib/format";
+import { aCampo, money, parseMoney, pasoMoneda } from "@/lib/format";
 import { todayIn } from "@/lib/dates";
 import { enviar } from "@/lib/cola-reportes";
 import {
@@ -101,6 +101,40 @@ function CantidadEditable({ qty, max, onChange }: { qty: number; max?: number; o
       }}
       onBlur={() => setTexto(null)}
       className="input w-12 px-1 py-1 text-center text-sm font-bold"
+    />
+  );
+}
+
+/**
+ * El precio de esa linea, editable ahi mismo.
+ *
+ * Cambia solo esta venta: el precio del catalogo se queda como esta. Sirve
+ * para un descuento puntual o un precio negociado, sin tener que ir a
+ * Inventario a cambiarlo y volver a cambiarlo despues.
+ */
+function PrecioEditable({
+  price,
+  currency,
+  onChange,
+}: {
+  price: number;
+  currency: string;
+  onChange: (price: number) => void;
+}) {
+  const [texto, setTexto] = useState<string | null>(null);
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      aria-label="Precio unitario"
+      value={texto ?? aCampo(price, currency)}
+      onFocus={(e) => e.currentTarget.select()}
+      onChange={(e) => {
+        setTexto(e.target.value);
+        onChange(parseMoney(e.target.value, currency));
+      }}
+      onBlur={() => setTexto(null)}
+      className="input w-20 px-1.5 py-1 text-center text-xs"
     />
   );
 }
@@ -451,6 +485,10 @@ export function NewSaleForm({
     );
   }
 
+  function setUnitPrice(key: string, unitPrice: number) {
+    setCart((prev) => prev.map((r) => (r.key === key ? { ...r, unitPrice: Math.max(0, unitPrice) } : r)));
+  }
+
   /**
    * El boton de la isla: vende con lo que ya esta puesto en el formulario (pago,
    * quien atendio...) sin bajar. Si falta algo que no se puede adivinar, el
@@ -637,8 +675,9 @@ export function NewSaleForm({
         <li key={r.key} className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 py-2">
           <div className="min-w-0 basis-full sm:flex-1 sm:basis-0">
             <p className="break-words text-sm font-medium text-strong">{r.name}</p>
-            <p className="text-xs text-muted">
-              {money(r.unitPrice, currency)} c/u
+            <p className="flex flex-wrap items-center gap-1 text-xs text-muted">
+              <PrecioEditable price={r.unitPrice} currency={currency} onChange={(price) => setUnitPrice(r.key, price)} />
+              c/u
               {r.max !== undefined ? " - quedan " + r.max : ""}
             </p>
           </div>

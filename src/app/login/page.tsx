@@ -8,6 +8,7 @@ import { APP_NAME } from "@/lib/brand";
 import { Logo } from "@/components/Logo";
 import { CanalesOficiales } from "@/components/CanalesOficiales";
 import { LoginForm } from "@/components/LoginForm";
+import { OnboardingGate } from "@/components/onboarding/OnboardingGate";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,7 @@ export default async function LoginPage({
   const { error, cambiada } = await searchParams;
 
   return (
+    <OnboardingGate>
     <div className="auth-page flex flex-col bg-[#F5F4FB]">
       <header className="px-6 py-6 sm:px-10">
         <Link href="/" className="inline-flex items-center gap-2.5">
@@ -55,5 +57,6 @@ export default async function LoginPage({
         </div>
       </footer>
     </div>
+    </OnboardingGate>
   );
 }

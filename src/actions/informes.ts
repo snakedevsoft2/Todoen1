@@ -17,7 +17,7 @@ export type InformeState = { error?: string; ok?: string } | undefined;
  * de fotos, formato, quien puede) son las mismas: viven en lib/informes.ts.
  */
 export async function agregarFotoAction(_prev: InformeState, formData: FormData): Promise<InformeState> {
-  const sesion = await requireSession();
+  const sesion = await requireSession({ asistenciaOk: true });
   const reportId = str(formData.get("reportId"));
   const r = await agregarFoto(sesion, reportId, {
     image: crudo(formData.get("image")),
@@ -30,7 +30,7 @@ export async function agregarFotoAction(_prev: InformeState, formData: FormData)
 
 /** La borra el administrador o quien hizo el reporte. */
 export async function borrarFotoAction(formData: FormData): Promise<void> {
-  const { user, staff } = await requireSession();
+  const { user, staff } = await requireSession({ asistenciaOk: true });
   const id = str(formData.get("id"));
 
   const foto = await db.visitPhoto.findFirst({
@@ -54,7 +54,7 @@ export async function borrarInformeAction(formData: FormData): Promise<void> {
 
 /** Quita un PDF de evidencia. Lo hace el administrador o quien hizo el reporte. */
 export async function borrarAdjuntoAction(formData: FormData): Promise<void> {
-  const sesion = await requireSession();
+  const sesion = await requireSession({ asistenciaOk: true });
   const reportId = await borrarAdjunto(sesion, str(formData.get("id")));
   if (reportId) revalidatePath("/panel/informes/" + reportId);
 }

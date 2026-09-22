@@ -13,6 +13,10 @@ export type SessionPayload = {
   sid?: string;
   /** "DUENO" o "BARBERO". Decide que puede tocar en el panel. */
   role?: string;
+  /** User.sessionVersion al firmar. Si cambio, la clave del negocio se cambio en otro lado. */
+  uv?: number;
+  /** Staff.sessionVersion al firmar (solo si sid trae su propia clave). */
+  sv?: number;
 };
 
 function secretKey() {
@@ -43,6 +47,8 @@ export async function verifySession(token: string): Promise<SessionPayload | nul
       type: String(payload.type ?? ""),
       sid: typeof payload.sid === "string" ? payload.sid : undefined,
       role: typeof payload.role === "string" ? payload.role : undefined,
+      uv: typeof payload.uv === "number" ? payload.uv : undefined,
+      sv: typeof payload.sv === "number" ? payload.sv : undefined,
     };
   } catch {
     return null;

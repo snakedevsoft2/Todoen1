@@ -134,6 +134,9 @@ describe("responder", () => {
     expect(bcrypt.compareSync("nuevaClave9", u.passwordHash)).toBe(true);
     const e = await db.passwordReset.findUniqueOrThrow({ where: { id: enlace.id } });
     expect(e.usedAt).not.toBeNull();
+    // sessionVersion sube: cualquier cookie firmada con la clave vieja deja
+    // de servir en la siguiente peticion (ver lib/auth.ts getCurrentSession).
+    expect(u.sessionVersion).toBe(1);
   });
 
   it("un correo que no existe falla igual y tambien cuenta para el freno", async () => {

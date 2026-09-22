@@ -7,7 +7,7 @@ import { esPlanCompleto } from "@/lib/plan";
 
 /** La persona acepta, o retira, compartir su ubicacion durante la jornada. */
 export async function consentimientoUbicacionAction(acepta: boolean): Promise<{ ok: true }> {
-  const { staff } = await requireSession();
+  const { staff } = await requireSession({ asistenciaOk: true });
   await guardarConsentimiento(staff.id, acepta === true);
   revalidatePath("/panel/marcar");
   revalidatePath("/panel/planilla");

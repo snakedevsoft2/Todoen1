@@ -24,7 +24,7 @@ export async function guardarPreguntaAction(
   _prev: SeguridadState,
   formData: FormData
 ): Promise<SeguridadState> {
-  const { user, staff } = await requireSession();
+  const { user, staff } = await requireSession({ asistenciaOk: true });
   const esDueno = staff.role === "DUENO";
 
   const actual = String(formData.get("claveActual") ?? "");

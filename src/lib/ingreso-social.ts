@@ -43,6 +43,8 @@ export async function decidirIngreso(emailCrudo: string, nombre: string): Promis
         type: owner.businessType,
         sid: staff.id,
         role: staff.role,
+        uv: owner.sessionVersion,
+        sv: staff.sessionVersion,
       }),
     };
   }
@@ -59,6 +61,8 @@ export async function decidirIngreso(emailCrudo: string, nombre: string): Promis
         type: staff.user.businessType,
         sid: staff.id,
         role: staff.role,
+        uv: staff.user.sessionVersion,
+        sv: staff.sessionVersion,
       }),
     };
   }

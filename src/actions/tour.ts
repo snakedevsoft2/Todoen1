@@ -12,7 +12,7 @@ import { requireSession } from "@/lib/auth";
  * Ajustes.
  */
 export async function finishTourAction() {
-  const { staff } = await requireSession();
+  const { staff } = await requireSession({ asistenciaOk: true });
   await db.staff.update({
     where: { id: staff.id },
     data: { tourDoneAt: new Date() },
@@ -23,7 +23,7 @@ export async function finishTourAction() {
 
 /** Volver a verlo desde Ajustes. */
 export async function restartTourAction() {
-  const { staff } = await requireSession();
+  const { staff } = await requireSession({ asistenciaOk: true });
   await db.staff.update({
     where: { id: staff.id },
     data: { tourDoneAt: null },

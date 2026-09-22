@@ -91,6 +91,10 @@ model User {
   id           String       @id @default(cuid())
   email        String       @unique
   passwordHash String
+  /// Se sube cada vez que cambia passwordHash. La sesion firmada trae la
+  /// version que tenia al entrar: si no coincide con esta, la cookie quedo
+  /// vieja (la clave cambio en otro lado) y deja de servir. Ver lib/auth.ts.
+  sessionVersion Int    @default(0)
   ownerName    String
   businessName String
   businessType BusinessType
@@ -412,6 +416,8 @@ model Staff {
   /// Sin arroba, sin tildes y en minusculas; unico entre todos los negocios.
   username     String? @unique
   passwordHash String?
+  /// Igual que User.sessionVersion, pero para la clave propia del empleado.
+  sessionVersion Int @default(0)
 
   /**
    * Pregunta de seguridad, para recuperar la clave sin depender del correo.

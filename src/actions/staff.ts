@@ -7,6 +7,7 @@ import { parseIntSafe, str } from "@/lib/format";
 import { normalizeHex } from "@/lib/theme";
 import { STAFF_COLORS, teamNoun } from "@/lib/staff";
 import { USUARIO_INVALIDO, USUARIO_VALIDO, normalizarUsuario } from "@/lib/usuario";
+import { cookieJar, signSession, writeSessionCookie } from "@/lib/session";
 
 export type StaffState = { error?: string; ok?: string } | undefined;
 
@@ -149,6 +150,9 @@ export async function setStaffAccessAction(
     data: {
       username: username || null,
       ...(email ? { email, passwordHash: password ? hashPassword(password) : staff.passwordHash } : {}),
+      // Si de verdad cambio la clave, tumba cualquier sesion que tuviera
+      // abierta con la anterior.
+      ...(password ? { sessionVersion: { increment: 1 } } : {}),
     },
   });
 
@@ -169,7 +173,9 @@ export async function removeStaffAccessAction(formData: FormData) {
 
   await db.staff.update({
     where: { id: staff.id },
-    data: { email: null, passwordHash: null, username: null },
+    // sessionVersion sube tambien: sin acceso no deberia quedarle una sesion
+    // viva hasta que la cookie caduque sola.
+    data: { email: null, passwordHash: null, username: null, sessionVersion: { increment: 1 } },
   });
   revalidatePath("/panel/equipo");
 }
@@ -205,7 +211,7 @@ export async function deleteStaffAction(formData: FormData): Promise<void> {
   if (turnos > 0 || ventas > 0 || actividad > 0) {
     await db.staff.update({
       where: { id: staff.id },
-      data: { active: false, email: null, passwordHash: null, username: null },
+      data: { active: false, email: null, passwordHash: null, username: null, sessionVersion: { increment: 1 } },
     });
   } else {
     await db.staff.delete({ where: { id: staff.id } });
@@ -220,7 +226,8 @@ export async function changeStaffPasswordAction(
   _prev: StaffState,
   formData: FormData
 ): Promise<StaffState> {
-  const { staff } = await requireSession();
+  const jar = await cookieJar();
+  const { user, staff } = await requireSession({ asistenciaOk: true });
   if (staff.role === "DUENO") return { error: "Cambia tu contrasena en la seccion de arriba." };
   if (!staff.passwordHash) return { error: "Tu usuario todavia no tiene contrasena." };
 
@@ -232,6 +239,26 @@ export async function changeStaffPasswordAction(
     return { error: "La contrasena actual no coincide." };
   }
 
-  await db.staff.update({ where: { id: staff.id }, data: { passwordHash: hashPassword(next) } });
+  // Igual que con la clave del dueno: sube la version para tumbar cualquier
+  // otra cookie con la clave vieja, y este mismo aparato se vuelve a firmar.
+  const updated = await db.staff.update({
+    where: { id: staff.id },
+    data: { passwordHash: hashPassword(next), sessionVersion: { increment: 1 } },
+  });
+  writeSessionCookie(
+    jar,
+    await signSession({
+      uid: user.id,
+      // El mismo valor que hubiera quedado al entrar: su correo, o
+      // "usuario:x" si entro sin contrasena (aunque para llegar aqui ya
+      // tiene que tener una, por la validacion de arriba).
+      email: updated.email ?? "usuario:" + (updated.username ?? ""),
+      type: user.businessType,
+      sid: updated.id,
+      role: updated.role,
+      uv: user.sessionVersion,
+      sv: updated.sessionVersion,
+    })
+  );
   return { ok: "Contrasena actualizada." };
 }
