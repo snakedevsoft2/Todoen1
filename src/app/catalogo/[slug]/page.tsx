@@ -1,6 +1,21 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import {
+  Fraunces,
+  Plus_Jakarta_Sans,
+  Fredoka,
+  Nunito_Sans,
+  Playfair_Display,
+  Jost,
+  Oswald,
+  Inter,
+  Cormorant,
+  Manrope,
+  Quicksand,
+  Anton,
+  Poppins,
+} from "next/font/google";
 import { db } from "@/lib/db";
 import { getCurrentSession } from "@/lib/auth";
 import { ITEM_NOUN, logoUrl, photoUrl } from "@/lib/nav";
@@ -8,6 +23,8 @@ import { variantLabel } from "@/lib/variants";
 import { normalizePhone, toInternational } from "@/lib/whatsapp";
 import { APP_NAME } from "@/lib/brand";
 import { resolverFondo } from "@/lib/fondos";
+import { plantillaDe } from "@/lib/plantillas";
+import { themeCss } from "@/lib/theme";
 import { aiEnabled } from "@/lib/ai";
 import { configDe, saludoDe } from "@/lib/agente";
 import { ChatAgente } from "@/components/ChatAgente";
@@ -22,6 +39,66 @@ import {
 import { ordenDeCategorias } from "@/lib/categorias-negocio";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * Tipografia propia del catalogo publico, aparte de la del panel.
+ *
+ * Fraunces (serif con caracter) para titulos, nombre y precio de cada
+ * producto: se ve artesanal y apetitoso, justo lo que un catalogo necesita
+ * para no sentirse una hoja de calculo. Plus Jakarta Sans para el resto del
+ * texto, bien legible en celular. Solo se cargan aqui: el panel sigue con
+ * Archivo tal como esta hoy.
+ */
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+  variable: "--font-catalogo-display",
+  display: "swap",
+});
+
+const plusJakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-catalogo-body",
+  display: "swap",
+});
+
+/**
+ * El resto de las fuentes de las plantillas (lib/plantillas.ts). Cada una
+ * declarada aparte porque next/font/google exige llamadas literales en el
+ * modulo: no se puede armar en un bucle. No pesa nada de mas: el navegador
+ * solo pide el archivo de la que la plantilla activa de verdad usa.
+ */
+const fredoka = Fredoka({ subsets: ["latin"], weight: ["500", "600", "700"], variable: "--font-plantilla-polaroid-display", display: "swap" });
+const nunitoSans = Nunito_Sans({ subsets: ["latin"], weight: ["400", "600", "700"], variable: "--font-plantilla-amigable-body", display: "swap" });
+const playfair = Playfair_Display({ subsets: ["latin"], weight: ["500", "600", "700"], variable: "--font-plantilla-editorial-display", display: "swap" });
+const jost = Jost({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-plantilla-editorial-body", display: "swap" });
+const oswald = Oswald({ subsets: ["latin"], weight: ["500", "600", "700"], variable: "--font-plantilla-industrial-display", display: "swap" });
+const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-plantilla-industrial-body", display: "swap" });
+const cormorant = Cormorant({ subsets: ["latin"], weight: ["500", "600", "700"], variable: "--font-plantilla-nocturna-display", display: "swap" });
+const manrope = Manrope({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-plantilla-nocturna-body", display: "swap" });
+const quicksand = Quicksand({ subsets: ["latin"], weight: ["500", "600", "700"], variable: "--font-plantilla-botanica-display", display: "swap" });
+const anton = Anton({ subsets: ["latin"], weight: "400", variable: "--font-plantilla-promo-display", display: "swap" });
+const poppins = Poppins({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-plantilla-promo-body", display: "swap" });
+
+/** Todas las variables de fuente juntas, para sumarlas al className del wrapper. */
+const CLASES_FUENTES = [
+  fraunces,
+  plusJakarta,
+  fredoka,
+  nunitoSans,
+  playfair,
+  jost,
+  oswald,
+  inter,
+  cormorant,
+  manrope,
+  quicksand,
+  anton,
+  poppins,
+]
+  .map((f) => f.variable)
+  .join(" ");
 
 export async function generateMetadata({
   params,
@@ -144,11 +221,25 @@ export default async function PortafolioPage({
   });
 
   const categories = [...new Set(items.map((i) => i.category))].sort();
+  const plantilla = plantillaDe(shop.catalogTemplate);
 
   if (!shop.publicOpen && !esSuya) {
     return (
-      <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-4 text-center">
+      <div
+        className={
+          CLASES_FUENTES +
+          " catalogo-tema mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-4 text-center"
+        }
+        data-plantilla={plantilla.key}
+      >
         <ThemeStyle brandColor={shop.brandColor} theme={shop.theme} />
+        {plantilla.accent && (
+          <style
+            dangerouslySetInnerHTML={{
+              __html: themeCss(plantilla.accent, plantilla.scheme, '.catalogo-tema[data-plantilla="' + plantilla.key + '"]'),
+            }}
+          />
+        )}
         <BrandMark
           name={shop.businessName}
           logo={logoUrl(shop.slug, shop.logo, shop.updatedAt)}
@@ -180,11 +271,19 @@ export default async function PortafolioPage({
 
   return (
     <div
-      className="relative min-h-dvh"
+      className={CLASES_FUENTES + " catalogo-tema relative min-h-dvh"}
       data-fondo={fondo.key}
+      data-plantilla={plantilla.key}
       style={enTarjeta && !fondo.foto ? { backgroundColor: fondo.color } : undefined}
     >
       <ThemeStyle brandColor={shop.brandColor} theme={shop.theme} />
+      {plantilla.accent && (
+        <style
+          dangerouslySetInnerHTML={{
+            __html: themeCss(plantilla.accent, plantilla.scheme, '.catalogo-tema[data-plantilla="' + plantilla.key + '"]'),
+          }}
+        />
+      )}
 
       {fondo.foto && (
         <div aria-hidden="true" className="fixed inset-0 z-0 overflow-hidden" style={{ backgroundColor: fondo.color }}>
@@ -312,6 +411,11 @@ export default async function PortafolioPage({
             orderNote={shop.publicOrderNote}
             wholesale={wholesale}
             ordenCategorias={ordenCategorias}
+            deliveryEnabled={shop.deliveryEnabled}
+            deliveryFee={shop.deliveryFee}
+            codPayment={shop.codPayment}
+            onlinePayment={shop.onlinePayment}
+            template={plantilla.key}
           />
         )}
       </main>

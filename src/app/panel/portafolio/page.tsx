@@ -116,6 +116,11 @@ export default async function PortafolioPage() {
               publicOrderNote: user.publicOrderNote,
               publicCover: user.publicCover,
               publicBackground: user.publicBackground,
+              catalogTemplate: user.catalogTemplate,
+              deliveryEnabled: user.deliveryEnabled,
+              deliveryFee: user.deliveryFee,
+              codPayment: user.codPayment,
+              onlinePayment: user.onlinePayment,
             }}
             businessName={user.businessName}
             itemPlural={noun.plural}

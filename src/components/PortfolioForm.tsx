@@ -6,6 +6,8 @@ import { SubmitButton } from "./SubmitButton";
 import { PhotoField } from "./PhotoField";
 import { PortfolioPreview, type PreviewItem } from "./PortfolioPreview";
 import { FONDOS } from "@/lib/fondos";
+import { PLANTILLAS, plantillaDe } from "@/lib/plantillas";
+import { aCampo, pasoMoneda } from "@/lib/format";
 import { Alert, Field } from "./ui";
 import { Icon } from "./Icon";
 
@@ -30,6 +32,11 @@ export function PortfolioForm({
     publicOrderNote: string | null;
     publicCover: string | null;
     publicBackground: string;
+    catalogTemplate: string;
+    deliveryEnabled: boolean;
+    deliveryFee: number;
+    codPayment: boolean;
+    onlinePayment: boolean;
   };
   businessName: string;
   itemPlural: string;
@@ -49,11 +56,15 @@ export function PortfolioForm({
 
   const [cover, setCover] = useState(initial.publicCover);
   const [fondo, setFondo] = useState(initial.publicBackground);
+  const [plantilla, setPlantilla] = useState(initial.catalogTemplate);
   const [headline, setHeadline] = useState(initial.publicHeadline ?? "");
   const [about, setAbout] = useState(initial.publicAbout ?? "");
   const [orderNote, setOrderNote] = useState(initial.publicOrderNote ?? "");
   const [open, setOpen] = useState(initial.publicOpen);
   const [showPrices, setShowPrices] = useState(initial.publicShowPrices);
+  const [deliveryEnabled, setDeliveryEnabled] = useState(initial.deliveryEnabled);
+  const [codPayment, setCodPayment] = useState(initial.codPayment);
+  const [onlinePayment, setOnlinePayment] = useState(initial.onlinePayment);
   // En celular no caben las dos cosas al tiempo, asi que se alterna.
   const [verPreview, setVerPreview] = useState(false);
 
@@ -61,6 +72,7 @@ export function PortfolioForm({
     <PortfolioPreview
       cover={cover}
       fondo={fondo}
+      plantillaLabel={plantillaDe(plantilla).label}
       headline={headline}
       about={about}
       orderNote={orderNote}
@@ -99,6 +111,46 @@ export function PortfolioForm({
             label="Foto de portada"
             hint="La franja de arriba de tu página. Se ve mejor una foto ancha del local."
           />
+
+          <fieldset>
+            <legend className="label">Plantilla del catálogo</legend>
+            <p className="mb-2 text-xs text-subtle">
+              Cambia la tipografía, los colores y el estilo de las fichas de tus{" "}
+              {itemPlural}. El resto de tu panel no cambia.
+            </p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {PLANTILLAS.map((p) => {
+                const activo = plantilla === p.key;
+                return (
+                  <label
+                    key={p.key}
+                    className={
+                      "flex cursor-pointer flex-col gap-1.5 rounded-xl border p-2.5 text-[11px] font-semibold transition-colors focus-within:ring-2 focus-within:ring-brand-500/40 " +
+                      (activo
+                        ? "border-brand-600 bg-brand-50 text-brand-700"
+                        : "border-line bg-panel text-body hover:border-line-strong")
+                    }
+                  >
+                    <input
+                      type="radio"
+                      name="catalogTemplate"
+                      value={p.key}
+                      checked={activo}
+                      onChange={() => setPlantilla(p.key)}
+                      className="sr-only"
+                    />
+                    <span className="flex h-9 w-full overflow-hidden rounded-lg border border-line">
+                      {p.swatch.map((c, i) => (
+                        <span key={i} className="h-full flex-1" style={{ backgroundColor: c }} />
+                      ))}
+                    </span>
+                    <span>{p.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-xs text-subtle">{plantillaDe(plantilla).hint}</p>
+          </fieldset>
 
           {/* El fondo va justo despues de la portada porque "Mi portada" la
               usa: asi se entiende la relacion sin explicarla. */}
@@ -204,6 +256,67 @@ export function PortfolioForm({
               placeholder="Ej: pedidos hasta las 8 pm. Domicilio $5.000."
             />
           </Field>
+
+          <div className="space-y-3 rounded-xl border border-line bg-surface p-3">
+            <p className="text-sm font-semibold text-strong">Domicilio y forma de pago</p>
+            <p className="text-xs text-subtle">
+              Lo que marques aquí es justo lo que tu cliente va a poder elegir al armar su
+              pedido en el catálogo.
+            </p>
+
+            <label className="flex items-center gap-2 text-sm text-body">
+              <input
+                type="checkbox"
+                name="deliveryEnabled"
+                checked={deliveryEnabled}
+                onChange={(e) => setDeliveryEnabled(e.target.checked)}
+                className="h-4 w-4 rounded border-line bg-panel accent-brand-600"
+              />
+              Hago domicilios
+            </label>
+            {deliveryEnabled && (
+              <Field label="Costo del domicilio" hint="Se suma solo al total, el cliente lo ve antes de mandar el pedido.">
+                <input
+                  className="input num max-w-[180px]"
+                  name="deliveryFee"
+                  type="text"
+                  inputMode="decimal"
+                  defaultValue={aCampo(initial.deliveryFee, preview.currency)}
+                  step={pasoMoneda(preview.currency)}
+                  placeholder="0"
+                />
+              </Field>
+            )}
+
+            <div className="border-t border-line pt-3">
+              <label className="flex items-center gap-2 text-sm text-body">
+                <input
+                  type="checkbox"
+                  name="codPayment"
+                  checked={codPayment}
+                  onChange={(e) => setCodPayment(e.target.checked)}
+                  className="h-4 w-4 rounded border-line bg-panel accent-brand-600"
+                />
+                Acepto pago contra entrega
+              </label>
+              <label className="mt-2 flex items-center gap-2 text-sm text-body">
+                <input
+                  type="checkbox"
+                  name="onlinePayment"
+                  checked={onlinePayment}
+                  onChange={(e) => setOnlinePayment(e.target.checked)}
+                  className="h-4 w-4 rounded border-line bg-panel accent-brand-600"
+                />
+                Acepto pago en línea
+              </label>
+              {!codPayment && !onlinePayment && (
+                <p className="mt-2 text-xs text-warn">
+                  Sin ninguna marcada, guardamos contra entrega para que el pedido siempre
+                  tenga como pagarse.
+                </p>
+              )}
+            </div>
+          </div>
 
           <div className="space-y-2.5 rounded-xl border border-line bg-surface p-3">
             <label className="flex items-center gap-2 text-sm font-semibold text-strong">

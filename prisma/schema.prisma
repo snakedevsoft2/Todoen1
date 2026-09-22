@@ -117,10 +117,20 @@ model User {
   publicOrderNote  String?
   /// Si se muestran los precios. Hay negocios que prefieren no publicarlos.
   publicShowPrices Boolean @default(true)
+  /// Domicilio: si el negocio entrega a domicilio y cuanto cobra por eso.
+  deliveryEnabled  Boolean @default(false)
+  /// Costo del domicilio, en la unidad minima de la moneda del negocio (0 = gratis).
+  deliveryFee      Int     @default(0)
+  /// Acepta pago contra entrega (efectivo o datafono al recibir el pedido).
+  codPayment       Boolean @default(true)
+  /// Acepta pago en linea, adelantado.
+  onlinePayment    Boolean @default(false)
   /// Fondo de la pagina publica, como una pagina de pagos: "claro" es la de
   /// siempre; los demas ponen un fondo solido (o la portada difuminada) y el
   /// contenido flota encima en una tarjeta. Ver lib/fondos.ts.
   publicBackground String  @default("claro")
+  /// Plantilla de diseño del catálogo público. Ver lib/plantillas.ts.
+  catalogTemplate  String  @default("clasica")
 
   // Promociones al por mayor: el apartado del catalogo para quien compra en cantidad.
   /// Si esta encendido, el catalogo publico muestra las escalas por cantidad.

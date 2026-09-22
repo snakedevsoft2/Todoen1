@@ -493,3 +493,122 @@ input[type="date"]:hover::-webkit-calendar-picker-indicator {
     display: none !important;
   }
 }
+
+/*
+  Tipografia del catalogo publico.
+
+  Las variables --font-catalogo-* las inyecta next/font desde
+  catalogo/[slug]/page.tsx. Redefinir --font-sans/--font-display aqui alcanza
+  a todo lo que ya usa esas clases (font-sans de Tailwind, .font-display) sin
+  tocar el panel ni el resto de la aplicacion, que se queda con Archivo.
+*/
+.catalogo-tema {
+  --font-sans: var(--font-catalogo-body), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-catalogo-display), Georgia, serif;
+}
+
+/*
+  Piel de cada plantilla (lib/plantillas.ts).
+
+  El color de acento y el modo claro/oscuro ya los resuelve themeCss() desde
+  el server component (misma funcion que pinta el color de marca del
+  negocio). Lo que queda aqui es tipografia por plantilla y como se ven las
+  "anclas" que PortfolioOrder.tsx ya trae en cada ficha
+  (.ficha-tarjeta / .ficha-imagen / .ficha-precio / .ficha-specs): el radio de
+  esquina, el precio (pastilla, texto plano o sticker) y, en polaroid, el giro
+  alternado de las tarjetas.
+*/
+[data-plantilla="polaroid"] {
+  --font-sans: var(--font-plantilla-amigable-body), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-plantilla-polaroid-display), ui-sans-serif, sans-serif;
+}
+[data-plantilla="polaroid"] .ficha-tarjeta { border-radius: 1.25rem; border-width: 2px; }
+[data-plantilla="polaroid"] .ficha-imagen { margin: 0.65rem 0.65rem 0; border-radius: 0.75rem; border-width: 1px; }
+[data-plantilla="polaroid"] .ficha-precio { border-radius: 9999px; font-weight: 700; }
+[data-plantilla="polaroid"] .grid > * { transition: transform 300ms var(--ease-suave); }
+[data-plantilla="polaroid"] .grid > *:nth-child(odd) { transform: rotate(-1.2deg); }
+[data-plantilla="polaroid"] .grid > *:nth-child(even) { transform: rotate(1.1deg); }
+[data-plantilla="polaroid"] .grid > *:hover { transform: rotate(0deg) translateY(-4px); }
+
+[data-plantilla="editorial"] {
+  --font-sans: var(--font-plantilla-editorial-body), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-plantilla-editorial-display), Georgia, serif;
+}
+[data-plantilla="editorial"] .ficha-tarjeta { border-radius: 0.5rem; }
+[data-plantilla="editorial"] .ficha-precio {
+  background: transparent;
+  padding: 0;
+  margin-top: 0.6rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgb(var(--line));
+  border-radius: 0;
+  font-weight: 500;
+}
+
+[data-plantilla="industrial"] {
+  --font-sans: var(--font-plantilla-industrial-body), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-plantilla-industrial-display), ui-sans-serif, sans-serif;
+}
+[data-plantilla="industrial"] .font-display { text-transform: uppercase; letter-spacing: 0.03em; }
+[data-plantilla="industrial"] .ficha-tarjeta { border-radius: 0.5rem; }
+[data-plantilla="industrial"] .ficha-precio { border-radius: 0.375rem; }
+
+[data-plantilla="nocturna"] {
+  --font-sans: var(--font-plantilla-nocturna-body), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-plantilla-nocturna-display), Georgia, serif;
+}
+[data-plantilla="nocturna"] .ficha-tarjeta { border-radius: 0.75rem; }
+[data-plantilla="nocturna"] .ficha-precio {
+  background: transparent;
+  padding: 0;
+  color: rgb(var(--brand-400));
+  font-style: italic;
+}
+
+[data-plantilla="botanica"] {
+  --font-sans: var(--font-plantilla-amigable-body), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-plantilla-botanica-display), ui-sans-serif, sans-serif;
+}
+[data-plantilla="botanica"] .ficha-tarjeta { border-radius: 1.5rem; }
+
+[data-plantilla="promo"] {
+  --font-sans: var(--font-plantilla-promo-body), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-plantilla-promo-display), ui-sans-serif, sans-serif;
+}
+[data-plantilla="promo"] .font-display { text-transform: uppercase; letter-spacing: 0.01em; }
+[data-plantilla="promo"] .ficha-tarjeta { border-radius: 1.25rem; border-width: 2px; border-color: rgb(var(--brand-600) / 0.6); }
+[data-plantilla="promo"] .ficha-precio {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.25rem;
+  height: 4.25rem;
+  margin-top: 0.65rem;
+  padding: 0;
+  border-radius: 9999px;
+  border: 3px solid rgb(var(--brand-600));
+  background: rgb(var(--panel));
+  color: rgb(var(--brand-700));
+  text-align: center;
+  font-size: 0.8rem;
+  line-height: 1.05;
+}
+
+/* Fila de specs (marca -> "Modelo", tallas -> "Tallas"): solo la usa la
+   plantilla industrial hoy, pero queda neutra por si otra la suma despues. */
+.ficha-specs {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.ficha-specs-fila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border-top: 1px solid rgb(var(--line));
+  padding-top: 0.35rem;
+  font-size: 0.75rem;
+  color: rgb(var(--text-muted));
+}

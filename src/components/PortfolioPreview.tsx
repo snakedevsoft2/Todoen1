@@ -25,6 +25,7 @@ export type PreviewItem = {
 export function PortfolioPreview({
   cover,
   fondo: fondoKey = "claro",
+  plantillaLabel,
   headline,
   about,
   orderNote,
@@ -43,6 +44,8 @@ export function PortfolioPreview({
   cover: string | null;
   /** Fondo elegido (lib/fondos.ts). */
   fondo?: string;
+  /** Nombre de la plantilla elegida (lib/plantillas.ts), solo como insignia. */
+  plantillaLabel?: string;
   headline: string;
   about: string;
   orderNote: string;
@@ -164,6 +167,11 @@ export function PortfolioPreview({
 
   return (
     <div className="mx-auto w-full max-w-[300px]">
+      {plantillaLabel && (
+        <p className="mb-2 text-center text-[11px] font-semibold uppercase tracking-[0.04em] text-subtle">
+          Plantilla: {plantillaLabel}
+        </p>
+      )}
       {/* Marco de celular */}
       <div className="overflow-hidden rounded-[26px] border-[6px] border-strong bg-panel shadow-soft-lg">
         <div className="h-5 bg-edge" />
