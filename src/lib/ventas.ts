@@ -165,10 +165,12 @@ export async function registrarVenta(
     };
   });
 
+  // Que productos se vendieron, para que quede visible en el historial del
+  // empleado (Equipo > persona) y no solo el monto.
+  const resumenItems = items.length > 0 ? items.map((i) => i.qty + "x " + i.name).join(", ") : null;
+
   if (aCredito) {
-    const concepto = (
-      items.length > 0 ? items.map((i) => i.qty + "x " + i.name).join(", ") : textoDe(d.concept, 200) || "Venta a crédito"
-    ).slice(0, 200);
+    const concepto = ((resumenItems ?? textoDe(d.concept, 200)).trim() || "Venta a crédito").slice(0, 200);
     let deuda;
     try {
       // La deuda y el descuento de stock van juntos, igual que en una venta.
@@ -211,7 +213,11 @@ export async function registrarVenta(
       throw e;
     }
     await anotarCliente(user.id, { name: clientName, phone: clientPhone || null, source: "cartera" });
-    await anotarActividad(s, { tipo: "deuda", detalle: "Vendió a cuentas por cobrar a " + clientName, monto: total });
+    await anotarActividad(s, {
+      tipo: "deuda",
+      detalle: "Vendió a cuentas por cobrar a " + clientName + (resumenItems ? ": " + resumenItems : ""),
+      monto: total,
+    });
     return { ok: true, datos: { id: deuda.id, repetido: false, tipo: "deuda" } };
   }
 
@@ -262,6 +268,13 @@ export async function registrarVenta(
 
   // El cliente que se escribio en la venta queda guardado en Clientes.
   if (clientName) await anotarCliente(user.id, { name: clientName, phone: clientPhone || null, source: "venta" });
-  await anotarActividad(s, { tipo: "venta", detalle: "Registró una venta" + (clientName ? " a " + clientName : ""), monto: total });
+  await anotarActividad(s, {
+    tipo: "venta",
+    detalle:
+      "Registró una venta" +
+      (resumenItems ? ": " + resumenItems : "") +
+      (clientName ? " a " + clientName : ""),
+    monto: total,
+  });
   return { ok: true, datos: { id: venta.id, repetido: false, tipo: "venta" } };
 }

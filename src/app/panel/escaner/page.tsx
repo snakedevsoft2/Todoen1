@@ -7,6 +7,7 @@ import { Card, Empty, PageHeader } from "@/components/ui";
 import { Escaner } from "@/components/Escaner";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Icon } from "@/components/Icon";
+import { AccionesDocumento } from "@/components/CompartirPdf";
 
 export const dynamic = "force-dynamic";
 
@@ -81,6 +82,10 @@ export default async function EscanerPage() {
                     </form>
                     )}
                   </div>
+                  <div className="mt-1.5 pl-7">
+                    <AccionesDocumento id={d.id} titulo={d.title} />
+                  </div>
+
                   {d.text && (
                     <details className="mt-1.5 pl-7">
                       <summary className="cursor-pointer text-[12px] font-semibold text-brand-700">Ver texto</summary>

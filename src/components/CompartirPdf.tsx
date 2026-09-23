@@ -41,12 +41,15 @@ function CompartirPdf({
   telefono,
   titulo,
   etiquetaDescargar,
+  correo = false,
 }: {
   construir: () => Promise<File>;
   mensaje: string;
   telefono?: string | null;
   titulo: string;
   etiquetaDescargar: string;
+  /** Suma el boton "Enviar por correo". Apagado por defecto: no todos los que usan este componente lo necesitan. */
+  correo?: boolean;
 }) {
   const [ocupado, setOcupado] = useState("");
   const [aviso, setAviso] = useState<{ tono: "ok" | "info" | "error"; texto: string } | null>(null);
@@ -87,6 +90,25 @@ function CompartirPdf({
       };
     });
 
+  const enviarCorreo = () =>
+    correr("mail", async (file) => {
+      if (puedeCompartirArchivo(file)) {
+        await navigator.share({ files: [file], title: titulo, text: mensaje });
+        return { tono: "ok", texto: "Enviado." };
+      }
+      descargar(file);
+      const url =
+        "https://mail.google.com/mail/?view=cm&fs=1&su=" +
+        encodeURIComponent(titulo) +
+        "&body=" +
+        encodeURIComponent(mensaje);
+      window.open(url, "_blank", "noopener");
+      return {
+        tono: "info",
+        texto: "Se abrió Gmail con el correo escrito. El PDF quedó descargado: adjúntalo antes de enviar.",
+      };
+    });
+
   return (
     <div>
       <div className="flex flex-wrap gap-2">
@@ -94,6 +116,12 @@ function CompartirPdf({
           <Icon name="whatsapp" className="h-4 w-4" />
           {ocupado === "wa" ? "Armando PDF..." : "Enviar por WhatsApp"}
         </button>
+        {correo && (
+          <button type="button" onClick={enviarCorreo} disabled={ocupado !== ""} className="btn-ghost btn-sm">
+            <Icon name="link" className="h-4 w-4" />
+            {ocupado === "mail" ? "Armando PDF..." : "Enviar por correo"}
+          </button>
+        )}
         <button
           type="button"
           onClick={() =>
@@ -172,6 +200,28 @@ export function AccionesPlanilla({ datos }: { datos: PlanillaDatos }) {
       mensaje={mensajePlanilla(datos)}
       titulo={"Planilla " + datos.rango}
       etiquetaDescargar="Descargar planilla"
+    />
+  );
+}
+
+/**
+ * Un documento ya escaneado y guardado (src/app/documento/[id]/route.ts sirve
+ * el PDF). Aqui no hay que armar nada: se pide el archivo que ya existe.
+ */
+export function AccionesDocumento({ id, titulo }: { id: string; titulo: string }) {
+  return (
+    <CompartirPdf
+      construir={async () => {
+        const r = await fetch("/documento/" + id);
+        if (!r.ok) throw new Error("No se pudo abrir el documento.");
+        const blob = await r.blob();
+        const nombre = (titulo.replace(/[^\w.\- ]+/g, "_") || "documento") + ".pdf";
+        return new File([blob], nombre, { type: "application/pdf" });
+      }}
+      mensaje={"Te comparto el documento: " + titulo}
+      titulo={titulo}
+      etiquetaDescargar="Descargar"
+      correo
     />
   );
 }
