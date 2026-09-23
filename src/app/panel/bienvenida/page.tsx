@@ -69,6 +69,12 @@ const PRIMER_PASO: Record<string, { texto: string; href: string; boton: string }
     href: "/panel/catalogo",
     boton: "Cargar lo que vendo",
   },
+  LAVADERO: {
+    texto:
+      "Sube tus lavados con su precio: de carro, moto y camioneta. Te dejamos varios de ejemplo para arrancar. Es lo que ves al agendar un turno o registrar una venta.",
+    href: "/panel/catalogo",
+    boton: "Cargar mis lavados",
+  },
 };
 
 export default async function BienvenidaPage() {

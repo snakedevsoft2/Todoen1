@@ -16,6 +16,7 @@ export const TIPOS_ELEGIBLES: BusinessType[] = [
   "CARTERA",
   "ASISTENCIA",
   "OTRO",
+  "LAVADERO",
 ];
 
 export function esTipoElegible(v: unknown): v is BusinessType {
@@ -31,6 +32,7 @@ export const COLOR_POR_TIPO: Record<BusinessType, string> = {
   CARTERA: "#166534",
   ASISTENCIA: "#3730a3",
   OTRO: "#0369a1",
+  LAVADERO: "#0284c7",
 };
 
 export const CATALOGO_POR_TIPO: Record<BusinessType, { name: string; price: number; durationMin: number; category: string }[]> = {
@@ -70,6 +72,23 @@ export const CATALOGO_POR_TIPO: Record<BusinessType, { name: string; price: numb
     { name: "Mi primer producto (cambiame)", price: 10000, durationMin: 0, category: "General" },
     { name: "Mi primer servicio (cambiame)", price: 25000, durationMin: 30, category: "General" },
   ],
+  LAVADERO: [
+    { name: "Lavado basico carro", price: 15000, durationMin: 20, category: "Carros" },
+    { name: "Lavado completo carro", price: 22000, durationMin: 35, category: "Carros" },
+    { name: "Lavado y encerado carro", price: 35000, durationMin: 50, category: "Carros" },
+    { name: "Polichada carro", price: 60000, durationMin: 90, category: "Carros" },
+    { name: "Lavado basico camioneta", price: 20000, durationMin: 25, category: "Camionetas y camperos" },
+    { name: "Lavado completo camioneta", price: 28000, durationMin: 40, category: "Camionetas y camperos" },
+    { name: "Lavado y encerado camioneta", price: 42000, durationMin: 55, category: "Camionetas y camperos" },
+    { name: "Lavado moto", price: 8000, durationMin: 15, category: "Motos" },
+    { name: "Lavado moto completo", price: 12000, durationMin: 20, category: "Motos" },
+    { name: "Aspirado interior", price: 8000, durationMin: 10, category: "Extras" },
+    { name: "Lavado de motor", price: 15000, durationMin: 20, category: "Extras" },
+    { name: "Lavado de tapetes", price: 6000, durationMin: 10, category: "Extras" },
+    { name: "Brillado de llantas", price: 5000, durationMin: 10, category: "Extras" },
+    { name: "Lavado de chasis", price: 12000, durationMin: 15, category: "Extras" },
+    { name: "Aromatizante", price: 3000, durationMin: 5, category: "Extras" },
+  ],
 };
 
 const PISTA_POR_TIPO: Record<BusinessType, string> = {
@@ -80,6 +99,7 @@ const PISTA_POR_TIPO: Record<BusinessType, string> = {
   CARTERA: "Préstamos por cuotas y cobros",
   ASISTENCIA: "Personal, marcaje con ubicación y reportes",
   OTRO: "Lo armas tú mismo",
+  LAVADERO: "Turnos, lavados y caja",
 };
 
 /** Las opciones para el selector, ya con nombre y descripcion. */

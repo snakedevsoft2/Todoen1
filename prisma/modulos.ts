@@ -41,6 +41,7 @@ export const TIPOS = [
   "CARTERA",
   "ASISTENCIA",
   "OTRO",
+  "LAVADERO",
   "DISTRIBUIDORA",
   "SERVICIOS",
   "FREELANCE",
@@ -57,6 +58,7 @@ export const TIPOS_ABIERTOS: Tipo[] = [
   "CARTERA",
   "ASISTENCIA",
   "OTRO",
+  "LAVADERO",
 ];
 
 export const MODULOS: ModuloDef[] = [
@@ -528,6 +530,40 @@ export const PRESETS: Record<Tipo, Record<string, Preset>> = {
     guia: {},
     equipo: { label: "Empleados", ejemplo: "Cada vendedora con su usuario y sus ventas aparte." },
     personalizar: { on: false },
+    espacio: {},
+    ajustes: {},
+    soporte: {},
+  },
+
+  /**
+   * Lavadero de carros, motos y camionetas.
+   *
+   * Se arma igual que la barberia: turno por hora, quien lo atendio y su
+   * comision. Cambia el catalogo (lavados, no cortes) y no tiene pagina
+   * publica de reservas, que sigue siendo solo de la barberia.
+   */
+  LAVADERO: {
+    resumen: {},
+    turnos: {
+      ejemplo: "Camioneta placa ABC-123, lavado y encerado, 3:00 p.m. con Andres.",
+    },
+    ventas: { ejemplo: "Lavado completo, $22.000, efectivo." },
+    gastos: { ejemplo: "Shampoo, cera y trapos, $60.000." },
+    cartera: { on: false, ejemplo: "Don Jose quedo debiendo $15.000 del lavado del sabado." },
+    caja: {},
+    catalogo: { label: "Lavados y servicios", ejemplo: "Lavado completo $22.000, encerado $35.000." },
+    proveedores: { on: false, ejemplo: "El que te trae el shampoo, la cera y los aromatizantes." },
+    portafolio: { ejemplo: "Fotos del antes y despues de tus mejores lavados." },
+    reportes: { ejemplo: "Que lavador atendio mas carros esta semana." },
+    asistente: { on: false, ejemplo: "A que hora se me llena mas el lavadero?" },
+    avisos: { on: false, ejemplo: "Manana a las 3 te esperamos con tu carro." },
+    clientes: { ejemplo: "El del carro rojo viene cada semana: etiqueta Frecuente." },
+    agente: { ejemplo: "Un cliente escribe a las 8 p.m. y queda con turno para manana a las 9." },
+    escaner: { on: false, ejemplo: "La camara de comercio, en PDF para mandarla." },
+    guia: {},
+    equipo: { label: "Lavadores", ejemplo: "Andres, Jhon y Miguel, cada uno con su usuario." },
+    personalizar: { on: false },
+    inventario: { on: false, ejemplo: "Shampoo, cera y aromatizantes que tambien vendes." },
     espacio: {},
     ajustes: {},
     soporte: {},

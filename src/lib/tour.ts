@@ -103,6 +103,13 @@ const PRIMERO: Record<BusinessType, TourStep> = {
     href: "/panel/espacio",
     action: "Armar mi menú",
   },
+  LAVADERO: {
+    icon: "calendar",
+    title: "La agenda de tus turnos",
+    text: "Anota el carro que llega, la hora y el lavado que pidió, y con quién queda. Cuando lo entregas y le cobras, el turno se convierte solo en la venta del día.",
+    href: "/panel/turnos",
+    action: "Ver los turnos",
+  },
 };
 
 const SEGUNDO: Record<BusinessType, TourStep> = {
@@ -154,6 +161,13 @@ const SEGUNDO: Record<BusinessType, TourStep> = {
     text: "Sea producto o servicio, ponlo con su precio. Te dejamos dos de ejemplo para que veas como es: cambialos por los tuyos. Si manejas existencias, marca la casilla de inventario y le llevas la cuenta.",
     href: "/panel/catalogo",
     action: "Ver mi lista",
+  },
+  LAVADERO: {
+    icon: "tag",
+    title: "Primero, tus lavados y sus precios",
+    text: "Te dejamos varios de ejemplo, de carro, moto y camioneta. Cambialos por los tuyos con su precio y su duracion: eso es lo que ves al agendar un turno.",
+    href: "/panel/catalogo",
+    action: "Ver mis lavados",
   },
 };
 

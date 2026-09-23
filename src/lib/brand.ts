@@ -80,4 +80,14 @@ export const NEGOCIOS: NegocioDemo[] = [
     detalle: "3 tallas por acabarse",
     puntos: ["Inventario por talla y color", "Escanea el código de barras", "Catálogo con fotos"],
   },
+  {
+    key: "LAVADERO",
+    label: "Lavadero de carros",
+    icon: "car",
+    color: "#0284c7",
+    titular: "El turno y quién lo atendió",
+    stat: "18 lavados hoy",
+    detalle: "$ 420.000 - 4 lavadores",
+    puntos: ["Agenda por lavador", "Carros, motos y camionetas", "Cierre de caja del día"],
+  },
 ];

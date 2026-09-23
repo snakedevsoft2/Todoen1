@@ -44,6 +44,7 @@ export const TEAM_NOUN: Record<string, { title: string; singular: string; plural
   RESTAURANTE: { title: "Empleados", singular: "empleado", plural: "empleados", role: "VENDEDOR" },
   COMIDAS_RAPIDAS: { title: "Empleados", singular: "empleado", plural: "empleados", role: "VENDEDOR" },
   OTRO: { title: "Empleados", singular: "empleado", plural: "empleados", role: "VENDEDOR" },
+  LAVADERO: { title: "Lavadores", singular: "lavador", plural: "lavadores", role: "VENDEDOR" },
   DISTRIBUIDORA: { title: "Empleados", singular: "empleado", plural: "empleados", role: "VENDEDOR" },
   SERVICIOS: { title: "Técnicos", singular: "técnico", plural: "técnicos", role: "VENDEDOR" },
 };

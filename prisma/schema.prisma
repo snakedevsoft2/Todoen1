@@ -25,6 +25,9 @@ enum BusinessType {
   /// depende de un oficio en particular y el dueno apaga lo que le sobre
   /// desde "Armar mi menu".
   OTRO
+  /// Lavadero de carros, motos y camionetas. Vende lavados por turno, con
+  /// quien lo atendio.
+  LAVADERO
 }
 
 /// Cada cuanto se cobra una cuota del prestamo.

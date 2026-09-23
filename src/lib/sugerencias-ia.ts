@@ -47,4 +47,10 @@ export const SUGERENCIAS_IA: Record<BusinessType, string[]> = {
     "¿Qué apartados me sirven para mi negocio?",
     "¿Cómo cierro la caja del día?",
   ],
+  LAVADERO: [
+    "¿Cómo voy este mes?",
+    "¿Qué lavador atendió más carros esta semana?",
+    "¿Cómo registro un lavado?",
+    "¿Cómo le mando el recordatorio a un cliente?",
+  ],
 };

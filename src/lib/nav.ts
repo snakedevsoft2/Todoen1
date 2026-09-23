@@ -19,6 +19,7 @@ export const BUSINESS_LABEL: Record<BusinessType, string> = {
   CARTERA: "Cartera y cobranza",
   ASISTENCIA: "Gestor de asistencia",
   OTRO: "Otro negocio",
+  LAVADERO: "Lavadero de carros",
 };
 
 export const ITEM_NOUN: Record<BusinessType, { singular: string; plural: string }> = {
@@ -33,6 +34,7 @@ export const ITEM_NOUN: Record<BusinessType, { singular: string; plural: string 
   ASISTENCIA: { singular: "servicio", plural: "servicios" },
   // Sirve para cualquier oficio, asi que no se casa con ninguno.
   OTRO: { singular: "producto / servicio", plural: "productos y servicios" },
+  LAVADERO: { singular: "lavado / servicio", plural: "lavados y servicios" },
 };
 
 /**
