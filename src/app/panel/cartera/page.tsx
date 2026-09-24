@@ -5,8 +5,10 @@ import { db } from "@/lib/db";
 import { startOfMonth, todayIn } from "@/lib/dates";
 import { money, prettyDay, shortDay } from "@/lib/format";
 import { abonado, collectionMessage, debtState, saldo } from "@/lib/debts";
-import { esPrestamo, estadoPrestamo, planDeDeuda } from "@/lib/prestamos";
+import { esPrestamo, estadoPrestamo, ganancia, planDeDeuda } from "@/lib/prestamos";
 import { toInternational, waLink } from "@/lib/whatsapp";
+import { logoUrl } from "@/lib/nav";
+import { esPlanCompleto } from "@/lib/plan";
 import { Badge, Card, Empty, PageHeader, Stat } from "@/components/ui";
 import { NewDebtForm } from "@/components/DebtForms";
 import { CobrosDeHoy, type Cobro } from "@/components/CobrosDeHoy";
@@ -41,7 +43,7 @@ export default async function CarteraPage({
   const propias = esDueno(me.role);
   const soloMias = propias ? {} : { staffId: me.id };
 
-  const [deudas, cobradoMes] = await Promise.all([
+  const [deudas, cobradoMes, pagosHoy] = await Promise.all([
     db.debt.findMany({
       where: { userId: user.id, ...soloMias },
       orderBy: [{ status: "asc" }, { dueDay: "asc" }, { day: "asc" }],
@@ -51,7 +53,15 @@ export default async function CarteraPage({
       where: { userId: user.id, day: { gte: mes, lte: hoy }, ...(propias ? {} : { staffId: me.id }) },
       _sum: { amount: true },
     }),
+    // Cuantas personas distintas abonaron hoy (no cuantos abonos: uno puede
+    // abonar dos veces el mismo dia y sigue siendo una sola persona).
+    db.debtPayment.findMany({
+      where: { userId: user.id, day: hoy, ...(propias ? {} : { staffId: me.id }) },
+      select: { debtId: true },
+      distinct: ["debtId"],
+    }),
   ]);
+  const personasQueAbonaronHoy = pagosHoy.length;
 
   const conEstado = deudas.map((d) => ({
     deuda: d,
@@ -136,6 +146,21 @@ export default async function CarteraPage({
     ? porCobrar.reduce((s, r) => s + (r.deuda.principal ?? 0), 0)
     : 0;
 
+  /**
+   * Cuanto interes falta por cobrar en los prestamos que siguen activos.
+   * Lo abonado baja primero de forma proporcional entre capital e interes,
+   * igual que cualquier abono parcial: lo que falta de interes es
+   * proporcional a lo que falta del total.
+   */
+  const interesPorCobrar = esCartera
+    ? porCobrar.reduce((s, r) => {
+        const { deuda, pendiente } = r;
+        if (!deuda.principal || !deuda.interestPct || deuda.amount <= 0) return s;
+        const interesTotal = ganancia(deuda.principal, deuda.interestPct);
+        return s + Math.round((interesTotal * pendiente) / deuda.amount);
+      }, 0)
+    : 0;
+
   const visibles =
     filtro === "pendientes"
       ? porCobrar
@@ -206,6 +231,28 @@ export default async function CarteraPage({
           />
         )}
       </div>
+
+      {esCartera && (
+        <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-3">
+          <Stat
+            label="Por recoger hoy"
+            value={money(atrasoTotal + cobrosHoy.reduce((s, c) => s + c.monto, 0), user.currency)}
+            hint={cobrosAtrasados.length + cobrosHoy.length + (cobrosAtrasados.length + cobrosHoy.length === 1 ? " persona" : " personas")}
+            tone="brand"
+          />
+          <Stat
+            label="Abonaron hoy"
+            value={String(personasQueAbonaronHoy)}
+            hint={personasQueAbonaronHoy === 1 ? "persona" : "personas"}
+            tone="good"
+          />
+          <Stat
+            label="Interés por cobrar"
+            value={money(interesPorCobrar, user.currency)}
+            hint="Lo que falta de ganancia en lo activo"
+          />
+        </div>
+      )}
 
       {!esCartera && vencidas.length > 0 && (
         <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-line bg-bad-soft px-4 py-3 text-sm text-bad">
@@ -362,8 +409,19 @@ export default async function CarteraPage({
         </div>
 
         <div className="space-y-4">
-          <Card title="Anotar una deuda" subtitle="Lo que quedo debiendo un cliente">
-            <NewDebtForm today={hoy} currency={user.currency} prestamos={esCartera} />
+          <Card title={esCartera ? "Anotar un préstamo" : "Anotar una deuda"} subtitle="Lo que quedo debiendo un cliente">
+            <NewDebtForm
+              today={hoy}
+              currency={user.currency}
+              prestamos={esCartera}
+              negocio={{
+                businessName: user.businessName,
+                businessPhone: user.phone,
+                businessAddress: user.address,
+                logoUrl: logoUrl(user.slug, user.logo, user.updatedAt),
+                marcaGratis: !esPlanCompleto(user),
+              }}
+            />
           </Card>
 
           <Card title="Como funciona la plata">

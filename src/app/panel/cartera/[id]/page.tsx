@@ -6,12 +6,14 @@ import { db } from "@/lib/db";
 import { todayIn } from "@/lib/dates";
 import { money, prettyDay, shortDay } from "@/lib/format";
 import { logoUrl } from "@/lib/nav";
-import { abonado, collectionMessage, debtState, saldo } from "@/lib/debts";
+import { abonado, collectionMessage, debtState, saldo, shareLocationMessage } from "@/lib/debts";
 import { toInternational, waLink } from "@/lib/whatsapp";
 import { esPrestamo, planDeDeuda, type Frecuencia } from "@/lib/prestamos";
+import { enlaceMapa } from "@/lib/geo";
+import { direccionBase } from "@/lib/reset";
 import { PAYMENT_LABELS, Badge, Card, Empty, PageHeader, Stat } from "@/components/ui";
 import { DueDayForm, PaymentForm } from "@/components/DebtForms";
-import { FichaFiador, PlanDePagos } from "@/components/PlanDePagos";
+import { FichaFiador, FichaReferencias, PlanDePagos } from "@/components/PlanDePagos";
 import { ReceiptActions } from "@/components/ReceiptActions";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Icon } from "@/components/Icon";
@@ -65,6 +67,22 @@ export default async function DeudaPage({ params }: { params: Promise<{ id: stri
   // Solo las deudas pactadas por cuotas tienen plan; un fiado suelto no.
   const plan = planDeDeuda(deuda);
   const muestraPlan = esPrestamo(deuda) && plan.length > 0;
+
+  // Direccion, referencias y ubicacion solo se piden para prestamos: es lo
+  // unico que tiene sentido para negocios de cartera, no para un fiado suelto.
+  const esCartera = esPrestamo(deuda);
+  const tieneUbicacion = deuda.lastLat !== null && deuda.lastLng !== null;
+  const compartiendoUbicacion = Boolean(deuda.locationConsentAt);
+
+  let enlaceCompartirUbicacion: string | null = null;
+  if (esCartera && deuda.clientPhone) {
+    const base = await direccionBase();
+    const link = base + "/ubicacion/" + deuda.id;
+    enlaceCompartirUbicacion = waLink(
+      toInternational(deuda.clientPhone, user.whatsappNumber, user.timezone),
+      shareLocationMessage({ businessName: user.businessName, clientName: deuda.clientName, link })
+    );
+  }
 
   return (
     <>
@@ -129,6 +147,75 @@ export default async function DeudaPage({ params }: { params: Promise<{ id: stri
               direccion={deuda.guarantorAddress}
             />
           )}
+        </div>
+      )}
+
+      {esCartera && (
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <FichaReferencias
+            ref1Name={deuda.reference1Name}
+            ref1Phone={deuda.reference1Phone}
+            ref2Name={deuda.reference2Name}
+            ref2Phone={deuda.reference2Phone}
+          />
+
+          <Card title="Ubicación" subtitle="Solo si el mismo cliente la comparte">
+            {deuda.clientAddress && (
+              <p className="text-sm text-body">
+                <span className="font-semibold text-strong">Dirección: </span>
+                {deuda.clientAddress}
+              </p>
+            )}
+
+            {tieneUbicacion ? (
+              <div className={deuda.clientAddress ? "mt-3" : ""}>
+                <p className="text-xs font-semibold text-good">
+                  {compartiendoUbicacion
+                    ? "Está compartiendo su ubicación"
+                    : "Última ubicación que compartió"}
+                </p>
+                {deuda.lastLocationAt && (
+                  <p className="mt-0.5 text-xs text-muted">
+                    {prettyDay(deuda.lastLocationAt.toISOString().slice(0, 10))} a las{" "}
+                    {deuda.lastLocationAt.toLocaleTimeString("es-CO", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: true,
+                    })}
+                  </p>
+                )}
+                <a
+                  href={enlaceMapa(deuda.lastLat as number, deuda.lastLng as number)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-ghost btn-sm mt-2"
+                >
+                  <Icon name="link" className="h-4 w-4" />
+                  Ver en el mapa
+                </a>
+              </div>
+            ) : (
+              <p className={"text-sm text-muted" + (deuda.clientAddress ? " mt-3" : "")}>
+                Todavía no ha compartido su ubicación.
+              </p>
+            )}
+
+            {enlaceCompartirUbicacion ? (
+              <a
+                href={enlaceCompartirUbicacion}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-ghost btn-sm mt-3 w-full justify-center"
+              >
+                <Icon name="whatsapp" className="h-4 w-4" />
+                Pedirle que comparta su ubicación
+              </a>
+            ) : (
+              <p className="mt-3 text-xs text-subtle">
+                Anota el celular del cliente para poder pedirle que comparta su ubicación.
+              </p>
+            )}
+          </Card>
         </div>
       )}
 

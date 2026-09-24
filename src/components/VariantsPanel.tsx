@@ -38,21 +38,26 @@ export function VariantsPanel({
   serviceId,
   variants,
   currency,
+  clothing = false,
 }: {
   serviceId: string;
   variants: VariantRow[];
   currency: string;
+  /** Tienda de ropa: habla de "tallas" y "prendas". El resto, de "variantes" y "productos". */
+  clothing?: boolean;
 }) {
   const [tab, setTab] = useState<"lote" | "una">("lote");
   const total = variants.reduce((sum, v) => sum + Math.max(0, v.stock), 0);
+  const unidad = clothing ? "talla" : "variante";
+  const unidades = clothing ? "tallas" : "variantes";
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-muted">
           {variants.length === 0
-            ? "Esta prenda todavía no tiene tallas."
-            : variants.length + (variants.length === 1 ? " talla - " : " tallas - ") + total + " en stock"}
+            ? "Este producto todavía no tiene " + unidades + "."
+            : variants.length + " " + (variants.length === 1 ? unidad : unidades) + " - " + total + " en stock"}
         </p>
         <div className="flex gap-1.5">
           <button
@@ -75,15 +80,15 @@ export function VariantsPanel({
       {variants.length > 0 && (
         <ul className="divide-y divide-line rounded-xl border border-line bg-surface px-3">
           {variants.map((v) => (
-            <VariantLine key={v.id} serviceId={serviceId} variant={v} currency={currency} />
+            <VariantLine key={v.id} serviceId={serviceId} variant={v} currency={currency} clothing={clothing} />
           ))}
         </ul>
       )}
 
       {tab === "lote" ? (
-        <BulkForm serviceId={serviceId} currency={currency} />
+        <BulkForm serviceId={serviceId} currency={currency} clothing={clothing} />
       ) : (
-        <SingleForm serviceId={serviceId} currency={currency} />
+        <SingleForm serviceId={serviceId} currency={currency} clothing={clothing} />
       )}
     </div>
   );
@@ -93,10 +98,12 @@ function VariantLine({
   serviceId,
   variant,
   currency,
+  clothing = false,
 }: {
   serviceId: string;
   variant: VariantRow;
   currency: string;
+  clothing?: boolean;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -134,9 +141,10 @@ function VariantLine({
             <SubmitButton
               className="btn-ghost btn-sm px-2 text-bad"
               pendingText="..."
-              ariaLabel="Borrar talla"
+              ariaLabel={"Borrar " + (clothing ? "talla" : "variante")}
               confirm={
-                "Borrar la talla " +
+                "Borrar " +
+                (clothing ? "la talla " : "la variante ") +
                 variantLabel(variant) +
                 (variant.stock > 0 ? ". Tiene " + variant.stock + " en stock." : "")
               }
@@ -153,6 +161,7 @@ function VariantLine({
             serviceId={serviceId}
             variant={variant}
             currency={currency}
+            clothing={clothing}
             onDone={() => setOpen(false)}
           />
         </div>
@@ -161,7 +170,9 @@ function VariantLine({
   );
 }
 
-function BulkForm({ serviceId, currency }: { serviceId: string; currency: string }) {
+function BulkForm({ serviceId, currency, clothing = false }: { serviceId: string; currency: string; clothing?: boolean }) {
+  const unidad = clothing ? "Talla" : "Variante";
+  const unidades = clothing ? "tallas" : "variantes";
   const [state, formAction] = useActionState(useAccionSinSenal("createVariantsBulkAction", createVariantsBulkAction), undefined);
   const [sizes, setSizes] = useState("S, M, L, XL");
 
@@ -171,7 +182,7 @@ function BulkForm({ serviceId, currency }: { serviceId: string; currency: string
       {state?.error && <Alert kind="error">{state.error}</Alert>}
       {state?.ok && <Alert kind="ok">{state.ok}</Alert>}
 
-      <Field label="Tallas" hint="Separadas por coma. Se crea una fila por talla y color.">
+      <Field label={unidad + "s"} hint={"Separadas por coma. Se crea una fila por " + unidad.toLowerCase() + (clothing ? " y color." : ".")}>
         <input
           className="input"
           name="sizes"
@@ -182,36 +193,42 @@ function BulkForm({ serviceId, currency }: { serviceId: string; currency: string
       </Field>
 
       <div className="flex flex-wrap gap-1.5">
-        <button
-          type="button"
-          className="btn-ghost btn-sm"
-          onClick={() => setSizes(SIZE_PRESETS.slice(0, 5).join(", "))}
-        >
-          Letras
-        </button>
-        <button
-          type="button"
-          className="btn-ghost btn-sm"
-          onClick={() => setSizes(NUMERIC_SIZES.join(", "))}
-        >
-          Numeros
-        </button>
+        {clothing && (
+          <>
+            <button
+              type="button"
+              className="btn-ghost btn-sm"
+              onClick={() => setSizes(SIZE_PRESETS.slice(0, 5).join(", "))}
+            >
+              Letras
+            </button>
+            <button
+              type="button"
+              className="btn-ghost btn-sm"
+              onClick={() => setSizes(NUMERIC_SIZES.join(", "))}
+            >
+              Numeros
+            </button>
+          </>
+        )}
         <button type="button" className="btn-ghost btn-sm" onClick={() => setSizes("Unica")}>
-          Talla unica
+          {unidad} única
         </button>
       </div>
 
-      <Field label="Colores (opcional)" hint="Déjalo vacío si la prenda viene en un solo color.">
-        <input className="input" name="colors" placeholder="Negro, Blanco" list="colores-sugeridos" />
-        <datalist id="colores-sugeridos">
-          {COLOR_PRESETS.map((c) => (
-            <option key={c} value={c} />
-          ))}
-        </datalist>
-      </Field>
+      {clothing && (
+        <Field label="Colores (opcional)" hint="Déjalo vacío si la prenda viene en un solo color.">
+          <input className="input" name="colors" placeholder="Negro, Blanco" list="colores-sugeridos" />
+          <datalist id="colores-sugeridos">
+            {COLOR_PRESETS.map((c) => (
+              <option key={c} value={c} />
+            ))}
+          </datalist>
+        </Field>
+      )}
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <Field label="Stock por talla">
+        <Field label={"Stock por " + unidad.toLowerCase()}>
           <input className="input" type="number" name="stock" min={0} step={1} defaultValue={0} />
         </Field>
         <Field label="Costo unitario">
@@ -242,14 +259,17 @@ function SingleForm({
   variant,
   onDone,
   currency,
+  clothing = false,
 }: {
   serviceId: string;
   variant?: VariantRow;
   onDone?: () => void;
   currency: string;
+  clothing?: boolean;
 }) {
   const [state, formAction] = useActionState(useAccionSinSenal("saveVariantAction", saveVariantAction), undefined);
   const [sku, setSku] = useState(variant?.sku ?? "");
+  const unidad = clothing ? "Talla" : "Variante";
 
   // Cuando guarda bien, cerramos la ficha de edicion.
   useEffect(() => {
@@ -264,34 +284,38 @@ function SingleForm({
       {state?.ok && <Alert kind="ok">{state.ok}</Alert>}
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Talla">
+        <Field label={unidad}>
           <input
             className="input"
             name="size"
             defaultValue={variant?.size ?? ""}
-            placeholder="M"
+            placeholder={clothing ? "M" : "Unica"}
             list="tallas-sugeridas"
           />
-          <datalist id="tallas-sugeridas">
-            {[...SIZE_PRESETS, ...NUMERIC_SIZES].map((s) => (
-              <option key={s} value={s} />
-            ))}
-          </datalist>
+          {clothing && (
+            <datalist id="tallas-sugeridas">
+              {[...SIZE_PRESETS, ...NUMERIC_SIZES].map((s) => (
+                <option key={s} value={s} />
+              ))}
+            </datalist>
+          )}
         </Field>
-        <Field label="Color">
-          <input
-            className="input"
-            name="color"
-            defaultValue={variant?.color ?? ""}
-            placeholder="Negro"
-            list="colores-sugeridos-2"
-          />
-          <datalist id="colores-sugeridos-2">
-            {COLOR_PRESETS.map((c) => (
-              <option key={c} value={c} />
-            ))}
-          </datalist>
-        </Field>
+        {clothing && (
+          <Field label="Color">
+            <input
+              className="input"
+              name="color"
+              defaultValue={variant?.color ?? ""}
+              placeholder="Negro"
+              list="colores-sugeridos-2"
+            />
+            <datalist id="colores-sugeridos-2">
+              {COLOR_PRESETS.map((c) => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
+          </Field>
+        )}
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -339,7 +363,7 @@ function SingleForm({
             placeholder="0"
           />
         </Field>
-        <Field label="Precio propio (opcional)" hint="Vacio: usa el precio de la prenda.">
+        <Field label="Precio propio (opcional)" hint="Vacio: usa el precio del producto.">
           <input
             className="input"
             type="number"
@@ -347,7 +371,7 @@ function SingleForm({
             min={0}
             step={pasoMoneda(currency)}
             defaultValue={aCampo(variant?.price, currency)}
-            placeholder="Igual al de la prenda"
+            placeholder="Igual al del producto"
           />
         </Field>
       </div>
@@ -359,7 +383,7 @@ function SingleForm({
       )}
 
       <SubmitButton className="btn-primary btn-sm" pendingText="Guardando...">
-        {variant ? "Guardar talla" : "Agregar talla"}
+        {variant ? "Guardar " + unidad.toLowerCase() : "Agregar " + unidad.toLowerCase()}
       </SubmitButton>
     </form>
   );

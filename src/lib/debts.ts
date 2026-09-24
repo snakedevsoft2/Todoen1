@@ -105,3 +105,26 @@ export function collectionMessage(input: {
 
   return [saludo, "", cuanto + porQue, "", cierre, "", "Gracias."].join("\n");
 }
+
+/**
+ * Mensaje para invitar al deudor a compartir su ubicación, por su cuenta y
+ * cuando quiera, desde el enlace público /ubicacion/[id].
+ *
+ * El texto dice claramente que es voluntario y que puede dejar de compartir
+ * cuando quiera: eso no es un adorno, es la diferencia entre pedir un dato y
+ * imponerlo. No cambiar esto para que "suene" a otra cosa.
+ */
+export function shareLocationMessage(input: {
+  businessName: string;
+  clientName: string;
+  link: string;
+}): string {
+  return [
+    "Hola " + input.clientName + ", te escribimos de " + input.businessName + ".",
+    "",
+    "Si quieres, puedes compartirnos tu ubicación desde este enlace. Es voluntario: tú decides",
+    "si la compartes, y puedes dejar de compartirla cuando quieras desde el mismo enlace.",
+    "",
+    input.link,
+  ].join("\n");
+}

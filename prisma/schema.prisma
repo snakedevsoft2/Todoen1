@@ -365,6 +365,28 @@ model Debt {
   guarantorPhone   String?
   guarantorAddress String?
 
+  /// Direccion del deudor (no del fiador). Para ubicarlo, igual que el fiador.
+  clientAddress String?
+
+  /// Otras dos personas a quien marcar si el deudor no contesta. Solo nombre y
+  /// telefono: no responden por la plata como el fiador, solo ayudan a ubicar.
+  reference1Name  String?
+  reference1Phone String?
+  reference2Name  String?
+  reference2Phone String?
+
+  /**
+   * Ubicacion que el propio deudor comparte, a propósito y cuando quiere,
+   * desde un enlace publico (/ubicacion/[id]) pensado para el, sin cuenta ni
+   * clave. `locationConsentAt` se apaga (vuelve a null) si el deudor deja de
+   * compartir: nunca queda prendido sin que el pueda apagarlo. No hay manera
+   * de rastrearlo en segundo plano ni sin que el lo sepa.
+   */
+  locationConsentAt DateTime?
+  lastLat           Float?
+  lastLng           Float?
+  lastLocationAt    DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

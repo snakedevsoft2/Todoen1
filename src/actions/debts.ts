@@ -17,7 +17,14 @@ import {
 import { anotarActividad } from "@/lib/actividad";
 import { SOLO_DUENO, esDueno } from "@/lib/permisos-empleado";
 
-export type DebtState = { error?: string; ok?: string } | undefined;
+export type DebtState =
+  | {
+      error?: string;
+      ok?: string;
+      /** Para poder sacar la constancia del préstamo justo al anotarlo. */
+      recibo?: { debtId: string; clientName: string; clientPhone: string | null; concept: string; amount: number; day: string };
+    }
+  | undefined;
 
 const VALID_PAYMENTS: PaymentMethod[] = ["EFECTIVO", "TARJETA", "TRANSFERENCIA", "OTRO"];
 
@@ -53,6 +60,8 @@ export async function createDebtAction(
    * nunca pueda quedar un total que no cuadre con lo que se presto.
    */
   const esPrestamo = str(formData.get("modo")) === "prestamo";
+  const clientPhone = str(formData.get("clientPhone")) || null;
+  if (esPrestamo && !clientPhone) return { error: "Escribe el celular de quien recibe el préstamo." };
 
   let amount = 0;
   let principal: number | null = null;
@@ -98,14 +107,15 @@ export async function createDebtAction(
     dueDay = plan[plan.length - 1]?.day ?? dueDay;
   }
 
-  await db.debt.create({
+  const nueva = await db.debt.create({
     data: {
       userId: user.id,
       // Con quien queda: si el negocio tiene empleados con cuenta separada,
       // cada uno ve solo lo suyo (ver lib/permisos-empleado.ts).
       staffId: staff.id,
       clientName,
-      clientPhone: str(formData.get("clientPhone")) || null,
+      clientPhone,
+      clientAddress: str(formData.get("clientAddress")) || null,
       concept,
       amount,
       day,
@@ -122,6 +132,11 @@ export async function createDebtAction(
       guarantorId: str(formData.get("guarantorId")) || null,
       guarantorPhone: str(formData.get("guarantorPhone")) || null,
       guarantorAddress: str(formData.get("guarantorAddress")) || null,
+      // Otras personas a quien marcar si no contesta.
+      reference1Name: str(formData.get("reference1Name")) || null,
+      reference1Phone: str(formData.get("reference1Phone")) || null,
+      reference2Name: str(formData.get("reference2Name")) || null,
+      reference2Phone: str(formData.get("reference2Phone")) || null,
     },
   });
   await anotarActividad(
@@ -131,12 +146,17 @@ export async function createDebtAction(
 
   await anotarCliente(user.id, {
     name: clientName,
-    phone: str(formData.get("clientPhone")) || null,
+    phone: clientPhone,
     source: "cartera",
   });
 
   refresh();
-  return { ok: esPrestamo ? "Prestamo anotado." : "Deuda anotada." };
+  return {
+    ok: esPrestamo ? "Prestamo anotado." : "Deuda anotada.",
+    recibo: esPrestamo
+      ? { debtId: nueva.id, clientName, clientPhone, concept, amount, day }
+      : undefined,
+  };
 }
 
 /**

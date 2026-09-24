@@ -31,6 +31,21 @@ export type ReceiptData = {
   historial: { day: string; amount: number }[];
   /** La cuenta esta en la version gratis: el comprobante sale con la marca. */
   marcaGratis?: boolean;
+  /**
+   * "abono" (el de siempre) o "prestamo": el mismo papel sirve de constancia
+   * de entrega cuando se presta la plata, con el mismo diseño y las mismas
+   * formas de mandarlo. Solo cambian las palabras.
+   */
+  kind?: "abono" | "prestamo";
+};
+
+const KIND_LABEL: Record<"abono" | "prestamo", { titulo: string; recibido: string; tituloTirilla: string }> = {
+  abono: { titulo: "COMPROBANTE DE ABONO", recibido: "Abono recibido", tituloTirilla: "COMPROBANTE DE ABONO" },
+  prestamo: {
+    titulo: "CONSTANCIA DE PRÉSTAMO",
+    recibido: "Préstamo entregado",
+    tituloTirilla: "CONSTANCIA DE PRÉSTAMO",
+  },
 };
 
 const PAYMENT_LABEL: Record<string, string> = {
@@ -52,11 +67,23 @@ export function receiptFileName(data: ReceiptData): string {
     .replace(/^-+|-+$/g, "")
     .toLowerCase()
     .slice(0, 24);
-  return "abono-" + (slug || "cliente") + "-" + receiptNumber(data.paymentId) + ".pdf";
+  const prefijo = data.kind === "prestamo" ? "prestamo-" : "abono-";
+  return prefijo + (slug || "cliente") + "-" + receiptNumber(data.paymentId) + ".pdf";
 }
 
 /** El texto que acompaña al comprobante cuando se manda por WhatsApp. */
 export function receiptMessage(data: ReceiptData): string {
+  if (data.kind === "prestamo") {
+    return [
+      "Hola " + data.clientName + ", esta es la constancia de tu préstamo en " + data.businessName + ".",
+      "",
+      "Prestado: " + money(data.amount, data.currency),
+      "Fecha: " + prettyDay(data.day),
+      "Concepto: " + data.concept,
+      "",
+      "Total a pagar: " + money(data.total, data.currency) + ".",
+    ].join("\n");
+  }
   return [
     "Hola " + data.clientName + ", te confirmamos tu abono en " + data.businessName + ".",
     "",
@@ -123,10 +150,12 @@ export async function buildReceiptPdf(data: ReceiptData): Promise<File> {
     subY += 4;
   }
 
+  const etiquetas = KIND_LABEL[data.kind ?? "abono"];
+
   doc.setTextColor(0);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
-  doc.text("COMPROBANTE DE ABONO", rightX, y, { align: "right" });
+  doc.text(etiquetas.titulo, rightX, y, { align: "right" });
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(110);
@@ -157,7 +186,7 @@ export async function buildReceiptPdf(data: ReceiptData): Promise<File> {
   doc.rect(marginX, y - 6, rightX - marginX, 16, "F");
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
-  doc.text("Abono recibido", marginX + 3, y + 2);
+  doc.text(etiquetas.recibido, marginX + 3, y + 2);
   doc.setFontSize(14);
   doc.text(money(data.amount, data.currency), rightX - 3, y + 2, { align: "right" });
   doc.setFont("helvetica", "normal");
@@ -223,9 +252,11 @@ export async function buildReceiptPdf(data: ReceiptData): Promise<File> {
   doc.setFontSize(8);
   doc.setTextColor(110);
   doc.text(
-    data.saldo > 0
-      ? "Este comprobante certifica el abono recibido en la fecha indicada."
-      : "Cuenta saldada. Gracias por tu pago.",
+    data.kind === "prestamo"
+      ? "Este comprobante certifica la entrega del préstamo en la fecha indicada."
+      : data.saldo > 0
+        ? "Este comprobante certifica el abono recibido en la fecha indicada."
+        : "Cuenta saldada. Gracias por tu pago.",
     marginX,
     285
   );
@@ -243,6 +274,7 @@ export async function buildReceiptPdf(data: ReceiptData): Promise<File> {
  * cuanto le queda debiendo.
  */
 export function receiptTirilla(data: ReceiptData): Linea[] {
+  const etiquetas = KIND_LABEL[data.kind ?? "abono"];
   const lineas: Linea[] = [
     { t: "titulo", text: data.businessName },
   ];
@@ -252,7 +284,7 @@ export function receiptTirilla(data: ReceiptData): Linea[] {
 
   lineas.push(
     { t: "sep" },
-    { t: "centro", text: "COMPROBANTE DE ABONO", fuerte: true },
+    { t: "centro", text: etiquetas.tituloTirilla, fuerte: true },
     { t: "centro", text: "No. " + receiptNumber(data.paymentId), tenue: true },
     { t: "centro", text: prettyDay(data.day), tenue: true },
     { t: "sep" },
@@ -260,7 +292,7 @@ export function receiptTirilla(data: ReceiptData): Linea[] {
     { t: "texto", text: data.concept, tenue: true },
     { t: "espacio" },
     { t: "par", label: "Forma de pago", value: PAYMENT_LABEL[data.method] ?? data.method },
-    { t: "total", label: "ABONA", value: money(data.amount, data.currency) },
+    { t: "total", label: data.kind === "prestamo" ? "PRESTA" : "ABONA", value: money(data.amount, data.currency) },
     { t: "par", label: "Deuda total", value: money(data.total, data.currency) },
     { t: "par", label: "Saldo", value: money(data.saldo, data.currency), fuerte: true }
   );
@@ -276,7 +308,12 @@ export function receiptTirilla(data: ReceiptData): Linea[] {
     { t: "sep" },
     {
       t: "centro",
-      text: data.saldo > 0 ? "Gracias por su abono" : "Queda a paz y salvo. Gracias.",
+      text:
+        data.kind === "prestamo"
+          ? "Gracias por confiar"
+          : data.saldo > 0
+            ? "Gracias por su abono"
+            : "Queda a paz y salvo. Gracias.",
       tenue: true,
     },
     ...(data.marcaGratis ? [{ t: "centro" as const, text: MARCA_VERSION_GRATIS, fuerte: true }] : []),

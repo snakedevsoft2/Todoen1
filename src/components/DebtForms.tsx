@@ -4,7 +4,8 @@ import { useActionState, useState } from "react";
 import { addPaymentAction, createDebtAction, updateDueDayAction } from "@/actions/debts";
 import { aCampo, money, pasoMoneda } from "@/lib/format";
 import { SubmitButton } from "./SubmitButton";
-import { CamposFiador, CamposPrestamo } from "./PrestamoFields";
+import { CamposFiador, CamposPrestamo, CamposReferencias } from "./PrestamoFields";
+import { ReceiptActions } from "./ReceiptActions";
 import { Alert, Field } from "./ui";
 import { Icon } from "./Icon";
 import { useAccionSinSenal } from "@/components/SinSenal";
@@ -22,10 +23,19 @@ export function NewDebtForm({
   currency,
   /** true en el negocio de cartera: pide capital, interes, cuotas y fiador. */
   prestamos = false,
+  negocio,
 }: {
   today: string;
   currency: string;
   prestamos?: boolean;
+  /** Para poder sacar la constancia del préstamo justo al anotarlo. */
+  negocio?: {
+    businessName: string;
+    businessPhone: string | null;
+    businessAddress: string | null;
+    logoUrl: string | null;
+    marcaGratis: boolean;
+  };
 }) {
   const [state, formAction] = useActionState(useAccionSinSenal("createDebtAction", createDebtAction), undefined);
 
@@ -35,14 +45,56 @@ export function NewDebtForm({
       {state?.error && <Alert kind="error">{state.error}</Alert>}
       {state?.ok && <Alert kind="ok">{state.ok}</Alert>}
 
+      {state?.recibo && negocio && (
+        <div className="rounded-xl border border-good-line bg-good-soft p-3">
+          <p className="mb-2 text-xs font-semibold text-good">Constancia del préstamo</p>
+          <ReceiptActions
+            clientPhone={state.recibo.clientPhone}
+            data={{
+              kind: "prestamo",
+              paymentId: state.recibo.debtId,
+              businessName: negocio.businessName,
+              businessPhone: negocio.businessPhone,
+              businessAddress: negocio.businessAddress,
+              logoUrl: negocio.logoUrl,
+              currency,
+              clientName: state.recibo.clientName,
+              concept: state.recibo.concept,
+              day: state.recibo.day,
+              method: "EFECTIVO",
+              amount: state.recibo.amount,
+              total: state.recibo.amount,
+              saldo: state.recibo.amount,
+              historial: [],
+              marcaGratis: negocio.marcaGratis,
+            }}
+          />
+        </div>
+      )}
+
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Quién debe">
           <input className="input" name="clientName" required placeholder="Ej: Ana Torres" />
         </Field>
-        <Field label="WhatsApp (opcional)" hint="Sin el no se le puede cobrar por chat.">
-          <input className="input" name="clientPhone" inputMode="tel" placeholder="300 000 0000" />
+        <Field
+          label={prestamos ? "Celular" : "WhatsApp (opcional)"}
+          hint={prestamos ? "Para poder cobrarle y ubicarlo." : "Sin el no se le puede cobrar por chat."}
+        >
+          <input
+            className="input"
+            name="clientPhone"
+            inputMode="tel"
+            required={prestamos}
+            placeholder="300 000 0000"
+          />
         </Field>
       </div>
+
+      {prestamos && (
+        <Field label="Dirección" hint="Para poder ubicarlo si hace falta.">
+          <input className="input" name="clientAddress" placeholder="Ej: Calle 45 #12-30" />
+        </Field>
+      )}
 
       <Field label="Por que debe">
         <input className="input" name="concept" required placeholder="Ej: 2 camisas y un jean" />
@@ -73,6 +125,7 @@ export function NewDebtForm({
       )}
 
       {prestamos && <CamposFiador />}
+      {prestamos && <CamposReferencias />}
 
       <Field label="Nota (opcional)">
         <input className="input" name="notes" placeholder="Ej: queda de pagar el viernes" />

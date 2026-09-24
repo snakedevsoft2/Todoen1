@@ -140,8 +140,8 @@ export function ServiceForm({
           </Field>
         )}
 
-        {clothing && suppliers.length > 0 && (
-          <Field label="A quién se la compras" hint="Se usa en el reporte de proveedores.">
+        {suppliers.length > 0 && (
+          <Field label="Proveedor (opcional)" hint="A quién se lo compras. Se usa en el reporte de proveedores.">
             <select className="input" name="supplierId" defaultValue={service?.supplierId ?? ""}>
               <option value="">Sin proveedor</option>
               {suppliers.map((s) => (
@@ -164,17 +164,15 @@ export function ServiceForm({
       </div>
 
       <div className="flex flex-wrap gap-4">
-        {clothing && (
-          <label className="flex items-center gap-2 text-sm text-body">
-            <input
-              type="checkbox"
-              name="trackStock"
-              defaultChecked={service ? service.trackStock !== false : true}
-              className="h-4 w-4 rounded border-line bg-panel accent-brand-600"
-            />
-            Llevar inventario por talla
-          </label>
-        )}
+        <label className="flex items-center gap-2 text-sm text-body">
+          <input
+            type="checkbox"
+            name="trackStock"
+            defaultChecked={service ? service.trackStock !== false : clothing}
+            className="h-4 w-4 rounded border-line bg-panel accent-brand-600"
+          />
+          {clothing ? "Llevar inventario por talla" : "Llevar inventario (cuánto queda)"}
+        </label>
         <label className="flex items-center gap-2 text-sm text-body">
           <input
             type="checkbox"

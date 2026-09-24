@@ -43,13 +43,11 @@ export default async function CatalogoPage() {
         views: { orderBy: { angle: "asc" }, select: { id: true, angle: true } },
       },
     }),
-    isClothing
-      ? db.supplier.findMany({
-          where: { userId: user.id, active: true },
-          orderBy: { name: "asc" },
-          select: { id: true, name: true },
-        })
-      : Promise.resolve([]),
+    db.supplier.findMany({
+      where: { userId: user.id, active: true },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
   ]);
 
   const propias = await categoriasDelNegocio(user.id);
@@ -198,7 +196,7 @@ export default async function CatalogoPage() {
                                   {isClothing && s.showcase && s.active && (
                                     <Badge tone="blue">En catálogo</Badge>
                                   )}
-                                  {isClothing && s.trackStock && (
+                                  {s.trackStock && (
                                     <Badge tone={stock > 0 ? "green" : "red"}>
                                       {stock} en stock
                                     </Badge>
@@ -242,15 +240,16 @@ export default async function CatalogoPage() {
                             </div>
                           </div>
 
-                          {isClothing && s.trackStock && (
+                          {s.trackStock && (
                             <details className="mt-3">
                               <summary className="cursor-pointer text-xs font-semibold text-brand-600">
-                                Tallas y stock ({variants.length})
+                                {isClothing ? "Tallas y stock" : "Inventario"} ({variants.length})
                               </summary>
                               <div className="mt-3">
                                 <VariantsPanel
                                   serviceId={s.id}
                                   currency={user.currency}
+                                  clothing={isClothing}
                                   variants={variants.map((v) => ({
                                     id: v.id,
                                     size: v.size,

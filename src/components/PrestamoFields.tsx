@@ -199,3 +199,61 @@ export function CamposFiador() {
     </div>
   );
 }
+
+/**
+ * Otras dos personas a quien marcar si el deudor no contesta.
+ *
+ * No responden por la plata como el fiador, solo ayudan a ubicar: por eso
+ * piden solo nombre y telefono, nada mas. Va plegado por la misma razon que
+ * el fiador: no siempre hace falta.
+ */
+export function CamposReferencias() {
+  const [abierto, setAbierto] = useState(false);
+
+  return (
+    <div className="rounded-xl border border-line bg-surface">
+      <button
+        type="button"
+        onClick={() => setAbierto(!abierto)}
+        className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm font-bold text-strong"
+      >
+        <Icon name="users" className="h-4 w-4 text-muted" />
+        A quién más marcar si no contesta
+        <span className="ml-auto text-xs font-normal text-muted">
+          {abierto ? "Ocultar" : "Opcional"}
+        </span>
+      </button>
+
+      {abierto && (
+        <div className="space-y-3 border-t border-line p-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Nombre (referencia 1)">
+              <input className="input" name="reference1Name" placeholder="Ej: Su mamá" />
+            </Field>
+            <Field label="Teléfono">
+              <input
+                className="input"
+                name="reference1Phone"
+                inputMode="tel"
+                placeholder="300 000 0000"
+              />
+            </Field>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Nombre (referencia 2)">
+              <input className="input" name="reference2Name" placeholder="Ej: Un vecino" />
+            </Field>
+            <Field label="Teléfono">
+              <input
+                className="input"
+                name="reference2Phone"
+                inputMode="tel"
+                placeholder="300 000 0000"
+              />
+            </Field>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

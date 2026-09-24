@@ -187,3 +187,41 @@ export function FichaFiador({
     </section>
   );
 }
+
+/** A quien mas llamar si el deudor no contesta. */
+export function FichaReferencias({
+  ref1Name,
+  ref1Phone,
+  ref2Name,
+  ref2Phone,
+}: {
+  ref1Name: string | null;
+  ref1Phone: string | null;
+  ref2Name: string | null;
+  ref2Phone: string | null;
+}) {
+  if (!ref1Name && !ref2Name) return null;
+
+  return (
+    <section className="rounded-xl border border-line bg-panel p-4">
+      <h2 className="flex items-center gap-2 text-sm font-bold text-strong">
+        <Icon name="users" className="h-4 w-4 text-muted" />
+        A quien mas llamar
+      </h2>
+      <dl className="mt-3 grid grid-cols-2 gap-3">
+        {ref1Name && (
+          <>
+            <Dato label="Nombre" valor={ref1Name} />
+            <Dato label="Teléfono" valor={ref1Phone ?? "-"} />
+          </>
+        )}
+        {ref2Name && (
+          <>
+            <Dato label="Nombre" valor={ref2Name} />
+            <Dato label="Teléfono" valor={ref2Phone ?? "-"} />
+          </>
+        )}
+      </dl>
+    </section>
+  );
+}

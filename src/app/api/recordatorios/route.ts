@@ -4,8 +4,10 @@ import { reintentarFacturas } from "@/lib/facturacion";
 import { borrarUbicacionesViejas } from "@/lib/ubicacion";
 import { suspenderVencidas } from "@/lib/pagos";
 import { addDays, todayIn } from "@/lib/dates";
-import { collectionMessage, debtState, saldo } from "@/lib/debts";
-import { pretty12h, prettyDay } from "@/lib/format";
+import { abonado, collectionMessage, debtState, saldo } from "@/lib/debts";
+import { estadoPrestamo, planDeDeuda } from "@/lib/prestamos";
+import { avisarAlAdministrador } from "@/lib/avisos-admin";
+import { money, pretty12h, prettyDay } from "@/lib/format";
 import {
   isProvider,
   reminderMessage,
@@ -194,6 +196,56 @@ export async function GET(request: Request) {
     }
   }
 
+  // Aviso al dueño de cartera: a quien le toca cobrar hoy, de un vistazo.
+  // Una vez por corrida basta: el cron solo se dispara una vez al dia.
+  let avisosCartera = 0;
+  const negociosCartera = await db.user.findMany({ where: { businessType: "CARTERA" } });
+  for (const shop of negociosCartera) {
+    const hoy = todayIn(shop.timezone);
+
+    const deudas = await db.debt.findMany({
+      where: { userId: shop.id, status: "PENDIENTE" },
+      include: { payments: { select: { amount: true } } },
+    });
+
+    const filas: { nombre: string; monto: number; atrasada: boolean }[] = [];
+    for (const deuda of deudas) {
+      if (saldo(deuda) <= 0) continue;
+      const plan = planDeDeuda(deuda);
+      if (plan.length === 0) continue;
+
+      const est = estadoPrestamo(plan, abonado(deuda), hoy);
+      if (est.atraso > 0) {
+        filas.push({ nombre: deuda.clientName, monto: est.atraso, atrasada: true });
+      } else if (est.tocaHoy) {
+        filas.push({ nombre: deuda.clientName, monto: est.montoDeHoy, atrasada: false });
+      }
+    }
+
+    if (filas.length === 0) continue;
+
+    filas.sort((a, b) => Number(b.atrasada) - Number(a.atrasada) || b.monto - a.monto);
+    const total = filas.reduce((s, f) => s + f.monto, 0);
+    const lineas = filas
+      .slice(0, 20)
+      .map((f) => "- " + f.nombre + ": " + money(f.monto, shop.currency) + (f.atrasada ? " (atrasado)" : ""));
+
+    await avisarAlAdministrador(shop, {
+      asunto:
+        "Hoy te toca cobrar a " + filas.length + (filas.length === 1 ? " persona" : " personas"),
+      texto:
+        "Hoy tienes " +
+        filas.length +
+        (filas.length === 1 ? " persona" : " personas") +
+        " por cobrar, en total " +
+        money(total, shop.currency) +
+        ".\n\n" +
+        lineas.join("\n"),
+      ruta: "/panel/cartera",
+    });
+    avisosCartera += 1;
+  }
+
   // Los mensajes programados del CRM que ya llegaron a su hora.
   const crm = await enviarProgramados({ limite: 1000 });
 
@@ -213,6 +265,6 @@ export async function GET(request: Request) {
     suspendidasPorPago,
     negocios: negocios.length,
     turnos: { enviados, fallidos, sinConfigurar },
-    cartera: { cobros },
+    cartera: { cobros, avisosDueno: avisosCartera },
   });
 }
