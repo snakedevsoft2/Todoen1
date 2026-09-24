@@ -64,7 +64,10 @@ export default async function PanelHomePage() {
       where: { userId: user.id, day: today },
       orderBy: { createdAt: "desc" },
       take: 6,
-      include: { items: { select: { name: true, qty: true } } },
+      include: {
+        items: { select: { name: true, qty: true } },
+        staff: { select: { name: true, color: true } },
+      },
     }),
     db.cashClosure.findUnique({ where: { userId_day: { userId: user.id, day: today } } }),
     db.expense.findMany({ where: { userId: user.id, day: today }, orderBy: { createdAt: "desc" }, take: 5 }),
@@ -423,6 +426,15 @@ export default async function PanelHomePage() {
                     <p className="text-xs text-muted">
                       {s.clientName ?? "Mostrador"} - {s.paymentMethod.toLowerCase()}
                     </p>
+                    {s.staff && (
+                      <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-subtle">
+                        <span
+                          className="h-2 w-2 shrink-0 rounded-full"
+                          style={{ backgroundColor: s.staff.color }}
+                        />
+                        {s.staff.name}
+                      </p>
+                    )}
                   </div>
                   <span className="text-sm font-bold text-good">
                     {money(s.total, user.currency)}

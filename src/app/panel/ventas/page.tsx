@@ -57,6 +57,7 @@ export default async function VentasPage({
   const today = todayIn(user.timezone);
   const day = params.d && isValidDay(params.d) ? params.d : today;
   const isClothing = user.businessType === "ROPA";
+  const esLavadero = user.businessType === "LAVADERO";
   // Con empleados de cuenta separada, cada uno ve solo las ventas que hizo;
   // el dueño las ve todas (ver lib/permisos-empleado.ts).
   const propias = esDueno(me.role);
@@ -260,36 +261,58 @@ export default async function VentasPage({
 
       {porPersona.length > 1 && (
         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {porPersona.map((person) => (
-            <div key={person.id} className="card-tight">
-              <div className="flex items-center gap-2.5">
-                <span
-                  className="h-2.5 w-2.5 shrink-0 rounded-full"
-                  style={{ backgroundColor: person.color }}
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-semibold text-strong">{person.name}</p>
-                  <p className="text-[11px] text-subtle">{person.count} ventas</p>
+          {porPersona.map((person) => {
+            const contenido = (
+              <>
+                <div className="flex items-center gap-2.5">
+                  <span
+                    className="h-2.5 w-2.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: person.color }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-semibold text-strong">{person.name}</p>
+                    <p className="text-[11px] text-subtle">
+                      {person.count} {esLavadero ? "carros lavados" : "ventas"}
+                    </p>
+                  </div>
+                  <p className="text-sm font-bold text-brand-600">
+                    {money(person.total, user.currency)}
+                  </p>
                 </div>
-                <p className="text-sm font-bold text-brand-600">
-                  {money(person.total, user.currency)}
-                </p>
+                {person.productos.length > 0 && (
+                  <ul className="mt-2 space-y-0.5 border-t border-line pt-2">
+                    {person.productos.map((p) => (
+                      <li
+                        key={p.name}
+                        className="flex items-center justify-between gap-2 text-[11px] text-subtle"
+                      >
+                        <span className="min-w-0 truncate">{p.name}</span>
+                        <span className="shrink-0 font-medium text-body">{p.qty}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {esLavadero && (
+                  <p className="mt-2 border-t border-line pt-2 text-[11px] font-semibold text-brand-600">
+                    Ver los carros que lavó →
+                  </p>
+                )}
+              </>
+            );
+            return esLavadero ? (
+              <Link
+                key={person.id}
+                href={"/panel/patio/lavador/" + person.id + (day !== today ? "?d=" + day : "")}
+                className="card-tight block transition hover:bg-surface"
+              >
+                {contenido}
+              </Link>
+            ) : (
+              <div key={person.id} className="card-tight">
+                {contenido}
               </div>
-              {person.productos.length > 0 && (
-                <ul className="mt-2 space-y-0.5 border-t border-line pt-2">
-                  {person.productos.map((p) => (
-                    <li
-                      key={p.name}
-                      className="flex items-center justify-between gap-2 text-[11px] text-subtle"
-                    >
-                      <span className="min-w-0 truncate">{p.name}</span>
-                      <span className="shrink-0 font-medium text-body">{p.qty}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
