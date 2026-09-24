@@ -1,10 +1,8 @@
-import { headers } from "next/headers";
 import { after } from "next/server";
 import { enviarProgramados } from "@/lib/envios-crm";
 import { aiEnabled } from "@/lib/ai";
 import { SUGERENCIAS_IA } from "@/lib/sugerencias-ia";
 import { AsistenteFlotante } from "@/components/AsistenteFlotante";
-import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/auth";
 import { BUSINESS_LABEL, logoUrl, publicPath } from "@/lib/nav";
 import { menuDe, modulosDe } from "@/lib/modules";
@@ -14,8 +12,6 @@ import {
   MENU_LAVADOR,
   esEmpleadoDeAsistencia,
   esLavadorDeLavadero,
-  rutaDeEmpleadoAsistencia,
-  rutaDeLavador,
   tienePaginaPublica,
 } from "@/lib/permisos";
 import { Shell } from "@/components/Shell";
@@ -33,30 +29,15 @@ import { InstalarApp } from "@/components/InstalarApp";
 import { enlaceActivarPlan, puedeInstalar } from "@/lib/plan";
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
-  // El bloqueo por ruta exacta de cada menu fijo (empleado de asistencia,
-  // lavador) lo hace este layout mismo, unas lineas mas abajo, mirando la
-  // direccion real que se pidio. Si requireSession() hiciera tambien su propio
-  // redirect a ciegas aqui, redirigiria incluso estando ya en esa pantalla
-  // (p.ej. /panel/mis-lavados a /panel/mis-lavados), armando un ciclo que el
-  // navegador termina mostrando en blanco.
-  const sesion = await requireSession({ asistenciaOk: true, lavadorOk: true });
+  // requireSession() ya redirige con precision si esta pantalla no es de las
+  // fijas del empleado de asistencia o del lavador (mira la ruta real pedida
+  // contra su menu). Aqui solo hace falta saber cual de los dos es, para
+  // armar el menu y el resto de la pantalla.
+  const sesion = await requireSession();
   const { user, staff } = sesion;
 
-  // El empleado del gestor de asistencia solo tiene sus cuatro pantallas. Si
-  // escribe otra direccion a mano, vuelve a Marcar.
   const empleado = esEmpleadoDeAsistencia(user, staff);
-  if (empleado) {
-    const ruta = (await headers()).get("x-ruta") ?? "";
-    if (ruta && !rutaDeEmpleadoAsistencia(ruta)) redirect("/panel/marcar");
-  }
-
-  // El lavador del lavadero tampoco ve el negocio completo: solo sus
-  // vehiculos asignados, marcar y su perfil.
   const lavador = esLavadorDeLavadero(user, staff);
-  if (lavador) {
-    const ruta = (await headers()).get("x-ruta") ?? "";
-    if (ruta && !rutaDeLavador(ruta)) redirect("/panel/mis-lavados");
-  }
 
   // El menu sale del catalogo en base de datos, filtrado por el oficio, por el
   // rol y por lo que esta persona decidio ver.

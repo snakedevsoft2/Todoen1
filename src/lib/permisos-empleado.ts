@@ -48,6 +48,8 @@ export const ACCIONES_SOLO_DUENO = new Set<string>([
   "saveSupplierAction",
   "toggleSupplierAction",
   "deleteSupplierAction",
+  "deleteWashJobAction",
+  "updateWashJobAction",
 ]);
 
 /** Las que crean y editan con el mismo formulario: el empleado solo crea (sin id). */

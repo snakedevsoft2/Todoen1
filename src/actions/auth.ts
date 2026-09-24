@@ -11,6 +11,7 @@ import { CATALOGO_POR_TIPO, COLOR_POR_TIPO, esTipoElegible } from "@/lib/tipo-ne
 import { finDePrueba } from "@/lib/plan";
 import { headers } from "next/headers";
 import { esUsuario, normalizarUsuario } from "@/lib/usuario";
+import { destinoTrasEntrar } from "@/lib/permisos";
 import {
   anotarIntentoDeLogin,
   anotarIntentoDeUsuario,
@@ -165,7 +166,11 @@ export async function loginAction(_prev: AuthState, formData: FormData): Promise
       }),
       remember
     );
-    redirect("/panel");
+    // Directo a Bienvenida si todavia no la ha visto, igual que con el
+    // empleado de asistencia y el lavador: dos redirecciones seguidas desde
+    // una Server Action (login -> /panel -> Bienvenida) tardan varios
+    // segundos de mas en aparecer completas.
+    redirect(owner.onboardingDoneAt ? "/panel" : "/panel/bienvenida");
   }
 
   // 2. Un barbero con usuario propio dentro de un negocio.
@@ -192,7 +197,7 @@ export async function loginAction(_prev: AuthState, formData: FormData): Promise
     }),
     remember
   );
-  redirect("/panel");
+  redirect(destinoTrasEntrar(staff.user, staff));
 }
 
 /**
@@ -233,7 +238,7 @@ async function entrarConUsuario(
     }),
     remember
   );
-  redirect("/panel");
+  redirect(destinoTrasEntrar(staff.user, staff));
 }
 
 export async function logoutAction() {

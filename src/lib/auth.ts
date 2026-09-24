@@ -1,10 +1,16 @@
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import bcrypt from "bcryptjs";
 import type { Staff, User } from "@prisma/client";
 import { db } from "./db";
 import { suspenderSiVencio } from "./pagos";
 import { readSession } from "./session";
-import { esEmpleadoDeAsistencia, esLavadorDeLavadero } from "./permisos";
+import {
+  esEmpleadoDeAsistencia,
+  esLavadorDeLavadero,
+  rutaDeEmpleadoAsistencia,
+  rutaDeLavador,
+} from "./permisos";
 
 /**
  * Usamos la version sincronica de bcrypt a proposito.
@@ -142,27 +148,37 @@ export async function getCurrentSession(): Promise<Session | null> {
 /**
  * Sesion obligatoria. Si no hay, manda al login.
  *
- * El menu del empleado de asistencia ya lo bloquea por pantalla
- * (panel/layout.tsx), pero eso no alcanza: una Server Action se puede invocar
- * directo sin pasar por esa pantalla. Por defecto esta funcion repite el
- * mismo bloqueo aqui, para que "solo puede ver 5 pantallas" tambien valga
- * para lo que esas pantallas pueden mandar a guardar. Las acciones que SI son
- * parte de esas 5 pantallas (marcar, novedades, informes, escaner, perfil, y
- * lo que es de la persona y no del negocio, como su propia clave) llaman
- * requireSession({ asistenciaOk: true }) para no quedar bloqueadas tambien.
+ * El empleado de asistencia y el lavador tienen un menu fijo de pocas
+ * pantallas (ver lib/permisos.ts). El middleware deja la direccion real
+ * pedida en la cabecera x-ruta para cada GET, asi que aqui se compara contra
+ * esa lista con precision: una pantalla que si es suya no se redirige (ni
+ * siquiera a si misma), y una que no lo es manda a su pantalla fija.
  *
- * Mismo bloqueo, con el mismo motivo, para el lavador del lavadero: sus
- * pantallas son Mis lavados, Marcar y Perfil, y llama
- * requireSession({ lavadorOk: true }) desde las que sí son suyas.
+ * Una Server Action (POST) no trae esa cabecera -el middleware solo la pone
+ * para GET-, asi que ahi manda lo que la propia accion diga a mano: las que
+ * SI son parte de esas pantallas (marcar, novedades, informes, escaner,
+ * perfil, y lo que es de la persona y no del negocio, como su propia clave)
+ * llaman requireSession({ asistenciaOk: true }) o { lavadorOk: true }.
+ *
+ * Ojo con esto al agregar una pantalla nueva al menu fijo: si su Server
+ * Action no avisa con el opt correspondiente, se comporta como si esa
+ * pantalla no fuera suya. Antes esto tambien pasaba en GET (cada pantalla
+ * tenia que acordarse de avisar), y una que se le olvido armo un redirect a
+ * si misma sin fin -por eso ahora el caso de GET ya no depende de acordarse.
  */
 export async function requireSession(opts?: { asistenciaOk?: boolean; lavadorOk?: boolean }): Promise<Session> {
   const session = await getCurrentSession();
   if (!session) redirect("/salir");
-  if (!opts?.asistenciaOk && esEmpleadoDeAsistencia(session.user, session.staff)) {
-    redirect("/panel/marcar");
+
+  const ruta = (await headers()).get("x-ruta");
+
+  if (esEmpleadoDeAsistencia(session.user, session.staff)) {
+    const permitido = ruta ? rutaDeEmpleadoAsistencia(ruta) : Boolean(opts?.asistenciaOk);
+    if (!permitido) redirect("/panel/marcar");
   }
-  if (!opts?.lavadorOk && esLavadorDeLavadero(session.user, session.staff)) {
-    redirect("/panel/mis-lavados");
+  if (esLavadorDeLavadero(session.user, session.staff)) {
+    const permitido = ruta ? rutaDeLavador(ruta) : Boolean(opts?.lavadorOk);
+    if (!permitido) redirect("/panel/mis-lavados");
   }
   return session;
 }

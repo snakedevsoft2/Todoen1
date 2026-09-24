@@ -57,3 +57,18 @@ export function rutaDeLavador(ruta: string): boolean {
 export function tienePaginaPublica(tipo: string): boolean {
   return tipo !== "ASISTENCIA" && tipo !== "CARTERA";
 }
+
+/**
+ * A donde manda el login apenas entra.
+ *
+ * Manda directo al destino final (Marcar, Mis lavados) y no a /panel para que
+ * ese de ahi redirija otra vez: dos redirecciones seguidas desde una Server
+ * Action (login -> /panel -> su pantalla fija) dejan al navegador armando la
+ * pagina en dos saltos y a veces la deja en blanco hasta que se recarga a
+ * mano. Con un solo salto no pasa.
+ */
+export function destinoTrasEntrar(user: { businessType: string }, staff: { role: string }): string {
+  if (esEmpleadoDeAsistencia(user, staff)) return "/panel/marcar";
+  if (esLavadorDeLavadero(user, staff)) return "/panel/mis-lavados";
+  return "/panel";
+}
