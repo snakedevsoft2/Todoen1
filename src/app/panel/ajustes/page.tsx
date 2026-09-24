@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireSession } from "@/lib/auth";
 import { BUSINESS_LABEL, publicPath } from "@/lib/nav";
 import { Card, PageHeader } from "@/components/ui";
-import { BusinessSettingsForm, PasswordForm } from "@/components/SettingsForms";
+import { BusinessSettingsForm, LoyaltySettingsForm, PasswordForm } from "@/components/SettingsForms";
 import { CopyLink } from "@/components/CopyLink";
 import { PreguntaSeguridadForm } from "@/components/PreguntaSeguridadForm";
 import { logoutAction } from "@/actions/auth";
@@ -21,6 +21,7 @@ export default async function AjustesPage() {
   const { user, staff } = await requireSession();
   const isBarber = user.businessType === "BARBERIA";
   const isClothing = user.businessType === "ROPA";
+  const isLavadero = user.businessType === "LAVADERO";
   const isOwner = staff.role === "DUENO";
   const publicLink = publicPath(user.businessType, user.slug);
   const facturacion = isOwner ? await configuracionFacturacion(user.id) : null;
@@ -57,8 +58,19 @@ export default async function AjustesPage() {
             }}
             isBarber={isBarber}
             isClothing={isClothing}
+            isLavadero={isLavadero}
           />
         </Card>
+        )}
+
+        {isOwner && isLavadero && (
+          <Card
+            title="Tarjeta de fidelización"
+            subtitle="Cada lavado cobrado le llena un sello a su cliente"
+            className="lg:col-span-2"
+          >
+            <LoyaltySettingsForm goal={user.loyaltyGoal} reward={user.loyaltyReward} />
+          </Card>
         )}
 
         {isOwner && (

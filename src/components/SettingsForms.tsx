@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { changePasswordAction, updateBusinessAction } from "@/actions/settings";
+import { changePasswordAction, updateBusinessAction, updateLoyaltyAction } from "@/actions/settings";
 import { SubmitButton } from "./SubmitButton";
 import { Alert, Field } from "./ui";
 import { WEEKDAYS } from "@/lib/timezones";
@@ -36,11 +36,14 @@ export function BusinessSettingsForm({
   settings,
   isBarber,
   isClothing = false,
+  isLavadero = false,
 }: {
   settings: BusinessSettings;
   isBarber: boolean;
   /** La tienda de ropa tambien tiene enlace publico, pero es su catalogo. */
   isClothing?: boolean;
+  /** El lavadero tiene catalogo publico Y reservas, igual que la barberia. */
+  isLavadero?: boolean;
 }) {
   const [state, formAction] = useActionState(updateBusinessAction, undefined);
   const selectedDays = settings.workDays.split(",").map((d) => Number(d.trim()));
@@ -122,23 +125,23 @@ export function BusinessSettingsForm({
         </div>
       </div>
 
-      {(isBarber || isClothing) && (
+      {(isBarber || isClothing || isLavadero) && (
         <div className="rounded-xl border border-line bg-surface p-3">
           <p className="mb-3 text-sm font-semibold text-strong">
-            {isClothing ? "Catálogo en línea" : "Reservas en línea"}
+            {isClothing ? "Catálogo en línea" : isLavadero ? "Catálogo y reservas en línea" : "Reservas en línea"}
           </p>
           <Field
-            label={isClothing ? "Enlace de tu catálogo" : "Enlace de tu página de reservas"}
+            label={isClothing || isLavadero ? "Enlace de tu catálogo" : "Enlace de tu página de reservas"}
             hint="Solo letras, numeros y guiones. Si lo cambias, el enlace anterior deja de servir."
           >
             <div className="flex items-center gap-2">
               <span className="shrink-0 text-xs text-subtle">
-                {isClothing ? "/catalogo/" : "/reservar/"}
+                {isClothing || isLavadero ? "/catalogo/" : "/reservar/"}
               </span>
               <input className="input" name="slug" defaultValue={settings.slug} />
             </div>
           </Field>
-          {isBarber && (
+          {(isBarber || isLavadero) && (
             <label className="mt-3 flex items-center gap-2 text-sm text-body">
               <input
                 type="checkbox"
@@ -154,6 +157,35 @@ export function BusinessSettingsForm({
 
       <SubmitButton className="btn-primary w-full sm:w-auto" pendingText="Guardando...">
         Guardar ajustes
+      </SubmitButton>
+    </form>
+  );
+}
+
+export function LoyaltySettingsForm({ goal, reward }: { goal: number; reward: string | null }) {
+  const [state, formAction] = useActionState(updateLoyaltyAction, undefined);
+
+  return (
+    <form action={formAction} className="space-y-3">
+      {state?.error && <Alert kind="error">{state.error}</Alert>}
+      {state?.ok && <Alert kind="ok">{state.ok}</Alert>}
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Lavadas para el premio" hint="Al completarla, el sello vuelve a cero.">
+          <input className="input" type="number" name="loyaltyGoal" min={2} max={30} defaultValue={goal} />
+        </Field>
+        <Field label="En qué consiste el premio">
+          <input
+            className="input"
+            name="loyaltyReward"
+            defaultValue={reward ?? ""}
+            placeholder="Ej: Lavado completo gratis"
+          />
+        </Field>
+      </div>
+
+      <SubmitButton className="btn-primary w-full sm:w-auto" pendingText="Guardando...">
+        Guardar tarjeta
       </SubmitButton>
     </form>
   );

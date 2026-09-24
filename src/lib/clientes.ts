@@ -19,7 +19,8 @@ export type Origen =
   | "reporte"
   | "venta"
   | "chat"
-  | "whatsapp";
+  | "whatsapp"
+  | "lavado";
 
 /** Tope por negocio. Muy por encima de lo normal; frena un bucle, no a nadie. */
 export const LIMITE_CLIENTES = 20_000;

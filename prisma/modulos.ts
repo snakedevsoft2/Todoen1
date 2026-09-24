@@ -114,6 +114,17 @@ export const MODULOS: ModuloDef[] = [
       "Ves el dia partido en horas y vas colocando a cada cliente en su espacio. Tus clientes tambien pueden separar solos desde tu pagina publica, sin llamarte. Cuando el cliente llega y le cobras, el turno se convierte en venta y no tienes que anotarlo dos veces.",
   },
   {
+    key: "patio",
+    href: "/panel/patio",
+    label: "Patio",
+    icon: "car",
+    group: "NUCLEO",
+    sortOrder: 11,
+    shortDescription: "El tablero del lavadero: el vehiculo que llega, quien lo lava y cuando se cobra.",
+    longDescription:
+      "Recibes el vehiculo con los datos del cliente, se lo asignas a un lavador y lo vas pasando de en cola a lavando a listo. Cuando el cliente se lo lleva, cobras ahi mismo y queda como venta del dia. Lo que alguien reservo en tu pagina publica tambien aparece aqui para recibirlo.",
+  },
+  {
     key: "cuentas",
     href: "/panel/cuentas",
     label: "Cuentas abiertas",
@@ -242,6 +253,7 @@ export const MODULOS: ModuloDef[] = [
     label: "Reportes",
     icon: "chart",
     group: "CRECIMIENTO",
+    ownerOnly: true,
     sortOrder: 90,
     shortDescription:
       "Como te fue esta semana comparado con la pasada. Que se vende mas. Que dia vendes mejor.",
@@ -538,14 +550,18 @@ export const PRESETS: Record<Tipo, Record<string, Preset>> = {
   /**
    * Lavadero de carros, motos y camionetas.
    *
-   * Se arma igual que la barberia: turno por hora, quien lo atendio y su
-   * comision. Cambia el catalogo (lavados, no cortes) y no tiene pagina
-   * publica de reservas, que sigue siendo solo de la barberia.
+   * El jefe de patio recibe el vehiculo y lo reparte entre los lavadores desde
+   * el tablero de Patio (no la agenda por hora de Turnos, que aqui queda
+   * apagada: sirve para lo que alguien reserve desde la pagina publica, y esas
+   * reservas tambien aparecen en Patio para recibirlas). Cambia el catalogo
+   * (lavados, no cortes) y ahora si tiene pagina publica de reservas, igual
+   * que la barberia.
    */
   LAVADERO: {
     resumen: {},
-    turnos: {
-      ejemplo: "Camioneta placa ABC-123, lavado y encerado, 3:00 p.m. con Andres.",
+    turnos: { on: false },
+    patio: {
+      ejemplo: "Camioneta placa ABC-123, lavado y encerado, con Andres.",
     },
     ventas: { ejemplo: "Lavado completo, $22.000, efectivo." },
     gastos: { ejemplo: "Shampoo, cera y trapos, $60.000." },
@@ -561,9 +577,13 @@ export const PRESETS: Record<Tipo, Record<string, Preset>> = {
     agente: { ejemplo: "Un cliente escribe a las 8 p.m. y queda con turno para manana a las 9." },
     escaner: { on: false, ejemplo: "La camara de comercio, en PDF para mandarla." },
     guia: {},
-    equipo: { label: "Lavadores", ejemplo: "Andres, Jhon y Miguel, cada uno con su usuario." },
+    equipo: { label: "Lavadores", ejemplo: "Andres es el jefe de patio; Jhon y Miguel lavan, cada uno con su usuario." },
     personalizar: { on: false },
     inventario: { on: false, ejemplo: "Shampoo, cera y aromatizantes que tambien vendes." },
+    marcar: { ejemplo: "Jhon marco entrada a las 8:05 en el lavadero." },
+    planilla: { ejemplo: "Hoy marcaron 3 de 3. Miguel entro a las 8:05." },
+    sitios: { ejemplo: "El lavadero, con su direccion y radio." },
+    novedades: { ejemplo: "Miguel avisa que llega tarde el martes." },
     espacio: {},
     ajustes: {},
     soporte: {},

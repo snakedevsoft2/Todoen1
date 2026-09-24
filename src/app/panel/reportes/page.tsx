@@ -1,4 +1,4 @@
-import { requireUser } from "@/lib/auth";
+import { requireOwner } from "@/lib/auth";
 import { addDays, isValidDay, startOfMonth, todayIn } from "@/lib/dates";
 import { money, shortDay } from "@/lib/format";
 import {
@@ -24,7 +24,7 @@ export default async function ReportesPage({
 }: {
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
-  const user = await requireUser();
+  const { user } = await requireOwner();
   if (!esPlanCompleto(user)) {
     return (
       <>

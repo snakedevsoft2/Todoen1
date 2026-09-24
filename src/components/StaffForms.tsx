@@ -11,7 +11,7 @@ import {
   updateStaffAction,
   deleteStaffAction,
 } from "@/actions/staff";
-import { STAFF_COLORS, etiquetaDeRol, initials, teamNoun } from "@/lib/staff";
+import { ROLES_ELEGIBLES, STAFF_COLORS, etiquetaDeRol, initials, teamNoun } from "@/lib/staff";
 import { SubmitButton } from "./SubmitButton";
 import { Alert, Badge, Field } from "./ui";
 import { Icon } from "./Icon";
@@ -82,10 +82,11 @@ export function NewStaffForm({ businessType = "BARBERIA" }: { businessType?: str
   const [state, formAction] = useActionState(createStaffAction, undefined);
   const [withAccess, setWithAccess] = useState(true);
   const noun = teamNoun(businessType);
-  // Solo la barberia reparte agenda; en la tienda de ropa el color es para los reportes.
-  const agenda = businessType === "BARBERIA";
+  // La barberia y el lavadero reparten agenda; en la tienda de ropa el color es para los reportes.
+  const agenda = businessType === "BARBERIA" || businessType === "LAVADERO";
   // En el gestor de asistencia nadie vende: ni comision ni "puede vender".
   const asistencia = businessType === "ASISTENCIA";
+  const roles = ROLES_ELEGIBLES[businessType];
 
   return (
     <form action={formAction} className="space-y-3">
@@ -100,6 +101,18 @@ export function NewStaffForm({ businessType = "BARBERIA" }: { businessType?: str
           <input className="input" name="phone" inputMode="tel" placeholder="300 000 0000" />
         </Field>
       </div>
+
+      {roles && (
+        <Field label="Rol">
+          <select className="input" name="role" defaultValue={roles[0].value}>
+            {roles.map((r) => (
+              <option key={r.value} value={r.value}>
+                {r.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
 
       <Field
         label={agenda ? "Color en la agenda" : "Color en los reportes"}
@@ -231,8 +244,9 @@ export function StaffCard({
 }) {
   const [tab, setTab] = useState<"none" | "datos" | "acceso">("none");
   const isOwner = staff.role === "DUENO";
-  const agenda = businessType === "BARBERIA";
+  const agenda = businessType === "BARBERIA" || businessType === "LAVADERO";
   const asistencia = businessType === "ASISTENCIA";
+  const roles = ROLES_ELEGIBLES[businessType];
 
   return (
     <li className={"rounded-xl border p-3 " + (staff.active ? "border-line bg-surface" : "border-dashed border-line bg-panel opacity-70")}>
@@ -376,6 +390,17 @@ export function StaffCard({
               <input className="input" name="phone" defaultValue={staff.phone ?? ""} inputMode="tel" />
             </Field>
           </div>
+          {roles && !isOwner && (
+            <Field label="Rol">
+              <select className="input" name="role" defaultValue={staff.role}>
+                {roles.map((r) => (
+                  <option key={r.value} value={r.value}>
+                    {r.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
           <Field label={agenda ? "Color en la agenda" : "Color en los reportes"}>
             <ColorPicker name="color" defaultValue={staff.color} />
           </Field>

@@ -97,7 +97,7 @@ export async function registerAction(_prev: AuthState, formData: FormData): Prom
           price: s.price,
           durationMin: s.durationMin || 30,
           category: s.category,
-          bookable: businessType === "BARBERIA",
+          bookable: businessType === "BARBERIA" || businessType === "LAVADERO",
           // La ropa se vende por talla y descuenta inventario.
           trackStock: businessType === "ROPA",
         })),

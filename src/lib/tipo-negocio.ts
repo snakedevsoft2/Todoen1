@@ -156,7 +156,7 @@ export async function cambiarTipoDeNegocio(
               price: s.price,
               durationMin: s.durationMin || 30,
               category: s.category,
-              bookable: nuevo === "BARBERIA",
+              bookable: nuevo === "BARBERIA" || nuevo === "LAVADERO",
               trackStock: nuevo === "ROPA",
             })),
           }),

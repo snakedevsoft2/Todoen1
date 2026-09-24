@@ -194,6 +194,7 @@ export default async function PortafolioPage({
 
   const noun = ITEM_NOUN[shop.businessType];
   const esBarberia = shop.businessType === "BARBERIA";
+  const tieneAgenda = esBarberia || shop.businessType === "LAVADERO";
   // Con indicativo del pais: un numero local (0982...) no abre el chat.
   const whatsapp = toInternational(shop.whatsappNumber || shop.phone, shop.whatsappNumber, shop.timezone);
   const cover = shop.publicCover;
@@ -359,7 +360,7 @@ export default async function PortafolioPage({
           </div>
 
           <div className="mt-5 flex flex-wrap justify-center gap-2">
-            {esBarberia && shop.bookingOpen && (
+            {tieneAgenda && shop.bookingOpen && (
               <Link href={"/reservar/" + slug} className="btn-primary">
                 <Icon name="calendar" className="h-4 w-4" />
                 Separar mi turno

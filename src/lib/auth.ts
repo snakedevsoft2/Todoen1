@@ -4,7 +4,7 @@ import type { Staff, User } from "@prisma/client";
 import { db } from "./db";
 import { suspenderSiVencio } from "./pagos";
 import { readSession } from "./session";
-import { esEmpleadoDeAsistencia } from "./permisos";
+import { esEmpleadoDeAsistencia, esLavadorDeLavadero } from "./permisos";
 
 /**
  * Usamos la version sincronica de bcrypt a proposito.
@@ -150,12 +150,19 @@ export async function getCurrentSession(): Promise<Session | null> {
  * parte de esas 5 pantallas (marcar, novedades, informes, escaner, perfil, y
  * lo que es de la persona y no del negocio, como su propia clave) llaman
  * requireSession({ asistenciaOk: true }) para no quedar bloqueadas tambien.
+ *
+ * Mismo bloqueo, con el mismo motivo, para el lavador del lavadero: sus
+ * pantallas son Mis lavados, Marcar y Perfil, y llama
+ * requireSession({ lavadorOk: true }) desde las que sí son suyas.
  */
-export async function requireSession(opts?: { asistenciaOk?: boolean }): Promise<Session> {
+export async function requireSession(opts?: { asistenciaOk?: boolean; lavadorOk?: boolean }): Promise<Session> {
   const session = await getCurrentSession();
   if (!session) redirect("/salir");
   if (!opts?.asistenciaOk && esEmpleadoDeAsistencia(session.user, session.staff)) {
     redirect("/panel/marcar");
+  }
+  if (!opts?.lavadorOk && esLavadorDeLavadero(session.user, session.staff)) {
+    redirect("/panel/mis-lavados");
   }
   return session;
 }

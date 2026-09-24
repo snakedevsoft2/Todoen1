@@ -31,6 +31,22 @@ const ORIGIN_LABEL: Record<string, string> = {
   ORDEN: "Cuenta",
 };
 
+/** Cuanto se vendio de cada producto en un grupo de ventas, de mas a menos. */
+function agruparPorProducto(
+  sales: { items: { name: string; qty: number; unitPrice: number }[] }[]
+): { name: string; qty: number; total: number }[] {
+  const porNombre = new Map<string, { name: string; qty: number; total: number }>();
+  for (const sale of sales) {
+    for (const item of sale.items) {
+      const fila = porNombre.get(item.name) ?? { name: item.name, qty: 0, total: 0 };
+      fila.qty += item.qty;
+      fila.total += item.qty * item.unitPrice;
+      porNombre.set(item.name, fila);
+    }
+  }
+  return [...porNombre.values()].sort((a, b) => b.qty - a.qty);
+}
+
 export default async function VentasPage({
   searchParams,
 }: {
@@ -118,13 +134,22 @@ export default async function VentasPage({
   // empleado ya ve solo sus ventas, asi que aqui saldria nada mas su fila.
   const porPersona = propias
     ? team
-        .map((person) => ({
-          ...person,
-          total: sales.filter((s) => s.staffId === person.id).reduce((sum, s) => sum + s.total, 0),
-          count: sales.filter((s) => s.staffId === person.id).length,
-        }))
+        .map((person) => {
+          const ventasDePersona = sales.filter((s) => s.staffId === person.id);
+          return {
+            ...person,
+            total: ventasDePersona.reduce((sum, s) => sum + s.total, 0),
+            count: ventasDePersona.length,
+            // Cuanto vendio de cada producto, para saber en que se movio el dia.
+            productos: agruparPorProducto(ventasDePersona),
+          };
+        })
         .filter((row) => row.count > 0)
     : [];
+
+  // Cuanto se vendio de cada producto en total, para saber que se vende mas.
+  const porProducto = agruparPorProducto(sales);
+  const masVendido = porProducto[0] ?? null;
 
   const logo = logoUrl(user.slug, user.logo, user.updatedAt);
 
@@ -218,6 +243,9 @@ export default async function VentasPage({
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Total vendido" value={money(summary.totalSales, user.currency)} tone="brand" />
+        {masVendido && (
+          <Stat label="Más vendido" value={masVendido.name} hint={masVendido.qty + " vendidos"} />
+        )}
         {!soloTotalVendido(user.businessName) && (
           <>
             <Stat label="Ventas cerradas" value={String(summary.salesCount)} />
@@ -233,21 +261,66 @@ export default async function VentasPage({
       {porPersona.length > 1 && (
         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {porPersona.map((person) => (
-            <div key={person.id} className="card-tight flex items-center gap-2.5">
-              <span
-                className="h-2.5 w-2.5 shrink-0 rounded-full"
-                style={{ backgroundColor: person.color }}
-              />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-semibold text-strong">{person.name}</p>
-                <p className="text-[11px] text-subtle">{person.count} ventas</p>
+            <div key={person.id} className="card-tight">
+              <div className="flex items-center gap-2.5">
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: person.color }}
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-semibold text-strong">{person.name}</p>
+                  <p className="text-[11px] text-subtle">{person.count} ventas</p>
+                </div>
+                <p className="text-sm font-bold text-brand-600">
+                  {money(person.total, user.currency)}
+                </p>
               </div>
-              <p className="text-sm font-bold text-brand-600">
-                {money(person.total, user.currency)}
-              </p>
+              {person.productos.length > 0 && (
+                <ul className="mt-2 space-y-0.5 border-t border-line pt-2">
+                  {person.productos.map((p) => (
+                    <li
+                      key={p.name}
+                      className="flex items-center justify-between gap-2 text-[11px] text-subtle"
+                    >
+                      <span className="min-w-0 truncate">{p.name}</span>
+                      <span className="shrink-0 font-medium text-body">{p.qty}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           ))}
         </div>
+      )}
+
+      {porProducto.length > 0 && (
+        <Card
+          title="Ventas por producto"
+          subtitle="Cuánto se vendió de cada uno hoy"
+          className="mt-5"
+        >
+          <ul className="space-y-1.5">
+            {porProducto.map((p, i) => (
+              <li
+                key={p.name}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface px-3 py-2"
+              >
+                <div className="flex min-w-0 items-center gap-2">
+                  {i === 0 && (
+                    <span className="shrink-0 rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-700">
+                      Más vendido
+                    </span>
+                  )}
+                  <span className="truncate text-sm text-strong">{p.name}</span>
+                </div>
+                <div className="flex shrink-0 items-center gap-3 text-xs">
+                  <span className="text-subtle">{p.qty} vendidos</span>
+                  <span className="font-semibold text-strong">{money(p.total, user.currency)}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Card>
       )}
 
       <div className="mt-5 grid gap-4 lg:grid-cols-[420px_1fr] [&>*]:min-w-0">

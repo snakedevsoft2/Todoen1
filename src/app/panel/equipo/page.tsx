@@ -84,17 +84,23 @@ export default async function EquipoPage() {
               : "Quién vende en la tienda y quién puede entrar a la aplicación"
         }
       >
-        {asistencia ? (
-          <Link href="/panel/planilla" className="btn-ghost btn-sm">
-            <Icon name="table" className="h-4 w-4" />
-            Ver planilla
+        <div className="flex flex-wrap gap-2">
+          {asistencia ? (
+            <Link href="/panel/planilla" className="btn-ghost btn-sm">
+              <Icon name="table" className="h-4 w-4" />
+              Ver planilla
+            </Link>
+          ) : (
+            <Link href="/panel/reportes" className="btn-ghost btn-sm">
+              <Icon name="chart" className="h-4 w-4" />
+              Ver medición
+            </Link>
+          )}
+          <Link href="/panel/equipo/auditoria" className="btn-ghost btn-sm">
+            <Icon name="clock" className="h-4 w-4" />
+            Auditoría
           </Link>
-        ) : (
-          <Link href="/panel/reportes" className="btn-ghost btn-sm">
-            <Icon name="chart" className="h-4 w-4" />
-            Ver medición
-          </Link>
-        )}
+        </div>
       </PageHeader>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

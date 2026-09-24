@@ -74,9 +74,12 @@ export async function updateBusinessAction(
       closeHour,
       slotMinutes,
       workDays: days.length ? days.sort().join(",") : user.workDays,
-      // La tienda de ropa no recibe reservas: el campo no viaja en su formulario.
+      // Solo la barberia y el lavadero reciben reservas por hora: el campo no
+      // viaja en el formulario de los demas negocios.
       bookingOpen:
-        user.businessType === "BARBERIA" ? formData.get("bookingOpen") === "on" : user.bookingOpen,
+        user.businessType === "BARBERIA" || user.businessType === "LAVADERO"
+          ? formData.get("bookingOpen") === "on"
+          : user.bookingOpen,
       slug,
     },
   });
@@ -85,6 +88,24 @@ export async function updateBusinessAction(
   revalidatePath("/panel");
   revalidatePath("/catalogo/" + slug);
   return { ok: "Ajustes guardados." };
+}
+
+export async function updateLoyaltyAction(
+  _prev: SettingsState,
+  formData: FormData
+): Promise<SettingsState> {
+  const { user } = await requireOwner();
+
+  const goal = Math.min(30, Math.max(2, parseIntSafe(formData.get("loyaltyGoal"), user.loyaltyGoal)));
+  const reward = str(formData.get("loyaltyReward")).slice(0, 200);
+
+  await db.user.update({
+    where: { id: user.id },
+    data: { loyaltyGoal: goal, loyaltyReward: reward || null },
+  });
+
+  revalidatePath("/panel/ajustes");
+  return { ok: "Tarjeta de fidelización guardada." };
 }
 
 export async function changePasswordAction(

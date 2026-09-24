@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
-import { getCurrentUser } from "@/lib/auth";
-import { isValidDay, startOfMonth, todayIn } from "@/lib/dates";
+import { requireOwner } from "@/lib/auth";
+import { addDays, dayIn, inicioDelDiaEn, isValidDay, startOfMonth, todayIn } from "@/lib/dates";
 import { buildCsv, csvResponse } from "@/lib/csv";
 import { variantLabel } from "@/lib/variants";
 import { SOLO_PLAN_PAGO, esPlanCompleto } from "@/lib/plan";
@@ -12,7 +12,7 @@ import { SOLO_PLAN_PAGO, esPlanCompleto } from "@/lib/plan";
  * necesita ninguna libreria. Todas las consultas filtran por el usuario de la
  * sesion, asi que nadie puede descargar los datos de otro negocio.
  */
-const TIPOS = ["ventas", "gastos", "inventario", "movimientos"] as const;
+const TIPOS = ["ventas", "gastos", "inventario", "movimientos", "auditoria"] as const;
 type Tipo = (typeof TIPOS)[number];
 
 const MOVE_LABEL: Record<string, string> = {
@@ -27,8 +27,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ tipo: string }> }
 ) {
-  const user = await getCurrentUser();
-  if (!user) return new Response("Necesitas iniciar sesión.", { status: 401 });
+  const { user } = await requireOwner();
   if (!esPlanCompleto(user)) return new Response(SOLO_PLAN_PAGO, { status: 403 });
 
   const { tipo: rawTipo } = await params;
@@ -164,6 +163,38 @@ export async function GET(
             v.active ? "Si" : "No",
           ];
         })
+      )
+    );
+  }
+
+  if (tipo === "auditoria") {
+    const eventos = await db.staffActivity.findMany({
+      where: {
+        userId: user.id,
+        tipo: { in: ["borrado", "cambio"] },
+        createdAt: {
+          gte: inicioDelDiaEn(rango.from, user.timezone),
+          lt: inicioDelDiaEn(addDays(rango.to, 1), user.timezone),
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      include: { staff: { select: { name: true, role: true } } },
+      take: 5000,
+    });
+
+    return csvResponse(
+      "auditoria" + sufijo + ".csv",
+      buildCsv(
+        ["Fecha", "Hora", "Persona", "Rol", "Evento", "Detalle", "Monto"],
+        eventos.map((e) => [
+          dayIn(e.createdAt, user.timezone),
+          e.createdAt.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: user.timezone }),
+          e.staff.name,
+          e.staff.role,
+          e.tipo === "borrado" ? "Borró" : "Cambió",
+          e.detalle,
+          e.monto ?? "",
+        ])
       )
     );
   }

@@ -414,7 +414,7 @@ async function procesarProductos(user: Negocio, crudo: unknown, modo: ModoCarga,
       cost: cost ?? 0,
       category: category ?? "General",
       description,
-      bookable: user.businessType === "BARBERIA",
+      bookable: user.businessType === "BARBERIA" || user.businessType === "LAVADERO",
     };
     if (stock === null) {
       sinStock.push(base);

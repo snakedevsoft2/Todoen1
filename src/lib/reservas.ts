@@ -26,7 +26,8 @@ export async function horariosLibres(shop: User, day: string): Promise<HorariosD
   const cerrado = (motivo: string): HorariosDelDia => ({ abierto: false, motivo, libres: [], porPersona: [] });
   const today = todayIn(shop.timezone);
 
-  if (shop.businessType !== "BARBERIA") return cerrado("Este negocio no recibe reservas por hora.");
+  if (shop.businessType !== "BARBERIA" && shop.businessType !== "LAVADERO")
+    return cerrado("Este negocio no recibe reservas por hora.");
   if (!shop.bookingOpen) return cerrado("Las reservas están cerradas por ahora.");
   if (!isValidDay(day)) return cerrado("Esa fecha no es válida.");
   if (day < today) return cerrado("Esa fecha ya pasó.");
@@ -95,7 +96,8 @@ export async function reservarTurno(shop: User, d: DatosReserva, origen: Origen)
 
   // La comprobacion va aqui y no solo en la pagina: el servicio es opcional,
   // asi que sin esto se podria crear un turno "por definir" en un restaurante.
-  if (shop.businessType !== "BARBERIA") return fallo("Este negocio no recibe reservas por hora.");
+  if (shop.businessType !== "BARBERIA" && shop.businessType !== "LAVADERO")
+    return fallo("Este negocio no recibe reservas por hora.");
   if (!shop.bookingOpen) return fallo("Las reservas estan cerradas por ahora.");
   if (!clientName) return fallo("Escribe tu nombre.");
   if (clientPhone.replace(/\D/g, "").length < 7) return fallo("Escribe un telefono valido.");

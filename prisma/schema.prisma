@@ -43,6 +43,10 @@ enum StaffRole {
   BARBERO
   /// Empleado de la tienda de ropa: vende y ve el movimiento, no la configuracion.
   VENDEDOR
+  /// Intermedio, generico (hoy solo lo usa el lavadero como "jefe de patio"): puede
+  /// borrar y cambiar cosas de su operacion del dia, pero no ve configuracion, equipo
+  /// ni reportes. Ver ACCIONES_SUPERVISOR en lib/permisos-empleado.ts.
+  SUPERVISOR
 }
 
 enum AppointmentStatus {
@@ -72,6 +76,8 @@ enum SaleOrigin {
   ORDEN
   /// Abono de una deuda que todavia no se habia registrado como venta.
   CARTERA
+  /// Se cobro desde el tablero de patio del lavadero (WashJob).
+  LAVADO
 }
 
 enum DebtStatus {
@@ -91,19 +97,19 @@ enum StockMoveType {
 
 /// Un usuario = un negocio = un espacio de trabajo aislado.
 model User {
-  id           String       @id @default(cuid())
-  email        String       @unique
-  passwordHash String
+  id             String       @id @default(cuid())
+  email          String       @unique
+  passwordHash   String
   /// Se sube cada vez que cambia passwordHash. La sesion firmada trae la
   /// version que tenia al entrar: si no coincide con esta, la cookie quedo
   /// vieja (la clave cambio en otro lado) y deja de servir. Ver lib/auth.ts.
-  sessionVersion Int    @default(0)
-  ownerName    String
-  businessName String
-  businessType BusinessType
-  slug         String       @unique
-  phone        String?
-  address      String?
+  sessionVersion Int          @default(0)
+  ownerName      String
+  businessName   String
+  businessType   BusinessType
+  slug           String       @unique
+  phone          String?
+  address        String?
 
   // Personalizacion de marca
   logo       String? // imagen del logo guardada como data URL
@@ -148,16 +154,16 @@ model User {
   wholesaleTitle String?
 
   // Avisos por WhatsApp cuando un cliente separa turno
-  whatsappNumber   String? // numero que recibe los avisos, solo digitos con indicativo
-  whatsappProvider String  @default("enlace") // "enlace", "callmebot" o "meta"
-  whatsappApiKey   String? // clave de CallMeBot o token de Meta
-  whatsappPhoneId  String? // identificador del numero en Meta
+  whatsappNumber       String? // numero que recibe los avisos, solo digitos con indicativo
+  whatsappProvider     String  @default("enlace") // "enlace", "callmebot" o "meta"
+  whatsappApiKey       String? // clave de CallMeBot o token de Meta
+  whatsappPhoneId      String? // identificador del numero en Meta
   /// Plantilla aprobada en Meta para escribirle primero a un cliente: Meta no
   /// deja mandar texto libre a quien no ha escrito en las ultimas 24 horas.
   /// Se espera con dos variables: {{1}} el nombre y {{2}} el mensaje.
   whatsappTemplate     String?
   whatsappTemplateLang String  @default("es")
-  notifyOnBooking  Boolean @default(true)
+  notifyOnBooking      Boolean @default(true)
 
   // Configuracion de agenda / caja
   currency    String  @default("COP")
@@ -205,41 +211,46 @@ model User {
   securityQuestion   String?
   securityAnswerHash String?
 
+  /// Tarjeta de fidelizacion (lavadero): cuantos lavados hacen falta para el
+  /// premio, y en que consiste. Ver lib/fidelizacion.ts.
+  loyaltyGoal   Int     @default(10)
+  loyaltyReward String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  staff          Staff[]
-  accountModules AccountModule[]
-  services       Service[]
-  productCategories ProductCategory[]
-  productViews      ProductView[]
-  appointments   Appointment[]
-  sales          Sale[]
-  expenses       Expense[]
-  orders         Order[]
-  tables         Table[]
-  cashClosures   CashClosure[]
-  notifications  Notification[]
-  variants       ProductVariant[]
-  stockMoves     StockMove[]
-  suppliers      Supplier[]
-  debts          Debt[]
-  debtPayments   DebtPayment[]
-  orderItems     OrderItem[]
-  saleItems      SaleItem[]
-  workspaces     WorkspaceConfig[]
-  moduleEvents   ModuleEvent[]
-  wholesaleTiers WholesaleTier[]
-  passwordResets PasswordReset[]
-  sites          WorkSite[]
-  attendance     Attendance[]
-  visitReports   VisitReport[]
-  visitPhotos    VisitPhoto[]
-  customers      Customer[]
-  customerTags   CustomerTag[]
-  deals          Deal[]
-  followUps      FollowUp[]
-  interactions   Interaction[]
+  staff              Staff[]
+  accountModules     AccountModule[]
+  services           Service[]
+  productCategories  ProductCategory[]
+  productViews       ProductView[]
+  appointments       Appointment[]
+  sales              Sale[]
+  expenses           Expense[]
+  orders             Order[]
+  tables             Table[]
+  cashClosures       CashClosure[]
+  notifications      Notification[]
+  variants           ProductVariant[]
+  stockMoves         StockMove[]
+  suppliers          Supplier[]
+  debts              Debt[]
+  debtPayments       DebtPayment[]
+  orderItems         OrderItem[]
+  saleItems          SaleItem[]
+  workspaces         WorkspaceConfig[]
+  moduleEvents       ModuleEvent[]
+  wholesaleTiers     WholesaleTier[]
+  passwordResets     PasswordReset[]
+  sites              WorkSite[]
+  attendance         Attendance[]
+  visitReports       VisitReport[]
+  visitPhotos        VisitPhoto[]
+  customers          Customer[]
+  customerTags       CustomerTag[]
+  deals              Deal[]
+  followUps          FollowUp[]
+  interactions       Interaction[]
   agentConfig        AgentConfig?
   agentConversations AgentConversation[]
   agentMessages      AgentMessage[]
@@ -253,6 +264,9 @@ model User {
   billingConfig      BillingConfig?
   electronicInvoices ElectronicInvoice[]
   staffActivities    StaffActivity[]
+  washJobs           WashJob[]
+  loyaltyCards       LoyaltyCard[]
+  loyaltyStamps      LoyaltyStamp[]
 
   @@index([slug])
 }
@@ -369,15 +383,15 @@ model DebtPayment {
   debtId String
   debt   Debt   @relation(fields: [debtId], references: [id], onDelete: Cascade)
 
-  amount Int
-  day    String // "YYYY-MM-DD"
-  method PaymentMethod @default(EFECTIVO)
-  notes  String?
+  amount  Int
+  day     String // "YYYY-MM-DD"
+  method  PaymentMethod @default(EFECTIVO)
+  notes   String?
   /// Venta que genero este abono, cuando la deuda no estaba facturada.
-  saleId String?
+  saleId  String?
   /// Quien lo recibio. Ver Debt.staffId.
   staffId String?
-  staff   Staff?  @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  staff   Staff?        @relation(fields: [staffId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
 
@@ -409,18 +423,18 @@ model Supplier {
 /// Persona que atiende en el negocio (barberos). Puede tener su propio usuario
 /// para entrar a la aplicacion, pero siempre trabaja dentro del mismo negocio.
 model Staff {
-  id           String  @id @default(cuid())
-  userId       String
-  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name         String
+  id             String  @id @default(cuid())
+  userId         String
+  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name           String
   /// Correo con el que entra a la aplicacion. Si esta vacio, no tiene acceso.
-  email        String? @unique
+  email          String? @unique
   /// Usuario con el que entra el empleado que agrego el dueño, sin contraseña.
   /// Sin arroba, sin tildes y en minusculas; unico entre todos los negocios.
-  username     String? @unique
-  passwordHash String?
+  username       String? @unique
+  passwordHash   String?
   /// Igual que User.sessionVersion, pero para la clave propia del empleado.
-  sessionVersion Int @default(0)
+  sessionVersion Int     @default(0)
 
   /**
    * Pregunta de seguridad, para recuperar la clave sin depender del correo.
@@ -493,6 +507,11 @@ model Staff {
   siteVisits     SiteVisit[]     @relation("VisitasDeLaPersona")
   activities     StaffActivity[]
 
+  /// Lavadero: vehiculos que esta persona lava (rol lavador).
+  washJobsAsignados WashJob[] @relation("LavadorAsignado")
+  /// Lavadero: vehiculos que esta persona recibio (rol jefe de patio o dueño).
+  washJobsRecibidos WashJob[] @relation("JefeDePatioQueRecibio")
+
   @@index([userId, active])
 }
 
@@ -546,6 +565,7 @@ model Service {
   orderItems   OrderItem[]
   variants     ProductVariant[]
   views        ProductView[]
+  washJobs     WashJob[]
 
   @@index([userId, active])
 }
@@ -640,7 +660,8 @@ model Appointment {
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 
-  sale Sale?
+  sale    Sale?
+  washJob WashJob?
 
   @@unique([userId, staffId, day, startTime])
   @@index([userId, day])
@@ -733,6 +754,8 @@ model Sale {
   appointment   Appointment?  @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
   orderId       String?       @unique
   order         Order?        @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  washJobId     String?       @unique
+  washJob       WashJob?      @relation(fields: [washJobId], references: [id], onDelete: SetNull)
   /// La llave que le puso el telefono a la venta. Si se guardo sin senal y la
   /// subida se corta y se reintenta, la venta no queda dos veces ni descuenta
   /// el inventario dos veces.
@@ -768,6 +791,102 @@ model SaleItem {
   @@index([saleId])
   @@index([variantId])
   @@index([userId])
+}
+
+/// En que va un vehiculo en el patio del lavadero.
+enum WashJobStatus {
+  EN_COLA
+  LAVANDO
+  LISTO
+  ENTREGADO
+  CANCELADO
+}
+
+/// Un vehiculo en el patio del lavadero: lo recibe el jefe de patio (o el
+/// dueño), lo asigna a un lavador y, al entregarlo, se cobra y se convierte en
+/// Sale (ver Sale.washJobId). No reutiliza Appointment: esa es la agenda por
+/// hora de la barberia (unica por dia+hora+barbero), y aqui hace falta una
+/// cola de llegada libre con estados propios (en cola, lavando, listo,
+/// entregado), no un horario reservado.
+model WashJob {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  day    String // "YYYY-MM-DD"
+
+  clientName  String
+  clientPhone String
+  /// Ficha del cliente, para la tarjeta de fidelizacion. Ver lib/clientes.ts.
+  customerId  String?
+  customer    Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  vehiclePlate String?
+  vehicleType  String? // "carro", "camioneta", "moto"
+  vehicleColor String?
+
+  serviceId   String?
+  service     Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  serviceName String // copia del nombre por si el servicio se borra
+  price       Int      @default(0)
+
+  /// El lavador. Null mientras el jefe de patio no lo asigna.
+  assignedStaffId String?
+  assignedStaff   Staff?  @relation("LavadorAsignado", fields: [assignedStaffId], references: [id], onDelete: SetNull)
+  /// Quien recibio el vehiculo (jefe de patio o dueño).
+  receivedById    String?
+  receivedBy      Staff?  @relation("JefeDePatioQueRecibio", fields: [receivedById], references: [id], onDelete: SetNull)
+
+  /// Si vino de una reserva publica en vez de ser un vehiculo que llego solo.
+  appointmentId String?      @unique
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+
+  status WashJobStatus @default(EN_COLA)
+  notes  String?
+
+  createdAt   DateTime  @default(now())
+  startedAt   DateTime?
+  readyAt     DateTime?
+  deliveredAt DateTime?
+
+  sale Sale?
+
+  @@index([userId, day])
+  @@index([userId, status])
+  @@index([userId, assignedStaffId])
+}
+
+/// La tarjeta de fidelizacion de un cliente en un negocio: cuantos sellos
+/// lleva desde el ultimo premio. Un sello por venta (ver LoyaltyStamp), nunca
+/// se edita a mano.
+model LoyaltyCard {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customerId    String    @unique
+  customer      Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  stamps        Int       @default(0)
+  rewardsEarned Int       @default(0)
+  lastStampAt   DateTime?
+  updatedAt     DateTime  @updatedAt
+
+  stampsHistory LoyaltyStamp[]
+
+  @@index([userId])
+}
+
+/// Un sello de la tarjeta. Append-only (como Attendance): no se edita ni se
+/// borra, solo se acumula. `saleId` es unico para que la misma venta nunca
+/// deje dos sellos si algo la reintenta.
+model LoyaltyStamp {
+  id            String      @id @default(cuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  loyaltyCardId String
+  loyaltyCard   LoyaltyCard @relation(fields: [loyaltyCardId], references: [id], onDelete: Cascade)
+  saleId        String?     @unique
+  createdAt     DateTime    @default(now())
+
+  @@index([userId, loyaltyCardId])
 }
 
 /// Gastos del dia (insumos, arriendo, domicilios...).
@@ -1155,12 +1274,12 @@ model VisitReport {
   /// La llave que invento el telefono al guardar el reporte sin senal. Si el
   /// envio se corta y se reintenta, el servidor reconoce que ya lo tenia y no
   /// crea otro.
-  clientKey String?   @unique
+  clientKey    String?   @unique
   /// Cuando quien lo hizo lo termino de subir con sus fotos: desde ahi le
   /// aparece al administrador como nuevo.
-  sentAt    DateTime?
+  sentAt       DateTime?
   /// Cuando el administrador lo abrio. El empleado ve que ya se lo miraron.
-  seenAt    DateTime?
+  seenAt       DateTime?
   /// Observaciones y recomendaciones, aparte de lo que se hizo.
   observations String?
 
@@ -1181,9 +1300,9 @@ model VisitPhoto {
   reportId String
   report   VisitReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
 
-  image   String
-  caption String?
-  sort    Int     @default(0)
+  image     String
+  caption   String?
+  sort      Int     @default(0)
   /// Llave del telefono para esta foto: reintentar la subida no la repite.
   clientKey String? @unique
 
@@ -1262,12 +1381,14 @@ model Customer {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tags         CustomerTagLink[]
-  deals        Deal[]
-  followUps    FollowUp[]
-  interactions Interaction[]
+  tags               CustomerTagLink[]
+  deals              Deal[]
+  followUps          FollowUp[]
+  interactions       Interaction[]
   agentConversations AgentConversation[]
   scheduledMessages  ScheduledMessage[]
+  washJobs           WashJob[]
+  loyaltyCard        LoyaltyCard?
 
   @@unique([userId, phoneKey])
   @@index([userId, name])

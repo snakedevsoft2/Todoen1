@@ -45,9 +45,9 @@ export function publicPath(_type: BusinessType, slug: string): string {
   return "/catalogo/" + slug;
 }
 
-/** La agenda por hora, que es solo de la barberia. */
+/** La agenda por hora, de la barberia y el lavadero. */
 export function bookingPath(type: BusinessType, slug: string): string | null {
-  return type === "BARBERIA" ? "/reservar/" + slug : null;
+  return type === "BARBERIA" || type === "LAVADERO" ? "/reservar/" + slug : null;
 }
 
 /** Direccion publica del logo. Lleva version para poder cachearlo fuerte. */

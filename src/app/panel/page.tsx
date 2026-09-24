@@ -6,7 +6,7 @@ import { todayIn } from "@/lib/dates";
 import { getDaySummary } from "@/lib/queries";
 import { money, pretty12h, prettyDay, shortDay } from "@/lib/format";
 import { filtroDeSeguimientos } from "@/lib/crm-filas";
-import { esEmpleadoDeAsistencia } from "@/lib/permisos";
+import { esEmpleadoDeAsistencia, esLavadorDeLavadero } from "@/lib/permisos";
 import { ResumenAsistencia } from "@/components/ResumenAsistencia";
 import { BUSINESS_LABEL, ITEM_NOUN } from "@/lib/nav";
 import { getInventorySummary, getLowStock } from "@/lib/inventory";
@@ -27,6 +27,8 @@ export default async function PanelHomePage() {
   // El empleado del gestor de asistencia no tiene resumen del negocio: su
   // pantalla es Marcar.
   if (esEmpleadoDeAsistencia(user, me)) redirect("/panel/marcar");
+  // El lavador tampoco tiene resumen del negocio: su pantalla es sus lavados.
+  if (esLavadorDeLavadero(user, me)) redirect("/panel/mis-lavados");
 
   // El empleado no pasa por el asistente que arma el menu: ese lo arma el dueño.
   if (!me.onboardingDoneAt && me.role === "DUENO") redirect("/panel/bienvenida");

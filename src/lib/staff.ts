@@ -21,6 +21,16 @@ export const ROLE_LABEL: Record<string, string> = {
   DUENO: "Dueño",
   BARBERO: "Barbero",
   VENDEDOR: "Vendedor",
+  SUPERVISOR: "Supervisor",
+};
+
+/**
+ * Como se llama el rol SUPERVISOR en el negocio que lo usa. Es aparte de
+ * TEAM_NOUN porque ese solo tiene espacio para un rol por negocio, y el
+ * lavadero necesita dos (lavador y jefe de patio). Ver ROLES_ELEGIBLES.
+ */
+const SUPERVISOR_LABEL: Record<string, string> = {
+  LAVADERO: "Jefe de patio",
 };
 
 /**
@@ -53,6 +63,18 @@ export const TEAM_NOUN: Record<string, { title: string; singular: string; plural
 const EQUIPO_GENERICO = { title: "Empleados", singular: "empleado", plural: "empleados", role: "VENDEDOR" };
 
 /**
+ * Los negocios donde se puede elegir el rol al agregar o editar a alguien del
+ * equipo, porque tienen mas de uno posible. El resto sigue con un solo rol
+ * automatico (el de TEAM_NOUN), sin selector.
+ */
+export const ROLES_ELEGIBLES: Record<string, { value: string; label: string }[]> = {
+  LAVADERO: [
+    { value: "VENDEDOR", label: "Lavador" },
+    { value: "SUPERVISOR", label: "Jefe de patio" },
+  ],
+};
+
+/**
  * Como se llama el rol en pantalla, con la palabra de cada negocio.
  *
  * En la base el empleado del gestor de asistencia se guarda como VENDEDOR
@@ -61,6 +83,7 @@ const EQUIPO_GENERICO = { title: "Empleados", singular: "empleado", plural: "emp
  */
 export function etiquetaDeRol(role: string, businessType: string): string {
   if (role === "DUENO") return businessType === "ASISTENCIA" ? "Administrador" : "Dueño";
+  if (role === "SUPERVISOR") return SUPERVISOR_LABEL[businessType] ?? "Supervisor";
   const n = TEAM_NOUN[businessType];
   if (!n) return ROLE_LABEL[role] ?? "Empleado";
   return n.singular.charAt(0).toUpperCase() + n.singular.slice(1);

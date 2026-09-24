@@ -11,7 +11,7 @@ import {
   type AccionPendiente,
 } from "@/lib/cola-pendientes";
 import { Icon } from "./Icon";
-import { ACCIONES_SOLO_DUENO } from "@/lib/permisos-empleado";
+import { puedeHacer } from "@/lib/permisos-empleado";
 
 /**
  * Guardar cambios del panel sin senal.
@@ -110,12 +110,12 @@ function resumenDe(accion: string, fd: FormData): string {
 }
 
 /** cuenta vacia: no se guarda nada en la cola (la version gratis no se usa sin senal). */
-type Contexto = { cuenta: string; avisar: () => void; sinConexion: boolean; esDueno: boolean };
-const ContextoSinSenal = createContext<Contexto>({ cuenta: "", avisar: () => undefined, sinConexion: true, esDueno: true });
+type Contexto = { cuenta: string; avisar: () => void; sinConexion: boolean; role: string };
+const ContextoSinSenal = createContext<Contexto>({ cuenta: "", avisar: () => undefined, sinConexion: true, role: "DUENO" });
 
 /** Si quien esta en el panel es el dueño (el empleado no borra ni cambia lo registrado). */
 export function useEsDueno(): boolean {
-  return useContext(ContextoSinSenal).esDueno;
+  return useContext(ContextoSinSenal).role === "DUENO";
 }
 
 /** Si esta cuenta puede usar la aplicacion sin senal (la version gratis no). */
@@ -181,8 +181,9 @@ export function FormSinSenal({
   const ctx = useContext(ContextoSinSenal);
   const [pendiente, empezar] = useTransition();
 
-  // Borrar o cambiar lo que ya esta registrado es del dueño: el empleado ni ve el boton.
-  if (!ctx.esDueno && ACCIONES_SOLO_DUENO.has(accion)) return null;
+  // Borrar o cambiar lo que ya esta registrado es del dueño (o del supervisor,
+  // en lo que le toca): el empleado ni ve el boton.
+  if (!puedeHacer(ctx.role, accion)) return null;
 
   function enviar(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -218,12 +219,12 @@ export function FormSinSenal({
 export function ProveedorSinSenal({
   cuenta,
   sinConexion = true,
-  esDueno = true,
+  role = "DUENO",
   children,
 }: {
   cuenta: string;
-  /** Falso para el empleado: los botones de borrar y cambiar no se muestran. */
-  esDueno?: boolean;
+  /** El rol de quien entro: decide que botones de borrar o cambiar se muestran. */
+  role?: string;
   /** Falso en la version gratis: no se guarda nada nuevo en la cola, pero lo que ya habia se sube. */
   sinConexion?: boolean;
   children: React.ReactNode;
@@ -284,7 +285,7 @@ export function ProveedorSinSenal({
   const rechazados = pendientes.filter((p) => p.error);
 
   return (
-    <ContextoSinSenal.Provider value={{ cuenta: sinConexion ? cuenta : "", avisar, sinConexion, esDueno }}>
+    <ContextoSinSenal.Provider value={{ cuenta: sinConexion ? cuenta : "", avisar, sinConexion, role }}>
       {pendientes.length > 0 && (
         <div data-acciones-pendientes className="mb-3 rounded-xl border border-warn-line bg-warn-soft p-3 text-[13px]">
           {esperando.length > 0 && (

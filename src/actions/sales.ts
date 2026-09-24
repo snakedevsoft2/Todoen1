@@ -3,15 +3,18 @@
 import { revalidatePath } from "next/cache";
 import type { PaymentMethod } from "@prisma/client";
 import { db } from "@/lib/db";
-import { requireOwner } from "@/lib/auth";
+import { requireSession } from "@/lib/auth";
 import { str } from "@/lib/format";
 import { applyStockMove } from "@/lib/inventory";
 import { anotarActividad } from "@/lib/actividad";
+import { puedeHacer } from "@/lib/permisos-empleado";
 
 // Registrar una venta ya no pasa por aqui: va por /api/ventas (lib/ventas.ts),
 // para que la venta hecha sin senal se guarde en el telefono y se suba sola.
 //
-// Borrar una venta o cambiarle el pago es solo del dueño (lib/permisos-empleado).
+// Borrar una venta o cambiarle el pago es del dueño, y del jefe de patio del
+// lavadero (ver ACCIONES_SUPERVISOR en lib/permisos-empleado): el resto de
+// empleados no puede, por eso el chequeo es con puedeHacer() y no requireOwner().
 
 const VALID_PAYMENTS: PaymentMethod[] = ["EFECTIVO", "TARJETA", "TRANSFERENCIA", "OTRO"];
 
@@ -28,7 +31,8 @@ function readPayment(value: FormDataEntryValue | null): PaymentMethod {
 }
 
 export async function deleteSaleAction(formData: FormData) {
-  const { user, staff } = await requireOwner();
+  const { user, staff } = await requireSession();
+  if (!puedeHacer(staff.role, "deleteSaleAction")) return;
   const id = str(formData.get("id"));
   const sale = await db.sale.findFirst({
     where: { id, userId: user.id },
@@ -96,7 +100,8 @@ export async function deleteSaleAction(formData: FormData) {
 }
 
 export async function updateSalePaymentAction(formData: FormData) {
-  const { user, staff } = await requireOwner();
+  const { user, staff } = await requireSession();
+  if (!puedeHacer(staff.role, "updateSalePaymentAction")) return;
   const id = str(formData.get("id"));
   const pago = readPayment(formData.get("paymentMethod"));
   const r = await db.sale.updateMany({

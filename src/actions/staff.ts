@@ -1,11 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import type { StaffRole } from "@prisma/client";
 import { db } from "@/lib/db";
 import { checkPassword, hashPassword, requireOwner, requireSession } from "@/lib/auth";
 import { parseIntSafe, str } from "@/lib/format";
 import { normalizeHex } from "@/lib/theme";
-import { STAFF_COLORS, teamNoun } from "@/lib/staff";
+import { ROLES_ELEGIBLES, STAFF_COLORS, teamNoun } from "@/lib/staff";
 import { USUARIO_INVALIDO, USUARIO_VALIDO, normalizarUsuario } from "@/lib/usuario";
 import { cookieJar, signSession, writeSessionCookie } from "@/lib/session";
 
@@ -29,6 +30,19 @@ async function usuarioTomado(username: string, ignoreStaffId?: string) {
 
 function readCommission(value: FormDataEntryValue | null, fallback = 0) {
   return Math.min(100, Math.max(0, parseIntSafe(value, fallback)));
+}
+
+/**
+ * El rol con el que se guarda a alguien del equipo. La mayoria de negocios
+ * tiene uno solo (el de TEAM_NOUN, automatico). El lavadero tiene dos
+ * (lavador y jefe de patio, ver ROLES_ELEGIBLES): si mandan uno valido de esa
+ * lista se usa ese, si no, el automatico de siempre.
+ */
+function readRole(businessType: string, value: FormDataEntryValue | null, fallback: StaffRole): StaffRole {
+  const elegibles = ROLES_ELEGIBLES[businessType];
+  if (!elegibles) return fallback;
+  const pedido = str(value);
+  return elegibles.some((r) => r.value === pedido) ? (pedido as StaffRole) : fallback;
 }
 
 export async function createStaffAction(
@@ -70,8 +84,9 @@ export async function createStaffAction(
       username: username || null,
       passwordHash: password ? hashPassword(password) : null,
       phone: phone || null,
-      // El rol depende del negocio: barbero en la barberia, vendedor en la ropa.
-      role: noun.role === "VENDEDOR" ? "VENDEDOR" : "BARBERO",
+      // El rol depende del negocio: barbero en la barberia, vendedor en la
+      // ropa; el lavadero, ademas, puede elegir jefe de patio (ROLES_ELEGIBLES).
+      role: readRole(user.businessType, formData.get("role"), noun.role === "VENDEDOR" ? "VENDEDOR" : "BARBERO"),
       color: normalizeHex(str(formData.get("color"), STAFF_COLORS[count % STAFF_COLORS.length])),
       commissionPct: readCommission(formData.get("commissionPct")),
       bookable: formData.get("bookable") !== null,
@@ -105,6 +120,10 @@ export async function updateStaffAction(formData: FormData) {
       color: normalizeHex(str(formData.get("color"), staff.color)),
       commissionPct: readCommission(formData.get("commissionPct"), staff.commissionPct),
       bookable: formData.get("bookable") !== null,
+      // Ascender o bajar entre los roles elegibles del negocio. Nunca toca al
+      // dueño: a el no se le pasa este campo desde la pantalla, pero se
+      // revalida aqui por si acaso.
+      role: staff.role === "DUENO" ? staff.role : readRole(user.businessType, formData.get("role"), staff.role),
     },
   });
 
@@ -227,7 +246,7 @@ export async function changeStaffPasswordAction(
   formData: FormData
 ): Promise<StaffState> {
   const jar = await cookieJar();
-  const { user, staff } = await requireSession({ asistenciaOk: true });
+  const { user, staff } = await requireSession({ asistenciaOk: true, lavadorOk: true });
   if (staff.role === "DUENO") return { error: "Cambia tu contrasena en la seccion de arriba." };
   if (!staff.passwordHash) return { error: "Tu usuario todavia no tiene contrasena." };
 

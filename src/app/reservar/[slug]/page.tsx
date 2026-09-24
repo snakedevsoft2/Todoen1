@@ -42,9 +42,9 @@ export default async function ReservarPage({
   const shop = await db.user.findUnique({ where: { slug } });
   if (!shop) notFound();
 
-  // La agenda por hora es solo de la barberia. La tienda de ropa tiene su
-  // catalogo en esta misma direccion publica, asi que la mandamos alla.
-  if (shop.businessType !== "BARBERIA") {
+  // La agenda por hora es de la barberia y el lavadero. La tienda de ropa
+  // tiene su catalogo en esta misma direccion publica, asi que la mandamos alla.
+  if (shop.businessType !== "BARBERIA" && shop.businessType !== "LAVADERO") {
     if (shop.businessType === "ROPA") redirect("/catalogo/" + slug);
     notFound();
   }

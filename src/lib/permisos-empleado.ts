@@ -58,15 +58,39 @@ export const ACCIONES_SOLO_CREAR = new Set<string>([
   "guardarOportunidadAction",
 ]);
 
+/**
+ * Lo que un SUPERVISOR (hoy solo el "jefe de patio" del lavadero) puede hacer
+ * aunque este vetado al resto de empleados en ACCIONES_SOLO_DUENO: es "como un
+ * pre-admin", puede corregir su propia operacion del dia, pero no todo lo que
+ * puede el dueño (equipo, ajustes, reportes siguen sin verlos, eso lo resuelve
+ * el sistema de modulos, no esta lista).
+ *
+ * Cada borrado o cambio que hace un supervisor por esta via queda anotado con
+ * anotarActividad() igual que si lo hiciera el dueño, asi que el dueño lo ve
+ * despues en Empleados > Auditoria sin que el supervisor sepa que quedo
+ * registrado.
+ */
+export const ACCIONES_SUPERVISOR = new Set<string>([
+  "deleteSaleAction",
+  "updateSalePaymentAction",
+  "deleteWashJobAction",
+  "updateWashJobAction",
+]);
+
 export const SOLO_DUENO = "Solo el dueño del negocio puede borrar o cambiar lo que ya está registrado.";
 
 export function esDueno(role: string | null | undefined): boolean {
   return role === "DUENO";
 }
 
+export function esSupervisor(role: string | null | undefined): boolean {
+  return role === "SUPERVISOR";
+}
+
 /** Si esta persona puede hacer esa accion con esos campos. */
 export function puedeHacer(role: string, accion: string, campos: [string, string][] = []): boolean {
   if (esDueno(role)) return true;
+  if (esSupervisor(role) && ACCIONES_SUPERVISOR.has(accion)) return true;
   if (ACCIONES_SOLO_DUENO.has(accion)) return false;
   if (ACCIONES_SOLO_CREAR.has(accion) && campos.some(([k, v]) => k === "id" && v.trim() !== "")) return false;
   return true;

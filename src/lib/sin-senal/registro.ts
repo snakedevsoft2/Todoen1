@@ -52,6 +52,16 @@ import {
 import { deleteServiceAction, saveServiceAction, toggleServiceAction } from "@/actions/services";
 import { deleteSupplierAction, saveSupplierAction, toggleSupplierAction } from "@/actions/suppliers";
 import { deleteSaleAction, updateSalePaymentAction } from "@/actions/sales";
+import {
+  asignarLavadorAction,
+  cancelWashJobAction,
+  cerrarLavadoAction,
+  deleteWashJobAction,
+  marcarListoAction,
+  recibirDesdeReservaAction,
+  recibirVehiculoAction,
+  updateWashJobAction,
+} from "@/actions/lavadero";
 import type { EntradaRegistro, Registro } from "./ejecutar";
 
 /**
@@ -123,4 +133,13 @@ export const ACCIONES_SIN_SENAL: Registro = {
   // Ventas ya registradas
   updateSalePaymentAction: simple(updateSalePaymentAction),
   deleteSaleAction: simple(deleteSaleAction),
+  // Patio del lavadero
+  recibirVehiculoAction: estado(recibirVehiculoAction),
+  asignarLavadorAction: simple(asignarLavadorAction),
+  marcarListoAction: simple(marcarListoAction),
+  cerrarLavadoAction: estado(cerrarLavadoAction),
+  cancelWashJobAction: simple(cancelWashJobAction),
+  deleteWashJobAction: simple(deleteWashJobAction),
+  updateWashJobAction: simple(updateWashJobAction),
+  recibirDesdeReservaAction: simple(recibirDesdeReservaAction),
 };

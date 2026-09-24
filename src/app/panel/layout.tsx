@@ -11,8 +11,11 @@ import { menuDe, modulosDe } from "@/lib/modules";
 import { etiquetaDeRol, fotoPerfil } from "@/lib/staff";
 import {
   MENU_EMPLEADO_ASISTENCIA,
+  MENU_LAVADOR,
   esEmpleadoDeAsistencia,
+  esLavadorDeLavadero,
   rutaDeEmpleadoAsistencia,
+  rutaDeLavador,
   tienePaginaPublica,
 } from "@/lib/permisos";
 import { Shell } from "@/components/Shell";
@@ -41,15 +44,23 @@ export default async function PanelLayout({ children }: { children: React.ReactN
     if (ruta && !rutaDeEmpleadoAsistencia(ruta)) redirect("/panel/marcar");
   }
 
+  // El lavador del lavadero tampoco ve el negocio completo: solo sus
+  // vehiculos asignados, marcar y su perfil.
+  const lavador = esLavadorDeLavadero(user, staff);
+  if (lavador) {
+    const ruta = (await headers()).get("x-ruta") ?? "";
+    if (ruta && !rutaDeLavador(ruta)) redirect("/panel/mis-lavados");
+  }
+
   // El menu sale del catalogo en base de datos, filtrado por el oficio, por el
   // rol y por lo que esta persona decidio ver.
-  const modulos = empleado ? [] : await modulosDe(sesion);
+  const modulos = empleado || lavador ? [] : await modulosDe(sesion);
 
   // Direccion -> llave, para que el navegador solo tenga que mandar la llave
   // del apartado y nunca decida el nombre de lo que se anota.
   const rutas = Object.fromEntries(modulos.map((m) => [m.href, m.key]));
 
-  const nav = empleado ? MENU_EMPLEADO_ASISTENCIA : menuDe(modulos);
+  const nav = empleado ? MENU_EMPLEADO_ASISTENCIA : lavador ? MENU_LAVADOR : menuDe(modulos);
   const logo = logoUrl(user.slug, user.logo, user.updatedAt);
   const foto = fotoPerfil(staff);
 
@@ -70,7 +81,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
     </form>
   );
 
-  const conPagina = tienePaginaPublica(user.businessType) && !empleado;
+  const conPagina = tienePaginaPublica(user.businessType) && !empleado && !lavador;
 
   // Los mensajes programados que ya llegaron a su hora salen cuando alguien usa
   // el panel, sin esperar al envio diario. Corre despues de responder: la
@@ -121,7 +132,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
         {/* Solo al dueño: es quien puede renovar el plan. */}
         {!empleado && staff.role === "DUENO" && <AvisoDePago paidUntil={user.paidUntil} trialEndsAt={user.trialEndsAt} businessName={user.businessName} />}
         {instalable && <InstalarApp variante="aviso" />}
-        <ProveedorSinSenal cuenta={staff.id} sinConexion={instalable} esDueno={staff.role === "DUENO"}>{children}</ProveedorSinSenal>
+        <ProveedorSinSenal cuenta={staff.id} sinConexion={instalable} role={staff.role}>{children}</ProveedorSinSenal>
       </Shell>
       {/* La IA Snake flotante: solo si el servidor tiene la clave del modelo, y
           no para el empleado del gestor, que solo tiene sus pantallas. */}

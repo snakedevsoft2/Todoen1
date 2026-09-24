@@ -29,6 +29,30 @@ export function rutaDeEmpleadoAsistencia(ruta: string): boolean {
   return MENU_EMPLEADO_ASISTENCIA.some((i) => ruta === i.href || ruta.startsWith(i.href + "/"));
 }
 
+/**
+ * El lavador (rol VENDEDOR en el lavadero) tampoco ve el negocio completo:
+ * solo los vehiculos que le asigno el jefe de patio, cuanto gana por cada
+ * uno, y su asistencia. El jefe de patio (SUPERVISOR) no entra aqui: el sigue
+ * el menu normal, y lo que no puede ver ya esta resuelto porque esos modulos
+ * son ownerOnly (equipo, ajustes, reportes, planilla, sitios).
+ */
+export function esLavadorDeLavadero(
+  user: { businessType: string },
+  staff: { role: string }
+): boolean {
+  return user.businessType === "LAVADERO" && staff.role === "VENDEDOR";
+}
+
+export const MENU_LAVADOR: NavItem[] = [
+  { href: "/panel/mis-lavados", label: "Mis lavados", icon: "car" },
+  { href: "/panel/marcar", label: "Marcar", icon: "clock" },
+  { href: "/panel/perfil", label: "Perfil", icon: "user" },
+];
+
+export function rutaDeLavador(ruta: string): boolean {
+  return MENU_LAVADOR.some((i) => ruta === i.href || ruta.startsWith(i.href + "/"));
+}
+
 /** Los negocios que tienen pagina publica para compartir. */
 export function tienePaginaPublica(tipo: string): boolean {
   return tipo !== "ASISTENCIA" && tipo !== "CARTERA";
