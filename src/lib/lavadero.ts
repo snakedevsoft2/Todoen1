@@ -23,6 +23,8 @@ export type DatosVehiculo = {
   vehicleType: string | null;
   vehicleColor: string | null;
   serviceId: string | null;
+  /** Si viene, manda sobre el precio del catálogo (se vendió más barato o más caro). */
+  price?: number | null;
   notes: string | null;
   receivedById: string;
   appointmentId?: string | null;
@@ -51,7 +53,7 @@ export async function crearWashJob(userId: string, day: string, datos: DatosVehi
       vehicleColor: datos.vehicleColor || null,
       serviceId: service?.id ?? null,
       serviceName: service?.name ?? "Lavado",
-      price: service?.price ?? 0,
+      price: datos.price != null ? datos.price : (service?.price ?? 0),
       receivedById: datos.receivedById,
       appointmentId: datos.appointmentId ?? null,
     },

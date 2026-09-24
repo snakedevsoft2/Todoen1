@@ -85,6 +85,10 @@ function RecibirVehiculoForm({ services, currency }: { services: ServiceOption[]
     useAccionSinSenal("recibirVehiculoAction", recibirVehiculoAction),
     undefined
   );
+  // Al elegir el servicio se llena con su precio de catálogo, pero se puede
+  // cambiar a mano: hay clientes de siempre o carros más sucios que se cobran
+  // distinto.
+  const [precio, setPrecio] = useState<number | "">("");
 
   return (
     <Card title="Recibir vehículo" subtitle="Anota los datos del cliente y asígnalo después">
@@ -114,7 +118,15 @@ function RecibirVehiculoForm({ services, currency }: { services: ServiceOption[]
             <input className="input" name="vehicleColor" placeholder="Rojo" />
           </Field>
           <Field label="Servicio">
-            <select className="input" name="serviceId" defaultValue="">
+            <select
+              className="input"
+              name="serviceId"
+              defaultValue=""
+              onChange={(e) => {
+                const elegido = services.find((s) => s.id === e.target.value);
+                setPrecio(elegido ? elegido.price : "");
+              }}
+            >
               <option value="">Sin definir</option>
               {services.map((s) => (
                 <option key={s.id} value={s.id}>
@@ -122,6 +134,18 @@ function RecibirVehiculoForm({ services, currency }: { services: ServiceOption[]
                 </option>
               ))}
             </select>
+          </Field>
+          <Field label="Precio" hint="Se llena solo con el del servicio, pero lo puedes cambiar.">
+            <input
+              className="input"
+              type="number"
+              name="price"
+              min={0}
+              step={1}
+              value={precio}
+              onChange={(e) => setPrecio(e.target.value === "" ? "" : Number(e.target.value))}
+              placeholder="0"
+            />
           </Field>
         </div>
 

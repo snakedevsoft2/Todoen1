@@ -49,6 +49,11 @@ export async function recibirVehiculoAction(_prev: PatioState, formData: FormDat
   if (!clientName) return { error: "Escribe el nombre del cliente." };
   if (clientPhone === "-") return { error: "Escribe el celular del cliente." };
 
+  // Vacio: se usa el precio del catalogo. Con algo escrito, ese manda (se
+  // vendio mas barato o mas caro que de costumbre).
+  const priceRaw = str(formData.get("price"));
+  const price = priceRaw ? Math.max(0, parseIntSafe(formData.get("price"), 0)) : null;
+
   const job = await crearWashJob(user.id, todayIn(user.timezone), {
     clientName,
     clientPhone,
@@ -56,6 +61,7 @@ export async function recibirVehiculoAction(_prev: PatioState, formData: FormDat
     vehicleType: str(formData.get("vehicleType")) || null,
     vehicleColor: str(formData.get("vehicleColor")) || null,
     serviceId: str(formData.get("serviceId")) || null,
+    price,
     notes: str(formData.get("notes")) || null,
     receivedById: staff.id,
   });
