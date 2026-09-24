@@ -33,7 +33,13 @@ import { InstalarApp } from "@/components/InstalarApp";
 import { enlaceActivarPlan, puedeInstalar } from "@/lib/plan";
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
-  const sesion = await requireSession();
+  // El bloqueo por ruta exacta de cada menu fijo (empleado de asistencia,
+  // lavador) lo hace este layout mismo, unas lineas mas abajo, mirando la
+  // direccion real que se pidio. Si requireSession() hiciera tambien su propio
+  // redirect a ciegas aqui, redirigiria incluso estando ya en esa pantalla
+  // (p.ej. /panel/mis-lavados a /panel/mis-lavados), armando un ciclo que el
+  // navegador termina mostrando en blanco.
+  const sesion = await requireSession({ asistenciaOk: true, lavadorOk: true });
   const { user, staff } = sesion;
 
   // El empleado del gestor de asistencia solo tiene sus cuatro pantallas. Si

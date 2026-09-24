@@ -16,7 +16,10 @@ export const dynamic = "force-dynamic";
  * empleado ve solo los suyos y si el administrador ya los miro.
  */
 export default async function InformesPage() {
-  const { user, staff } = await requireSession();
+  // Reportes es una de las pantallas fijas del empleado de asistencia: sin
+  // avisarle a requireSession(), lo mandaria de vuelta a Marcar en vez de
+  // dejarlo verla.
+  const { user, staff } = await requireSession({ asistenciaOk: true });
   const esDueno = staff.role === "DUENO";
 
   const [sitios, informes, personas] = await Promise.all([

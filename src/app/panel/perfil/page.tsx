@@ -10,7 +10,10 @@ export const dynamic = "force-dynamic";
 
 /** El perfil de quien entro: su foto, su nombre y su clave. Todos lo tienen. */
 export default async function PerfilPage() {
-  const { user, staff } = await requireSession();
+  // Perfil tambien es una pantalla fija del empleado de asistencia y del
+  // lavador (ver panel/layout.tsx): sin avisarle a requireSession(), los
+  // mandaria de vuelta a su pantalla fija en vez de dejarlos verla.
+  const { user, staff } = await requireSession({ asistenciaOk: true, lavadorOk: true });
   const esDueno = staff.role === "DUENO";
 
   return (

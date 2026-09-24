@@ -54,7 +54,10 @@ function Detalle({ n, conSoporte, conNombre }: { n: Fila; conSoporte: boolean; c
 }
 
 export default async function NovedadesPage() {
-  const { user, staff } = await requireSession();
+  // Novedades es una de las pantallas fijas del empleado de asistencia: sin
+  // avisarle a requireSession(), lo mandaria de vuelta a Marcar en vez de
+  // dejarlo verla.
+  const { user, staff } = await requireSession({ asistenciaOk: true });
   const esDueno = staff.role === "DUENO";
   const hoy = todayIn(user.timezone);
 

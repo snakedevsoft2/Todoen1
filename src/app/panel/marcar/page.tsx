@@ -20,7 +20,11 @@ const VENTANA_MS = 20 * 60 * 60 * 1000;
  * mas. La planilla de todos es otra pantalla y es del administrador.
  */
 export default async function MarcarPage() {
-  const { user, staff } = await requireSession();
+  // Marcar es una de las pantallas fijas tanto del empleado de asistencia
+  // como del lavador: sin avisarle a requireSession(), redirigiria a cada
+  // uno de vuelta a SU pantalla fija (que puede ser esta misma), armando un
+  // ciclo de redirecciones. Ver panel/layout.tsx.
+  const { user, staff } = await requireSession({ asistenciaOk: true, lavadorOk: true });
   const hoy = todayIn(user.timezone);
 
   // El dia va de medianoche a medianoche en la zona del NEGOCIO, no del

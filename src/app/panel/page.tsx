@@ -39,6 +39,7 @@ export default async function PanelHomePage() {
   const today = todayIn(user.timezone);
   const isBarber = user.businessType === "BARBERIA";
   const isClothing = user.businessType === "ROPA";
+  const isLavadero = user.businessType === "LAVADERO";
 
   const [summary, appointments, openOrders, recentSales, closure, expenses, stock, lowStock] =
     await Promise.all([
@@ -101,6 +102,25 @@ export default async function PanelHomePage() {
     (sum, o) => sum + o.items.reduce((s, i) => s + i.unitPrice * i.qty, 0),
     0
   );
+
+  // Como va cada lavador hoy: cuantos carros lleva y cuanto vendio.
+  const [lavadoresTeam, washJobsHoy] = isLavadero
+    ? await Promise.all([
+        db.staff.findMany({
+          where: { userId: user.id, active: true, role: "VENDEDOR" },
+          orderBy: { createdAt: "asc" },
+          select: { id: true, name: true, color: true },
+        }),
+        db.washJob.findMany({
+          where: { userId: user.id, day: today, status: "ENTREGADO" },
+          select: { assignedStaffId: true, price: true },
+        }),
+      ])
+    : [[], []];
+  const porLavador = lavadoresTeam.map((person) => {
+    const suyos = washJobsHoy.filter((j) => j.assignedStaffId === person.id);
+    return { ...person, count: suyos.length, total: suyos.reduce((sum, j) => sum + j.price, 0) };
+  });
 
   // Lo que hay que hacer hoy con los clientes. Sale solo si hay algo: quien no
   // usa el CRM no tiene por que ver un cuadro vacio.
@@ -264,6 +284,42 @@ export default async function PanelHomePage() {
             </div>
           ))}
         </div>
+      )}
+
+      {isLavadero && porLavador.length > 0 && (
+        <Card className="mt-4" title="Tus lavadores" subtitle="Cuántos carros lleva cada uno hoy">
+          <ul className="space-y-2">
+            {porLavador.map((person) => (
+              <li key={person.id}>
+                <Link
+                  href={"/panel/patio/lavador/" + person.id}
+                  className="flex items-center gap-3 rounded-xl border border-line bg-surface px-4 py-3 transition hover:bg-soft"
+                >
+                  <span
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
+                    style={{ backgroundColor: person.color }}
+                  >
+                    {person.name.slice(0, 2).toUpperCase()}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-base font-bold text-strong">{person.name}</p>
+                    <p className="text-xs text-subtle">
+                      {person.count === 0
+                        ? "Aún no lava ningún carro hoy"
+                        : person.count === 1
+                          ? "1 carro lavado"
+                          : person.count + " carros lavados"}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-base font-bold text-good">
+                    {money(person.total, user.currency)}
+                  </span>
+                  <Icon name="chevronDown" className="h-4 w-4 shrink-0 -rotate-90 text-subtle" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Card>
       )}
 
       {closure && (

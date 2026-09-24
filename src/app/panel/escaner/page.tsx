@@ -22,7 +22,10 @@ function peso(bytes: number): string {
  * los suyos.
  */
 export default async function EscanerPage() {
-  const { user, staff } = await requireSession();
+  // Escaner es una de las pantallas fijas del empleado de asistencia: sin
+  // avisarle a requireSession(), lo mandaria de vuelta a Marcar en vez de
+  // dejarlo verla.
+  const { user, staff } = await requireSession({ asistenciaOk: true });
   const esDueno = staff.role === "DUENO";
 
   const [documentos, personas] = await Promise.all([

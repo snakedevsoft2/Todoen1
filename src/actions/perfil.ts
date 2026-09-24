@@ -18,7 +18,7 @@ const MAX_LARGO_FOTO = 300_000;
  * aqui. El administrador cambia los datos de su gente desde Personal.
  */
 export async function guardarPerfilAction(_prev: PerfilState, formData: FormData): Promise<PerfilState> {
-  const { user, staff } = await requireSession({ asistenciaOk: true });
+  const { user, staff } = await requireSession({ asistenciaOk: true, lavadorOk: true });
 
   const name = str(formData.get("name"), "", 80);
   if (name.length < 2) return { error: "Escribe tu nombre." };
