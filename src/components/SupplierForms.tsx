@@ -99,7 +99,7 @@ export function SupplierCard({
     comprado: string;
     unidades: number;
     ultima: string | null;
-    prendas: string[];
+    productos: string[];
   };
 }) {
   const [abierto, setAbierto] = useState(false);
@@ -124,20 +124,20 @@ export function SupplierCard({
         <div className="text-right">
           <p className="font-display text-lg leading-none text-strong num">{stats.comprado}</p>
           <p className="mt-1 text-[11px] text-subtle">
-            {stats.unidades} prendas
+            {stats.unidades} unidades
             {stats.ultima ? " - última " + stats.ultima : ""}
           </p>
         </div>
       </div>
 
-      {stats.prendas.length > 0 && (
+      {stats.productos.length > 0 && (
         <div className="mt-2.5 flex flex-wrap gap-1.5">
-          {stats.prendas.map((prenda) => (
+          {stats.productos.map((producto) => (
             <span
-              key={prenda}
+              key={producto}
               className="rounded-md border border-line-strong bg-panel px-2 py-0.5 text-[11px] text-body"
             >
-              {prenda}
+              {producto}
             </span>
           ))}
         </div>

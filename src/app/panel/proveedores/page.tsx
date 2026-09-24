@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { requireOwner } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { money, shortDay } from "@/lib/format";
@@ -9,8 +8,6 @@ export const dynamic = "force-dynamic";
 
 export default async function ProveedoresPage() {
   const { user } = await requireOwner();
-  // Por ahora comprar mercancia solo tiene sentido en la tienda de ropa.
-  if (user.businessType !== "ROPA") redirect("/panel");
 
   const [suppliers, entradas, prendas] = await Promise.all([
     db.supplier.findMany({
@@ -34,9 +31,9 @@ export default async function ProveedoresPage() {
     }),
   ]);
 
-  type Totales = { comprado: number; unidades: number; ultima: string | null; prendas: Set<string> };
+  type Totales = { comprado: number; unidades: number; ultima: string | null; productos: Set<string> };
   const porProveedor = new Map<string, Totales>();
-  const vacio = (): Totales => ({ comprado: 0, unidades: 0, ultima: null, prendas: new Set() });
+  const vacio = (): Totales => ({ comprado: 0, unidades: 0, ultima: null, productos: new Set() });
 
   for (const entrada of entradas) {
     if (!entrada.supplierId) continue;
@@ -44,17 +41,17 @@ export default async function ProveedoresPage() {
     row.comprado += entrada.unitCost * entrada.delta;
     row.unidades += entrada.delta;
     if (!row.ultima || entrada.day > row.ultima) row.ultima = entrada.day;
-    row.prendas.add(entrada.variant.service.name);
+    row.productos.add(entrada.variant.service.name);
     porProveedor.set(entrada.supplierId, row);
   }
 
-  // Las prendas asignadas a un proveedor cuentan aunque todavia no le hayas
+  // Los productos asignados a un proveedor cuentan aunque todavia no le hayas
   // registrado ninguna entrada.
-  for (const prenda of prendas) {
-    if (!prenda.supplierId) continue;
-    const row = porProveedor.get(prenda.supplierId) ?? vacio();
-    row.prendas.add(prenda.name);
-    porProveedor.set(prenda.supplierId, row);
+  for (const producto of prendas) {
+    if (!producto.supplierId) continue;
+    const row = porProveedor.get(producto.supplierId) ?? vacio();
+    row.productos.add(producto.name);
+    porProveedor.set(producto.supplierId, row);
   }
 
   const totalComprado = [...porProveedor.values()].reduce((s, r) => s + r.comprado, 0);
@@ -72,10 +69,7 @@ export default async function ProveedoresPage() {
 
   return (
     <>
-      <PageHeader
-        title="Proveedores"
-        subtitle="A quién le compras cada prenda y cuánto llevas comprado"
-      />
+      <PageHeader title="Proveedores" subtitle="A quién le compras y cuánto llevas comprado" />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat
@@ -90,11 +84,11 @@ export default async function ProveedoresPage() {
           hint="Segun las entradas registradas"
           tone="bad"
         />
-        <Stat label="Prendas compradas" value={String(totalUnidades)} hint="Unidades que entraron" />
+        <Stat label="Unidades compradas" value={String(totalUnidades)} hint="Entradas al inventario" />
         <Stat
           label="Costo promedio"
           value={money(totalUnidades ? Math.round(totalComprado / totalUnidades) : 0, user.currency)}
-          hint="Por prenda comprada"
+          hint="Por unidad comprada"
         />
       </div>
 
@@ -103,7 +97,7 @@ export default async function ProveedoresPage() {
           {rows.length === 0 ? (
             <Empty
               title="Todavía no tienes proveedores"
-              hint="Agrega el primero a la derecha y despues asignale sus prendas desde Productos."
+              hint="Agrega el primero a la derecha y despues asígnale sus productos desde tu catálogo."
             />
           ) : (
             <ul className="space-y-3">
@@ -117,7 +111,7 @@ export default async function ProveedoresPage() {
                       comprado: money(stats.comprado, user.currency),
                       unidades: stats.unidades,
                       ultima: stats.ultima ? shortDay(stats.ultima) : null,
-                      prendas: [...stats.prendas].sort().slice(0, 8),
+                      productos: [...stats.productos].sort().slice(0, 8),
                     }}
                   />
                 );
@@ -134,15 +128,15 @@ export default async function ProveedoresPage() {
           <Card title="Como se llenan estas cifras">
             <ul className="space-y-2 text-sm text-body">
               <li>
-                En <strong>Productos</strong>, cada prenda puede decir a quien se le compra.
+                En tu <strong>catálogo</strong>, cada producto puede decir a quién se le compra.
               </li>
               <li>
                 En <strong>Inventario</strong>, al registrar una <strong>entrada</strong> eliges el
                 proveedor y el costo por unidad.
               </li>
               <li>
-                Con eso sale solo cuanto le has comprado a cada uno, cuando fue la ultima vez y a
-                como te sale cada prenda.
+                Con eso sale solo cuánto le has comprado a cada uno, cuándo fue la última vez y a
+                cómo te sale cada producto.
               </li>
             </ul>
           </Card>
