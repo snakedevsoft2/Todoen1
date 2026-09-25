@@ -21,6 +21,7 @@ export type ModuloDef = {
   longDescription: string;
   fixed?: boolean;
   ownerOnly?: boolean;
+  hiddenFromOwner?: boolean;
   inSidebar?: boolean;
   requiresEnv?: string;
   sortOrder: number;
@@ -331,6 +332,9 @@ export const MODULOS: ModuloDef[] = [
     icon: "clock",
     group: "NUCLEO",
     sortOrder: 5,
+    // El dueno no ficha su propia entrada como un empleado: el supervisa desde
+    // Planilla. Quien marca es el equipo.
+    hiddenFromOwner: true,
     shortDescription:
       "El boton con el que cada persona marca su entrada y su salida, con la hora y el lugar exactos.",
     longDescription:

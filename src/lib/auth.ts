@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import bcrypt from "bcryptjs";
@@ -100,8 +101,16 @@ async function marcarActividad(staff: Staff) {
   }
 }
 
-/** Sesion completa (negocio + persona) o null. No redirige. */
-export async function getCurrentSession(): Promise<Session | null> {
+/**
+ * Sesion completa (negocio + persona) o null. No redirige.
+ *
+ * Envuelta en cache() de React: layout.tsx y cada page.tsx llaman a esto por
+ * su cuenta, y sin esto cada uno repetia la misma consulta completa del
+ * negocio (con el logo, que pesa) en una sola peticion. Con cache() la
+ * consulta corre una sola vez por peticion sin importar cuantas veces se
+ * llame esta funcion.
+ */
+export const getCurrentSession = cache(async (): Promise<Session | null> => {
   const session = await readSession();
   if (!session) return null;
   const user = await db.user.findUnique({ where: { id: session.uid } });
@@ -143,7 +152,7 @@ export async function getCurrentSession(): Promise<Session | null> {
 
   await marcarActividad(staff);
   return { user, staff };
-}
+});
 
 /**
  * Sesion obligatoria. Si no hay, manda al login.

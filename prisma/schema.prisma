@@ -1011,6 +1011,9 @@ model Module {
   fixed     Boolean @default(false)
   /// Configuracion del negocio: el empleado no lo ve aunque este encendido.
   ownerOnly Boolean @default(false)
+  /// Al reves de ownerOnly: es del empleado, no del dueno. El dueno supervisa
+  /// (por ejemplo con Planilla), no marca su propia entrada como un empleado.
+  hiddenFromOwner Boolean @default(false)
 
   /// Si aparece en el menu lateral. "Armar mi menu" existe en el catalogo
   /// pero se llega por el pie del menu, no ocupando un renglon del menu.

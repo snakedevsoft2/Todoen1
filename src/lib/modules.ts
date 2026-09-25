@@ -1,8 +1,8 @@
 import "server-only";
 import { db } from "@/lib/db";
-import type { NavItem } from "@/lib/nav";
+import type { NavGroup, NavItem } from "@/lib/nav";
 
-export type { NavItem };
+export type { NavGroup, NavItem };
 
 /**
  * El menu, leido de la base de datos.
@@ -107,6 +107,8 @@ export async function modulosDe({ user, staff }: Sesion): Promise<Modulo[]> {
   const modulos: Modulo[] = filas
     .filter((f) => !apagadosPorAdmin.has(f.module.key))
     .filter((f) => esDueno || !f.module.ownerOnly)
+    // Al reves de ownerOnly: "Marcar" es del empleado, no del dueno.
+    .filter((f) => !esDueno || !f.module.hiddenFromOwner)
     // Si le falta la credencial, el apartado no se ofrece: mejor que no
     // aparezca a que aparezca y lleve a una pantalla rota.
     .filter((f) => !f.module.requiresEnv || Boolean(process.env[f.module.requiresEnv]))
@@ -156,6 +158,30 @@ export function menuDe(modulos: Modulo[]): NavItem[] {
     .map((m) => ({ href: m.href, label: m.label, icon: m.icon }));
 }
 
+/** El orden en que se muestran las categorias del menu, de arriba a abajo. */
+const ORDEN_GRUPOS: Grupo[] = ["FIJO", "NUCLEO", "DINERO", "CRECIMIENTO", "CONFIGURACION"];
+
+/**
+ * El mismo menu, pero partido por categoria.
+ *
+ * FIJO (Resumen, Ajustes, Soporte) va siempre visible, sin plegar: son los
+ * tres a los que siempre se vuelve. Las demas categorias se pliegan, para que
+ * un negocio con muchos apartados encendidos no vea una lista larga de una:
+ * busca la categoria y ahi abre la que necesita.
+ */
+export function menuAgrupado(modulos: Modulo[]): NavGroup[] {
+  const visibles = modulos.filter((m) => m.visible && m.inSidebar);
+
+  return ORDEN_GRUPOS.map((key) => ({
+    key,
+    label: GRUPO_LABEL[key],
+    pinned: key === "FIJO",
+    items: visibles
+      .filter((m) => m.group === key)
+      .map((m) => ({ href: m.href, label: m.label, icon: m.icon })),
+  })).filter((g) => g.items.length > 0);
+}
+
 /**
  * Arreglos listos, para no ir encendiendo uno por uno.
  *
@@ -187,7 +213,7 @@ export async function keysDeFabrica(businessType: string, esDueno: boolean): Pro
     where: {
       businessType,
       enabledByDefault: true,
-      module: { active: true, ...(esDueno ? {} : { ownerOnly: false }) },
+      module: { active: true, ...(esDueno ? { hiddenFromOwner: false } : { ownerOnly: false }) },
     },
     select: { moduleKey: true },
   });

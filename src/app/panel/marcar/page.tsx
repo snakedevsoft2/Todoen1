@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { addDays, inicioDelDiaEn, todayIn } from "@/lib/dates";
@@ -25,6 +26,11 @@ export default async function MarcarPage() {
   // uno de vuelta a SU pantalla fija (que puede ser esta misma), armando un
   // ciclo de redirecciones. Ver panel/layout.tsx.
   const { user, staff } = await requireSession({ asistenciaOk: true, lavadorOk: true });
+
+  // El dueno no ficha su propia entrada: supervisa desde Planilla. Es la
+  // misma regla que ya esconde este apartado de su menu (ver modulos.ts).
+  if (staff.role === "DUENO") redirect("/panel/planilla");
+
   const hoy = todayIn(user.timezone);
 
   // El dia va de medianoche a medianoche en la zona del NEGOCIO, no del

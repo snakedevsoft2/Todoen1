@@ -69,6 +69,7 @@ async function main() {
       longDescription: m.longDescription,
       fixed: m.fixed ?? false,
       ownerOnly: m.ownerOnly ?? false,
+      hiddenFromOwner: m.hiddenFromOwner ?? false,
       inSidebar: m.inSidebar ?? true,
       requiresEnv: m.requiresEnv ?? null,
       sortOrder: m.sortOrder,

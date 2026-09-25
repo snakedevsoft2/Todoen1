@@ -11,6 +11,9 @@ import type { BusinessType } from "@prisma/client";
 
 export type NavItem = { href: string; label: string; icon: string };
 
+/** El menu lateral agrupado por categoria, para no verlo todo de un tiron. */
+export type NavGroup = { key: string; label: string; items: NavItem[]; pinned: boolean };
+
 export const BUSINESS_LABEL: Record<BusinessType, string> = {
   BARBERIA: "Barbería",
   RESTAURANTE: "Restaurante",

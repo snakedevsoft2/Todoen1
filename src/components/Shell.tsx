@@ -7,11 +7,12 @@ import { Icon } from "./Icon";
 import { BrandMark } from "./BrandMark";
 import { CompartirPortafolio } from "./CompartirPortafolio";
 import { InstalarApp } from "./InstalarApp";
-import type { NavItem } from "@/lib/nav";
+import type { NavGroup, NavItem } from "@/lib/nav";
 import { initials } from "@/lib/staff";
 
 export function Shell({
   nav,
+  navGroups,
   businessName,
   businessLabel,
   ownerName,
@@ -29,6 +30,8 @@ export function Shell({
   children,
 }: {
   nav: NavItem[];
+  /** El mismo menu partido por categoria. Si falta, se pinta el de "nav" tal cual. */
+  navGroups?: NavGroup[];
   businessName: string;
   businessLabel: string;
   /** Nombre de quien entro (el dueno o el barbero). */
@@ -68,36 +71,60 @@ export function Shell({
     solido con sombra: se veia desde el otro lado del mostrador, pero con doce
     apartados el menu terminaba gritando mas fuerte que el contenido.
   */
-  const navList = (
-    <nav className="space-y-0.5">
-      {nav.map((item) => {
-        const active = isActive(item.href);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            aria-current={active ? "page" : undefined}
-            className={
-              "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors duration-150 " +
-              (active
-                ? "bg-brand-50 font-semibold text-brand-700"
-                : "font-medium text-muted hover:bg-surface hover:text-strong")
-            }
-          >
-            {active && (
-              <span className="absolute inset-y-1.5 left-0 w-[3px] rounded-full bg-brand-600" />
-            )}
-            <Icon
-              name={item.icon}
-              className={
-                "h-[18px] w-[18px] shrink-0 " + (active ? "text-brand-600" : "text-subtle")
-              }
-            />
-            <span className="truncate">{item.label}</span>
-          </Link>
-        );
-      })}
+  const renderItem = (item: NavItem) => {
+    const active = isActive(item.href);
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        aria-current={active ? "page" : undefined}
+        className={
+          "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors duration-150 " +
+          (active
+            ? "bg-brand-50 font-semibold text-brand-700"
+            : "font-medium text-muted hover:bg-surface hover:text-strong")
+        }
+      >
+        {active && <span className="absolute inset-y-1.5 left-0 w-[3px] rounded-full bg-brand-600" />}
+        <Icon
+          name={item.icon}
+          className={"h-[18px] w-[18px] shrink-0 " + (active ? "text-brand-600" : "text-subtle")}
+        />
+        <span className="truncate">{item.label}</span>
+      </Link>
+    );
+  };
+
+  // Con categorias: lo fijo va suelto arriba, y el resto se pliega por
+  // categoria para no ver una lista larga de una. Sin categorias (el menu fijo
+  // del empleado de asistencia o del lavador, que ya es corto) va tal cual.
+  const navList = navGroups ? (
+    <nav className="space-y-3">
+      {navGroups
+        .filter((g) => g.pinned)
+        .flatMap((g) => g.items)
+        .map((item) => renderItem(item))}
+
+      {navGroups
+        .filter((g) => !g.pinned)
+        .map((g) => {
+          const abierta = g.items.some((item) => isActive(item.href));
+          return (
+            <details key={g.key} open={abierta} className="group">
+              <summary className="flex cursor-pointer list-none items-center justify-between rounded-lg px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-subtle transition-colors hover:text-strong">
+                {g.label}
+                <Icon
+                  name="chevronDown"
+                  className="h-3.5 w-3.5 shrink-0 transition-transform duration-150 group-open:rotate-180"
+                />
+              </summary>
+              <div className="mt-0.5 space-y-0.5">{g.items.map((item) => renderItem(item))}</div>
+            </details>
+          );
+        })}
     </nav>
+  ) : (
+    <nav className="space-y-0.5">{nav.map((item) => renderItem(item))}</nav>
   );
 
   const brand = (

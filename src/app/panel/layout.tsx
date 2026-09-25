@@ -5,7 +5,7 @@ import { SUGERENCIAS_IA } from "@/lib/sugerencias-ia";
 import { AsistenteFlotante } from "@/components/AsistenteFlotante";
 import { requireSession } from "@/lib/auth";
 import { BUSINESS_LABEL, logoUrl, publicPath } from "@/lib/nav";
-import { menuDe, modulosDe } from "@/lib/modules";
+import { menuAgrupado, menuDe, modulosDe } from "@/lib/modules";
 import { etiquetaDeRol, fotoPerfil } from "@/lib/staff";
 import {
   MENU_EMPLEADO_ASISTENCIA,
@@ -48,6 +48,9 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   const rutas = Object.fromEntries(modulos.map((m) => [m.href, m.key]));
 
   const nav = empleado ? MENU_EMPLEADO_ASISTENCIA : lavador ? MENU_LAVADOR : menuDe(modulos);
+  // Agrupado por categoria solo cuando hay de donde armar categorias: el menu
+  // fijo del empleado de asistencia y el del lavador son cortos y no lo necesitan.
+  const navGroups = empleado || lavador ? undefined : menuAgrupado(modulos);
   const logo = logoUrl(user.slug, user.logo, user.updatedAt);
   const foto = fotoPerfil(staff);
 
@@ -100,6 +103,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
       )}
       <Shell
         nav={nav}
+        navGroups={navGroups}
         businessName={user.businessName}
         businessLabel={BUSINESS_LABEL[user.businessType]}
         ownerName={staff.name}
