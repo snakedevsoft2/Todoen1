@@ -7,6 +7,7 @@ import { requireOwner, requireSession } from "@/lib/auth";
 import { todayIn } from "@/lib/dates";
 import { parseIntSafe, parseMoney, str } from "@/lib/format";
 import { anotarActividad } from "@/lib/actividad";
+import { nextReceiptSeq } from "@/lib/receipt-seq";
 
 export type OrderState = { error?: string; ok?: string } | undefined;
 
@@ -148,8 +149,8 @@ export async function closeOrderAction(formData: FormData) {
   const total = Math.max(0, computed - discount);
   const paymentMethod = readPayment(formData.get("paymentMethod"));
 
-  await db.$transaction([
-    db.sale.create({
+  await db.$transaction(async (tx) => {
+    await tx.sale.create({
       data: {
         userId: user.id,
         day: order.day,
@@ -160,6 +161,7 @@ export async function closeOrderAction(formData: FormData) {
         clientName: order.label,
         notes: discount > 0 ? "Descuento aplicado: " + discount : null,
         orderId: order.id,
+        receiptSeq: await nextReceiptSeq(tx, user.id),
         items: {
           create: order.items.map((i) => ({
             userId: user.id,
@@ -170,9 +172,9 @@ export async function closeOrderAction(formData: FormData) {
           })),
         },
       },
-    }),
-    db.order.update({ where: { id: order.id }, data: { status: "PAGADA" } }),
-  ]);
+    });
+    await tx.order.update({ where: { id: order.id }, data: { status: "PAGADA" } });
+  });
   await anotarActividad(
     { user, staff },
     { tipo: "cobro", detalle: "Cobró la cuenta " + order.label + (discount > 0 ? " con descuento" : ""), monto: total }

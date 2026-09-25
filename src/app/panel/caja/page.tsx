@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { requireUser } from "@/lib/auth";
+import { requireSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { addDays, isValidDay, todayIn } from "@/lib/dates";
 import { money, prettyDay, shortDay } from "@/lib/format";
 import { getDaySummary } from "@/lib/queries";
+import { esDueno } from "@/lib/permisos-empleado";
 import { Card, Empty, PageHeader, Stat } from "@/components/ui";
 import { CashCloseForm } from "@/components/CashCloseForm";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -17,15 +18,37 @@ export default async function CajaPage({
 }: {
   searchParams: Promise<{ d?: string }>;
 }) {
-  const user = await requireUser();
+  const { user, staff: me } = await requireSession();
+  const propias = esDueno(me.role);
   const params = await searchParams;
   const today = todayIn(user.timezone);
   const day = params.d && isValidDay(params.d) ? params.d : today;
 
-  const [summary, closure, history] = await Promise.all([
-    getDaySummary(user.id, day),
-    db.cashClosure.findUnique({ where: { userId_day: { userId: user.id, day } } }),
-    db.cashClosure.findMany({ where: { userId: user.id }, orderBy: { day: "desc" }, take: 14 }),
+  // El dueño ve y cierra el negocio completo, como siempre. Cada empleado con
+  // cuenta separada ve y cierra solo lo suyo: cada quien tiene su propio
+  // cierre del dia, sin pisarle el de nadie mas.
+  // Los cierres de antes de que esto existiera no tienen staffId (no se sabe
+  // quien cerro): al dueño se los seguimos mostrando como suyos, para que su
+  // historial no desaparezca de la vista con esta migracion. Al empleado no:
+  // el nunca tuvo cierre propio antes, asi que no hay nada suyo que rescatar.
+  const propioOAntiguo = propias ? { OR: [{ staffId: me.id }, { staffId: null }] } : { staffId: me.id };
+
+  const [summary, closure, history, equipoHoy] = await Promise.all([
+    getDaySummary(user.id, day, propias ? undefined : me.id),
+    db.cashClosure.findFirst({ where: { userId: user.id, day, ...propioOAntiguo } }),
+    db.cashClosure.findMany({
+      where: { userId: user.id, ...propioOAntiguo },
+      orderBy: { day: "desc" },
+      take: 14,
+    }),
+    // Solo el dueño ve como van los cierres del resto del equipo hoy.
+    propias
+      ? db.cashClosure.findMany({
+          where: { userId: user.id, day, staffId: { not: me.id } },
+          include: { staff: { select: { name: true, color: true } } },
+          orderBy: { closedAt: "desc" },
+        })
+      : Promise.resolve([]),
   ]);
 
   const lastClosure = history.find((h) => h.day < day);
@@ -35,7 +58,10 @@ export default async function CajaPage({
 
   return (
     <>
-      <PageHeader title="Cierre de caja" subtitle={prettyDay(day)} />
+      <PageHeader
+        title="Cierre de caja"
+        subtitle={prettyDay(day) + (propias ? "" : " · Solo tus ventas, no las del negocio completo")}
+      />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <Link href={"/panel/caja?d=" + addDays(day, -1)} className="btn-ghost btn-sm">
@@ -120,6 +146,7 @@ export default async function CajaPage({
               {closure.notes && <p className="text-xs italic text-good/70">{closure.notes}</p>}
               <FormSinSenal accion="reopenCashAction" servidor={reopenCashAction} className="pt-1">
                 <input type="hidden" name="day" value={day} />
+                <input type="hidden" name="staffId" value={me.id} />
                 <SubmitButton
                   className="btn-ghost btn-sm w-full"
                   pendingText="..."
@@ -198,6 +225,58 @@ export default async function CajaPage({
             </div>
           )}
         </Card>
+
+        {propias && (
+          <Card title="Cierres del equipo hoy" subtitle="Cada quien cierra su propia caja">
+            {equipoHoy.length === 0 ? (
+              <Empty
+                title="Nadie más ha cerrado hoy"
+                hint="Cuando un empleado cierre su caja, aparece aquí."
+              />
+            ) : (
+              <ul className="space-y-2">
+                {equipoHoy.map((c) => (
+                  <li
+                    key={c.id}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface p-3"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="h-2 w-2 rounded-full"
+                        style={{ backgroundColor: c.staff?.color ?? "#64748b" }}
+                      />
+                      <span className="text-sm font-semibold text-strong">
+                        {c.staff?.name ?? "Ex empleado"}
+                      </span>
+                    </div>
+                    <span className="text-sm font-bold text-good">
+                      {money(c.netTotal, user.currency)}
+                    </span>
+                    <span
+                      className={
+                        "text-xs " +
+                        (c.difference === 0 ? "text-muted" : c.difference > 0 ? "text-good" : "text-bad")
+                      }
+                    >
+                      {c.difference === 0 ? "Cuadró" : "Dif. " + money(c.difference, user.currency)}
+                    </span>
+                    <FormSinSenal accion="reopenCashAction" servidor={reopenCashAction}>
+                      <input type="hidden" name="day" value={day} />
+                      <input type="hidden" name="staffId" value={c.staffId ?? ""} />
+                      <SubmitButton
+                        className="btn-ghost btn-sm"
+                        pendingText="..."
+                        confirm={"Reabrir la caja de " + (c.staff?.name ?? "esta persona") + " de este día"}
+                      >
+                        Reabrir
+                      </SubmitButton>
+                    </FormSinSenal>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        )}
       </div>
     </>
   );

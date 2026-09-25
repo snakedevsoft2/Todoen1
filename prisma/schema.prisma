@@ -165,6 +165,11 @@ model User {
   whatsappTemplateLang String  @default("es")
   notifyOnBooking      Boolean @default(true)
 
+  /// El numero que le toca al proximo recibo (venta, abono o prestamo). Uno
+  /// solo compartido entre los tres: al dueño le sube 1, 2, 3... sin importar
+  /// de cual salio. Empieza en 1 y nunca se repite ni se reordena.
+  nextReceiptSeq Int @default(1)
+
   // Configuracion de agenda / caja
   currency    String  @default("COP")
   /// Pais del negocio: codigo ISO de dos letras, u OTRO. De aqui salen la
@@ -335,6 +340,10 @@ model Debt {
   /// sin senal: si la subida se reintenta, la deuda no queda dos veces.
   clientKey String? @unique
 
+  /// El numero del recibo/constancia que se le imprime al cliente. Nulo en las
+  /// deudas de antes de que esto existiera: esas conservan su numero viejo.
+  receiptSeq Int?
+
   /**
    * Datos del prestamo, para el negocio de cartera.
    * Van aqui y no en una tabla aparte a proposito: una deuda con cuotas sigue
@@ -414,6 +423,9 @@ model DebtPayment {
   /// Quien lo recibio. Ver Debt.staffId.
   staffId String?
   staff   Staff?        @relation(fields: [staffId], references: [id], onDelete: SetNull)
+
+  /// El numero del comprobante de este abono. Ver Debt.receiptSeq.
+  receiptSeq Int?
 
   createdAt DateTime @default(now())
 
@@ -518,6 +530,7 @@ model Staff {
   sales        Sale[]
   debts        Debt[]
   debtPayments DebtPayment[]
+  cashClosures CashClosure[]
   workspace    WorkspaceConfig?
 
   passwordResets PasswordReset[]
@@ -782,6 +795,9 @@ model Sale {
   /// subida se corta y se reintenta, la venta no queda dos veces ni descuenta
   /// el inventario dos veces.
   clientKey     String?       @unique
+  /// El numero del recibo/factura que se le imprime al cliente. Ver
+  /// User.nextReceiptSeq. Nulo en las ventas de antes de que esto existiera.
+  receiptSeq    Int?
   createdAt     DateTime      @default(now())
 
   items             SaleItem[]
@@ -931,6 +947,14 @@ model CashClosure {
   userId        String
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   day           String // "YYYY-MM-DD"
+
+  /// Quien cerro: cada quien cierra la suya, para que dos personas que
+  /// atienden el mismo dia no se pisen el cierre ni vean los totales del
+  /// otro. Nulo en los cierres de antes de esto (no quedo guardado quien
+  /// cerro; el sembrador se los atribuye al dueño).
+  staffId String?
+  staff   Staff?  @relation(fields: [staffId], references: [id], onDelete: SetNull)
+
   openingAmount Int      @default(0)
   totalSales    Int
   totalCash     Int
@@ -945,7 +969,7 @@ model CashClosure {
   notes         String?
   closedAt      DateTime @default(now())
 
-  @@unique([userId, day])
+  @@unique([userId, staffId, day])
   @@index([userId, day])
 }
 

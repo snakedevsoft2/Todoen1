@@ -17,7 +17,7 @@ import { TARIFAS, datosPais } from "@/lib/facturacion/paises";
 import type { InvoiceData } from "@/lib/invoice";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Icon } from "@/components/Icon";
-import { deleteSaleAction, updateSalePaymentAction } from "@/actions/sales";
+import { deleteSaleAction, updateSaleAction, updateSalePaymentAction } from "@/actions/sales";
 import { FormSinSenal } from "@/components/SinSenal";
 import { esPlanCompleto } from "@/lib/plan";
 import { ordenDeCategorias } from "@/lib/categorias-negocio";
@@ -178,6 +178,7 @@ export default async function VentasPage({
 
   const datosFiado = (f: (typeof fiados)[number]): InvoiceData => ({
     saleId: f.id,
+    receiptSeq: f.receiptSeq,
     businessName: user.businessName,
     businessPhone: user.phone,
     businessAddress: user.address,
@@ -197,6 +198,7 @@ export default async function VentasPage({
 
   const datosFactura = (s: (typeof sales)[number]): InvoiceData => ({
     saleId: s.id,
+    receiptSeq: s.receiptSeq,
     businessName: user.businessName,
     businessPhone: user.phone,
     businessAddress: user.address,
@@ -411,125 +413,176 @@ export default async function VentasPage({
             <Empty title="No hay ventas en este día" hint="Registra la primera venta a la izquierda." />
           ) : (
             <ul className="space-y-2">
-              {sales.map((s) => (
-                <li key={s.id} className="rounded-xl border border-line bg-surface p-3">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-strong">
-                        {money(s.total, user.currency)}
-                        <span className="ml-2 rounded-full border border-line px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted">
-                          {ORIGIN_LABEL[s.origin]}
-                        </span>
-                      </p>
-                      <p className="mt-1 text-xs text-body">
-                        {s.items
-                          .map(
-                            (i) =>
-                              i.qty +
-                              "x " +
-                              i.name +
-                              (i.variantLabel && !i.name.includes(i.variantLabel)
-                                ? " (" + i.variantLabel + ")"
-                                : "")
-                          )
-                          .join(", ") || "Venta"}
-                      </p>
-                      <p className="mt-0.5 text-xs text-subtle">
-                        {s.clientName ?? "Mostrador"} - {shortDay(s.day)}
-                        {s.notes ? " - " + s.notes : ""}
-                      </p>
-                      {s.staff && (
-                        <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted">
-                          <span
-                            className="h-2 w-2 rounded-full"
-                            style={{ backgroundColor: s.staff.color }}
-                          />
-                          {isClothing ? "Vendio " : "Atendio "}
-                          {s.staff.name}
+              {/* Ventas y fiados van en una sola lista, mezclados por hora: asi
+                  se ve el orden real en que pasaron, no las ventas primero y
+                  los fiados aparte al final. */}
+              {[
+                ...sales.map((s) => ({ tipo: "venta" as const, cuando: s.createdAt, s })),
+                ...fiados.map((f) => ({ tipo: "fiado" as const, cuando: f.createdAt, f })),
+              ]
+                .sort((a, b) => b.cuando.getTime() - a.cuando.getTime())
+                .map((m) => {
+                  if (m.tipo === "fiado") {
+                    const f = m.f;
+                    return (
+                      <li key={"f-" + f.id} className="rounded-xl border border-line bg-surface p-3">
+                        <p className="text-sm font-semibold text-strong">
+                          {money(f.amount, user.currency)}
+                          <span className="ml-2 rounded-full border border-warn-line bg-warn-soft px-2 py-0.5 text-[10px] uppercase tracking-wide text-warn">
+                            Fiado
+                          </span>
                         </p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <FormSinSenal accion="updateSalePaymentAction" servidor={updateSalePaymentAction} className="flex items-center gap-1">
-                        <input type="hidden" name="id" value={s.id} />
-                        <select
-                          name="paymentMethod"
-                          defaultValue={s.paymentMethod}
-                          className="input w-36 py-1.5 text-xs"
-                        >
-                          <option value="EFECTIVO">Efectivo</option>
-                          <option value="TARJETA">Tarjeta</option>
-                          <option value="TRANSFERENCIA">Transferencia</option>
-                          <option value="OTRO">Otro</option>
-                        </select>
-                        <SubmitButton className="btn-ghost btn-sm px-2" pendingText="...">
-                          <Icon name="check" className="h-4 w-4" />
-                        </SubmitButton>
-                      </FormSinSenal>
-                      {!(s.electronicInvoice && ["AUTORIZADA", "ENVIANDO"].includes(s.electronicInvoice.status)) && (
-                      <FormSinSenal accion="deleteSaleAction" servidor={deleteSaleAction}>
-                        <input type="hidden" name="id" value={s.id} />
-                        <SubmitButton
-                          className="btn-ghost btn-sm px-2 text-bad"
-                          pendingText="..."
-                          ariaLabel="Borrar venta"
-                          confirm={
-                            "Borrar esta venta del día" +
-                            (s.items.some((i) => i.variantId)
-                              ? ". Las prendas vuelven al inventario."
-                              : "")
-                          }
-                        >
-                          <Icon name="trash" className="h-4 w-4" />
-                        </SubmitButton>
-                      </FormSinSenal>
-                      )}
-                    </div>
-                  </div>
+                        <p className="mt-1 text-xs text-body">{f.concept}</p>
+                        <p className="mt-0.5 text-xs text-subtle">
+                          {f.clientName} - {shortDay(f.day)}
+                        </p>
+                        {f.staff && (
+                          <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted">
+                            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: f.staff.color }} />
+                            {isClothing ? "Vendio " : "Atendio "}
+                            {f.staff.name}
+                          </p>
+                        )}
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <ImprimirVenta data={datosFiado(f)} soloBluetooth={!propias} />
+                          <Link href={"/panel/cartera"} className="btn-ghost btn-sm">
+                            Ver en Cuentas por cobrar
+                          </Link>
+                        </div>
+                      </li>
+                    );
+                  }
 
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <InvoiceActions data={datosFactura(s)} soloBluetooth={!propias} />
-                    <ImprimirVenta data={datosFactura(s)} soloBluetooth={!propias} />
-                    <FacturaAutorizada
-                      saleId={s.id}
-                      pais={facturacion.country}
-                      habilitada={completo && facturacion.enabled}
-                      inicial={s.electronicInvoice ? facturaVista(s.electronicInvoice) : null}
-                      base={datosFactura(s)}
-                      etiquetaImpuesto={etiquetaImpuesto}
-                      emisor={emisorFactura}
-                      soloBluetooth={!propias}
-                    />
-                  </div>
-                </li>
-              ))}
-              {fiados.map((f) => (
-                <li key={f.id} className="rounded-xl border border-line bg-surface p-3">
-                  <p className="text-sm font-semibold text-strong">
-                    {money(f.amount, user.currency)}
-                    <span className="ml-2 rounded-full border border-warn-line bg-warn-soft px-2 py-0.5 text-[10px] uppercase tracking-wide text-warn">
-                      Fiado
-                    </span>
-                  </p>
-                  <p className="mt-1 text-xs text-body">{f.concept}</p>
-                  <p className="mt-0.5 text-xs text-subtle">
-                    {f.clientName} - {shortDay(f.day)}
-                  </p>
-                  {f.staff && (
-                    <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted">
-                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: f.staff.color }} />
-                      {isClothing ? "Vendio " : "Atendio "}
-                      {f.staff.name}
-                    </p>
-                  )}
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <ImprimirVenta data={datosFiado(f)} soloBluetooth={!propias} />
-                    <Link href={"/panel/cartera"} className="btn-ghost btn-sm">
-                      Ver en Cuentas por cobrar
-                    </Link>
-                  </div>
-                </li>
-              ))}
+                  const s = m.s;
+                  return (
+                    <li key={"s-" + s.id} className="rounded-xl border border-line bg-surface p-3">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-strong">
+                            {money(s.total, user.currency)}
+                            <span className="ml-2 rounded-full border border-line px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted">
+                              {ORIGIN_LABEL[s.origin]}
+                            </span>
+                          </p>
+                          <p className="mt-1 text-xs text-body">
+                            {s.items
+                              .map(
+                                (i) =>
+                                  i.qty +
+                                  "x " +
+                                  i.name +
+                                  (i.variantLabel && !i.name.includes(i.variantLabel)
+                                    ? " (" + i.variantLabel + ")"
+                                    : "")
+                              )
+                              .join(", ") || "Venta"}
+                          </p>
+                          <p className="mt-0.5 text-xs text-subtle">
+                            {s.clientName ?? "Mostrador"} - {shortDay(s.day)}
+                            {s.notes ? " - " + s.notes : ""}
+                          </p>
+                          {s.staff && (
+                            <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted">
+                              <span
+                                className="h-2 w-2 rounded-full"
+                                style={{ backgroundColor: s.staff.color }}
+                              />
+                              {isClothing ? "Vendio " : "Atendio "}
+                              {s.staff.name}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <FormSinSenal accion="updateSalePaymentAction" servidor={updateSalePaymentAction} className="flex items-center gap-1">
+                            <input type="hidden" name="id" value={s.id} />
+                            <select
+                              name="paymentMethod"
+                              defaultValue={s.paymentMethod}
+                              className="input w-36 py-1.5 text-xs"
+                            >
+                              <option value="EFECTIVO">Efectivo</option>
+                              <option value="TARJETA">Tarjeta</option>
+                              <option value="TRANSFERENCIA">Transferencia</option>
+                              <option value="OTRO">Otro</option>
+                            </select>
+                            <SubmitButton className="btn-ghost btn-sm px-2" pendingText="...">
+                              <Icon name="check" className="h-4 w-4" />
+                            </SubmitButton>
+                          </FormSinSenal>
+                          {!(s.electronicInvoice && ["AUTORIZADA", "ENVIANDO"].includes(s.electronicInvoice.status)) && (
+                          <FormSinSenal accion="deleteSaleAction" servidor={deleteSaleAction}>
+                            <input type="hidden" name="id" value={s.id} />
+                            <SubmitButton
+                              className="btn-ghost btn-sm px-2 text-bad"
+                              pendingText="..."
+                              ariaLabel="Borrar venta"
+                              confirm={
+                                "Borrar esta venta del día" +
+                                (s.items.some((i) => i.variantId)
+                                  ? ". Las prendas vuelven al inventario."
+                                  : "")
+                              }
+                            >
+                              <Icon name="trash" className="h-4 w-4" />
+                            </SubmitButton>
+                          </FormSinSenal>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <InvoiceActions data={datosFactura(s)} soloBluetooth={!propias} />
+                        <ImprimirVenta data={datosFactura(s)} soloBluetooth={!propias} />
+                        <FacturaAutorizada
+                          saleId={s.id}
+                          pais={facturacion.country}
+                          habilitada={completo && facturacion.enabled}
+                          inicial={s.electronicInvoice ? facturaVista(s.electronicInvoice) : null}
+                          base={datosFactura(s)}
+                          etiquetaImpuesto={etiquetaImpuesto}
+                          emisor={emisorFactura}
+                          soloBluetooth={!propias}
+                        />
+                      </div>
+
+                      <FormSinSenal accion="updateSaleAction" servidor={updateSaleAction} className="mt-2">
+                        <input type="hidden" name="id" value={s.id} />
+                        <details className="group">
+                          <summary className="flex cursor-pointer list-none items-center gap-1.5 text-xs font-semibold text-brand-600">
+                            <Icon name="pencil" className="h-3.5 w-3.5" />
+                            Editar
+                          </summary>
+                          <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                            <input
+                              className="input py-1.5 text-xs"
+                              name="clientName"
+                              defaultValue={s.clientName ?? ""}
+                              placeholder="Cliente"
+                            />
+                            <input
+                              className="input py-1.5 text-xs"
+                              type="date"
+                              name="day"
+                              defaultValue={s.day}
+                            />
+                            <input
+                              className="input py-1.5 text-xs"
+                              name="notes"
+                              defaultValue={s.notes ?? ""}
+                              placeholder="Nota (opcional)"
+                            />
+                          </div>
+                          <p className="mt-1.5 text-[11px] text-subtle">
+                            Para corregir lo que se vendió o el monto, borra esta venta y regístrala de nuevo.
+                          </p>
+                          <SubmitButton className="btn-ghost btn-sm mt-1.5" pendingText="Guardando...">
+                            Guardar cambios
+                          </SubmitButton>
+                        </details>
+                      </FormSinSenal>
+                    </li>
+                  );
+                })}
             </ul>
           )}
         </Card>

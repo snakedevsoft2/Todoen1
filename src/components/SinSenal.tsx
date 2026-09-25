@@ -81,6 +81,7 @@ const ETIQUETA: Record<string, string> = {
   toggleSupplierAction: "Activar o pausar proveedor",
   deleteSupplierAction: "Borrar proveedor",
   updateSalePaymentAction: "Cambiar pago de una venta",
+  updateSaleAction: "Editar una venta",
   deleteSaleAction: "Borrar una venta",
 };
 

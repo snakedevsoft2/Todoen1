@@ -18,6 +18,7 @@
 export const ACCIONES_SOLO_DUENO = new Set<string>([
   "deleteSaleAction",
   "updateSalePaymentAction",
+  "updateSaleAction",
   "deleteExpenseAction",
   "reopenCashAction",
   "deletePaymentAction",
@@ -75,6 +76,7 @@ export const ACCIONES_SOLO_CREAR = new Set<string>([
 export const ACCIONES_SUPERVISOR = new Set<string>([
   "deleteSaleAction",
   "updateSalePaymentAction",
+  "updateSaleAction",
   "deleteWashJobAction",
   "updateWashJobAction",
 ]);

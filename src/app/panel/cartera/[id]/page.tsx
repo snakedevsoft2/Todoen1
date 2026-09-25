@@ -264,6 +264,7 @@ export default async function DeudaPage({ params }: { params: Promise<{ id: stri
                           soloBluetooth={!esDueno(me.role)}
                           data={{
                             paymentId: pago.id,
+                            receiptSeq: pago.receiptSeq,
                             businessName: user.businessName,
                             businessPhone: user.phone,
                             businessAddress: user.address,

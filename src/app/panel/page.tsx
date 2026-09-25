@@ -7,6 +7,7 @@ import { getDaySummary } from "@/lib/queries";
 import { money, pretty12h, prettyDay, shortDay } from "@/lib/format";
 import { filtroDeSeguimientos } from "@/lib/crm-filas";
 import { esEmpleadoDeAsistencia, esLavadorDeLavadero } from "@/lib/permisos";
+import { esDueno } from "@/lib/permisos-empleado";
 import { ResumenAsistencia } from "@/components/ResumenAsistencia";
 import { BUSINESS_LABEL, ITEM_NOUN } from "@/lib/nav";
 import { getInventorySummary, getLowStock } from "@/lib/inventory";
@@ -70,7 +71,15 @@ export default async function PanelHomePage() {
         staff: { select: { name: true, color: true } },
       },
     }),
-    db.cashClosure.findUnique({ where: { userId_day: { userId: user.id, day: today } } }),
+    // Al dueño se le sigue mostrando aunque sea un cierre viejo de antes de
+    // que cada quien tuviera el suyo (esos quedaron con staffId vacío).
+    db.cashClosure.findFirst({
+      where: {
+        userId: user.id,
+        day: today,
+        ...(esDueno(me.role) ? { OR: [{ staffId: me.id }, { staffId: null }] } : { staffId: me.id }),
+      },
+    }),
     db.expense.findMany({ where: { userId: user.id, day: today }, orderBy: { createdAt: "desc" }, take: 5 }),
     isClothing ? getInventorySummary(user.id) : Promise.resolve(null),
     isClothing ? getLowStock(user.id, 8) : Promise.resolve([]),

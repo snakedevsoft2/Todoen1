@@ -2,6 +2,7 @@ import { money, prettyDay } from "./format";
 import { qrModulos } from "./qr";
 import type { Linea } from "./tirilla";
 import { MARCA_VERSION_GRATIS } from "./plan";
+import { formatReceiptSeq } from "./receipt-seq";
 
 /**
  * Armado de la factura en PDF, en el navegador.
@@ -44,6 +45,12 @@ export type InvoiceData = {
   autorizacion?: AutorizacionFactura;
   /** La cuenta esta en la version gratis: la factura normal sale con la marca. */
   marcaGratis?: boolean;
+  /**
+   * El numero de recibo que le toco a esta venta (1, 2, 3...). Nulo en ventas
+   * de antes de que esto existiera, o mientras una venta sin señal todavia no
+   * sincroniza: ahi se sigue usando el id como respaldo.
+   */
+  receiptSeq?: number | null;
 };
 
 /**
@@ -100,9 +107,15 @@ export function invoiceNumber(saleId: string): string {
   return saleId.slice(-8).toUpperCase();
 }
 
-/** El numero que se imprime: el oficial si la factura esta autorizada. */
+/**
+ * El numero que se imprime: el oficial si la factura esta autorizada, si no
+ * el numero de recibo del negocio (1, 2, 3...), y si tampoco hay (ventas de
+ * antes, o sin señal sin sincronizar) el que sale del id.
+ */
 function numeroDe(data: InvoiceData): string {
-  return data.autorizacion?.numero ?? invoiceNumber(data.saleId);
+  if (data.autorizacion?.numero) return data.autorizacion.numero;
+  if (data.receiptSeq) return formatReceiptSeq(data.receiptSeq);
+  return invoiceNumber(data.saleId);
 }
 
 export function invoiceFileName(data: InvoiceData): string {

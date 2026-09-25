@@ -2,6 +2,7 @@ import { money, prettyDay } from "./format";
 import type { Linea } from "./tirilla";
 import { MARCA_VERSION_GRATIS } from "./plan";
 import { marcarVersionGratis } from "./invoice";
+import { formatReceiptSeq } from "./receipt-seq";
 
 /**
  * Comprobante de abono en PDF.
@@ -37,6 +38,8 @@ export type ReceiptData = {
    * formas de mandarlo. Solo cambian las palabras.
    */
   kind?: "abono" | "prestamo";
+  /** El numero de recibo del negocio (1, 2, 3...). Nulo en los de antes de esto. */
+  receiptSeq?: number | null;
 };
 
 const KIND_LABEL: Record<"abono" | "prestamo", { titulo: string; recibido: string; tituloTirilla: string }> = {
@@ -59,6 +62,14 @@ export function receiptNumber(paymentId: string): string {
   return paymentId.slice(-8).toUpperCase();
 }
 
+/**
+ * El numero que se imprime: el numero de recibo del negocio (1, 2, 3...) si
+ * ya lo tiene, y si no (recibos de antes de esto) el que sale del id.
+ */
+function numeroDe(data: ReceiptData): string {
+  return data.receiptSeq ? formatReceiptSeq(data.receiptSeq) : receiptNumber(data.paymentId);
+}
+
 export function receiptFileName(data: ReceiptData): string {
   const slug = data.clientName
     .normalize("NFD")
@@ -68,7 +79,7 @@ export function receiptFileName(data: ReceiptData): string {
     .toLowerCase()
     .slice(0, 24);
   const prefijo = data.kind === "prestamo" ? "prestamo-" : "abono-";
-  return prefijo + (slug || "cliente") + "-" + receiptNumber(data.paymentId) + ".pdf";
+  return prefijo + (slug || "cliente") + "-" + numeroDe(data) + ".pdf";
 }
 
 /** El texto que acompaña al comprobante cuando se manda por WhatsApp. */
@@ -159,7 +170,7 @@ export async function buildReceiptPdf(data: ReceiptData): Promise<File> {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(110);
-  doc.text("No. " + receiptNumber(data.paymentId), rightX, y + 5, { align: "right" });
+  doc.text("No. " + numeroDe(data), rightX, y + 5, { align: "right" });
   doc.text(prettyDay(data.day), rightX, y + 9, { align: "right" });
 
   y = Math.max(subY, y + 14) + 6;
@@ -285,7 +296,7 @@ export function receiptTirilla(data: ReceiptData): Linea[] {
   lineas.push(
     { t: "sep" },
     { t: "centro", text: etiquetas.tituloTirilla, fuerte: true },
-    { t: "centro", text: "No. " + receiptNumber(data.paymentId), tenue: true },
+    { t: "centro", text: "No. " + numeroDe(data), tenue: true },
     { t: "centro", text: prettyDay(data.day), tenue: true },
     { t: "sep" },
     { t: "par", label: "Cliente", value: data.clientName },

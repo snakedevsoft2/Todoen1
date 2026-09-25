@@ -250,8 +250,9 @@ export function NewSaleForm({
   // imprimir tambien sin senal, tanto la que se acaba de guardar como
   // cualquiera que siga esperando en la cola del telefono.
   const reciboDe = useCallback(
-    (venta: VentaPendiente, saleId: string, provisional: boolean): InvoiceData => ({
+    (venta: VentaPendiente, saleId: string, provisional: boolean, receiptSeq: number | null = null): InvoiceData => ({
       saleId,
+      receiptSeq,
       provisional,
       businessName: negocio.nombre,
       businessPhone: negocio.telefono,
@@ -574,13 +575,14 @@ export function NewSaleForm({
         if (p.ok) {
           limpiar();
           const id = typeof p.datos.id === "string" ? p.datos.id : venta.clientKey;
+          const receiptSeq = typeof p.datos.receiptSeq === "number" ? p.datos.receiptSeq : null;
           if (p.datos.tipo === "deuda") {
             // A credito no hay factura de venta: queda la deuda del cliente,
             // pero si se le puede entregar el recibo del fiado.
-            setUltima(reciboDe(venta, id, false));
+            setUltima(reciboDe(venta, id, false, receiptSeq));
             setMensaje({ kind: "ok", text: "Quedó en Cuentas por cobrar a nombre de " + venta.clientName.trim() + "." });
           } else {
-            setUltima(reciboDe(venta, id, false));
+            setUltima(reciboDe(venta, id, false, receiptSeq));
             setMensaje({ kind: "ok", text: "Venta registrada." });
             if (facturacion && comprobante === "autorizada") setVentaParaFactura(id);
           }

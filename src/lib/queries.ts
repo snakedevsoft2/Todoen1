@@ -21,14 +21,23 @@ const EMPTY_METHODS: Record<PaymentMethod, number> = {
   OTRO: 0,
 };
 
-/** Resumen de dinero de un dia, siempre filtrado por el usuario dueno de los datos. */
-export async function getDaySummary(userId: string, day: string): Promise<DaySummary> {
+/**
+ * Resumen de dinero de un dia, siempre filtrado por el usuario dueno de los
+ * datos.
+ *
+ * Con `staffId` sale solo lo de esa persona: sus ventas, no las de todo el
+ * negocio. Los gastos no se filtran por persona porque no llevan quien los
+ * hizo (son del negocio en general), asi que un resumen por persona siempre
+ * sale con gastos en cero: no tendria sentido restarle a un vendedor un gasto
+ * que no salio de su caja.
+ */
+export async function getDaySummary(userId: string, day: string, staffId?: string): Promise<DaySummary> {
   const [sales, expenseAgg] = await Promise.all([
     db.sale.findMany({
-      where: { userId, day },
+      where: { userId, day, ...(staffId ? { staffId } : {}) },
       select: { total: true, paymentMethod: true, items: { select: { qty: true } } },
     }),
-    db.expense.aggregate({ where: { userId, day }, _sum: { amount: true } }),
+    staffId ? Promise.resolve({ _sum: { amount: 0 } }) : db.expense.aggregate({ where: { userId, day }, _sum: { amount: true } }),
   ]);
 
   const byMethod: Record<PaymentMethod, number> = { ...EMPTY_METHODS };

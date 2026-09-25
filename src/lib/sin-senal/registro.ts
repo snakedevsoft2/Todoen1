@@ -51,7 +51,7 @@ import {
 } from "@/actions/inventory";
 import { deleteServiceAction, saveServiceAction, toggleServiceAction } from "@/actions/services";
 import { deleteSupplierAction, saveSupplierAction, toggleSupplierAction } from "@/actions/suppliers";
-import { deleteSaleAction, updateSalePaymentAction } from "@/actions/sales";
+import { deleteSaleAction, updateSaleAction, updateSalePaymentAction } from "@/actions/sales";
 import {
   asignarLavadorAction,
   cancelWashJobAction,
@@ -132,6 +132,7 @@ export const ACCIONES_SIN_SENAL: Registro = {
   deleteSupplierAction: simple(deleteSupplierAction),
   // Ventas ya registradas
   updateSalePaymentAction: simple(updateSalePaymentAction),
+  updateSaleAction: simple(updateSaleAction),
   deleteSaleAction: simple(deleteSaleAction),
   // Patio del lavadero
   recibirVehiculoAction: estado(recibirVehiculoAction),

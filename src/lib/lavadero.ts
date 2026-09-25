@@ -2,6 +2,7 @@ import type { PaymentMethod } from "@prisma/client";
 import { db } from "./db";
 import { anotarCliente } from "./clientes";
 import { registrarSello, type ResultadoSello } from "./fidelizacion";
+import { nextReceiptSeq } from "./receipt-seq";
 
 /**
  * El patio del lavadero: un vehiculo llega, se anota el cliente, se asigna a
@@ -112,6 +113,7 @@ export async function cerrarLavado(
         clientName: job.clientName,
         staffId: job.assignedStaffId,
         washJobId: job.id,
+        receiptSeq: await nextReceiptSeq(tx, userId),
         items: {
           create: [
             {

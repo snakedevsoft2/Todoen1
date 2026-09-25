@@ -11,6 +11,7 @@ import { endTimeFor } from "@/lib/slots";
 import { parseIntSafe, str } from "@/lib/format";
 import { waLink } from "@/lib/whatsapp";
 import { anotarActividad } from "@/lib/actividad";
+import { nextReceiptSeq } from "@/lib/receipt-seq";
 
 export type BookingState =
   | {
@@ -292,8 +293,8 @@ export async function closeAppointmentSaleAction(formData: FormData) {
   const amount = Math.max(0, parseIntSafe(formData.get("amount"), appointment.price));
   const paymentMethod = readPayment(formData.get("paymentMethod"));
 
-  await db.$transaction([
-    db.sale.create({
+  await db.$transaction(async (tx) => {
+    await tx.sale.create({
       data: {
         userId: user.id,
         day: appointment.day,
@@ -303,6 +304,7 @@ export async function closeAppointmentSaleAction(formData: FormData) {
         clientName: appointment.clientName,
         staffId: appointment.staffId,
         appointmentId: appointment.id,
+        receiptSeq: await nextReceiptSeq(tx, user.id),
         items: {
           create: [
             {
@@ -315,9 +317,9 @@ export async function closeAppointmentSaleAction(formData: FormData) {
           ],
         },
       },
-    }),
-    db.appointment.update({ where: { id: appointment.id }, data: { status: "ATENDIDO" } }),
-  ]);
+    });
+    await tx.appointment.update({ where: { id: appointment.id }, data: { status: "ATENDIDO" } });
+  });
   await anotarActividad({ user, staff }, { tipo: "cobro", detalle: "Cobró el turno de " + appointment.clientName, monto: amount });
 
   revalidatePath("/panel/turnos");

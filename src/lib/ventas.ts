@@ -6,6 +6,7 @@ import { applyStockMove, variantLabel } from "./inventory";
 import { LLAVE_VALIDA, falla, textoDe, type Resultado, type Sesion } from "./informes";
 import { anotarCliente } from "./clientes";
 import { anotarActividad } from "./actividad";
+import { nextReceiptSeq } from "./receipt-seq";
 
 /**
  * Registrar una venta directa, con senal o sin ella.
@@ -52,7 +53,12 @@ export function leerCarrito(raw: unknown): LineaVenta[] {
     .slice(0, 100);
 }
 
-export type VentaRegistrada = { id: string; repetido: boolean; tipo: "venta" | "deuda" };
+export type VentaRegistrada = {
+  id: string;
+  repetido: boolean;
+  tipo: "venta" | "deuda";
+  receiptSeq: number | null;
+};
 
 export async function registrarVenta(
   s: Sesion,
@@ -69,13 +75,21 @@ export async function registrarVenta(
   const yaEsta = async () => {
     if (!clientKey) return null;
     const [venta, deuda] = await Promise.all([
-      db.sale.findUnique({ where: { clientKey }, select: { id: true, userId: true } }),
-      db.debt.findUnique({ where: { clientKey }, select: { id: true, userId: true } }),
+      db.sale.findUnique({ where: { clientKey }, select: { id: true, userId: true, receiptSeq: true } }),
+      db.debt.findUnique({ where: { clientKey }, select: { id: true, userId: true, receiptSeq: true } }),
     ]);
     const ya = venta ?? deuda;
     if (!ya) return null;
     return ya.userId === user.id
-      ? { ok: true as const, datos: { id: ya.id, repetido: true, tipo: venta ? ("venta" as const) : ("deuda" as const) } }
+      ? {
+          ok: true as const,
+          datos: {
+            id: ya.id,
+            repetido: true,
+            tipo: venta ? ("venta" as const) : ("deuda" as const),
+            receiptSeq: ya.receiptSeq,
+          },
+        }
       : falla("Esa venta no se puede recibir.", 409);
   };
   const previo = await yaEsta();
@@ -189,6 +203,7 @@ export async function registrarVenta(
             // No se conto como venta: cada abono si entra a la caja.
             alreadyInvoiced: false,
             clientKey,
+            receiptSeq: await nextReceiptSeq(tx, user.id),
           },
         });
         for (const [variantId, qty] of needed) {
@@ -218,7 +233,7 @@ export async function registrarVenta(
       detalle: "Vendió a cuentas por cobrar a " + clientName + (resumenItems ? ": " + resumenItems : ""),
       monto: total,
     });
-    return { ok: true, datos: { id: deuda.id, repetido: false, tipo: "deuda" } };
+    return { ok: true, datos: { id: deuda.id, repetido: false, tipo: "deuda", receiptSeq: deuda.receiptSeq } };
   }
 
   const pago = PAGOS.includes(d.paymentMethod as PaymentMethod) ? (d.paymentMethod as PaymentMethod) : "EFECTIVO";
@@ -238,6 +253,7 @@ export async function registrarVenta(
           clientName: clientName || null,
           notes: textoDe(d.notes, 200) || null,
           clientKey,
+          receiptSeq: await nextReceiptSeq(tx, user.id),
           items: { create: rows },
         },
       });
@@ -276,5 +292,5 @@ export async function registrarVenta(
       (clientName ? " a " + clientName : ""),
     monto: total,
   });
-  return { ok: true, datos: { id: venta.id, repetido: false, tipo: "venta" } };
+  return { ok: true, datos: { id: venta.id, repetido: false, tipo: "venta", receiptSeq: venta.receiptSeq } };
 }

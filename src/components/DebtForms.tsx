@@ -53,6 +53,7 @@ export function NewDebtForm({
             data={{
               kind: "prestamo",
               paymentId: state.recibo.debtId,
+              receiptSeq: state.recibo.receiptSeq,
               businessName: negocio.businessName,
               businessPhone: negocio.businessPhone,
               businessAddress: negocio.businessAddress,

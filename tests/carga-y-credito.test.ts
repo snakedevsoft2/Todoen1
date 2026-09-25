@@ -145,7 +145,7 @@ describe("venta a cuentas por cobrar", () => {
 
     // Subida dos veces (sin señal), queda una sola.
     const otra = await registrarVenta(tienda, venta);
-    expect(otra.ok && otra.datos).toEqual({ id: r.datos.id, repetido: true, tipo: "deuda" });
+    expect(otra.ok && otra.datos).toEqual({ id: r.datos.id, repetido: true, tipo: "deuda", receiptSeq: r.datos.receiptSeq });
     expect(await db.debt.count({ where: { userId: tienda.user.id } })).toBe(1);
   });
 

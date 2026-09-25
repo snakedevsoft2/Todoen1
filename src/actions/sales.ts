@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { PaymentMethod } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
+import { isValidDay } from "@/lib/dates";
 import { str } from "@/lib/format";
 import { applyStockMove } from "@/lib/inventory";
 import { anotarActividad } from "@/lib/actividad";
@@ -96,6 +97,43 @@ export async function deleteSaleAction(formData: FormData) {
   revalidatePath("/panel/turnos");
   revalidatePath("/panel/cuentas");
   revalidatePath("/panel/inventario");
+  revalidatePath("/panel");
+}
+
+/**
+ * Corrige los datos de una venta ya registrada: cliente, día y nota.
+ *
+ * No toca los items, el total ni el inventario a propósito: eso significaría
+ * deshacer y rehacer los movimientos de stock, con el riesgo de descuadrar el
+ * inventario si algo sale mal a la mitad. Para corregir el monto o lo que se
+ * vendió, la vía sigue siendo borrar y volver a registrar (deleteSaleAction ya
+ * devuelve las prendas al inventario solo).
+ */
+export async function updateSaleAction(formData: FormData) {
+  const { user, staff } = await requireSession();
+  if (!puedeHacer(staff.role, "updateSaleAction")) return;
+  const id = str(formData.get("id"));
+
+  const sale = await db.sale.findFirst({
+    where: { id, userId: user.id },
+    select: { id: true, day: true, electronicInvoice: { select: { status: true } } },
+  });
+  if (!sale) return;
+  // Igual que al borrar: una factura autorizada o en camino no se toca por
+  // fuera de la entidad que la emitio.
+  const factura = sale.electronicInvoice?.status;
+  if (factura === "AUTORIZADA" || factura === "ENVIANDO") return;
+
+  const dayInput = str(formData.get("day"));
+  const day = isValidDay(dayInput) ? dayInput : sale.day;
+  const clientName = str(formData.get("clientName")) || null;
+  const notes = str(formData.get("notes")) || null;
+
+  await db.sale.update({ where: { id: sale.id }, data: { day, clientName, notes } });
+
+  await anotarActividad({ user, staff }, { tipo: "cambio", detalle: "Editó una venta del " + day });
+
+  revalidatePath("/panel/ventas");
   revalidatePath("/panel");
 }
 

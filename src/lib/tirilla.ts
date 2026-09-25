@@ -110,21 +110,25 @@ export const TIRILLA_CSS = `
   body>*:not(#ten-impresion){display:none!important}
   #ten-impresion{position:static;left:auto;visibility:visible}
 }
-#ten-impresion .ti{box-sizing:border-box;color:#000;background:#fff;font-family:Arial,Helvetica,sans-serif;line-height:1.25;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+#ten-impresion .ti{box-sizing:border-box;color:#000;background:#fff;font-family:Arial,Helvetica,sans-serif;line-height:1.15;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 #ten-impresion .ti *{box-sizing:border-box;margin:0;padding:0}
-#ten-impresion .ti-58{width:58mm;padding:2mm 3mm 5mm;font-size:8.5pt}
-#ten-impresion .ti-80{width:80mm;padding:2mm 4mm 5mm;font-size:10pt}
+#ten-impresion .ti-58{width:58mm;padding:1.5mm 3mm 3mm;font-size:8.5pt}
+#ten-impresion .ti-80{width:80mm;padding:1.5mm 4mm 3mm;font-size:10pt}
 #ten-impresion .ti-a4{width:100%;max-width:150mm;margin:0 auto;font-size:11pt}
 #ten-impresion .ti p{overflow-wrap:anywhere}
+/* En tirilla (58/80mm) el logo va mas chico: en un recibo de pocos renglones,
+   un logo grande es la mitad del papel que se gasta. En hoja normal si vale
+   la pena de tamano completo, porque ahi el papel no se corta por largo. */
 #ten-impresion .ti-logo{display:block;max-height:22mm;max-width:40mm;margin:0 auto 3mm}
+#ten-impresion .ti-58 .ti-logo,#ten-impresion .ti-80 .ti-logo{max-height:12mm;max-width:28mm;margin:0 auto 1.5mm}
 #ten-impresion .ti-titulo{text-align:center;font-weight:700;font-size:1.45em;margin-bottom:.5mm}
 #ten-impresion .ti-centro{text-align:center}
 #ten-impresion .ti-fuerte{font-weight:700}
 #ten-impresion .ti-tenue{color:#222}
-#ten-impresion .ti-sep{border:0;border-top:1px dashed #000;margin:1.5mm 0}
+#ten-impresion .ti-sep{border:0;border-top:1px dashed #000;margin:1mm 0}
 #ten-impresion .ti-par,#ten-impresion .ti-total{display:flex;justify-content:space-between;gap:2mm}
 #ten-impresion .ti-par span:first-child,#ten-impresion .ti-total span:first-child{flex:1 1 auto}
 #ten-impresion .ti-par span:last-child,#ten-impresion .ti-total span:last-child{flex:0 1 auto;text-align:right}
-#ten-impresion .ti-total{font-weight:700;font-size:1.3em;border-top:1.5px solid #000;margin-top:1.5mm;padding-top:1mm}
-#ten-impresion .ti-espacio{height:2mm}
+#ten-impresion .ti-total{font-weight:700;font-size:1.3em;border-top:1.5px solid #000;margin-top:1mm;padding-top:.5mm}
+#ten-impresion .ti-espacio{height:1mm}
 `;
