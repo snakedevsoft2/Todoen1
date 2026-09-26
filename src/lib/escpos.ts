@@ -14,8 +14,31 @@ const ESC = 0x1b;
 const GS = 0x1d;
 const LF = 0x0a;
 
+/**
+ * La letra chica de la impresora ("fuente B").
+ *
+ * Toda termica ESC/POS trae dos letras de fabrica: la A, de 12 puntos de
+ * ancho, y la B, de 9. Veniamos usando la A, que es la que sale por defecto, y
+ * por eso una venta larga gastaba tanto papel: con la A caben 32 letras por
+ * renglon en 58mm, asi que el nombre del producto no cabia junto al precio y
+ * habia que partirlo en dos renglones.
+ *
+ * Con la B caben 42, y ademas cada renglon es mas bajito. Entre eso y poner
+ * cada producto en un solo renglon (ver invoiceTirilla), una venta de doce
+ * productos pasa de 24 renglones altos a 12 bajitos.
+ */
+const FUENTE_B = 1;
+
+/**
+ * Cuantas letras caben por renglon, con la letra chica.
+ *
+ * Sale del ancho del cabezal en puntos dividido por el ancho de la letra:
+ * 384/9 en 58mm y 576/9 en 80mm. Si algun dia se volviera a la letra A (12
+ * puntos), esto tendria que volver a 32 y 48: las dos cosas van juntas, o los
+ * renglones se salen del papel.
+ */
 export function columnasDe(ancho: AnchoTirilla): number {
-  return ancho === 58 ? 32 : 48;
+  return ancho === 58 ? 42 : 64;
 }
 
 /**
@@ -116,6 +139,7 @@ export function tirillaEscPos(lineas: Linea[], ancho: AnchoTirilla): Uint8Array 
 
   b.push(ESC, 0x40); // Deja la impresora como recien prendida.
   b.push(ESC, 0x74, 0); // Tabla PC437.
+  b.push(ESC, 0x4d, FUENTE_B); // Letra chica, para no gastar papel.
 
   for (const l of lineas) {
     switch (l.t) {

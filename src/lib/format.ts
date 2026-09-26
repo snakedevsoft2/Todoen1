@@ -79,6 +79,22 @@ export function money(value: number, currency = "COP") {
 }
 
 /**
+ * El mismo numero pero sin el simbolo de la moneda.
+ *
+ * Es para la tirilla termica, donde el ancho es lo que falta: repetir "US$"
+ * en cada renglon de producto se come cuatro letras por renglon y obliga a
+ * partir la linea en dos. La moneda se dice una vez, en el TOTAL, que es
+ * donde de verdad importa.
+ */
+export function moneyCorto(value: number, currency = "COP") {
+  const decimals = decimalesDe(currency);
+  return (value / factorDe(currency)).toLocaleString(LOCALE_POR_MONEDA[currency] ?? "es-CO", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+}
+
+/**
  * Lee lo que escribio la persona y lo deja en unidades minimas.
  *
  * Acepta como escribe la gente de verdad: "20.000", "20,000", "$ 20000" y, en

@@ -1,4 +1,4 @@
-import { money, prettyDay } from "./format";
+import { money, moneyCorto, prettyDay } from "./format";
 import { qrModulos } from "./qr";
 import type { Linea } from "./tirilla";
 import { MARCA_VERSION_GRATIS } from "./plan";
@@ -419,12 +419,24 @@ export function invoiceTirilla(data: InvoiceData): Linea[] {
   if (data.staffName) lineas.push({ t: "par", label: "Vendedor", value: data.staffName });
   lineas.push({ t: "sep" });
 
+  /**
+   * Cada producto en UN renglon, no en dos.
+   *
+   * Antes iba el nombre en un renglon y "12 x US$ 0,80 ... US$ 9,60" en el de
+   * abajo: una venta de doce productos gastaba veinticuatro renglones de
+   * papel. Ahora va "Papa natural grande 12x0,80      9,60" de un solo tiro, y
+   * si el nombre es largo y no cabe, `par()` lo parte igual que antes - o sea
+   * que nunca sale mas largo que como salia, y casi siempre sale a la mitad.
+   *
+   * Cuando se lleva una sola unidad no se escribe "1x0,80": el precio unitario
+   * ya es el total del renglon y repetirlo solo gasta ancho.
+   */
   for (const item of data.items) {
-    lineas.push({ t: "texto", text: item.name });
+    const detalle = item.qty > 1 ? "  " + item.qty + "x" + moneyCorto(item.unitPrice, data.currency) : "";
     lineas.push({
       t: "par",
-      label: item.qty + " x " + money(item.unitPrice, data.currency),
-      value: money(item.qty * item.unitPrice, data.currency),
+      label: item.name + detalle,
+      value: moneyCorto(item.qty * item.unitPrice, data.currency),
     });
   }
 

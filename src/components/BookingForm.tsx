@@ -31,6 +31,8 @@ export function BookingForm({
   minTime,
   disabled,
   disabledReason,
+  persona,
+  notaEjemplo,
 }: {
   slug: string;
   day: string;
@@ -43,6 +45,14 @@ export function BookingForm({
   minTime?: string | null;
   disabled?: boolean;
   disabledReason?: string;
+  /**
+   * Como se le dice a quien atiende en este negocio: "barbero" en la barberia,
+   * "lavador" en el lavadero. La agenda es la misma para los dos, las palabras
+   * no. Ver textosReserva en lib/nav.ts.
+   */
+  persona: string;
+  /** Ejemplo para la nota, tambien propio del oficio. */
+  notaEjemplo: string;
 }) {
   const [state, formAction] = useActionState(bookAppointmentAction, undefined);
   const [slot, setSlot] = useState("");
@@ -191,7 +201,7 @@ export function BookingForm({
         {free.length === 0 ? (
           <Alert kind="info">
             {staffId
-              ? "Ese barbero no tiene horas libres este día. Prueba con otro barbero u otra fecha."
+              ? "Ese " + persona + " no tiene horas libres este día. Prueba con otro " + persona + " u otra fecha."
               : "Ya no quedan horas libres este día. Prueba con otra fecha."}
           </Alert>
         ) : (
@@ -248,8 +258,8 @@ export function BookingForm({
         </Field>
       </div>
 
-      <Field label="Nota para el barbero (opcional)">
-        <input className="input" name="notes" placeholder="Ej: quiero degradado bajo" />
+      <Field label={"Nota para el " + persona + " (opcional)"}>
+        <input className="input" name="notes" placeholder={notaEjemplo} />
       </Field>
 
       {/* Lo decide el cliente: es su telefono. Va marcado porque es lo que

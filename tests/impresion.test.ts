@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aBytes, par, partir, tirillaEscPos } from "../src/lib/escpos";
+import { aBytes, columnasDe, par, partir, tirillaEscPos } from "../src/lib/escpos";
 import { tirillaHtml, type Linea } from "../src/lib/tirilla";
 import { invoiceTirilla } from "../src/lib/invoice";
 
@@ -60,10 +60,11 @@ describe("recibo para termica sin driver (ESC/POS)", () => {
   });
 
   it("ningun renglon se sale del rollo", () => {
-    for (const [ancho, cols] of [
-      [58, 32],
-      [80, 48],
-    ] as const) {
+    for (const ancho of [58, 80] as const) {
+      // Sale de columnasDe y no de un numero escrito aqui: el ancho depende de
+      // que letra se le pida a la impresora, y las dos cosas tienen que
+      // moverse juntas.
+      const cols = columnasDe(ancho);
       const renglones = soloTexto(tirillaEscPos(venta, ancho)).split("\n");
       for (const r of renglones) expect(r.length).toBeLessThanOrEqual(cols);
     }

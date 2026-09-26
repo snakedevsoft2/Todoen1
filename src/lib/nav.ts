@@ -52,6 +52,60 @@ export const ITEM_NOUN: Record<BusinessType, { singular: string; plural: string 
 };
 
 /**
+ * Como se llaman las cosas en la pagina publica de reservas.
+ *
+ * La agenda por hora la usan la barberia y el lavadero, y no se puede hablarle
+ * igual a los dos: en un lavadero el cliente no "elige el corte" ni le deja
+ * una nota "al barbero". El flujo es el mismo, las palabras no.
+ */
+export type TextosReserva = {
+  /** Titulo del primer paso. */
+  paso1: string;
+  /** La linea de ayuda debajo del titulo. */
+  paso1Ayuda: string;
+  /** El icono cuando el servicio no tiene foto. */
+  icono: string;
+  /** Quien atiende, en singular: "barbero", "lavador". */
+  persona: string;
+  /** Lo mismo en plural, para los avisos. */
+  personaPlural: string;
+  /** Ejemplo para la nota que el cliente deja al reservar. */
+  notaEjemplo: string;
+};
+
+const RESERVA_GENERICA: TextosReserva = {
+  paso1: "1. Elige el servicio",
+  paso1Ayuda: "Toca el que necesitas.",
+  icono: "sparkle",
+  persona: "encargado",
+  personaPlural: "encargados",
+  notaEjemplo: "Ej: algo que debamos saber",
+};
+
+const RESERVA_POR_NEGOCIO: Partial<Record<BusinessType, TextosReserva>> = {
+  BARBERIA: {
+    paso1: "1. Elige el corte",
+    paso1Ayuda: "Toca el que quieres hacerte.",
+    icono: "scissors",
+    persona: "barbero",
+    personaPlural: "barberos",
+    notaEjemplo: "Ej: quiero degradado bajo",
+  },
+  LAVADERO: {
+    paso1: "1. Elige tu servicio de lavado",
+    paso1Ayuda: "Toca el que necesita tu carro.",
+    icono: "car",
+    persona: "lavador",
+    personaPlural: "lavadores",
+    notaEjemplo: "Ej: placa ABC123, camioneta blanca",
+  },
+};
+
+export function textosReserva(type: BusinessType): TextosReserva {
+  return RESERVA_POR_NEGOCIO[type] ?? RESERVA_GENERICA;
+}
+
+/**
  * El portafolio publico. Lo tienen los cuatro negocios: es la pagina que se
  * comparte por enlace o por QR para que el cliente vea y pida.
  */

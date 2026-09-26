@@ -6,7 +6,7 @@ import { addDays, isValidDay, timeIn, todayIn } from "@/lib/dates";
 import { buildSlots, isWorkDay, workDaysArray } from "@/lib/slots";
 import { money, pretty12h, prettyDay } from "@/lib/format";
 import { WEEKDAYS } from "@/lib/timezones";
-import { logoUrl, photoUrl } from "@/lib/nav";
+import { logoUrl, photoUrl, textosReserva } from "@/lib/nav";
 import { BookingForm } from "@/components/BookingForm";
 import { DayPicker } from "@/components/DayPicker";
 import { Icon } from "@/components/Icon";
@@ -83,6 +83,9 @@ export default async function ReservarPage({
   }));
   const service = query.s ? services.find((s) => s.id === query.s) ?? null : null;
 
+  // Barberia y lavadero comparten la agenda pero no las palabras.
+  const textos = textosReserva(shop.businessType);
+
   const agente = aiEnabled() ? await configDe(shop.id) : null;
   const slots = buildSlots(shop);
   const taken = appointments.map((a) => ({ staffId: a.staffId, startTime: a.startTime }));
@@ -143,8 +146,8 @@ export default async function ReservarPage({
 
       {!service ? (
         <div className="card mt-6">
-          <h2 className="text-base font-semibold text-strong">1. Elige el corte</h2>
-          <p className="mb-4 mt-1 text-sm text-muted">Toca el que quieres hacerte.</p>
+          <h2 className="text-base font-semibold text-strong">{textos.paso1}</h2>
+          <p className="mb-4 mt-1 text-sm text-muted">{textos.paso1Ayuda}</p>
           {services.length === 0 ? (
             <p className="text-sm text-muted">El negocio todavía no publicó sus servicios.</p>
           ) : (
@@ -165,7 +168,7 @@ export default async function ReservarPage({
                         loading="lazy"
                       />
                     ) : (
-                      <Icon name="scissors" className="h-6 w-6 text-subtle" />
+                      <Icon name={textos.icono} className="h-6 w-6 text-subtle" />
                     )}
                   </div>
                   <div className="p-2.5">
@@ -187,7 +190,7 @@ export default async function ReservarPage({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={service.photo} alt={service.name} className="h-full w-full object-cover" />
               ) : (
-                <Icon name="scissors" className="h-5 w-5 text-subtle" />
+                <Icon name={textos.icono} className="h-5 w-5 text-subtle" />
               )}
             </div>
             <div className="min-w-0 flex-1">
@@ -261,6 +264,8 @@ export default async function ReservarPage({
               minTime={day === today ? timeIn(new Date(), shop.timezone) : null}
               disabled={Boolean(disabledReason)}
               disabledReason={disabledReason}
+              persona={textos.persona}
+              notaEjemplo={textos.notaEjemplo}
             />
           </div>
         </>

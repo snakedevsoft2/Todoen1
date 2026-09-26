@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
 /**
@@ -5,6 +6,14 @@ import { defineConfig } from "vitest/config";
  * y sin limite de tiempo corto: una consulta real tarda mas que una simulada.
  */
 export default defineConfig({
+  resolve: {
+    alias: {
+      // El @ del proyecto, para que una prueba pueda importar igual que el codigo.
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
+      // Ver tests/stub-server-only.ts.
+      "server-only": fileURLToPath(new URL("./tests/stub-server-only.ts", import.meta.url)),
+    },
+  },
   test: {
     include: ["tests/**/*.test.ts"],
     fileParallelism: false,
