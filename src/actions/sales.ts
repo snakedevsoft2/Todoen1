@@ -5,7 +5,7 @@ import type { PaymentMethod } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { isValidDay } from "@/lib/dates";
-import { str } from "@/lib/format";
+import { parseIntSafe, parseMoney, str } from "@/lib/format";
 import { applyStockMove } from "@/lib/inventory";
 import { anotarActividad } from "@/lib/actividad";
 import { puedeHacer } from "@/lib/permisos-empleado";
@@ -135,6 +135,71 @@ export async function updateSaleAction(formData: FormData) {
 
   revalidatePath("/panel/ventas");
   revalidatePath("/panel");
+}
+
+export type AddSaleItemState = { error?: string; ok?: string } | undefined;
+
+/**
+ * Agrega un producto mas a una venta ya registrada, en vez de tener que
+ * anotar otra venta aparte para lo que se le olvido al cliente.
+ *
+ * A diferencia de editar o borrar, agregar es seguro sin deshacer nada: es
+ * exactamente lo mismo que hace una venta nueva (un item mas, descuenta su
+ * propio inventario si lleva talla), solo que sobre el total que ya existia
+ * en vez de crear una fila aparte. Por eso esta abierto a cualquier empleado,
+ * igual que registrar una venta.
+ */
+export async function addSaleItemAction(
+  _prev: AddSaleItemState,
+  formData: FormData
+): Promise<AddSaleItemState> {
+  const { user } = await requireSession();
+  const id = str(formData.get("id"));
+
+  const sale = await db.sale.findFirst({
+    where: { id, userId: user.id },
+    select: { id: true, day: true, electronicInvoice: { select: { status: true } } },
+  });
+  if (!sale) return { error: "No encontramos esa venta." };
+  const factura = sale.electronicInvoice?.status;
+  if (factura === "AUTORIZADA" || factura === "ENVIANDO") {
+    return { error: "Esta venta ya tiene factura autorizada: no se le puede agregar nada por fuera de la entidad." };
+  }
+
+  const name = str(formData.get("name"));
+  if (!name) return { error: "Escribe que se agrego." };
+  const qty = Math.max(1, parseIntSafe(formData.get("qty"), 1));
+  const unitPrice = parseMoney(formData.get("unitPrice"), user.currency);
+  if (unitPrice <= 0) return { error: "El precio debe ser mayor a cero." };
+  const variantId = str(formData.get("variantId")) || null;
+
+  try {
+    await db.$transaction(async (tx) => {
+      await tx.saleItem.create({
+        data: { userId: user.id, saleId: sale.id, name, unitPrice, qty, variantId },
+      });
+      await tx.sale.update({ where: { id: sale.id }, data: { total: { increment: unitPrice * qty } } });
+      if (variantId) {
+        const moved = await applyStockMove(tx, {
+          userId: user.id,
+          variantId,
+          type: "VENTA",
+          delta: -qty,
+          day: sale.day,
+          reason: "Se agregó a una venta ya registrada",
+          saleId: sale.id,
+        });
+        if (!moved.ok) throw new Error(moved.error);
+      }
+    });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "No se pudo agregar." };
+  }
+
+  revalidatePath("/panel/ventas");
+  revalidatePath("/panel/inventario");
+  revalidatePath("/panel");
+  return { ok: "Se agregó a la venta." };
 }
 
 export async function updateSalePaymentAction(formData: FormData) {

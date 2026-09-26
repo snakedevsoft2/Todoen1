@@ -1,11 +1,12 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { addDays, isValidDay, timeIn, todayIn } from "@/lib/dates";
 import { buildSlots, isWorkDay, workDaysArray } from "@/lib/slots";
-import { pretty12h, prettyDay } from "@/lib/format";
+import { money, pretty12h, prettyDay } from "@/lib/format";
 import { WEEKDAYS } from "@/lib/timezones";
-import { logoUrl } from "@/lib/nav";
+import { logoUrl, photoUrl } from "@/lib/nav";
 import { BookingForm } from "@/components/BookingForm";
 import { DayPicker } from "@/components/DayPicker";
 import { Icon } from "@/components/Icon";
@@ -34,7 +35,7 @@ export default async function ReservarPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ d?: string }>;
+  searchParams: Promise<{ d?: string; s?: string }>;
 }) {
   const { slug } = await params;
   const query = await searchParams;
@@ -53,11 +54,11 @@ export default async function ReservarPage({
   const requested = query.d && isValidDay(query.d) ? query.d : today;
   const day = requested < today ? today : requested;
 
-  const [services, appointments, team] = await Promise.all([
+  const [servicesRaw, appointments, team] = await Promise.all([
     db.service.findMany({
       where: { userId: shop.id, active: true, bookable: true },
       orderBy: [{ category: "asc" }, { price: "asc" }],
-      select: { id: true, name: true, price: true, durationMin: true, description: true },
+      select: { id: true, name: true, price: true, durationMin: true, description: true, image: true, updatedAt: true },
     }),
     db.appointment.findMany({
       where: { userId: shop.id, day, status: { not: "CANCELADO" } },
@@ -69,6 +70,15 @@ export default async function ReservarPage({
       select: { id: true, name: true, color: true },
     }),
   ]);
+
+  // Primero el corte, con su foto, y despues la fecha y la hora: asi se ve el
+  // corte que se va a hacer antes de comprometerse a un dia. Si llega con
+  // "?s=" (por ejemplo desde una foto del portafolio), ya arranca en el paso 2.
+  const services = servicesRaw.map((s) => ({
+    ...s,
+    photo: photoUrl(s.id, s.image, s.updatedAt),
+  }));
+  const service = query.s ? services.find((s) => s.id === query.s) ?? null : null;
 
   const agente = aiEnabled() ? await configDe(shop.id) : null;
   const slots = buildSlots(shop);
@@ -128,64 +138,130 @@ export default async function ReservarPage({
         )}
       </header>
 
-      <div className="card mt-6">
-        <h2 className="text-base font-semibold text-strong">1. Elige el día</h2>
-        <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-          {quickDays.map((d) => {
-            const [, m, dd] = d.split("-");
-            const label = WEEKDAYS.find(
-              (w) => w.value === (new Date(d + "T12:00:00Z").getUTCDay() || 7)
-            )?.short;
-            const selected = d === day;
-            const open = isWorkDay(d, shop.workDays);
-            return (
-              <a
-                key={d}
-                href={"/reservar/" + slug + "?d=" + d}
-                className={
-                  "shrink-0 rounded-xl border px-3 py-2 text-center transition " +
-                  (selected
-                    ? "border-brand-600 bg-brand-600 text-on-brand"
-                    : open
-                      ? "border-line bg-surface text-body hover:bg-surface"
-                      : "border-line bg-surface text-subtle")
-                }
-              >
-                <span className="block text-[10px] uppercase tracking-wide">{label}</span>
-                <span className="block text-sm font-bold">
-                  {dd}/{m}
-                </span>
-              </a>
-            );
-          })}
+      {!service ? (
+        <div className="card mt-6">
+          <h2 className="text-base font-semibold text-strong">1. Elige el corte</h2>
+          <p className="mb-4 mt-1 text-sm text-muted">Toca el que quieres hacerte.</p>
+          {services.length === 0 ? (
+            <p className="text-sm text-muted">El negocio todavía no publicó sus servicios.</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {services.map((s) => (
+                <Link
+                  key={s.id}
+                  href={"/reservar/" + slug + "?d=" + day + "&s=" + s.id}
+                  className="group overflow-hidden rounded-2xl border border-line bg-surface transition hover:-translate-y-0.5 hover:shadow-soft"
+                >
+                  <div className="flex aspect-square items-center justify-center overflow-hidden bg-panel">
+                    {s.photo ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={s.photo}
+                        alt={s.name}
+                        className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <Icon name="scissors" className="h-6 w-6 text-subtle" />
+                    )}
+                  </div>
+                  <div className="p-2.5">
+                    <p className="truncate text-sm font-bold text-strong">{s.name}</p>
+                    <p className="text-xs text-muted">
+                      {money(s.price, shop.currency)} · {s.durationMin} min
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
-        <div className="mt-3">
-          <DayPicker basePath={"/reservar/" + slug} day={day} min={today} />
-        </div>
-        <p className="mt-2 text-xs text-subtle">{prettyDay(day)}</p>
-      </div>
+      ) : (
+        <>
+          <div className="card mt-6 flex items-center gap-3">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-panel">
+              {service.photo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={service.photo} alt={service.name} className="h-full w-full object-cover" />
+              ) : (
+                <Icon name="scissors" className="h-5 w-5 text-subtle" />
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-bold text-strong">{service.name}</p>
+              <p className="text-xs text-muted">
+                {money(service.price, shop.currency)} · {service.durationMin} min
+              </p>
+            </div>
+            <Link href={"/reservar/" + slug + "?d=" + day} className="btn-ghost btn-sm shrink-0">
+              Cambiar
+            </Link>
+          </div>
 
-      <div className="card mt-4">
-        <h2 className="text-base font-semibold text-strong">2. Separa tu cupo</h2>
-        <p className="mb-4 mt-1 text-sm text-muted">
-          {team.length > 1
-            ? "Elige con quién te quieres atender, la hora libre y el servicio. El cupo queda guardado a tu nombre."
-            : "Elige la hora libre y el servicio. El cupo queda guardado a tu nombre."}
-        </p>
+          <div className="card mt-4">
+            <h2 className="text-base font-semibold text-strong">2. Elige el día</h2>
+            <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+              {quickDays.map((d) => {
+                const [, m, dd] = d.split("-");
+                const label = WEEKDAYS.find(
+                  (w) => w.value === (new Date(d + "T12:00:00Z").getUTCDay() || 7)
+                )?.short;
+                const selected = d === day;
+                const open = isWorkDay(d, shop.workDays);
+                return (
+                  <a
+                    key={d}
+                    href={"/reservar/" + slug + "?d=" + d + "&s=" + service.id}
+                    className={
+                      "shrink-0 rounded-xl border px-3 py-2 text-center transition " +
+                      (selected
+                        ? "border-brand-600 bg-brand-600 text-on-brand"
+                        : open
+                          ? "border-line bg-surface text-body hover:bg-surface"
+                          : "border-line bg-surface text-subtle")
+                    }
+                  >
+                    <span className="block text-[10px] uppercase tracking-wide">{label}</span>
+                    <span className="block text-sm font-bold">
+                      {dd}/{m}
+                    </span>
+                  </a>
+                );
+              })}
+            </div>
+            <div className="mt-3">
+              <DayPicker
+                basePath={"/reservar/" + slug}
+                day={day}
+                min={today}
+                extraQuery={"s=" + service.id}
+              />
+            </div>
+            <p className="mt-2 text-xs text-subtle">{prettyDay(day)}</p>
+          </div>
 
-        <BookingForm
-          slug={slug}
-          day={day}
-          slots={slots}
-          taken={taken}
-          team={team}
-          services={services}
-          currency={shop.currency}
-          minTime={day === today ? timeIn(new Date(), shop.timezone) : null}
-          disabled={Boolean(disabledReason)}
-          disabledReason={disabledReason}
-        />
-      </div>
+          <div className="card mt-4">
+            <h2 className="text-base font-semibold text-strong">3. Separa tu cupo</h2>
+            <p className="mb-4 mt-1 text-sm text-muted">
+              {team.length > 1
+                ? "Elige con quién te quieres atender y la hora libre. El cupo queda guardado a tu nombre."
+                : "Elige la hora libre. El cupo queda guardado a tu nombre."}
+            </p>
+
+            <BookingForm
+              slug={slug}
+              day={day}
+              slots={slots}
+              taken={taken}
+              team={team}
+              service={service}
+              minTime={day === today ? timeIn(new Date(), shop.timezone) : null}
+              disabled={Boolean(disabledReason)}
+              disabledReason={disabledReason}
+            />
+          </div>
+        </>
+      )}
 
       <p className="mt-6 text-center text-xs text-subtle">
         Si necesitas cambiar o cancelar tu turno, llama al negocio.

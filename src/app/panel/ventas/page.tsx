@@ -18,6 +18,7 @@ import type { InvoiceData } from "@/lib/invoice";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Icon } from "@/components/Icon";
 import { deleteSaleAction, updateSaleAction, updateSalePaymentAction } from "@/actions/sales";
+import { AgregarItemVenta } from "@/components/AgregarItemVenta";
 import { FormSinSenal } from "@/components/SinSenal";
 import { esPlanCompleto } from "@/lib/plan";
 import { ordenDeCategorias } from "@/lib/categorias-negocio";
@@ -573,13 +574,18 @@ export default async function VentasPage({
                             />
                           </div>
                           <p className="mt-1.5 text-[11px] text-subtle">
-                            Para corregir lo que se vendió o el monto, borra esta venta y regístrala de nuevo.
+                            Para corregir lo que ya se vendió (no lo que falta agregar), borra esta venta y
+                            regístrala de nuevo.
                           </p>
                           <SubmitButton className="btn-ghost btn-sm mt-1.5" pendingText="Guardando...">
                             Guardar cambios
                           </SubmitButton>
                         </details>
                       </FormSinSenal>
+
+                      {!(s.electronicInvoice && ["AUTORIZADA", "ENVIANDO"].includes(s.electronicInvoice.status)) && (
+                        <AgregarItemVenta saleId={s.id} currency={user.currency} />
+                      )}
                     </li>
                   );
                 })}

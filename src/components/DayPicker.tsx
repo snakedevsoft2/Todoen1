@@ -8,11 +8,14 @@ export function DayPicker({
   day,
   min,
   max,
+  extraQuery,
 }: {
   basePath: string;
   day: string;
   min?: string;
   max?: string;
+  /** Parametros de mas para conservar al cambiar de dia, ej "s=<servicio>". */
+  extraQuery?: string;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -28,7 +31,8 @@ export function DayPicker({
       onChange={(event) => {
         const next = event.target.value;
         if (!next) return;
-        startTransition(() => router.push(basePath + "?d=" + next));
+        const query = "?d=" + next + (extraQuery ? "&" + extraQuery : "");
+        startTransition(() => router.push(basePath + query));
       }}
     />
   );

@@ -417,6 +417,8 @@ export default async function PortafolioPage({
             codPayment={shop.codPayment}
             onlinePayment={shop.onlinePayment}
             template={plantilla.key}
+            agenda={tieneAgenda}
+            slug={slug}
           />
         )}
       </main>

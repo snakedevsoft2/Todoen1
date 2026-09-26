@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { money } from "@/lib/format";
 import { sortTiers, tierPrice, wholesaleTotals, type Tier } from "@/lib/wholesale";
@@ -64,6 +65,8 @@ export function PortfolioOrder({
   codPayment,
   onlinePayment,
   template,
+  agenda,
+  slug,
 }: {
   items: PortfolioItem[];
   categories: string[];
@@ -86,6 +89,13 @@ export function PortfolioOrder({
   onlinePayment: boolean;
   /** Plantilla de diseño elegida (lib/plantillas.ts). */
   template: PlantillaKey;
+  /**
+   * Barberia y lavadero no "piden": reservan. Con esto, cada ficha lleva un
+   * boton "Reservar" directo a ese servicio en vez de agregarlo a un pedido
+   * por WhatsApp, que no tiene sentido para un corte o un lavado.
+   */
+  agenda?: boolean;
+  slug?: string;
 }) {
   const [categoria, setCategoria] = useState("");
   const [girando, setGirando] = useState<PortfolioItem | null>(null);
@@ -318,7 +328,15 @@ export function PortfolioOrder({
               </div>
             )}
 
-            {item.variants.length > 0 ? (
+            {agenda && slug ? (
+              <Link
+                href={"/reservar/" + slug + "?s=" + item.id}
+                className="btn-primary btn-sm mt-3 w-full justify-center"
+              >
+                <Icon name="calendar" className="h-4 w-4" />
+                Reservar
+              </Link>
+            ) : item.variants.length > 0 ? (
               <div className="mt-3">
                 <p className="mb-1.5 text-[11px] font-medium uppercase tracking-[0.04em] text-subtle">
                   Tallas

@@ -4,7 +4,7 @@ import { useActionState, useMemo, useState } from "react";
 import { bookAppointmentAction } from "@/actions/appointments";
 import { SubmitButton } from "./SubmitButton";
 import { Alert, Field } from "./ui";
-import { money, pretty12h } from "@/lib/format";
+import { pretty12h } from "@/lib/format";
 import { initials } from "@/lib/staff";
 import { Icon } from "./Icon";
 
@@ -27,8 +27,7 @@ export function BookingForm({
   slots,
   taken,
   team,
-  services,
-  currency,
+  service,
   minTime,
   disabled,
   disabledReason,
@@ -38,8 +37,8 @@ export function BookingForm({
   slots: string[];
   taken: TakenSlot[];
   team: BookableStaff[];
-  services: BookableService[];
-  currency: string;
+  /** Ya elegido en el paso anterior: aqui solo se elige la hora. */
+  service: BookableService;
   /** Si el dia elegido es hoy, la hora actual. Las horas anteriores se bloquean. */
   minTime?: string | null;
   disabled?: boolean;
@@ -48,7 +47,6 @@ export function BookingForm({
   const [state, formAction] = useActionState(bookAppointmentAction, undefined);
   const [slot, setSlot] = useState("");
   const [staffId, setStaffId] = useState("");
-  const [serviceId, setServiceId] = useState(services[0]?.id ?? "");
 
   // Cada barbero tiene su propia agenda: dos pueden atender a la misma hora.
   const { busyByStaff, busyAll } = useMemo(() => {
@@ -134,6 +132,7 @@ export function BookingForm({
       <input type="hidden" name="day" value={day} />
       <input type="hidden" name="startTime" value={slot} />
       <input type="hidden" name="staffId" value={staffId} />
+      <input type="hidden" name="serviceId" value={service.id} />
 
       {state?.error && <Alert kind="error">{state.error}</Alert>}
 
@@ -232,41 +231,6 @@ export function BookingForm({
             })}
           </div>
         )}
-      </div>
-
-      <div>
-        <span className="label">Que te vas a hacer</span>
-        <div className="space-y-2">
-          {services.map((s) => (
-            <label
-              key={s.id}
-              className={
-                "flex cursor-pointer items-center justify-between gap-3 rounded-xl border px-3 py-2.5 transition " +
-                (serviceId === s.id
-                  ? "border-transparent bg-brand-600 text-on-brand shadow-soft"
-                  : "border-line bg-panel hover:bg-surface")
-              }
-            >
-              <span className="min-w-0">
-                <input
-                  type="radio"
-                  name="serviceId"
-                  value={s.id}
-                  checked={serviceId === s.id}
-                  onChange={() => setServiceId(s.id)}
-                  className="sr-only"
-                />
-                <span className="block truncate text-sm font-bold">{s.name}</span>
-                <span className="block text-[11px] opacity-75">
-                  {s.durationMin} min{s.description ? " - " + s.description : ""}
-                </span>
-              </span>
-              <span className={"shrink-0 font-display text-sm " + (serviceId === s.id ? "" : "text-brand-600")}>
-                {money(s.price, currency)}
-              </span>
-            </label>
-          ))}
-        </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
