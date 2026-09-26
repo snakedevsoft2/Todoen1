@@ -190,6 +190,7 @@ export default async function VentasPage({
     clientName: f.clientName,
     clientPhone: f.clientPhone,
     businessEmail: user.email,
+    timezone: user.timezone,
     paymentMethod: "CREDITO",
     staffName: f.staff?.name ?? null,
     items: [{ name: f.concept, qty: 1, unitPrice: f.amount }],
@@ -212,6 +213,7 @@ export default async function VentasPage({
     // justo al terminar (ver NewSaleForm), asi que en el historial no sale.
     clientPhone: null,
     businessEmail: user.email,
+    timezone: user.timezone,
     paymentMethod: s.paymentMethod,
     staffName: s.staff?.name ?? null,
     items: s.items.map((i) => ({

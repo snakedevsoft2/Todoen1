@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { coincideBusqueda } from "@/lib/categorias";
+import { toInternational } from "@/lib/whatsapp";
 import {
   buildInvoicePdf,
   invoiceFileName,
@@ -155,6 +156,25 @@ export function InvoiceActions({
   const [busy, setBusy] = useState("");
   const [feedback, setFeedback] = useState<Feedback>(null);
 
+  /**
+   * El numero tal como WhatsApp lo necesita: solo digitos y con indicativo.
+   *
+   * Aqui la gente escribe el numero como se marca en su pais ("0982657613"),
+   * y asi WhatsApp no abre ningun chat. Esto le quita el cero y le pone el
+   * indicativo a partir de la zona horaria del negocio. Ver lib/whatsapp.ts.
+   */
+  const numeroWa = useMemo(
+    () => toInternational(phone, data.businessPhone, data.timezone),
+    [phone, data.businessPhone, data.timezone]
+  );
+  /**
+   * Como se le muestra a la persona. Se escribe entero y sin separar, no con
+   * prettyPhone(): esa parte el numero asumiendo diez digitos locales, y un
+   * celular de Ecuador tiene nueve, asi que un 593 correcto se veia como
+   * "+59 398...". El enlace estaba bien, pero el aviso asustaba.
+   */
+  const numeroVisible = numeroWa ? "+" + numeroWa : null;
+
   async function withPdf(job: string, run: (file: File) => Promise<Feedback>) {
     setBusy(job);
     setFeedback(null);
@@ -197,35 +217,62 @@ export function InvoiceActions({
       return { kind: "ok", text: "Factura abierta en una pestaña nueva." };
     });
 
+  /**
+   * Abre el chat de esa persona, con la factura ya escrita.
+   *
+   * Va directo al numero y no a la hoja de compartir del sistema: esa hoja
+   * manda el PDF adjunto pero obliga a buscar el contacto a mano, y lo que se
+   * pidio fue justo lo contrario -escribir el numero y caer en su chat-. El
+   * PDF se manda aparte, con el otro boton, para quien lo necesite.
+   */
+  const onChat = () => {
+    setFeedback(null);
+    if (!numeroWa) {
+      setFeedback({
+        kind: "error",
+        text: phone.trim()
+          ? "Ese número no parece válido. Revísalo: debe tener al menos 7 dígitos."
+          : "Escribe el número de WhatsApp (o escoge un cliente guardado).",
+      });
+      return;
+    }
+    window.open(
+      "https://wa.me/" + numeroWa + "?text=" + encodeURIComponent(invoiceMessage(data)),
+      "_blank",
+      "noopener"
+    );
+    setFeedback({
+      kind: "ok",
+      text: "Se abrió el chat de " + (destino ?? numeroVisible) + " con la factura escrita.",
+    });
+  };
+
   const onWhatsapp = () =>
     withPdf("wa", async (file) => {
-      const digits = phone.replace(/\D/g, "");
-      // En el celular el menu de compartir manda el PDF ya adjunto, que es lo
-      // mejor que hay: el numero no se le puede pasar, se escoge el chat ahi.
+      // En el celular la hoja de compartir manda el PDF ya adjunto. Ahi el
+      // contacto se escoge a mano: no hay forma de pasarle el numero.
       if (canShareFile(file)) {
         await navigator.share({ files: [file], title, text: invoiceMessage(data) });
         return {
           kind: "ok",
-          text: destino ? "Factura compartida. Escoge a " + destino + " en WhatsApp." : "Factura enviada.",
-        };
-      }
-      // Sin numero, wa.me abre WhatsApp sin destinatario y la persona cree que
-      // no funciono. Mejor decirlo antes de abrir nada.
-      if (!digits) {
-        return {
-          kind: "error",
-          text: "Escribe el número de WhatsApp (o escoge un cliente guardado) para poder mandársela.",
+          text: destino ? "PDF listo para mandar. Escoge a " + destino + " en WhatsApp." : "PDF compartido.",
         };
       }
       download(file);
-      const url = "https://wa.me/" + digits + "?text=" + encodeURIComponent(invoiceMessage(data));
-      window.open(url, "_blank", "noopener");
+      if (!numeroWa) {
+        return { kind: "info", text: "El PDF quedó descargado: adjúntalo en el chat." };
+      }
+      window.open(
+        "https://wa.me/" + numeroWa + "?text=" + encodeURIComponent(invoiceMessage(data)),
+        "_blank",
+        "noopener"
+      );
       return {
         kind: "info",
         text:
           "Se abrió el chat de " +
-          (destino ?? digits) +
-          " con el resumen. El PDF quedó descargado: adjúntalo en el chat.",
+          (destino ?? numeroVisible) +
+          ". El PDF quedó descargado: adjúntalo ahí.",
       };
     });
 
@@ -299,8 +346,13 @@ export function InvoiceActions({
               setPhone(e.target.value);
               setDestino(null);
             }}
-            placeholder="573000000000"
+            placeholder="0982657613"
           />
+          {phone.trim() && (
+            <span className="mt-1 block text-[11px] text-subtle">
+              {numeroVisible ? "Se abre el chat de " + numeroVisible : "Ese número no parece válido."}
+            </span>
+          )}
         </label>
         <label className="block">
           <span className="mb-1 block text-[11px] text-muted">Correo del cliente</span>
@@ -315,14 +367,18 @@ export function InvoiceActions({
       </div>
 
       <div className="mt-2.5 flex flex-wrap gap-2">
+        <button type="button" onClick={onChat} className="btn-success btn-sm">
+          <Icon name="whatsapp" className="h-4 w-4" />
+          Enviar al chat
+        </button>
         <button
           type="button"
           onClick={onWhatsapp}
           disabled={busy !== ""}
-          className="btn-success btn-sm"
+          className="btn-ghost btn-sm"
         >
-          <Icon name="whatsapp" className="h-4 w-4" />
-          {busy === "wa" ? "Preparando..." : "Enviar por WhatsApp"}
+          <Icon name="download" className="h-4 w-4" />
+          {busy === "wa" ? "Preparando..." : "Mandar el PDF"}
         </button>
         <button type="button" onClick={onEmail} disabled={busy !== ""} className="btn-ghost btn-sm">
           <Icon name="link" className="h-4 w-4" />

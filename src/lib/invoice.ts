@@ -31,6 +31,12 @@ export type InvoiceData = {
   clientPhone?: string | null;
   /** El correo del negocio (el de su cuenta), para el encabezado. */
   businessEmail?: string | null;
+  /**
+   * La zona horaria del negocio. NO sale impresa: sirve para saber de que pais
+   * es, y poder ponerle el indicativo a un telefono local al abrir WhatsApp.
+   * Sin esto, "0982657613" no abre ningun chat. Ver toInternational().
+   */
+  timezone?: string | null;
   paymentMethod: string;
   staffName: string | null;
   items: InvoiceItem[];
