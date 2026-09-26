@@ -70,6 +70,40 @@ describe("recibo para termica sin driver (ESC/POS)", () => {
     }
   });
 
+  it("le pide a la impresora su letra chica, para gastar menos papel", () => {
+    // ESC M 1 = fuente B (9 puntos de ancho en vez de 12). Tiene que ir
+    // despues del reinicio, o el reinicio la borraria.
+    const b = Array.from(tirillaEscPos(venta, 58));
+    const i = b.findIndex((x, n) => x === 0x1b && b[n + 1] === 0x4d);
+    expect(i).toBeGreaterThan(-1);
+    expect(b[i + 2]).toBe(1);
+    expect(i).toBeGreaterThan(b.findIndex((x, n) => x === 0x1b && b[n + 1] === 0x40));
+  });
+
+  it("cada producto ocupa un solo renglon cuando el nombre cabe", () => {
+    const corta = invoiceTirilla({
+      saleId: "clx0000000000venta9999",
+      businessName: "Chopo",
+      businessPhone: null,
+      businessAddress: null,
+      logoUrl: null,
+      currency: "USD",
+      day: "2026-09-14",
+      clientName: null,
+      paymentMethod: "EFECTIVO",
+      staffName: null,
+      items: [{ name: "Papa natural grande", qty: 12, unitPrice: 80 }],
+      total: 960,
+      notes: null,
+    });
+    const renglon = soloTexto(tirillaEscPos(corta, 58))
+      .split("\n")
+      .find((r) => r.includes("Papa natural grande"));
+    // El nombre, la cantidad por el precio y el total, todo en el mismo sitio.
+    expect(renglon).toContain("12x0,80");
+    expect(renglon?.trimEnd().endsWith("9,60")).toBe(true);
+  });
+
   it("parte el nombre largo del producto sin perderlo", () => {
     const renglones = partir("Hamburguesa doble con tocineta, queso cheddar y papas en casco", 32);
     expect(renglones.length).toBeGreaterThan(1);
