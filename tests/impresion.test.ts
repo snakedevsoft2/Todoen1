@@ -70,36 +70,34 @@ describe("recibo para termica sin driver (ESC/POS)", () => {
     }
   });
 
-  it("no le cambia la letra a la impresora", () => {
-    // Se intento mandar ESC M 1 (la fuente chica) para gastar menos papel y la
-    // termica solto el papel en blanco. Esta prueba esta para que no vuelva a
-    // colarse sin que alguien lo decida a proposito. Ver columnasDe.
+  it("de fabrica no le cambia la letra a la impresora", () => {
+    // Se intento mandar ESC M 1 (la letra chica) para gastar menos papel y la
+    // termica del mostrador solto el papel EN BLANCO en plena jornada. Desde
+    // entonces no se toca la letra salvo que la persona lo pida a proposito.
+    // Ver LETRA_CHICA en lib/escpos.ts.
     const b = Array.from(tirillaEscPos(venta, 58));
     expect(b.some((x, n) => x === 0x1b && b[n + 1] === 0x4d)).toBe(false);
+    expect(b.some((x, n) => x === 0x1b && b[n + 1] === 0x21)).toBe(false);
   });
 
-  it("cada producto ocupa un solo renglon cuando el nombre cabe", () => {
-    const corta = invoiceTirilla({
-      saleId: "clx0000000000venta9999",
-      businessName: "Chopo",
-      businessPhone: null,
-      businessAddress: null,
-      logoUrl: null,
-      currency: "USD",
-      day: "2026-09-14",
-      clientName: null,
-      paymentMethod: "EFECTIVO",
-      staffName: null,
-      items: [{ name: "Papa natural grande", qty: 12, unitPrice: 80 }],
-      total: 960,
-      notes: null,
-    });
-    const renglon = soloTexto(tirillaEscPos(corta, 58))
-      .split("\n")
-      .find((r) => r.includes("Papa natural grande"));
-    // El nombre, la cantidad por el precio y el total, todo en el mismo sitio.
-    expect(renglon).toContain("12x0,80");
-    expect(renglon?.trimEnd().endsWith("9,60")).toBe(true);
+  it("con la letra chica prendida la pide con ESC ! y cuenta 42 columnas", () => {
+    const b = Array.from(tirillaEscPos(venta, 58, true));
+    const i = b.findIndex((x, n) => x === 0x1b && b[n + 1] === 0x21);
+    expect(i).toBeGreaterThan(-1);
+    expect(b[i + 2]).toBe(0x01);
+    // Nunca con el comando que dejo el papel en blanco.
+    expect(b.some((x, n) => x === 0x1b && b[n + 1] === 0x4d)).toBe(false);
+    expect(columnasDe(58, true)).toBe(42);
+    expect(columnasDe(80, true)).toBe(64);
+  });
+
+  it("con la letra chica los renglones tampoco se salen del rollo", () => {
+    for (const ancho of [58, 80] as const) {
+      const cols = columnasDe(ancho, true);
+      for (const r of soloTexto(tirillaEscPos(venta, ancho, true)).split("\n")) {
+        expect(r.length).toBeLessThanOrEqual(cols);
+      }
+    }
   });
 
   it("parte el nombre largo del producto sin perderlo", () => {

@@ -15,23 +15,31 @@ const GS = 0x1d;
 const LF = 0x0a;
 
 /**
- * Cuantas letras caben por renglon: 32 en 58mm y 48 en 80mm.
+ * La letra chica de la impresora, que gasta bastante menos papel.
  *
- * Es el ancho del cabezal dividido por el ancho de la letra de fabrica (la
- * "fuente A", de 12 puntos): 384/12 y 576/12.
+ * Toda termica trae dos letras de fabrica: la A (12 puntos de ancho) y la B
+ * (9, y mas bajita). Esto pide la B con ESC ! 1 ("modo de impresion", bit 0).
  *
- * OJO, esto ya se intento cambiar y salio mal: se probo pedirle a la impresora
- * su letra chica (la "fuente B", de 9 puntos) con ESC M 1, que en el papel
- * habria dado 42 y 64 letras por renglon. El comando es ESC/POS estandar, pero
- * la termica del mostrador no lo digirio: soltaba el papel EN BLANCO, sin una
- * letra. Asi que la letra la pone la impresora y no la elegimos nosotros; para
- * gastar menos papel se acorta el contenido (ver invoiceTirilla), que eso si
- * funciona en cualquier impresora.
- *
- * Si algun dia se vuelve a intentar: tiene que ser algo que la persona pueda
- * prender y apagar, probado contra SU impresora, nunca por defecto para todos.
+ * OJO, LEER ANTES DE TOCAR: ya se intento una vez pedir la misma letra con el
+ * OTRO comando, ESC M 1, y la termica del mostrador no lo digirio: soltaba el
+ * papel EN BLANCO, sin una sola letra, en medio de la jornada. Por eso ahora
+ * (a) se pide con ESC !, que es un comando distinto, y (b) NO viene prendido:
+ * la persona lo prende desde el menu de imprimir, hace una prueba con SU
+ * impresora, y si sale en blanco lo apaga y sigue trabajando. Nunca se debe
+ * volver a dejar prendido por defecto para todos sin probarlo en cada equipo.
  */
-export function columnasDe(ancho: AnchoTirilla): number {
+const LETRA_CHICA = 0x01;
+
+/**
+ * Cuantas letras caben por renglon.
+ *
+ * Es el ancho del cabezal en puntos dividido por el ancho de la letra: con la
+ * de fabrica (12 puntos) son 384/12 y 576/12; con la chica (9), 384/9 y 576/9.
+ * Las dos cosas van juntas SIEMPRE: si se pide una letra y se cuenta con el
+ * ancho de la otra, los renglones se salen del papel o quedan cortos.
+ */
+export function columnasDe(ancho: AnchoTirilla, letraChica = false): number {
+  if (letraChica) return ancho === 58 ? 42 : 64;
   return ancho === 58 ? 32 : 48;
 }
 
@@ -111,27 +119,16 @@ export function partir(texto: string, cols: number): string[] {
   return out;
 }
 
-/**
- * Etiqueta a la izquierda y valor a la derecha.
- *
- * Si no caben en el mismo renglon, la etiqueta se parte dejandole sitio al
- * valor, y el valor se pega a la derecha del ULTIMO renglon de la etiqueta.
- * Antes el valor se iba solo a un renglon nuevo, y un producto de nombre largo
- * gastaba un renglon entero para mostrar "4,00" y nada mas.
- */
+/** Etiqueta a la izquierda y valor a la derecha. Si no caben juntos, el valor baja al renglon de abajo. */
 export function par(label: string, value: string, cols: number): string[] {
   const l = limpio(label).trim();
   const v = limpio(value).trim();
   if (l.length + 1 + v.length <= cols) return [l + " ".repeat(cols - l.length - v.length) + v];
-
-  // Al menos un espacio entre la etiqueta y el valor, de ahi el -1.
-  const partes = partir(l, Math.max(1, cols - v.length - 1));
-  const ultima = partes.pop() ?? "";
-  return [...partes, ultima + " ".repeat(Math.max(1, cols - ultima.length - v.length)) + v];
+  return [...partir(l, cols), ...partir(v, cols).map((x) => x.padStart(cols))];
 }
 
-export function tirillaEscPos(lineas: Linea[], ancho: AnchoTirilla): Uint8Array {
-  const cols = columnasDe(ancho);
+export function tirillaEscPos(lineas: Linea[], ancho: AnchoTirilla, letraChica = false): Uint8Array {
+  const cols = columnasDe(ancho, letraChica);
   const b: number[] = [];
   const renglon = (s: string) => {
     for (const x of aBytes(s)) b.push(x);
@@ -144,6 +141,8 @@ export function tirillaEscPos(lineas: Linea[], ancho: AnchoTirilla): Uint8Array 
 
   b.push(ESC, 0x40); // Deja la impresora como recien prendida.
   b.push(ESC, 0x74, 0); // Tabla PC437.
+  // Solo si la persona lo prendio y lo probo en su impresora. Ver LETRA_CHICA.
+  if (letraChica) b.push(ESC, 0x21, LETRA_CHICA);
 
   for (const l of lineas) {
     switch (l.t) {

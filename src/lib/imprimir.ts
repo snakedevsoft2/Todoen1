@@ -49,6 +49,32 @@ export function guardarConexion(c: Conexion): void {
   }
 }
 
+const CLAVE_LETRA = "ten_letra_chica_impresion";
+
+/**
+ * Si en ESTE equipo se pidio la letra chica de la termica.
+ *
+ * Se guarda por equipo, como el tamano y la conexion, porque depende de la
+ * impresora que tenga cada uno: hay termicas que no entienden el comando y
+ * sueltan el papel en blanco. Por eso arranca apagado y lo prende la persona
+ * despues de hacer una prueba. Ver LETRA_CHICA en lib/escpos.ts.
+ */
+export function letraChicaGuardada(): boolean {
+  try {
+    return localStorage.getItem(CLAVE_LETRA) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function guardarLetraChica(si: boolean): void {
+  try {
+    localStorage.setItem(CLAVE_LETRA, si ? "1" : "0");
+  } catch {
+    // Que no se pueda recordar no impide imprimir.
+  }
+}
+
 const ID = "ten-impresion";
 let limpiarAnterior: (() => void) | null = null;
 

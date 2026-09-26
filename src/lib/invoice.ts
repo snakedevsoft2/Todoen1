@@ -420,27 +420,19 @@ export function invoiceTirilla(data: InvoiceData): Linea[] {
   lineas.push({ t: "sep" });
 
   /**
-   * Cada producto en UN renglon, no en dos.
+   * El nombre en un renglon y la cantidad por el precio en el de abajo.
    *
-   * Antes iba el nombre en un renglon y "12 x US$ 0,80 ... US$ 9,60" en el de
-   * abajo: una venta de doce productos gastaba veinticuatro renglones de
-   * papel. Ahora va "Papa natural grande 12x0,80      9,60" de un solo tiro, y
-   * si el nombre es largo y no cabe, `par()` lo parte igual que antes - o sea
-   * que nunca sale mas largo que como salia, y casi siempre sale a la mitad.
-   *
-   * Todo va lo mas corto posible (un solo espacio, "12x0,80" sin espacios y
-   * sin repetir la moneda) porque en 58mm solo hay 32 letras por renglon: cada
-   * caracter de mas es un producto que deja de caber en un renglon.
-   *
-   * Cuando se lleva una sola unidad no se escribe "1x0,80": el precio unitario
-   * ya es el total del renglon y repetirlo solo gasta ancho.
+   * Se probo meterlo todo en un solo renglon para gastar menos papel, y con la
+   * letra de fabrica (32 letras en 58mm) los nombres largos igual se partian y
+   * quedaba peor de leer. El ahorro de papel va por el tamano de la letra, que
+   * ahora se puede escoger al imprimir (ver LETRA_CHICA en lib/escpos.ts).
    */
   for (const item of data.items) {
-    const detalle = item.qty > 1 ? " " + item.qty + "x" + moneyCorto(item.unitPrice, data.currency) : "";
+    lineas.push({ t: "texto", text: item.name });
     lineas.push({
       t: "par",
-      label: item.name + detalle,
-      value: moneyCorto(item.qty * item.unitPrice, data.currency),
+      label: item.qty + " x " + money(item.unitPrice, data.currency),
+      value: money(item.qty * item.unitPrice, data.currency),
     });
   }
 

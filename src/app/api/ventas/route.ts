@@ -32,5 +32,14 @@ export async function POST(request: Request) {
     revalidatePath("/panel/clientes");
     revalidatePath("/panel");
   }
-  return Response.json({ id: r.datos.id, repetido: r.datos.repetido, tipo: r.datos.tipo });
+  // `receiptSeq` tiene que ir: es el numero de recibo del negocio (0001, 0002...)
+  // y el telefono lo imprime apenas termina la venta. Sin el, el recibo caia al
+  // respaldo -las ultimas ocho letras del id, "AZEDNXWZ"- y el numero bonito
+  // solo se veia en la lista de Ventas. Ver numeroDe() en lib/invoice.ts.
+  return Response.json({
+    id: r.datos.id,
+    repetido: r.datos.repetido,
+    tipo: r.datos.tipo,
+    receiptSeq: r.datos.receiptSeq,
+  });
 }
