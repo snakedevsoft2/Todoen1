@@ -428,11 +428,15 @@ export function invoiceTirilla(data: InvoiceData): Linea[] {
    * si el nombre es largo y no cabe, `par()` lo parte igual que antes - o sea
    * que nunca sale mas largo que como salia, y casi siempre sale a la mitad.
    *
+   * Todo va lo mas corto posible (un solo espacio, "12x0,80" sin espacios y
+   * sin repetir la moneda) porque en 58mm solo hay 32 letras por renglon: cada
+   * caracter de mas es un producto que deja de caber en un renglon.
+   *
    * Cuando se lleva una sola unidad no se escribe "1x0,80": el precio unitario
    * ya es el total del renglon y repetirlo solo gasta ancho.
    */
   for (const item of data.items) {
-    const detalle = item.qty > 1 ? "  " + item.qty + "x" + moneyCorto(item.unitPrice, data.currency) : "";
+    const detalle = item.qty > 1 ? " " + item.qty + "x" + moneyCorto(item.unitPrice, data.currency) : "";
     lineas.push({
       t: "par",
       label: item.name + detalle,

@@ -70,14 +70,12 @@ describe("recibo para termica sin driver (ESC/POS)", () => {
     }
   });
 
-  it("le pide a la impresora su letra chica, para gastar menos papel", () => {
-    // ESC M 1 = fuente B (9 puntos de ancho en vez de 12). Tiene que ir
-    // despues del reinicio, o el reinicio la borraria.
+  it("no le cambia la letra a la impresora", () => {
+    // Se intento mandar ESC M 1 (la fuente chica) para gastar menos papel y la
+    // termica solto el papel en blanco. Esta prueba esta para que no vuelva a
+    // colarse sin que alguien lo decida a proposito. Ver columnasDe.
     const b = Array.from(tirillaEscPos(venta, 58));
-    const i = b.findIndex((x, n) => x === 0x1b && b[n + 1] === 0x4d);
-    expect(i).toBeGreaterThan(-1);
-    expect(b[i + 2]).toBe(1);
-    expect(i).toBeGreaterThan(b.findIndex((x, n) => x === 0x1b && b[n + 1] === 0x40));
+    expect(b.some((x, n) => x === 0x1b && b[n + 1] === 0x4d)).toBe(false);
   });
 
   it("cada producto ocupa un solo renglon cuando el nombre cabe", () => {

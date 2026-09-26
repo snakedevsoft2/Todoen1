@@ -88,10 +88,19 @@ export function money(value: number, currency = "COP") {
  */
 export function moneyCorto(value: number, currency = "COP") {
   const decimals = decimalesDe(currency);
-  return (value / factorDe(currency)).toLocaleString(LOCALE_POR_MONEDA[currency] ?? "es-CO", {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  });
+  const valor = value / factorDe(currency);
+  // El try va por lo mismo que en money(): hay Android viejos cuyo navegador
+  // trae Intl recortado y revienta al pedirle un idioma. Sin esta red, un
+  // telefono asi no sacaba un recibo mas corto: no sacaba NINGUN recibo,
+  // porque la excepcion tumba el armado entero.
+  try {
+    return valor.toLocaleString(LOCALE_POR_MONEDA[currency] ?? "es-CO", {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    });
+  } catch {
+    return valor.toFixed(decimals).replace(".", ",");
+  }
 }
 
 /**
