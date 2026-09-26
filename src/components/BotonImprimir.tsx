@@ -61,6 +61,16 @@ export function BotonImprimir({
   const [ocupado, setOcupado] = useState(false);
   const [aviso, setAviso] = useState<{ tono: "ok" | "error"; texto: string } | null>(null);
   const caja = useRef<HTMLDivElement>(null);
+  /**
+   * Candado contra la copia de mas.
+   *
+   * `ocupado` es estado de React y no sirve para esto: se actualiza en el
+   * siguiente pintado, asi que dos toques rapidos (o un toque que el navegador
+   * reporta dos veces, que en el celular pasa) entran los dos antes de que el
+   * boton alcance a deshabilitarse, y salen DOS recibos identicos. Un ref se
+   * marca en el acto.
+   */
+  const enMarcha = useRef(false);
 
   // Lo guardado solo existe en el navegador, asi que se lee despues de pintar:
   // leerlo antes haria que el servidor y el cliente no coincidan.
@@ -86,6 +96,8 @@ export function BotonImprimir({
   }, [abierto]);
 
   async function imprimir(f: Formato, c: Conexion, elegirOtra = false) {
+    if (enMarcha.current) return;
+    enMarcha.current = true;
     setAbierto(false);
     setOcupado(true);
     setAviso(null);
@@ -115,6 +127,7 @@ export function BotonImprimir({
             : texto,
       });
     } finally {
+      enMarcha.current = false;
       setOcupado(false);
     }
   }
@@ -165,12 +178,41 @@ export function BotonImprimir({
               Cerrar
             </button>
           </div>
+          {/* Va de primero porque es lo que la gente viene a buscar: gastar
+              menos papel. Solo aplica a la termica directa; por el dialogo del
+              sistema la letra la decide el CSS. Arranca apagado a proposito:
+              hay termicas que no entienden el comando y sacan el papel en
+              blanco, asi que se prueba una vez y se deja como quede. */}
+          {disponibles.some((c) => c !== "sistema") && (
+            <label className="flex w-full cursor-pointer items-start gap-2.5 border-b border-line px-3 py-2.5 transition hover:bg-soft">
+              <input
+                type="checkbox"
+                checked={letraChica}
+                onChange={(e) => {
+                  setLetraChica(e.target.checked);
+                  guardarLetraChica(e.target.checked);
+                }}
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-line bg-panel accent-brand-600"
+              />
+              <span>
+                <span className="block text-[13px] font-bold text-strong">
+                  Letra pequeña {letraChica ? "· prendida" : "· gasta menos papel"}
+                </span>
+                <span className="block text-[11px] leading-snug text-muted">
+                  La tirilla sale bastante más corta. Imprime una de prueba: si saliera en blanco, tu
+                  impresora no la soporta — apágala aquí mismo y vuelve a imprimir.
+                </span>
+              </span>
+            </label>
+          )}
+
           {formatos.map((f) => (
             <button
               key={f.value}
               type="button"
+              disabled={ocupado}
               onClick={() => imprimir(f.value, conexion)}
-              className="block w-full px-3 py-2.5 text-left transition hover:bg-soft"
+              className="block w-full px-3 py-2.5 text-left transition hover:bg-soft disabled:opacity-50"
             >
               <span className="block text-[13px] font-bold text-strong">
                 {f.label}
@@ -180,34 +222,6 @@ export function BotonImprimir({
             </button>
           ))}
 
-          {/* Solo para la termica directa: por el dialogo del sistema la letra
-              la decide el CSS, no la impresora. Arranca apagado a proposito:
-              hay termicas que no entienden el comando y sacan el papel en
-              blanco, asi que se prueba una vez y se deja como quede. */}
-          {disponibles.some((c) => c !== "sistema") && (
-            <>
-              <p className="border-y border-line px-3 py-2 text-[11px] text-subtle">Papel de la térmica</p>
-              <label className="flex w-full cursor-pointer items-start gap-2.5 px-3 py-2.5 transition hover:bg-soft">
-                <input
-                  type="checkbox"
-                  checked={letraChica}
-                  onChange={(e) => {
-                    setLetraChica(e.target.checked);
-                    guardarLetraChica(e.target.checked);
-                  }}
-                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-line bg-panel accent-brand-600"
-                />
-                <span>
-                  <span className="block text-[13px] font-bold text-strong">Letra pequeña</span>
-                  <span className="block text-[11px] leading-snug text-muted">
-                    Gasta bastante menos papel. Imprime una prueba: si sale en blanco, tu impresora no la
-                    soporta, apágala y vuelve a imprimir.
-                  </span>
-                </span>
-              </label>
-            </>
-          )}
-
           {disponibles.length > 1 && (
             <>
               <p className="border-y border-line px-3 py-2 text-[11px] text-subtle">¿Cómo está conectada?</p>
@@ -215,12 +229,13 @@ export function BotonImprimir({
                 <button
                   key={c.value}
                   type="button"
+                  disabled={ocupado}
                   onClick={() =>
                     c.value === "sistema"
                       ? imprimir(formato ?? "58", "sistema")
                       : imprimir(formato === "80" ? "80" : "58", c.value, true)
                   }
-                  className="block w-full px-3 py-2.5 text-left transition hover:bg-soft"
+                  className="block w-full px-3 py-2.5 text-left transition hover:bg-soft disabled:opacity-50"
                 >
                   <span className="block text-[13px] font-bold text-strong">
                     {c.label}

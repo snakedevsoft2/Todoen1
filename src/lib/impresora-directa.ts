@@ -156,25 +156,31 @@ async function enviarBluetooth(datos: Uint8Array, elegirOtra: boolean): Promise<
   const escribir = (parte: Uint8Array) =>
     sinRespuesta ? c.writeValueWithoutResponse!(parte) : c.writeValue(parte);
 
-  // Se manda en pedazos: por Bluetooth cabe poco en cada envio. Se prueba un
-  // pedazo grande y, si la impresora no lo acepta, se sigue con el minimo que
-  // aceptan todas.
-  let trozo = 100;
-  for (let i = 0; i < datos.length; ) {
-    const parte = datos.slice(i, i + trozo);
+  /**
+   * Se manda en pedazos: por Bluetooth cabe poco en cada envio.
+   *
+   * Sin confirmacion se mandan de a 20 bytes, que es lo que cabe siempre en
+   * un paquete BLE. Antes se empezaba con 100 y, si fallaba, se reintentaba el
+   * MISMO pedazo mas chico. El problema es que un envio "sin confirmacion"
+   * puede fallar despues de que los bytes ya salieron: ahi el reintento los
+   * mandaba dos veces, y lo que el papel muestra repetido no hay forma de
+   * quitarlo. Con el tamano seguro desde el principio no hace falta reintentar,
+   * y por lo tanto no hay forma de duplicar nada.
+   *
+   * Con confirmacion (writeValue) si se puede ir de a 100: ahi el navegador
+   * espera el visto bueno de la impresora, asi que un error significa que no
+   * llego, y no queda la duda.
+   */
+  const trozo = sinRespuesta ? 20 : 100;
+  for (let i = 0; i < datos.length; i += trozo) {
     try {
-      await escribir(parte);
+      await escribir(datos.slice(i, i + trozo));
     } catch (error) {
-      if (trozo > 20) {
-        trozo = 20;
-        continue;
-      }
       bt = null;
       throw error;
     }
-    i += parte.length;
     // Sin confirmacion, la impresora necesita un respiro para no perder datos.
-    if (sinRespuesta) await pausa(15);
+    if (sinRespuesta) await pausa(12);
   }
 }
 
