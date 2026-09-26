@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { logoUrl, photoUrl } from "@/lib/nav";
 import { PedidoMesaForm } from "@/components/PedidoMesaForm";
+import { negocioTieneLogo, serviciosConFoto } from "@/lib/imagenes";
 
 export const dynamic = "force-dynamic";
 
@@ -20,14 +21,14 @@ export default async function MesaPage({ params }: { params: Promise<{ token: st
 
   const shop = await db.user.findUnique({
     where: { id: mesa.userId },
-    select: { businessName: true, logo: true, slug: true, currency: true, updatedAt: true },
+    select: { businessName: true, slug: true, currency: true, updatedAt: true },
   });
   if (!shop) notFound();
 
   const productos = await db.service.findMany({
     where: { userId: mesa.userId, active: true },
     orderBy: [{ category: "asc" }, { name: "asc" }],
-    select: { id: true, name: true, price: true, category: true, image: true, description: true, updatedAt: true },
+    select: { id: true, name: true, price: true, category: true, description: true, updatedAt: true },
   });
 
   const items = productos.map((p) => ({
@@ -35,11 +36,15 @@ export default async function MesaPage({ params }: { params: Promise<{ token: st
     name: p.name,
     price: p.price,
     category: p.category,
-    photo: photoUrl(p.id, p.image, p.updatedAt),
+    photo: photoUrl(p.id, conFoto.has(p.id), p.updatedAt),
     description: p.description,
   }));
 
-  const logo = logoUrl(shop.slug, shop.logo, shop.updatedAt);
+  const [tieneLogo, conFoto] = await Promise.all([
+    negocioTieneLogo(mesa.userId),
+    serviciosConFoto({ userId: mesa.userId, active: true }),
+  ]);
+  const logo = logoUrl(shop.slug, tieneLogo, shop.updatedAt);
 
   return (
     <div className="min-h-dvh bg-panel">

@@ -23,6 +23,7 @@ import { FormSinSenal } from "@/components/SinSenal";
 import { esPlanCompleto } from "@/lib/plan";
 import { ordenDeCategorias } from "@/lib/categorias-negocio";
 import { categoriasVisiblesParaNegocio, ordenParaNegocio, soloTotalVendido } from "@/lib/orden-productos";
+import { serviciosConFoto } from "@/lib/imagenes";
 
 export const dynamic = "force-dynamic";
 
@@ -64,7 +65,7 @@ export default async function VentasPage({
   const propias = esDueno(me.role);
   const soloMias = propias ? {} : { staffId: me.id };
 
-  const [sales, fiados, catalog, team] = await Promise.all([
+  const [sales, fiados, catalog, team, conFoto] = await Promise.all([
     db.sale.findMany({
       where: { userId: user.id, day, ...soloMias },
       orderBy: { createdAt: "desc" },
@@ -85,7 +86,6 @@ export default async function VentasPage({
         name: true,
         price: true,
         category: true,
-        image: true,
         updatedAt: true,
         trackStock: true,
         variants: {
@@ -103,6 +103,7 @@ export default async function VentasPage({
           select: { id: true, name: true, color: true },
         })
       : Promise.resolve([]),
+    serviciosConFoto({ userId: user.id, active: true }),
   ]);
 
   const services = catalog.map((s) => ({
@@ -110,7 +111,7 @@ export default async function VentasPage({
     name: s.name,
     price: s.price,
     category: s.category,
-    photo: photoUrl(s.id, s.image, s.updatedAt),
+    photo: photoUrl(s.id, conFoto.has(s.id), s.updatedAt),
     variants: s.trackStock
       ? (s.variants.map((v) => ({
           id: v.id,
@@ -153,7 +154,7 @@ export default async function VentasPage({
   const porProducto = agruparPorProducto(sales);
   const masVendido = porProducto[0] ?? null;
 
-  const logo = logoUrl(user.slug, user.logo, user.updatedAt);
+  const logo = logoUrl(user.slug, user.hasLogo, user.updatedAt);
 
   // La factura autorizada (DIAN o SRI), si el negocio la tiene activa.
   const facturacion = await configuracionFacturacion(user.id);

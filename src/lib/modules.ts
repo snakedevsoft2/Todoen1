@@ -162,24 +162,45 @@ export function menuDe(modulos: Modulo[]): NavItem[] {
 const ORDEN_GRUPOS: Grupo[] = ["FIJO", "NUCLEO", "DINERO", "CRECIMIENTO", "CONFIGURACION"];
 
 /**
+ * Lo fijo que va al final del menu y no arriba.
+ *
+ * Ajustes y Soporte son del grupo FIJO (no se pueden apagar), pero no son a
+ * donde se va a trabajar: se buscan una vez cada tanto. Arriba solo estorbaban
+ * entre el resumen y las categorias del oficio, asi que bajan al pie.
+ */
+const FIJOS_ABAJO = new Set(["ajustes", "soporte"]);
+
+/**
  * El mismo menu, pero partido por categoria.
  *
- * FIJO (Resumen, Ajustes, Soporte) va siempre visible, sin plegar: son los
- * tres a los que siempre se vuelve. Las demas categorias se pliegan, para que
- * un negocio con muchos apartados encendidos no vea una lista larga de una:
- * busca la categoria y ahi abre la que necesita.
+ * El resumen va suelto arriba y ajustes/soporte sueltos abajo: son a los que
+ * siempre se vuelve, pero unos mientras se trabaja y otros al final. Las demas
+ * categorias se pliegan, para que un negocio con muchos apartados encendidos no
+ * vea una lista larga de una: busca la categoria y ahi abre la que necesita.
  */
 export function menuAgrupado(modulos: Modulo[]): NavGroup[] {
   const visibles = modulos.filter((m) => m.visible && m.inSidebar);
+  const item = (m: Modulo) => ({ href: m.href, label: m.label, icon: m.icon });
 
-  return ORDEN_GRUPOS.map((key) => ({
+  const grupos: NavGroup[] = ORDEN_GRUPOS.map((key) => ({
     key,
     label: GRUPO_LABEL[key],
-    pinned: key === "FIJO",
+    pin: key === "FIJO" ? ("arriba" as const) : null,
     items: visibles
-      .filter((m) => m.group === key)
-      .map((m) => ({ href: m.href, label: m.label, icon: m.icon })),
-  })).filter((g) => g.items.length > 0);
+      .filter((m) => m.group === key && !(key === "FIJO" && FIJOS_ABAJO.has(m.key)))
+      .map(item),
+  }));
+
+  // El pie va de ultimo siempre, sin importar el orden que la persona haya
+  // guardado: si pudiera subir, volveriamos al problema que esto resuelve.
+  grupos.push({
+    key: "FIJO_PIE",
+    label: GRUPO_LABEL.FIJO,
+    pin: "abajo",
+    items: visibles.filter((m) => m.group === "FIJO" && FIJOS_ABAJO.has(m.key)).map(item),
+  });
+
+  return grupos.filter((g) => g.items.length > 0);
 }
 
 /**

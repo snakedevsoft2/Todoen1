@@ -418,7 +418,7 @@ export default async function CarteraPage({
                 businessName: user.businessName,
                 businessPhone: user.phone,
                 businessAddress: user.address,
-                logoUrl: logoUrl(user.slug, user.logo, user.updatedAt),
+                logoUrl: logoUrl(user.slug, user.hasLogo, user.updatedAt),
                 marcaGratis: !esPlanCompleto(user),
               }}
             />

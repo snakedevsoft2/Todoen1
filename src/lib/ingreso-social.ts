@@ -29,7 +29,7 @@ export type Decision =
 export async function decidirIngreso(emailCrudo: string, nombre: string): Promise<Decision> {
   const email = emailCrudo.trim().toLowerCase();
 
-  const owner = await db.user.findUnique({ where: { email } });
+  const owner = await db.user.findUnique({ where: { email }, omit: { logo: true, publicCover: true } });
   if (owner) {
     // Antes Google le daba la cookie a una cuenta suspendida y el panel la
     // echaba despues. Ahora no se le da, y la pantalla dice por que.
@@ -49,7 +49,7 @@ export async function decidirIngreso(emailCrudo: string, nombre: string): Promis
     };
   }
 
-  const staff = await db.staff.findUnique({ where: { email }, include: { user: true } });
+  const staff = await db.staff.findUnique({ where: { email }, include: { user: { omit: { logo: true, publicCover: true } } } });
   if (staff) {
     if (!staff.active) return { tipo: "error", motivo: "desactivado" };
     if (staff.user.suspendedAt) return { tipo: "error", motivo: "suspendida" };

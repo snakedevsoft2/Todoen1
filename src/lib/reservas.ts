@@ -1,4 +1,4 @@
-import type { User } from "@prisma/client";
+import type { NegocioSinImagenes } from "./auth";
 import { db } from "./db";
 import { isValidDay, timeIn, todayIn } from "./dates";
 import { buildSlots, endTimeFor, isWorkDay } from "./slots";
@@ -22,7 +22,7 @@ export type HorariosDelDia = {
   porPersona: { id: string; name: string; libres: string[] }[];
 };
 
-export async function horariosLibres(shop: User, day: string): Promise<HorariosDelDia> {
+export async function horariosLibres(shop: NegocioSinImagenes, day: string): Promise<HorariosDelDia> {
   const cerrado = (motivo: string): HorariosDelDia => ({ abierto: false, motivo, libres: [], porPersona: [] });
   const today = todayIn(shop.timezone);
 
@@ -88,7 +88,7 @@ export type ResultadoReserva =
     }
   | { ok: false; error: string };
 
-export async function reservarTurno(shop: User, d: DatosReserva, origen: Origen): Promise<ResultadoReserva> {
+export async function reservarTurno(shop: NegocioSinImagenes, d: DatosReserva, origen: Origen): Promise<ResultadoReserva> {
   const fallo = (error: string): ResultadoReserva => ({ ok: false, error });
   const clientName = d.clientName.trim().slice(0, 200);
   const clientPhone = d.clientPhone.trim().slice(0, 40);

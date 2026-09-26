@@ -1,4 +1,5 @@
-import type { AgentConfig, User } from "@prisma/client";
+import type { AgentConfig } from "@prisma/client";
+import type { NegocioSinImagenes } from "./auth";
 import { db } from "./db";
 import { addDays, isoWeekday, timeIn, todayIn } from "./dates";
 import { money, pretty12h, prettyDay } from "./format";
@@ -41,11 +42,11 @@ export async function configDe(userId: string): Promise<Configuracion> {
 }
 
 /** Si este oficio separa turnos (la barberia) o toma pedidos (los demas). */
-export function tieneAgenda(shop: Pick<User, "businessType">): boolean {
+export function tieneAgenda(shop: Pick<NegocioSinImagenes, "businessType">): boolean {
   return shop.businessType === "BARBERIA";
 }
 
-export function saludoDe(shop: Pick<User, "businessName" | "businessType">, config: Pick<Configuracion, "greeting">): string {
+export function saludoDe(shop: Pick<NegocioSinImagenes, "businessName" | "businessType">, config: Pick<Configuracion, "greeting">): string {
   if (config.greeting?.trim()) return config.greeting.trim();
   return (
     "¡Hola! Soy el asistente de " +
@@ -129,7 +130,7 @@ const RECADO: Herramienta = {
   },
 };
 
-export function herramientasDe(shop: Pick<User, "businessType">): Herramienta[] {
+export function herramientasDe(shop: Pick<NegocioSinImagenes, "businessType">): Herramienta[] {
   return tieneAgenda(shop) ? [HORARIOS, TURNO, RECADO] : [PEDIDO, RECADO];
 }
 
@@ -142,7 +143,7 @@ const hora24 = (h: number) => pretty12h(String(Math.max(0, Math.min(23, h))).pad
  * no esta aqui, el agente no la puede soltar aunque se la pidan con trucos.
  */
 export async function instruccionesDe(
-  shop: User,
+  shop: NegocioSinImagenes,
   config: Configuracion,
   canal: Canal,
   telefonoConocido: string | null
@@ -239,7 +240,7 @@ export type RespuestaAgente = { ok: true; texto: string; repetido?: boolean } | 
 
 const DIA = 86_400_000;
 
-function contactoDelNegocio(shop: User): string {
+function contactoDelNegocio(shop: NegocioSinImagenes): string {
   return shop.phone ? " al " + shop.phone : "";
 }
 
@@ -251,7 +252,7 @@ function contactoDelNegocio(shop: User): string {
  * mejor que dejar al cliente hablando solo.
  */
 export async function responderAgente(opciones: {
-  shop: User;
+  shop: NegocioSinImagenes;
   canal: Canal;
   contactKey: string;
   contactName?: string | null;
@@ -418,7 +419,7 @@ export async function responderAgente(opciones: {
 
 /** agendar_turno: traduce lo que dijo el modelo a una reserva y la hace. */
 async function agendar(
-  shop: User,
+  shop: NegocioSinImagenes,
   args: Record<string, unknown>,
   opciones: { origen: Origen; prueba: boolean }
 ): Promise<Resultado> {

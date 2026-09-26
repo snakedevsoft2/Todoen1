@@ -61,6 +61,7 @@ async function atender(mensajes: MensajeEntrante[]) {
     try {
       const shop = await db.user.findFirst({
         where: { whatsappProvider: "meta", whatsappPhoneId: m.phoneNumberId, suspendedAt: null },
+        omit: { logo: true, publicCover: true },
       });
       if (!shop?.whatsappApiKey || !shop.whatsappPhoneId) continue;
       const config = await configDe(shop.id);

@@ -404,6 +404,11 @@ model Debt {
   @@index([userId, status])
   @@index([userId, dueDay])
   @@index([userId, staffId])
+  /// La pantalla de Ventas mezcla las ventas del dia con los fiados del dia,
+  /// asi que consulta las deudas por [userId, day] en cada visita. Sin este
+  /// indice esa consulta recorria la tabla entera de deudas, y se iba
+  /// poniendo mas lenta a medida que el negocio fia mas.
+  @@index([userId, day])
 }
 
 /// Cada abono que el cliente hace sobre su deuda.

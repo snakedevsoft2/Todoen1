@@ -19,6 +19,7 @@ import { categoriasDelNegocio, sincronizarCategorias } from "@/lib/categorias-ne
 import { aiEnabled } from "@/lib/ai";
 import { Vistas360Panel } from "@/components/Vistas360Panel";
 import { CATEGORIA_GENERAL, nombreCategoria } from "@/lib/categorias";
+import { serviciosConFoto } from "@/lib/imagenes";
 
 export const dynamic = "force-dynamic";
 
@@ -33,10 +34,13 @@ export default async function CatalogoPage() {
   // (al final) antes de mostrar la lista.
   if (esDueno) await sincronizarCategorias(user.id);
 
-  const [services, suppliers] = await Promise.all([
+  const [services, suppliers, idsConFoto] = await Promise.all([
     db.service.findMany({
     where: { userId: user.id },
     orderBy: [{ active: "desc" }, { category: "asc" }, { name: "asc" }],
+    // Sin el data URL de la foto: pesa mas que todo lo demas junto y aqui solo
+    // se necesita saber si la hay. Ver lib/imagenes.ts.
+      omit: { image: true },
     // Los negocios que no llevan inventario simplemente traen la lista vacia.
       include: {
         variants: { orderBy: [{ active: "desc" }, { size: "asc" }, { color: "asc" }] },
@@ -48,6 +52,7 @@ export default async function CatalogoPage() {
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
+    serviciosConFoto({ userId: user.id }),
   ]);
 
   const propias = await categoriasDelNegocio(user.id);
@@ -57,7 +62,7 @@ export default async function CatalogoPage() {
   const avgPrice = activeCount
     ? Math.round(services.filter((s) => s.active).reduce((s, i) => s + i.price, 0) / activeCount)
     : 0;
-  const conFoto = services.filter((s) => s.image).length;
+  const conFoto = idsConFoto.size;
 
   return (
     <>
@@ -156,7 +161,7 @@ export default async function CatalogoPage() {
               items={services.map((s) => {
                 const variants = s.variants;
                 const stock = variants.reduce((sum, v) => sum + Math.max(0, v.stock), 0);
-                const photo = photoUrl(s.id, s.image, s.updatedAt);
+                const photo = photoUrl(s.id, idsConFoto.has(s.id), s.updatedAt);
 
                 return {
                   id: s.id,
@@ -271,7 +276,7 @@ export default async function CatalogoPage() {
                               <summary className="cursor-pointer text-xs font-semibold text-brand-600">
                                 Vista 360 con IA{s.views.length > 0 ? " (lista)" : ""}
                               </summary>
-                              <Vistas360Panel serviceId={s.id} conFoto={Boolean(s.image)} vistas={s.views} />
+                              <Vistas360Panel serviceId={s.id} conFoto={idsConFoto.has(s.id)} vistas={s.views} />
                             </details>
                           )}
 

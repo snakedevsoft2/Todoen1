@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { Staff, User } from "@prisma/client";
+import type { NegocioSinImagenes, SessionStaff } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { addDays, inicioDelDiaEn, todayIn } from "@/lib/dates";
 import { prettyDay } from "@/lib/format";
@@ -19,7 +20,7 @@ import { Icon } from "./Icon";
  * Aqui nadie vende: el administrador abre la aplicacion para saber quien llego,
  * quien no, quien tiene permiso y que le mandaron. Nada de ventas ni de caja.
  */
-export async function ResumenAsistencia({ user, staff }: { user: User; staff: Staff }) {
+export async function ResumenAsistencia({ user, staff }: { user: NegocioSinImagenes; staff: SessionStaff }) {
   const tz = user.timezone;
   const hoy = todayIn(tz);
   const desde = inicioDelDiaEn(hoy, tz);

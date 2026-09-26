@@ -31,7 +31,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   }
 
   const { slug } = await params;
-  const shop = await db.user.findUnique({ where: { slug: String(slug).slice(0, 120) } });
+  const shop = await db.user.findUnique({
+    where: { slug: String(slug).slice(0, 120) },
+    omit: { logo: true, publicCover: true },
+  });
   if (!shop || shop.suspendedAt || !shop.publicOpen || !aiEnabled()) return noDisponible();
   const config = await configDe(shop.id);
   if (!config.webOn) return noDisponible();

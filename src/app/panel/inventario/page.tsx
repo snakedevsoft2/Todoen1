@@ -14,6 +14,7 @@ import { StockMoveForm, type MovableVariant } from "@/components/StockMoveForm";
 import { InventorySearch } from "@/components/InventorySearch";
 import { quickStockAction } from "@/actions/inventory";
 import { FormSinSenal } from "@/components/SinSenal";
+import { serviciosConFoto } from "@/lib/imagenes";
 
 export const dynamic = "force-dynamic";
 
@@ -52,9 +53,11 @@ export default async function InventarioPage({
   const category = (params.cat ?? "").trim();
   const filtro = params.filtro === "bajo" || params.filtro === "agotado" ? params.filtro : "todos";
 
-  const [services, summary, moves, suppliers] = await Promise.all([
+  const [services, summary, moves, suppliers, conFoto] = await Promise.all([
     db.service.findMany({
       where: { userId: user.id, trackStock: true },
+      // Sin el data URL de la foto: aqui solo se necesita saber si la hay.
+      omit: { image: true },
       include: {
         variants: { orderBy: [{ active: "desc" }, { size: "asc" }, { color: "asc" }] },
       },
@@ -72,6 +75,7 @@ export default async function InventarioPage({
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
+    serviciosConFoto({ userId: user.id, trackStock: true }),
   ]);
 
   const categories = [...new Set(services.map((s) => s.category))].sort();
@@ -247,7 +251,7 @@ export default async function InventarioPage({
             </Card>
           ) : (
             visible.map(({ service, variants }) => {
-              const photo = photoUrl(service.id, service.image, service.updatedAt);
+              const photo = photoUrl(service.id, conFoto.has(service.id), service.updatedAt);
               const totalStock = variants.reduce((s, v) => s + Math.max(0, v.stock), 0);
 
               return (

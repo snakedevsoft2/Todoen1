@@ -30,6 +30,9 @@ export default async function EquipoPage() {
     db.staff.findMany({
       where: { userId: user.id },
       orderBy: [{ role: "asc" }, { createdAt: "asc" }],
+      // Sin la foto de perfil: esta pantalla no la muestra, y traer el data URL
+      // de todo el equipo era lo mas pesado de la consulta.
+      omit: { photo: true },
     }),
     getStaffTotals(user.id, from, today),
   ]);

@@ -1,4 +1,4 @@
-import type { User } from "@prisma/client";
+import type { NegocioSinImagenes } from "./auth";
 import { db } from "./db";
 import { todayIn } from "./dates";
 import { money } from "./format";
@@ -32,7 +32,7 @@ const texto = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
  * Le avisa al dueño por WhatsApp, igual que cuando alguien separa un turno.
  * Nunca lanza.
  */
-async function avisarAlDueno(shop: User, mensaje: string) {
+async function avisarAlDueno(shop: NegocioSinImagenes, mensaje: string) {
   const destino = normalizePhone(shop.whatsappNumber);
   if (!shop.notifyOnBooking || !destino) return;
   const provider = isProvider(shop.whatsappProvider) ? shop.whatsappProvider : "enlace";
@@ -53,7 +53,7 @@ async function avisarAlDueno(shop: User, mensaje: string) {
 }
 
 export async function registrarPedido(
-  shop: User,
+  shop: NegocioSinImagenes,
   input: Record<string, unknown>,
   opciones: { origen: Origen; prueba: boolean }
 ): Promise<Resultado> {
@@ -153,7 +153,7 @@ export async function registrarPedido(
 }
 
 export async function dejarRecado(
-  shop: User,
+  shop: NegocioSinImagenes,
   input: Record<string, unknown>,
   opciones: { origen: Origen; prueba: boolean }
 ): Promise<Resultado> {

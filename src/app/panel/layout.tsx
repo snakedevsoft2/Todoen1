@@ -51,7 +51,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   // Agrupado por categoria solo cuando hay de donde armar categorias: el menu
   // fijo del empleado de asistencia y el del lavador son cortos y no lo necesitan.
   const navGroups = empleado || lavador ? undefined : menuAgrupado(modulos);
-  const logo = logoUrl(user.slug, user.logo, user.updatedAt);
+  const logo = logoUrl(user.slug, user.hasLogo, user.updatedAt);
   const foto = fotoPerfil(staff);
 
   // Solo la cuenta que pago instala la aplicacion y la usa sin senal (ver lib/plan.ts).

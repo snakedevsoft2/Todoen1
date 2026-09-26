@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireOwner } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { ITEM_NOUN, logoUrl, photoUrl } from "@/lib/nav";
+import { serviciosConFoto } from "@/lib/imagenes";
 import { Card, Empty, PageHeader, Stat } from "@/components/ui";
 import { CopyLink } from "@/components/CopyLink";
 import { Icon } from "@/components/Icon";
@@ -16,7 +17,7 @@ export default async function PortafolioPage() {
   const noun = ITEM_NOUN[user.businessType];
   const ruta = "/catalogo/" + user.slug;
 
-  const [publicados, sinFoto, total, muestra, tiers] = await Promise.all([
+  const [publicados, sinFoto, total, muestra, tiers, marca] = await Promise.all([
     db.service.count({ where: { userId: user.id, active: true, showcase: true } }),
     db.service.count({ where: { userId: user.id, active: true, showcase: true, image: null } }),
     db.service.count({ where: { userId: user.id, active: true } }),
@@ -25,14 +26,23 @@ export default async function PortafolioPage() {
       where: { userId: user.id, active: true, showcase: true },
       orderBy: [{ image: "desc" }, { category: "asc" }, { name: "asc" }],
       take: 4,
-      select: { id: true, name: true, price: true, image: true, updatedAt: true },
+      // Sin `image`: de la foto solo se necesita si existe, y eso ya lo dice
+      // el orden. Ver lib/imagenes.ts.
+      select: { id: true, name: true, price: true, updatedAt: true },
     }),
     db.wholesaleTier.findMany({
       where: { userId: user.id },
       orderBy: { minQty: "asc" },
       select: { id: true, minQty: true, percentOff: true, label: true },
     }),
+    // El logo y la portada no vienen en la sesion (pesan, y se leerian en cada
+    // peticion de toda la aplicacion). Esta pantalla si los edita, asi que los
+    // pide aparte. Ver SessionUser en lib/auth.ts.
+    db.user.findUnique({ where: { id: user.id }, select: { logo: true, publicCover: true } }),
   ]);
+
+  // Cuales de los cuatro de la vista previa tienen foto, sin traerse las fotos.
+  const conFoto = await serviciosConFoto({ id: { in: muestra.map((m) => m.id) } });
 
   // Un precio de verdad del catalogo para el ejemplo de cada escala. Con uno
   // inventado el dueno no sabe si el descuento le sirve o no.
@@ -59,7 +69,7 @@ export default async function PortafolioPage() {
       >
         <BrandingForm
           businessName={user.businessName}
-          initial={{ brandColor: user.brandColor, theme: user.theme, tagline: user.tagline, logo: user.logo }}
+          initial={{ brandColor: user.brandColor, theme: user.theme, tagline: user.tagline, logo: marca?.logo ?? null }}
         />
       </Card>
 
@@ -114,7 +124,7 @@ export default async function PortafolioPage() {
               publicHeadline: user.publicHeadline,
               publicAbout: user.publicAbout,
               publicOrderNote: user.publicOrderNote,
-              publicCover: user.publicCover,
+              publicCover: marca?.publicCover ?? null,
               publicBackground: user.publicBackground,
               catalogTemplate: user.catalogTemplate,
               deliveryEnabled: user.deliveryEnabled,
@@ -126,7 +136,7 @@ export default async function PortafolioPage() {
             itemPlural={noun.plural}
             preview={{
               tagline: user.tagline,
-              logo: logoUrl(user.slug, user.logo, user.updatedAt),
+              logo: logoUrl(user.slug, user.hasLogo, user.updatedAt),
               brandColor: user.brandColor,
               phone: user.phone,
               address: user.address,
@@ -136,7 +146,7 @@ export default async function PortafolioPage() {
                 id: m.id,
                 name: m.name,
                 price: m.price,
-                photo: photoUrl(m.id, m.image, m.updatedAt),
+                photo: photoUrl(m.id, conFoto.has(m.id), m.updatedAt),
               })),
             }}
           />

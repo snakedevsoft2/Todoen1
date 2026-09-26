@@ -13,11 +13,17 @@ export default async function PersonalizarPage() {
   const { user } = await requireOwner();
   const isBarber = user.businessType === "BARBERIA";
 
-  const ultimos = await db.notification.findMany({
-    where: { userId: user.id },
-    orderBy: { createdAt: "desc" },
-    take: 3,
-  });
+  // El logo no viene en la sesion a proposito (pesa y se lee en cada peticion,
+  // ver SessionUser en lib/auth.ts). Esta es una de las dos pantallas que si
+  // necesita los bytes, porque muestra la imagen actual para cambiarla.
+  const [ultimos, marca] = await Promise.all([
+    db.notification.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+      take: 3,
+    }),
+    db.user.findUnique({ where: { id: user.id }, select: { logo: true } }),
+  ]);
 
   return (
     <>
@@ -42,7 +48,7 @@ export default async function PersonalizarPage() {
               brandColor: user.brandColor,
               theme: user.theme,
               tagline: user.tagline,
-              logo: user.logo,
+              logo: marca?.logo ?? null,
             }}
           />
         </div>

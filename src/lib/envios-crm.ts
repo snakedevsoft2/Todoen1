@@ -1,4 +1,5 @@
-import type { Customer, User } from "@prisma/client";
+import type { Customer } from "@prisma/client";
+import type { NegocioSinImagenes } from "./auth";
 import { randomUUID } from "node:crypto";
 import { db } from "./db";
 import { addDays, inicioDelDiaEn, isValidDay, todayIn } from "./dates";
@@ -26,7 +27,7 @@ const MAX_PENDIENTES = 5000;
 
 export type Canales = { whatsapp: boolean; plantilla: boolean; correo: boolean };
 
-export function canalesDe(user: Pick<User, "whatsappProvider" | "whatsappApiKey" | "whatsappPhoneId" | "whatsappTemplate">): Canales {
+export function canalesDe(user: Pick<NegocioSinImagenes, "whatsappProvider" | "whatsappApiKey" | "whatsappPhoneId" | "whatsappTemplate">): Canales {
   const whatsapp = user.whatsappProvider === "meta" && Boolean(user.whatsappApiKey && user.whatsappPhoneId);
   return { whatsapp, plantilla: whatsapp && Boolean(user.whatsappTemplate), correo: mailEnabled() };
 }
@@ -99,7 +100,7 @@ function escapar(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] ?? c);
 }
 
-async function entregar(user: User, c: Customer, channel: string, plantilla: string): Promise<Entrega> {
+async function entregar(user: NegocioSinImagenes, c: Customer, channel: string, plantilla: string): Promise<Entrega> {
   const texto = aplicarPlantilla(plantilla, { nombre: c.name, negocio: user.businessName });
   const telefono = c.phone ? toInternational(c.phone, user.whatsappNumber, user.timezone) : null;
   const motivos: string[] = [];
@@ -183,7 +184,12 @@ export async function enviarProgramados(opciones: { userId?: string; limite?: nu
   for (const { id } of vencidos) {
     const apartado = await db.scheduledMessage.updateMany({ where: { id, status: "PENDIENTE" }, data: { status: "ENVIANDO" } });
     if (apartado.count === 0) continue;
-    const m = await db.scheduledMessage.findUnique({ where: { id }, include: { customer: true, user: true } });
+    const m = await db.scheduledMessage.findUnique({
+      where: { id },
+      // El negocio va sin sus imagenes: esto corre una vez POR MENSAJE, y
+      // arrastrar el logo en cada vuelta era el grueso de la consulta.
+      include: { customer: true, user: { omit: { logo: true, publicCover: true } } },
+    });
     if (!m) continue;
 
     let r: Entrega;

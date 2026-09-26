@@ -71,7 +71,7 @@ export default async function InformesPage() {
 
       <div className="grid gap-4 lg:grid-cols-[1fr_440px]">
         <div className="order-2 min-w-0 space-y-3 lg:order-1">
-          {esDueno && !user.logo && (
+          {esDueno && !user.hasLogo && (
             <div className="flex items-center gap-3 rounded-xl border border-line bg-surface px-3.5 py-3 text-[13px] text-body">
               <Icon name="image" className="h-5 w-5 shrink-0 text-muted" />
               <span className="min-w-0 flex-1">Sube tu logo para que salga en el encabezado de los PDF.</span>

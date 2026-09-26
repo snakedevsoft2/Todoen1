@@ -1,3 +1,6 @@
+import { fileURLToPath } from "node:url";
+import { dirname } from "node:path";
+
 /** @type {import('next').NextConfig} */
 
 /**
@@ -48,6 +51,18 @@ const CABECERAS = [
 ];
 
 const nextConfig = {
+  /**
+   * La raiz del proyecto, dicha a mano.
+   *
+   * Hay un package-lock.json suelto en la carpeta del usuario (C:\Users\Luisx),
+   * y Next, al ver dos, adivinaba que la raiz era esa y no esta. De ahi salian
+   * el aviso de "multiple lockfiles" y, al final de cada compilacion, un
+   * ENOENT buscando .next/server/app/_not-found/page.js.nft.json: los archivos
+   * de rastreo los escribia en un sitio y los leia en otro. Con la raiz fijada
+   * no hay nada que adivinar.
+   */
+  outputFileTracingRoot: dirname(fileURLToPath(import.meta.url)),
+
   // Un limite al tamano de lo que se puede mandar: las fotos ya vienen
   // achicadas desde el navegador y las acciones validan el formato aparte.
   experimental: { serverActions: { bodySizeLimit: "2mb" } },

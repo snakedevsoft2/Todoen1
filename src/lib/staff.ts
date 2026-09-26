@@ -89,9 +89,21 @@ export function etiquetaDeRol(role: string, businessType: string): string {
   return n.singular.charAt(0).toUpperCase() + n.singular.slice(1);
 }
 
-/** Direccion de la foto de perfil, con version para poder cachearla. */
-export function fotoPerfil(s: { id: string; photo?: string | null; updatedAt: Date | string }): string | null {
-  return s.photo ? "/foto-perfil/" + s.id + "?v=" + new Date(s.updatedAt).getTime() : null;
+/**
+ * Direccion de la foto de perfil, con version para poder cachearla.
+ *
+ * Acepta `hasPhoto` ademas de `photo` porque lo unico que se necesita saber es
+ * si hay foto: quien arma esto desde una consulta debe pedir la presencia y no
+ * el data URL. Ver SessionStaff en lib/auth.ts y lib/imagenes.ts.
+ */
+export function fotoPerfil(s: {
+  id: string;
+  photo?: string | null;
+  hasPhoto?: boolean;
+  updatedAt: Date | string;
+}): string | null {
+  const hay = s.hasPhoto ?? Boolean(s.photo);
+  return hay ? "/foto-perfil/" + s.id + "?v=" + new Date(s.updatedAt).getTime() : null;
 }
 
 /** Negocios que trabajan con equipo propio dentro de la aplicacion. */

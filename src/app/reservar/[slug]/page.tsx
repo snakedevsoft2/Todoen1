@@ -15,6 +15,7 @@ import { BrandMark } from "@/components/BrandMark";
 import { ChatAgente } from "@/components/ChatAgente";
 import { aiEnabled } from "@/lib/ai";
 import { configDe, saludoDe } from "@/lib/agente";
+import { negocioTieneLogo, serviciosConFoto } from "@/lib/imagenes";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +41,7 @@ export default async function ReservarPage({
   const { slug } = await params;
   const query = await searchParams;
 
-  const shop = await db.user.findUnique({ where: { slug } });
+  const shop = await db.user.findUnique({ where: { slug }, omit: { logo: true, publicCover: true } });
   if (!shop) notFound();
 
   // La agenda por hora es de la barberia y el lavadero. La tienda de ropa
@@ -54,11 +55,11 @@ export default async function ReservarPage({
   const requested = query.d && isValidDay(query.d) ? query.d : today;
   const day = requested < today ? today : requested;
 
-  const [servicesRaw, appointments, team] = await Promise.all([
+  const [servicesRaw, appointments, team, tieneLogo, conFoto] = await Promise.all([
     db.service.findMany({
       where: { userId: shop.id, active: true, bookable: true },
       orderBy: [{ category: "asc" }, { price: "asc" }],
-      select: { id: true, name: true, price: true, durationMin: true, description: true, image: true, updatedAt: true },
+      select: { id: true, name: true, price: true, durationMin: true, description: true, updatedAt: true },
     }),
     db.appointment.findMany({
       where: { userId: shop.id, day, status: { not: "CANCELADO" } },
@@ -69,6 +70,8 @@ export default async function ReservarPage({
       orderBy: [{ role: "asc" }, { createdAt: "asc" }],
       select: { id: true, name: true, color: true },
     }),
+    negocioTieneLogo(shop.id),
+    serviciosConFoto({ userId: shop.id, active: true, bookable: true }),
   ]);
 
   // Primero el corte, con su foto, y despues la fecha y la hora: asi se ve el
@@ -76,7 +79,7 @@ export default async function ReservarPage({
   // "?s=" (por ejemplo desde una foto del portafolio), ya arranca en el paso 2.
   const services = servicesRaw.map((s) => ({
     ...s,
-    photo: photoUrl(s.id, s.image, s.updatedAt),
+    photo: photoUrl(s.id, conFoto.has(s.id), s.updatedAt),
   }));
   const service = query.s ? services.find((s) => s.id === query.s) ?? null : null;
 
@@ -120,7 +123,7 @@ export default async function ReservarPage({
         <div className="mx-auto mb-3 flex justify-center">
           <BrandMark
             name={shop.businessName}
-            logo={logoUrl(shop.slug, shop.logo, shop.updatedAt)}
+            logo={logoUrl(shop.slug, tieneLogo, shop.updatedAt)}
             size="xl"
           />
         </div>

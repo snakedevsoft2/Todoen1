@@ -1,4 +1,5 @@
-import type { Staff, User } from "@prisma/client";
+import type { Staff } from "@prisma/client";
+import type { NegocioSinImagenes, SessionStaff } from "./auth";
 import { db } from "./db";
 import { isValidDay, todayIn } from "./dates";
 import { anotarCliente } from "./clientes";
@@ -42,7 +43,7 @@ export function esPdfDeVerdad(dataUrl: string): boolean {
   return Buffer.from(dataUrl.slice(coma + 1, coma + 9), "base64").toString("latin1").startsWith("%PDF");
 }
 
-export type Sesion = { user: User; staff: Staff };
+export type Sesion = { user: NegocioSinImagenes; staff: SessionStaff };
 export type Resultado<T> = { ok: true; datos: T } | { ok: false; error: string; status: number };
 
 export const falla = (error: string, status = 400) => ({ ok: false as const, error, status });

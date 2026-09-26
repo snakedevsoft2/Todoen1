@@ -76,7 +76,7 @@ export async function bookAppointmentAction(
   formData: FormData
 ): Promise<BookingState> {
   const slug = str(formData.get("slug"));
-  const shop = await db.user.findUnique({ where: { slug } });
+  const shop = await db.user.findUnique({ where: { slug }, omit: { logo: true, publicCover: true } });
   if (!shop) return { error: "No encontramos este negocio." };
 
   // Las reglas viven en lib/reservas.ts: el agente de IA separa turnos con

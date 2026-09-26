@@ -98,15 +98,17 @@ export function Shell({
   // Con categorias: lo fijo va suelto arriba, y el resto se pliega por
   // categoria para no ver una lista larga de una. Sin categorias (el menu fijo
   // del empleado de asistencia o del lavador, que ya es corto) va tal cual.
+  // `gap-3` y no `space-y-3`: el pie se pega abajo con `mt-auto`, y space-y
+  // tambien escribe margin-top, con mas peso, asi que lo anularia.
   const navList = navGroups ? (
-    <nav className="space-y-3">
+    <nav className="flex min-h-full flex-col gap-3">
       {navGroups
-        .filter((g) => g.pinned)
+        .filter((g) => g.pin === "arriba")
         .flatMap((g) => g.items)
         .map((item) => renderItem(item))}
 
       {navGroups
-        .filter((g) => !g.pinned)
+        .filter((g) => g.pin === null)
         .map((g) => {
           const abierta = g.items.some((item) => isActive(item.href));
           return (
@@ -122,6 +124,15 @@ export function Shell({
             </details>
           );
         })}
+
+      {navGroups.some((g) => g.pin === "abajo") && (
+        <div className="mt-auto space-y-0.5 border-t border-line pt-3">
+          {navGroups
+            .filter((g) => g.pin === "abajo")
+            .flatMap((g) => g.items)
+            .map((item) => renderItem(item))}
+        </div>
+      )}
     </nav>
   ) : (
     <nav className="space-y-0.5">{nav.map((item) => renderItem(item))}</nav>

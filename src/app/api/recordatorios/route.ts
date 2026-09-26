@@ -51,6 +51,8 @@ export async function GET(request: Request) {
   // Solo los negocios que pueden mandar solos.
   const negocios = await db.user.findMany({
     where: { whatsappProvider: { in: ["callmebot", "meta"] } },
+    // Sin las imagenes: aqui no se usan y son las columnas mas pesadas de la fila.
+    omit: { logo: true, publicCover: true },
   });
 
   let enviados = 0;
@@ -199,7 +201,10 @@ export async function GET(request: Request) {
   // Aviso al dueño de cartera: a quien le toca cobrar hoy, de un vistazo.
   // Una vez por corrida basta: el cron solo se dispara una vez al dia.
   let avisosCartera = 0;
-  const negociosCartera = await db.user.findMany({ where: { businessType: "CARTERA" } });
+  const negociosCartera = await db.user.findMany({
+    where: { businessType: "CARTERA" },
+    omit: { logo: true, publicCover: true },
+  });
   for (const shop of negociosCartera) {
     const hoy = todayIn(shop.timezone);
 

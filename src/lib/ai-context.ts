@@ -1,4 +1,4 @@
-import type { User } from "@prisma/client";
+import type { NegocioSinImagenes } from "./auth";
 import { db } from "./db";
 import { addDays, startOfMonth, todayIn } from "./dates";
 import { money, shortDay } from "./format";
@@ -18,7 +18,7 @@ import { saldo } from "./debts";
  * Solo van numeros y nombres de productos: nada de datos de clientes, que no
  * hacen falta para aconsejar y no tienen por que salir del negocio.
  */
-export async function businessSnapshot(user: User): Promise<string> {
+export async function businessSnapshot(user: NegocioSinImagenes): Promise<string> {
   const hoy = todayIn(user.timezone);
   const mes = startOfMonth(hoy);
   const hace30 = addDays(hoy, -29);

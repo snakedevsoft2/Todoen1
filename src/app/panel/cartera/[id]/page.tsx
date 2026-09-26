@@ -45,7 +45,7 @@ export default async function DeudaPage({ params }: { params: Promise<{ id: stri
   const pendiente = saldo(deuda);
   const pagado = abonado(deuda);
   const estado = debtState(deuda, hoy);
-  const logo = logoUrl(user.slug, user.logo, user.updatedAt);
+  const logo = logoUrl(user.slug, user.hasLogo, user.updatedAt);
 
   const enlaceCobro = deuda.clientPhone
     ? waLink(

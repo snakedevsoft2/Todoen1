@@ -90,7 +90,7 @@ export default async function InformePage({ params }: { params: Promise<{ id: st
     businessName: user.businessName,
     businessPhone: user.phone,
     businessAddress: user.address,
-    logoUrl: logoUrl(user.slug, user.logo, user.updatedAt),
+    logoUrl: logoUrl(user.slug, user.hasLogo, user.updatedAt),
     title: informe.title,
     day: informe.day,
     siteName: informe.site?.name ?? null,
@@ -188,7 +188,7 @@ export default async function InformePage({ params }: { params: Promise<{ id: st
               El PDF lleva tu logo, lo que se hizo, el personal con sus horas, las fotos con su descripción, las
               observaciones y, al final, los PDF de evidencia.
             </p>
-            {esDueno && !user.logo && (
+            {esDueno && !user.hasLogo && (
               <p className="mb-3 text-[12px] text-muted">
                 Todavía no tienes logo.{" "}
                 <Link href="/panel/personalizar" className="font-semibold text-brand-700 underline">

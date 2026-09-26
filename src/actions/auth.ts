@@ -141,7 +141,7 @@ export async function loginAction(_prev: AuthState, formData: FormData): Promise
     return { error: "Demasiados intentos seguidos. Espera unos minutos y vuelve a intentarlo." };
   }
 
-  const user = await db.user.findUnique({ where: { email } });
+  const user = await db.user.findUnique({ where: { email }, omit: { logo: true, publicCover: true } });
 
   // 1. El dueno del negocio.
   if (user) {
@@ -174,7 +174,7 @@ export async function loginAction(_prev: AuthState, formData: FormData): Promise
   }
 
   // 2. Un barbero con usuario propio dentro de un negocio.
-  const staff = await db.staff.findUnique({ where: { email }, include: { user: true } });
+  const staff = await db.staff.findUnique({ where: { email }, include: { user: { omit: { logo: true, publicCover: true } } } });
   if (!staff || !staff.passwordHash || !checkPassword(password, staff.passwordHash)) {
     await anotarIntentoDeLogin(origen);
     return { error: "Correo o contrasena incorrectos." };
@@ -217,7 +217,7 @@ async function entrarConUsuario(
     return { error: "Demasiados intentos seguidos. Espera unos minutos y vuelve a intentarlo." };
   }
   const username = normalizarUsuario(escrito);
-  const staff = await db.staff.findUnique({ where: { username }, include: { user: true } });
+  const staff = await db.staff.findUnique({ where: { username }, include: { user: { omit: { logo: true, publicCover: true } } } });
   if (!staff || staff.role === "DUENO") {
     await anotarIntentoDeUsuario(origen);
     return { error: "No encontramos ese usuario. Escríbelo como te lo dio el dueño del negocio." };

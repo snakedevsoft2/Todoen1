@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import bcrypt from "bcryptjs";
 import type { Staff, User } from "@prisma/client";
 import { db } from "./db";
+import { negocioTieneLogo, personaTieneFoto } from "./imagenes";
 import { suspenderSiVencio } from "./pagos";
 import { readSession } from "./session";
 import {
@@ -32,7 +33,7 @@ export function checkPassword(plain: string, hash: string) {
  * Pasa por getCurrentSession a proposito: asi un barbero desactivado pierde el
  * acceso en todas las paginas, no solo en las que miran su rol.
  */
-export async function getCurrentUser(): Promise<User | null> {
+export async function getCurrentUser(): Promise<SessionUser | null> {
   const session = await getCurrentSession();
   return session?.user ?? null;
 }
@@ -41,7 +42,7 @@ export async function getCurrentUser(): Promise<User | null> {
  * Usuario obligatorio. Todas las consultas del panel filtran por este id,
  * asi que un usuario nunca puede leer ni editar datos de otro negocio.
  */
-export async function requireUser(): Promise<User> {
+export async function requireUser(): Promise<SessionUser> {
   const user = await getCurrentUser();
   // Pasa por /salir y no derecho al login: si la cookie sigue firmada pero la
   // sesion ya no sirve, hay que borrarla o el middleware la devuelve al panel
@@ -51,29 +52,64 @@ export async function requireUser(): Promise<User> {
 }
 
 /**
+ * El negocio tal como lo ve el panel.
+ *
+ * Sin las dos columnas de imagen: `logo` y `publicCover` son data URL de
+ * decenas o cientos de KB, y esta fila se lee en TODAS las peticiones. Lo
+ * unico que el panel necesita saber es si hay logo (`hasLogo`), para armar la
+ * direccion /logo/[slug]; los bytes los pide el navegador por su cuenta y los
+ * cachea. Las dos pantallas que si editan la imagen (personalizar y
+ * portafolio) la piden aparte, que es una sola pantalla y no todas.
+ */
+export type NegocioSinImagenes = Omit<User, "logo" | "publicCover">;
+export type SessionUser = NegocioSinImagenes & { hasLogo: boolean };
+
+/**
+ * La persona que entro.
+ *
+ * La sesion de verdad la trae SIN la foto de perfil, por la misma razon que el
+ * negocio va sin logo: la foto es un data URL y esta fila se lee en TODAS las
+ * peticiones. Se sirve por /foto-perfil/[id], que el navegador cachea, y aqui
+ * solo viaja `hasPhoto`.
+ *
+ * Los dos campos son opcionales porque tambien vale una fila completa de la
+ * base (es lo que arman las pruebas). Para saber si hay foto no se mira
+ * ninguno de los dos a mano: se llama `fotoPerfil()` de lib/staff.ts, que
+ * entiende las dos formas.
+ */
+export type SessionStaff = Omit<Staff, "photo"> & {
+  hasPhoto?: boolean;
+  photo?: string | null;
+};
+
+/**
  * Quien entro y a que negocio pertenece.
  *
  * `user` es SIEMPRE el dueno del negocio: todas las consultas siguen filtrando
  * por `user.id`, asi que un negocio nunca alcanza los datos de otro.
  * `staff` es la persona concreta que entro (el dueno o uno de los barberos).
  */
-export type Session = { user: User; staff: Staff };
+export type Session = { user: SessionUser; staff: SessionStaff };
 
 /** El dueno tambien es una persona que atiende, para poder medirlo. */
-export async function ensureOwnerStaff(user: User): Promise<Staff> {
+export async function ensureOwnerStaff(user: NegocioSinImagenes): Promise<SessionStaff> {
   const found = await db.staff.findFirst({
     where: { userId: user.id, role: "DUENO" },
     orderBy: { createdAt: "asc" },
+    omit: { photo: true },
   });
-  if (found) return found;
-  return db.staff.create({
+  if (found) return { ...found, hasPhoto: await personaTieneFoto(found.id) };
+  const creado = await db.staff.create({
     data: {
       userId: user.id,
       name: user.ownerName,
       role: "DUENO",
       color: user.brandColor,
     },
+    omit: { photo: true },
   });
+  // Recien creado: todavia no puede tener foto.
+  return { ...creado, hasPhoto: false };
 }
 
 /**
@@ -91,7 +127,7 @@ const MINUTOS_ENTRE_ANOTACIONES = 5;
  * Si falla no importa: no vale la pena tumbar una pagina por no poder anotar
  * una marca de tiempo.
  */
-async function marcarActividad(staff: Staff) {
+async function marcarActividad(staff: SessionStaff) {
   const corte = Date.now() - MINUTOS_ENTRE_ANOTACIONES * 60 * 1000;
   if (staff.lastSeenAt && staff.lastSeenAt.getTime() > corte) return;
   try {
@@ -113,8 +149,18 @@ async function marcarActividad(staff: Staff) {
 export const getCurrentSession = cache(async (): Promise<Session | null> => {
   const session = await readSession();
   if (!session) return null;
-  const user = await db.user.findUnique({ where: { id: session.uid } });
-  if (!user) return null;
+
+  // Las dos consultas van juntas porque ninguna depende de la otra: la de
+  // presencia del logo no agrega espera, solo evita arrastrar el data URL.
+  const [fila, hasLogo] = await Promise.all([
+    db.user.findUnique({
+      where: { id: session.uid },
+      omit: { logo: true, publicCover: true },
+    }),
+    negocioTieneLogo(session.uid),
+  ]);
+  if (!fila) return null;
+  const user: SessionUser = { ...fila, hasLogo };
 
   // Cuenta suspendida por la plataforma: la sesion deja de valer en la
   // siguiente peticion, sin tener que esperar a que la cookie caduque.
@@ -139,10 +185,15 @@ export const getCurrentSession = cache(async (): Promise<Session | null> => {
 
   // Si el barbero fue borrado o desactivado, la sesion deja de valer.
   // Nunca caemos al dueno aqui: seria darle permisos que no tiene.
-  const staff = await db.staff.findFirst({
-    where: { id: session.sid, userId: user.id, active: true },
-  });
-  if (!staff) return null;
+  const [filaStaff, hasPhoto] = await Promise.all([
+    db.staff.findFirst({
+      where: { id: session.sid, userId: user.id, active: true },
+      omit: { photo: true },
+    }),
+    personaTieneFoto(session.sid),
+  ]);
+  if (!filaStaff) return null;
+  const staff: SessionStaff = { ...filaStaff, hasPhoto };
 
   // Misma idea que con el dueno, pero con la clave propia del empleado.
   if (session.sv !== undefined && session.sv !== staff.sessionVersion) return null;

@@ -1,4 +1,4 @@
-import type { User } from "@prisma/client";
+import type { NegocioSinImagenes } from "./auth";
 import { db } from "./db";
 import { mailEnabled, sendMail } from "./mail";
 import { direccionBase } from "./reset";
@@ -17,7 +17,7 @@ import { isProvider, normalizePhone, sendWhatsapp } from "./whatsapp";
  * salio no puede hacerle creer que su reporte no llego.
  */
 export async function avisarAlAdministrador(
-  user: User,
+  user: NegocioSinImagenes,
   aviso: { asunto: string; texto: string; ruta: string }
 ): Promise<void> {
   let enlace = aviso.ruta;

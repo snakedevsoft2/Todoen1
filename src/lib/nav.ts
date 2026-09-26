@@ -11,8 +11,19 @@ import type { BusinessType } from "@prisma/client";
 
 export type NavItem = { href: string; label: string; icon: string };
 
-/** El menu lateral agrupado por categoria, para no verlo todo de un tiron. */
-export type NavGroup = { key: string; label: string; items: NavItem[]; pinned: boolean };
+/**
+ * El menu lateral agrupado por categoria, para no verlo todo de un tiron.
+ *
+ * `pin` dice si el grupo va suelto (sin plegar) y donde: "arriba" es lo que se
+ * abre todo el dia (el resumen), "abajo" es lo que se busca de vez en cuando y
+ * no debe estorbar arriba (ajustes y soporte). `null` = categoria plegable.
+ */
+export type NavGroup = {
+  key: string;
+  label: string;
+  items: NavItem[];
+  pin: "arriba" | "abajo" | null;
+};
 
 export const BUSINESS_LABEL: Record<BusinessType, string> = {
   BARBERIA: "Barbería",
@@ -53,20 +64,38 @@ export function bookingPath(type: BusinessType, slug: string): string | null {
   return type === "BARBERIA" || type === "LAVADERO" ? "/reservar/" + slug : null;
 }
 
-/** Direccion publica del logo. Lleva version para poder cachearlo fuerte. */
+/**
+ * Direccion publica del logo. Lleva version para poder cachearlo fuerte.
+ *
+ * El segundo parametro es solo "hay logo o no": nunca se usa el contenido. Por
+ * eso acepta un booleano ademas del data URL, y quien arma un listado debe
+ * pasar el booleano — traer el base64 de la base de datos para despues botarlo
+ * es justo lo que hacia que una pagina de catalogo moviera megas por visita.
+ * Ver lib/imagenes.ts.
+ */
 export function logoUrl(
   slug: string,
-  logo: string | null | undefined,
+  logo: string | boolean | null | undefined,
   updatedAt: Date
 ): string | null {
   if (!logo) return null;
   return "/logo/" + slug + "?v=" + updatedAt.getTime();
 }
 
-/** Direccion de la foto de una prenda. Misma idea que el logo. */
+/** Direccion de la portada del portafolio. Misma idea que el logo. */
+export function coverUrl(
+  slug: string,
+  cover: string | boolean | null | undefined,
+  updatedAt: Date
+): string | null {
+  if (!cover) return null;
+  return "/portada/" + slug + "?v=" + updatedAt.getTime();
+}
+
+/** Direccion de la foto de una prenda. Misma idea (y misma advertencia) que el logo. */
 export function photoUrl(
   serviceId: string,
-  image: string | null | undefined,
+  image: string | boolean | null | undefined,
   updatedAt: Date
 ): string | null {
   if (!image) return null;

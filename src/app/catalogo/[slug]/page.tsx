@@ -18,7 +18,7 @@ import {
 } from "next/font/google";
 import { db } from "@/lib/db";
 import { getCurrentSession } from "@/lib/auth";
-import { ITEM_NOUN, logoUrl, photoUrl } from "@/lib/nav";
+import { ITEM_NOUN, coverUrl, logoUrl, photoUrl } from "@/lib/nav";
 import { variantLabel } from "@/lib/variants";
 import { normalizePhone, toInternational } from "@/lib/whatsapp";
 import { APP_NAME } from "@/lib/brand";
@@ -37,6 +37,7 @@ import {
   type Wholesale,
 } from "@/components/PortfolioOrder";
 import { ordenDeCategorias } from "@/lib/categorias-negocio";
+import { negocioTieneLogo, negocioTienePortada, serviciosConFoto } from "@/lib/imagenes";
 
 export const dynamic = "force-dynamic";
 
@@ -148,8 +149,18 @@ export default async function PortafolioPage({
 }) {
   const { slug } = await params;
 
-  const shop = await db.user.findUnique({ where: { slug } });
+  // Sin las dos imagenes: el logo y la portada se sirven por su propia
+  // direccion (/logo y /portada), que el navegador cachea. Traerlas aqui era
+  // meter cientos de KB dentro del HTML en cada visita. Ver lib/imagenes.ts.
+  const shop = await db.user.findUnique({
+    where: { slug },
+    omit: { logo: true, publicCover: true },
+  });
   if (!shop) notFound();
+  const [tieneLogo, tienePortada] = await Promise.all([
+    negocioTieneLogo(shop.id),
+    negocioTienePortada(shop.id),
+  ]);
 
   // El dueno puede ver su pagina completa aunque todavia no la haya lanzado:
   // es la unica forma de revisar como queda de verdad antes de publicarla.
@@ -162,6 +173,9 @@ export default async function PortafolioPage({
   const productos = await db.service.findMany({
     where: { userId: shop.id, active: true, showcase: true },
     orderBy: [{ category: "asc" }, { name: "asc" }],
+    // Sin el data URL de la foto: de ella solo se necesita si existe, y eso lo
+    // dice `conFoto` sin mover los bytes. Ver lib/imagenes.ts.
+    omit: { image: true },
     include: {
       variants: {
         where: { active: true },
@@ -170,6 +184,8 @@ export default async function PortafolioPage({
       views: { orderBy: { angle: "asc" }, select: { id: true } },
     },
   });
+
+  const conFoto = await serviciosConFoto({ userId: shop.id, active: true, showcase: true });
 
   const ordenCategorias = await ordenDeCategorias(shop.id);
 
@@ -197,7 +213,7 @@ export default async function PortafolioPage({
   const tieneAgenda = esBarberia || shop.businessType === "LAVADERO";
   // Con indicativo del pais: un numero local (0982...) no abre el chat.
   const whatsapp = toInternational(shop.whatsappNumber || shop.phone, shop.whatsappNumber, shop.timezone);
-  const cover = shop.publicCover;
+  const cover = coverUrl(shop.slug, tienePortada, shop.updatedAt);
 
   const items: PortfolioItem[] = productos.map((p) => {
     const conStock = p.variants.filter((v) => v.stock > 0);
@@ -206,11 +222,11 @@ export default async function PortafolioPage({
       name: p.name,
       price: p.price,
       category: p.category,
-      photo: photoUrl(p.id, p.image, p.updatedAt),
+      photo: photoUrl(p.id, conFoto.has(p.id), p.updatedAt),
       // Frente + las vistas de la IA, solo si el producto tiene foto y las tres vistas.
       giro:
-        p.image && p.views.length === 3
-          ? [photoUrl(p.id, p.image, p.updatedAt)!, ...p.views.map((v) => "/vista/" + v.id)]
+        conFoto.has(p.id) && p.views.length === 3
+          ? [photoUrl(p.id, true, p.updatedAt)!, ...p.views.map((v) => "/vista/" + v.id)]
           : undefined,
       description: p.description,
       brand: p.brand,
@@ -243,7 +259,7 @@ export default async function PortafolioPage({
         )}
         <BrandMark
           name={shop.businessName}
-          logo={logoUrl(shop.slug, shop.logo, shop.updatedAt)}
+          logo={logoUrl(shop.slug, tieneLogo, shop.updatedAt)}
           size="xl"
           className="mx-auto"
         />
@@ -327,7 +343,7 @@ export default async function PortafolioPage({
           >
             <BrandMark
               name={shop.businessName}
-              logo={logoUrl(shop.slug, shop.logo, shop.updatedAt)}
+              logo={logoUrl(shop.slug, tieneLogo, shop.updatedAt)}
               size="xl"
             />
           </div>
