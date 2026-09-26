@@ -375,10 +375,23 @@ export function NewSaleForm({
       /* no se pudo guardar; sigue valiendo mientras la pagina este abierta */
     }
   }
-  // Mouse: se arrastra de una. Celular: hay que dejar el dedo un momento.
+  /**
+   * Como se agarra un producto para moverlo.
+   *
+   * Con mouse basta arrastrar 8 pixeles. Con el dedo hay que mantenerlo 250ms
+   * antes de mover, para no chocar con el desplazamiento de la pagina: un
+   * toque rapido sigue agregando el producto, como siempre.
+   *
+   * `tolerance` es cuanto se le permite temblar al dedo DURANTE esa espera. En
+   * 8 pixeles se cancelaba casi siempre -sosteniendo el telefono con una mano
+   * es imposible no moverse un poco- y en vez de agarrar el producto la
+   * pagina se desplazaba, que es justo lo que hacia parecer que esto no
+   * servia. 16 deja margen para el pulso sin confundirse con un deslizamiento,
+   * porque un deslizamiento para desplazar dura mucho menos que 250ms.
+   */
   const sensoresOrden = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } })
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 16 } })
   );
   const puedeMover = !!claveOrden && !busqueda.trim();
 
@@ -868,6 +881,14 @@ export function NewSaleForm({
               </button>
             </p>
           )}
+          {/* Arriba y no al final: enterrada debajo de cuarenta productos no la
+              leia nadie, y sin leerla el gesto no se adivina. */}
+          {puedeMover && grouped.length > 0 && (
+            <p className="flex items-center gap-1.5 text-[11px] text-subtle">
+              <Icon name="grip" className="h-3.5 w-3.5 shrink-0" />
+              Para acomodarlos a tu gusto: deja el dedo sobre un producto un momento y arrástralo.
+            </p>
+          )}
           {grouped.map(({ nombre: category, items: list }) => (
             <div key={category}>
               <p className="mb-1.5 text-[11px] text-subtle">{category}</p>
@@ -999,9 +1020,6 @@ export function NewSaleForm({
               )}
             </div>
           ))}
-          {puedeMover && (
-            <p className="text-[11px] text-subtle">Deja el dedo sobre un producto y arrástralo para moverlo.</p>
-          )}
         </div>
       )}
 
