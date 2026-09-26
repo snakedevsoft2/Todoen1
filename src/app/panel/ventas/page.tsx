@@ -533,7 +533,11 @@ export default async function VentasPage({
                       </div>
 
                       <div className="mt-2 flex flex-wrap gap-2">
-                        <InvoiceActions data={datosFactura(s)} soloBluetooth={!propias} />
+                        <InvoiceActions
+                          data={datosFactura(s)}
+                          clientes={clientesGuardados}
+                          soloBluetooth={!propias}
+                        />
                         <ImprimirVenta data={datosFactura(s)} soloBluetooth={!propias} />
                         <FacturaAutorizada
                           saleId={s.id}

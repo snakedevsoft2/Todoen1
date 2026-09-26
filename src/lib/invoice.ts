@@ -1,4 +1,4 @@
-import { money, moneyCorto, prettyDay } from "./format";
+import { money, prettyDay } from "./format";
 import { qrModulos } from "./qr";
 import type { Linea } from "./tirilla";
 import { MARCA_VERSION_GRATIS } from "./plan";
@@ -112,7 +112,7 @@ export function invoiceNumber(saleId: string): string {
  * el numero de recibo del negocio (1, 2, 3...), y si tampoco hay (ventas de
  * antes, o sin señal sin sincronizar) el que sale del id.
  */
-function numeroDe(data: InvoiceData): string {
+export function numeroDe(data: InvoiceData): string {
   if (data.autorizacion?.numero) return data.autorizacion.numero;
   if (data.receiptSeq) return formatReceiptSeq(data.receiptSeq);
   return invoiceNumber(data.saleId);
@@ -419,14 +419,6 @@ export function invoiceTirilla(data: InvoiceData): Linea[] {
   if (data.staffName) lineas.push({ t: "par", label: "Vendedor", value: data.staffName });
   lineas.push({ t: "sep" });
 
-  /**
-   * El nombre en un renglon y la cantidad por el precio en el de abajo.
-   *
-   * Se probo meterlo todo en un solo renglon para gastar menos papel, y con la
-   * letra de fabrica (32 letras en 58mm) los nombres largos igual se partian y
-   * quedaba peor de leer. El ahorro de papel va por el tamano de la letra, que
-   * ahora se puede escoger al imprimir (ver LETRA_CHICA en lib/escpos.ts).
-   */
   for (const item of data.items) {
     lineas.push({ t: "texto", text: item.name });
     lineas.push({

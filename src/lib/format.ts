@@ -79,31 +79,6 @@ export function money(value: number, currency = "COP") {
 }
 
 /**
- * El mismo numero pero sin el simbolo de la moneda.
- *
- * Es para la tirilla termica, donde el ancho es lo que falta: repetir "US$"
- * en cada renglon de producto se come cuatro letras por renglon y obliga a
- * partir la linea en dos. La moneda se dice una vez, en el TOTAL, que es
- * donde de verdad importa.
- */
-export function moneyCorto(value: number, currency = "COP") {
-  const decimals = decimalesDe(currency);
-  const valor = value / factorDe(currency);
-  // El try va por lo mismo que en money(): hay Android viejos cuyo navegador
-  // trae Intl recortado y revienta al pedirle un idioma. Sin esta red, un
-  // telefono asi no sacaba un recibo mas corto: no sacaba NINGUN recibo,
-  // porque la excepcion tumba el armado entero.
-  try {
-    return valor.toLocaleString(LOCALE_POR_MONEDA[currency] ?? "es-CO", {
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals,
-    });
-  } catch {
-    return valor.toFixed(decimals).replace(".", ",");
-  }
-}
-
-/**
  * Lee lo que escribio la persona y lo deja en unidades minimas.
  *
  * Acepta como escribe la gente de verdad: "20.000", "20,000", "$ 20000" y, en
