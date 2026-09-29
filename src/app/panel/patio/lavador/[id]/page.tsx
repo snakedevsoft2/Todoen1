@@ -3,9 +3,12 @@ import { notFound, redirect } from "next/navigation";
 import { requireOwner } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { addDays, isValidDay, todayIn } from "@/lib/dates";
-import { money, prettyDay, shortDay } from "@/lib/format";
+import { aCampo, money, prettyDay, shortDay } from "@/lib/format";
 import { Badge, Card, Empty, PageHeader, Stat } from "@/components/ui";
 import { StaffDot } from "@/components/StaffForms";
+import { Icon } from "@/components/Icon";
+import { SubmitButton } from "@/components/SubmitButton";
+import { cambiarPrecioLavadoAction } from "@/actions/lavadero";
 
 export const dynamic = "force-dynamic";
 
@@ -110,7 +113,34 @@ export default async function LavadorPage({
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <Badge tone={ESTADO_TONO[j.status] ?? "amber"}>{ESTADO_LABEL[j.status] ?? j.status}</Badge>
-                  <span className="text-sm font-bold text-strong">{money(j.price, user.currency)}</span>
+                  {/* El dueño corrige el precio aqui mismo; si ya se cobro, cambia tambien la venta. */}
+                  <details className="group relative">
+                    <summary
+                      className="flex cursor-pointer list-none items-center gap-1 text-sm font-bold text-strong"
+                      aria-label="Cambiar el precio"
+                    >
+                      {money(j.price, user.currency)}
+                      <Icon name="pencil" className="h-3.5 w-3.5 text-subtle" />
+                    </summary>
+                    <form
+                      action={cambiarPrecioLavadoAction}
+                      className="absolute right-0 z-10 mt-2 flex w-56 items-center gap-2 rounded-xl border border-line bg-surface p-2 shadow-soft"
+                    >
+                      <input type="hidden" name="washJobId" value={j.id} />
+                      <input
+                        name="price"
+                        type="text"
+                        inputMode="numeric"
+                        defaultValue={aCampo(j.price, user.currency)}
+                        aria-label="Precio nuevo"
+                        className="input min-w-0 flex-1 px-2 py-1 text-sm"
+                        required
+                      />
+                      <SubmitButton className="btn-primary btn-sm" pendingText="...">
+                        Guardar
+                      </SubmitButton>
+                    </form>
+                  </details>
                 </div>
               </li>
             ))}

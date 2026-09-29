@@ -340,3 +340,52 @@ export async function recibirEntregaAction(formData: FormData) {
   revalidatePath("/panel/patio");
   revalidatePath("/panel/patio/entrega");
 }
+
+/**
+ * El dueño corrige el precio de un lavado (por ejemplo, uno que quedo en $18
+ * porque escribieron "18.000" y se leyo mal).
+ *
+ * Si el lavado ya se cobro, su venta cambia con el: sin eso la caja y el
+ * reporte seguirian diciendo el precio viejo. Una venta con factura
+ * autorizada no se toca, igual que al editarla desde Ventas.
+ */
+export async function cambiarPrecioLavadoAction(formData: FormData) {
+  const { user, staff } = await requireSession();
+  if (!esDueno(staff.role)) return;
+
+  const id = str(formData.get("washJobId"));
+  const price = parseMoney(formData.get("price"), user.currency);
+  if (price <= 0) return;
+
+  const job = await db.washJob.findFirst({
+    where: { id, userId: user.id },
+    include: { sale: { include: { items: true, electronicInvoice: { select: { status: true } } } } },
+  });
+  if (!job || job.price === price) return;
+
+  const factura = job.sale?.electronicInvoice?.status;
+  if (factura === "AUTORIZADA" || factura === "ENVIANDO") return;
+
+  await db.$transaction(async (tx) => {
+    await tx.washJob.update({ where: { id: job.id }, data: { price } });
+    if (!job.sale) return;
+    // La linea del lavado es la que creo el cobro: la del servicio, o la primera.
+    const linea = job.sale.items.find((i) => i.name === job.serviceName) ?? job.sale.items[0];
+    if (!linea) return;
+    await tx.saleItem.update({ where: { id: linea.id }, data: { unitPrice: price } });
+    await tx.sale.update({
+      where: { id: job.sale.id },
+      data: { total: { increment: (price - linea.unitPrice) * linea.qty } },
+    });
+  });
+
+  await anotarActividad(
+    { user, staff },
+    { tipo: "cambio", detalle: "Cambió el precio del lavado de " + job.clientName, monto: price }
+  );
+  revalidatePath("/panel/patio/lavador/" + (job.assignedStaffId ?? ""));
+  revalidatePath("/panel/patio");
+  revalidatePath("/panel/ventas");
+  revalidatePath("/panel/caja");
+  revalidatePath("/panel");
+}
