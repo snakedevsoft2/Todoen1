@@ -51,6 +51,7 @@ export const ACCIONES_SOLO_DUENO = new Set<string>([
   "deleteSupplierAction",
   "deleteWashJobAction",
   "updateWashJobAction",
+  "cambiarPrecioLavadoAction",
 ]);
 
 /** Las que crean y editan con el mismo formulario: el empleado solo crea (sin id). */
@@ -68,17 +69,17 @@ export const ACCIONES_SOLO_CREAR = new Set<string>([
  * puede el dueño (equipo, ajustes, reportes siguen sin verlos, eso lo resuelve
  * el sistema de modulos, no esta lista).
  *
- * Cada borrado o cambio que hace un supervisor por esta via queda anotado con
+ * Corrige pero NO borra: borrar una venta o un vehiculo es solo del dueño.
+ * Cada cambio que hace un supervisor por esta via queda anotado con
  * anotarActividad() igual que si lo hiciera el dueño, asi que el dueño lo ve
  * despues en Empleados > Auditoria sin que el supervisor sepa que quedo
  * registrado.
  */
 export const ACCIONES_SUPERVISOR = new Set<string>([
-  "deleteSaleAction",
   "updateSalePaymentAction",
   "updateSaleAction",
-  "deleteWashJobAction",
   "updateWashJobAction",
+  "cambiarPrecioLavadoAction",
 ]);
 
 export const SOLO_DUENO = "Solo el dueño del negocio puede borrar o cambiar lo que ya está registrado.";

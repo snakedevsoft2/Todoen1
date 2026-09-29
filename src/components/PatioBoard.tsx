@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import {
   asignarLavadorAction,
+  cambiarPrecioLavadoAction,
   cerrarLavadoAction,
   deleteWashJobAction,
   marcarListoAction,
@@ -12,7 +13,7 @@ import { FormSinSenal, useAccionSinSenal } from "@/components/SinSenal";
 import { SubmitButton } from "./SubmitButton";
 import { Alert, Card, Field } from "./ui";
 import { Icon } from "./Icon";
-import { money, shortDay } from "@/lib/format";
+import { aCampo, money, shortDay } from "@/lib/format";
 
 export type ServiceOption = { id: string; name: string; price: number };
 export type StaffOption = { id: string; name: string; color: string };
@@ -192,6 +193,22 @@ function JobCard({
           <p className="mt-0.5 text-xs text-subtle">
             {job.serviceName} · {money(job.price, currency)}
           </p>
+          {/* Dueño y jefe de patio corrigen el precio; al resto no se le muestra (FormSinSenal). */}
+          <FormSinSenal accion="cambiarPrecioLavadoAction" servidor={cambiarPrecioLavadoAction} className="mt-1.5 flex items-center gap-1.5">
+            <input type="hidden" name="washJobId" value={job.id} />
+            <input
+              name="price"
+              type="text"
+              inputMode="numeric"
+              defaultValue={aCampo(job.price, currency)}
+              aria-label="Precio del lavado"
+              className="input w-24 px-2 py-1 text-xs"
+              required
+            />
+            <SubmitButton className="btn-ghost btn-sm px-2 text-xs" pendingText="...">
+              Cambiar precio
+            </SubmitButton>
+          </FormSinSenal>
         </div>
         <FormSinSenal accion="deleteWashJobAction" servidor={deleteWashJobAction}>
           <input type="hidden" name="id" value={job.id} />

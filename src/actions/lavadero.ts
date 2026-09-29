@@ -7,7 +7,7 @@ import type { PaymentMethod } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { todayIn } from "@/lib/dates";
-import { parseMoney, str } from "@/lib/format";
+import { money, parseMoney, str } from "@/lib/format";
 import { anotarActividad } from "@/lib/actividad";
 import { esDueno, esSupervisor, puedeHacer } from "@/lib/permisos-empleado";
 import {
@@ -342,7 +342,7 @@ export async function recibirEntregaAction(formData: FormData) {
 }
 
 /**
- * El dueño corrige el precio de un lavado (por ejemplo, uno que quedo en $18
+ * Corrige el precio de un lavado (por ejemplo, uno que quedo en $18
  * porque escribieron "18.000" y se leyo mal).
  *
  * Si el lavado ya se cobro, su venta cambia con el: sin eso la caja y el
@@ -350,8 +350,9 @@ export async function recibirEntregaAction(formData: FormData) {
  * autorizada no se toca, igual que al editarla desde Ventas.
  */
 export async function cambiarPrecioLavadoAction(formData: FormData) {
+  // El dueño y el jefe de patio; el cambio queda en Empleados > Auditoria.
   const { user, staff } = await requireSession();
-  if (!esDueno(staff.role)) return;
+  if (!puedeHacer(staff.role, "cambiarPrecioLavadoAction")) return;
 
   const id = str(formData.get("washJobId"));
   const price = parseMoney(formData.get("price"), user.currency);
@@ -381,7 +382,18 @@ export async function cambiarPrecioLavadoAction(formData: FormData) {
 
   await anotarActividad(
     { user, staff },
-    { tipo: "cambio", detalle: "Cambió el precio del lavado de " + job.clientName, monto: price }
+    {
+      tipo: "cambio",
+      detalle:
+        "Cambió el precio del lavado de " +
+        job.clientName +
+        (job.vehiclePlate ? " (" + job.vehiclePlate + ")" : "") +
+        " de " +
+        money(job.price, user.currency) +
+        " a " +
+        money(price, user.currency),
+      monto: price,
+    }
   );
   revalidatePath("/panel/patio/lavador/" + (job.assignedStaffId ?? ""));
   revalidatePath("/panel/patio");

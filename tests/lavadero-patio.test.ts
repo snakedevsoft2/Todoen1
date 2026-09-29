@@ -53,12 +53,17 @@ afterAll(async () => {
 });
 
 describe("permisos del jefe de patio", () => {
-  it("el jefe de patio puede borrar y cambiar ventas y vehículos; el lavador no", () => {
-    expect(puedeHacer("SUPERVISOR", "deleteSaleAction")).toBe(true);
+  it("el jefe de patio cambia ventas, vehículos y precios, pero no borra; el lavador ninguna", () => {
     expect(puedeHacer("SUPERVISOR", "updateSalePaymentAction")).toBe(true);
-    expect(puedeHacer("SUPERVISOR", "deleteWashJobAction")).toBe(true);
+    expect(puedeHacer("SUPERVISOR", "updateWashJobAction")).toBe(true);
+    expect(puedeHacer("SUPERVISOR", "cambiarPrecioLavadoAction")).toBe(true);
+    expect(puedeHacer("SUPERVISOR", "deleteSaleAction")).toBe(false);
+    expect(puedeHacer("SUPERVISOR", "deleteWashJobAction")).toBe(false);
     expect(puedeHacer("VENDEDOR", "deleteSaleAction")).toBe(false);
     expect(puedeHacer("VENDEDOR", "deleteWashJobAction")).toBe(false);
+    expect(puedeHacer("VENDEDOR", "cambiarPrecioLavadoAction")).toBe(false);
+    expect(puedeHacer("DUENO", "deleteSaleAction")).toBe(true);
+    expect(puedeHacer("DUENO", "cambiarPrecioLavadoAction")).toBe(true);
   });
 
   it("se llama Jefe de patio en el lavadero, y Supervisor en cualquier otro negocio", () => {

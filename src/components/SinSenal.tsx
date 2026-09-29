@@ -84,6 +84,7 @@ const ETIQUETA: Record<string, string> = {
   updateSaleAction: "Editar una venta",
   addSaleItemAction: "Agregar a una venta",
   deleteSaleAction: "Borrar una venta",
+  cambiarPrecioLavadoAction: "Cambiar el precio de un lavado",
 };
 
 /** Un error por no poder hablar con el servidor (y no por lo que se mando). */
