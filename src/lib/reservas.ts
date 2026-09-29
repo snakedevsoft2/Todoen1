@@ -14,6 +14,23 @@ import { anotarCliente, type Origen } from "./clientes";
  * el agente dejaria separar un domingo o encima de otro cliente.
  */
 
+/**
+ * Quienes aparecen para reservar en la agenda publica.
+ *
+ * En la barberia, cada barbero con su agenda. En el lavadero, solo los jefes
+ * de patio: ellos reciben el vehiculo y despues le asignan el lavador (ver
+ * recibirDesdeReservaAction y asignarLavadorAction). Mostrar a los lavadores
+ * dejaba al cliente escoger quien lava, que no es como funciona el patio.
+ */
+export function quienesReciben(shop: { id: string; businessType: string }) {
+  return {
+    userId: shop.id,
+    active: true,
+    bookable: true,
+    ...(shop.businessType === "LAVADERO" ? { role: "SUPERVISOR" as const } : {}),
+  };
+}
+
 export type HorariosDelDia = {
   abierto: boolean;
   motivo?: string;
@@ -35,7 +52,7 @@ export async function horariosLibres(shop: NegocioSinImagenes, day: string): Pro
 
   const [team, citas] = await Promise.all([
     db.staff.findMany({
-      where: { userId: shop.id, active: true, bookable: true },
+      where: quienesReciben(shop),
       orderBy: [{ role: "asc" }, { createdAt: "asc" }],
       select: { id: true, name: true },
     }),
@@ -120,7 +137,7 @@ export async function reservarTurno(shop: NegocioSinImagenes, d: DatosReserva, o
 
   // Quien atiende. El cliente puede elegir barbero o dejar "el que este libre".
   const team = await db.staff.findMany({
-    where: { userId: shop.id, active: true, bookable: true },
+    where: quienesReciben(shop),
     orderBy: { createdAt: "asc" },
   });
 

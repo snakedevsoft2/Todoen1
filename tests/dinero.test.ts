@@ -55,6 +55,20 @@ describe("leer lo que escribe la persona", () => {
     expect(parseMoney("20,000", "COP")).toBe(20000);
   });
 
+  it("en pesos, de 1 a 99 le faltan los ceros: 18 es 18.000", () => {
+    expect(parseMoney("18", "COP")).toBe(18000);
+    expect(parseMoney("25", "COP")).toBe(25000);
+    expect(parseMoney("1", "COP")).toBe(1000);
+    expect(parseMoney("99", "COP")).toBe(99000);
+    expect(parseMoney("18")).toBe(18000);
+    // De 100 para arriba se respeta: un dulce si puede valer $500.
+    expect(parseMoney("100", "COP")).toBe(100);
+    expect(parseMoney("500", "COP")).toBe(500);
+    expect(parseMoney("0", "COP")).toBe(0);
+    // En monedas con centavos no se toca.
+    expect(parseMoney("18", "USD")).toBe(1800);
+  });
+
   it("ignora el simbolo y los espacios", () => {
     expect(parseMoney("$ 20.000", "COP")).toBe(20000);
     expect(parseMoney("$0.40", "USD")).toBe(40);

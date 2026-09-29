@@ -10,7 +10,7 @@ import { reservarTurno } from "@/lib/reservas";
 import { requireOwner, requireSession } from "@/lib/auth";
 import { isValidDay } from "@/lib/dates";
 import { endTimeFor } from "@/lib/slots";
-import { parseIntSafe, str } from "@/lib/format";
+import { parseMoney, str } from "@/lib/format";
 import { waLink } from "@/lib/whatsapp";
 import { anotarActividad } from "@/lib/actividad";
 import { nextReceiptSeq } from "@/lib/receipt-seq";
@@ -292,7 +292,9 @@ export async function closeAppointmentSaleAction(formData: FormData) {
   });
   if (!appointment || appointment.sale) return;
 
-  const amount = Math.max(0, parseIntSafe(formData.get("amount"), appointment.price));
+  // parseMoney y no parseIntSafe: "18.000" con punto se guardaba como 18.
+  const amountRaw = str(formData.get("amount"));
+  const amount = amountRaw ? parseMoney(amountRaw, user.currency) : appointment.price;
   const paymentMethod = readPayment(formData.get("paymentMethod"));
 
   const ventaTurno = await db.$transaction(async (tx) => {

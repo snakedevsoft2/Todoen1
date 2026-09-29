@@ -10,7 +10,7 @@ import { variantLabel } from "./variants";
 import { aiEnabled, conversarConHerramientas, type Contenido, type Herramienta } from "./ai";
 import { anotarCliente, type Origen } from "./clientes";
 import { llaveNombre } from "./crm";
-import { horariosLibres, reservarTurno } from "./reservas";
+import { horariosLibres, quienesReciben, reservarTurno } from "./reservas";
 import { dejarRecado, registrarPedido, type Resultado } from "./agente-acciones";
 import {
   MAX_POR_CONVERSACION_DIA,
@@ -165,7 +165,7 @@ export async function instruccionesDe(
       },
     }),
     agenda
-      ? db.staff.findMany({ where: { userId: shop.id, active: true, bookable: true }, select: { name: true } })
+      ? db.staff.findMany({ where: quienesReciben(shop), select: { name: true } })
       : Promise.resolve([]),
   ]);
 
@@ -444,7 +444,7 @@ async function agendar(
   const barberoPedido = llaveNombre(String(args.barbero ?? ""));
   if (barberoPedido) {
     const equipo = await db.staff.findMany({
-      where: { userId: shop.id, active: true, bookable: true },
+      where: quienesReciben(shop),
       select: { id: true, name: true },
     });
     const coinciden = equipo.filter((p) => {

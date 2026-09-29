@@ -7,7 +7,7 @@ import type { PaymentMethod } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { todayIn } from "@/lib/dates";
-import { parseIntSafe, parseMoney, str } from "@/lib/format";
+import { parseMoney, str } from "@/lib/format";
 import { anotarActividad } from "@/lib/actividad";
 import { esDueno, esSupervisor, puedeHacer } from "@/lib/permisos-empleado";
 import {
@@ -56,7 +56,8 @@ export async function recibirVehiculoAction(_prev: PatioState, formData: FormDat
   // Vacio: se usa el precio del catalogo. Con algo escrito, ese manda (se
   // vendio mas barato o mas caro que de costumbre).
   const priceRaw = str(formData.get("price"));
-  const price = priceRaw ? Math.max(0, parseIntSafe(formData.get("price"), 0)) : null;
+  // parseMoney y no parseIntSafe: "18.000" con punto se guardaba como 18.
+  const price = priceRaw ? parseMoney(priceRaw, user.currency) : null;
 
   const job = await crearWashJob(user.id, todayIn(user.timezone), {
     clientName,
@@ -144,7 +145,8 @@ export async function cerrarLavadoAction(_prev: PatioState, formData: FormData):
   const job = await db.washJob.findFirst({ where: { id: washJobId, userId: user.id } });
   if (!job) return { error: "No encontramos ese vehículo." };
 
-  const amount = Math.max(0, parseIntSafe(formData.get("amount"), job.price));
+  const amountRaw = str(formData.get("amount"));
+  const amount = amountRaw ? parseMoney(amountRaw, user.currency) : job.price;
 
   // "Pendiente": se lleva el carro y paga despues. Queda por cobrar en el patio.
   if (String(formData.get("paymentMethod")) === "PENDIENTE") {

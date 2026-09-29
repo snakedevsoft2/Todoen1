@@ -16,6 +16,7 @@ import { ChatAgente } from "@/components/ChatAgente";
 import { aiEnabled } from "@/lib/ai";
 import { configDe, saludoDe } from "@/lib/agente";
 import { negocioTieneLogo, serviciosConFoto } from "@/lib/imagenes";
+import { quienesReciben } from "@/lib/reservas";
 
 export const dynamic = "force-dynamic";
 
@@ -66,7 +67,7 @@ export default async function ReservarPage({
       select: { startTime: true, staffId: true },
     }),
     db.staff.findMany({
-      where: { userId: shop.id, active: true, bookable: true },
+      where: quienesReciben(shop),
       orderBy: [{ role: "asc" }, { createdAt: "asc" }],
       select: { id: true, name: true, color: true },
     }),

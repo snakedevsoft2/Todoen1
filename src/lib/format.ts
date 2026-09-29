@@ -119,8 +119,16 @@ export function parseMoney(
     }
   }
 
-  const n = Number(raw);
+  let n = Number(raw);
   if (!Number.isFinite(n)) return 0;
+
+  /*
+   * En pesos colombianos nada vale menos de cien pesos: quien escribe "18" en
+   * una venta quiso decir 18.000 y le dio pereza teclear los ceros. Asi quedo
+   * un lavado de $18. Se completan los tres ceros de 1 a 99; de 100 para
+   * arriba se respeta lo escrito, porque un dulce si puede valer $500.
+   */
+  if (currency === "COP" && n > 0 && n < 100) n *= 1000;
 
   /*
    * La plata nunca es negativa ni infinita.
