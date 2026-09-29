@@ -136,8 +136,8 @@ try {
     await page.click("text=Cobrar");
     await page.selectOption('select[name="paymentMethod"]', "PENDIENTE");
     await shot(page, "6-cobrar-pendiente");
-    await page.click("text=Dejar pendiente");
-    await page.waitForSelector("text=Quedó pendiente de pago", { timeout: 30000 }).catch(() => {});
+    await page.click("text=Dejar en pendientes");
+    await page.waitForSelector("text=Quedó en pendientes", { timeout: 30000 }).catch(() => {});
     const debe = await db.washJob.findUnique({ where: { id: listoJob.id }, include: { sale: true } });
     ok(debe?.status === "POR_COBRAR" && !debe.sale, "patio: el carro quedó pendiente de pago sin venta");
     await page.reload({ waitUntil: "networkidle" });
@@ -165,6 +165,20 @@ try {
     await page.waitForURL(/\/panel\/marcar/);
     ok((await page.content()).includes("Volver a mis lavados"), "marcar: el lavador no ve enlaces a pantallas que no son suyas");
     await shot(page, "5-marcar-jhon");
+    await ctx.close();
+  }
+
+  // --- Camila marcó entrada ayer y no marcó salida: al abrir Marcar hoy la app se la pone sola.
+  {
+    const camila = user.staff.find((s) => s.name === "Camila");
+    await db.attendance.create({
+      data: { userId: user.id, staffId: camila.id, kind: "ENTRADA", clientKey: "ayer-" + S, markedAt: new Date(Date.now() - 30 * 3600000) },
+    });
+    const { ctx, page } = await entrar("camila-" + S + "@test.local");
+    await page.goto(BASE + "/panel/marcar", { waitUntil: "networkidle" });
+    const auto = await db.attendance.findFirst({ where: { staffId: camila.id, kind: "SALIDA", automatic: true } });
+    ok(Boolean(auto), "marcar: la salida olvidada de ayer se puso sola");
+    ok((await page.content()).includes("Marcar entrada"), "marcar: hoy le toca marcar entrada");
     await ctx.close();
   }
 

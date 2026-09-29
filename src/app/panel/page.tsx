@@ -278,7 +278,7 @@ export default async function PanelHomePage() {
             hint={
               "Por cobrar " +
               money(pendientesValor, user.currency) +
-              (sinPagar > 0 ? " · " + sinPagar + " pendiente de pago" : "")
+              (sinPagar > 0 ? " · " + sinPagar + (sinPagar === 1 ? " pendiente" : " pendientes") + " sin pagar" : "")
             }
             tone={pendientesPatio.length > 0 ? "amber" : "brand"}
           />

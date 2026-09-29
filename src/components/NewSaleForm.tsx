@@ -152,6 +152,7 @@ export function NewSaleForm({
   team = [],
   defaultStaffId,
   staffLabel = "Quién atendió",
+  etiquetaCredito = "Cuentas por cobrar (fiado)",
   timezone,
   cuenta,
   esHoy,
@@ -179,6 +180,8 @@ export function NewSaleForm({
   team?: StaffRow[];
   defaultStaffId?: string;
   staffLabel?: string;
+  /** Como se llama la venta sin pagar: en el lavadero es "Pendientes", no fiado. */
+  etiquetaCredito?: string;
   /** Zona del negocio, para poner la fecha de hoy aunque la pagina venga guardada de otro dia. */
   timezone: string;
   /** Quien esta registrando: su cola de pendientes es solo suya. */
@@ -655,7 +658,7 @@ export function NewSaleForm({
           <option value="TARJETA">Tarjeta</option>
           <option value="TRANSFERENCIA">Transferencia</option>
           <option value="OTRO">Otro</option>
-          <option value="CREDITO">Cuentas por cobrar (fiado)</option>
+          <option value="CREDITO">{etiquetaCredito}</option>
         </select>
       </Field>
       <ClienteSelector

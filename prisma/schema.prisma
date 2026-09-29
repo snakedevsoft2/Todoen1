@@ -1352,6 +1352,11 @@ model Attendance {
   voidedReason    String?
   voidedByStaffId String?
 
+  /// Salida que puso la aplicacion porque la persona no marco la suya antes
+  /// de cambiar el dia (ver lib/salida-automatica.ts). Se muestra distinta
+  /// para que el dueño sepa que no la marco la persona.
+  automatic Boolean @default(false)
+
   createdAt DateTime @default(now())
 
   @@index([userId, markedAt])

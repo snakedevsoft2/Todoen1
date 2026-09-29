@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { getCurrentSession } from "@/lib/auth";
 import { distanciaM } from "@/lib/geo";
 import { motivoParaRechazar } from "@/lib/jornada-reglas";
+import { anularAutomaticaAlLlegarLaReal } from "@/lib/salida-automatica";
 
 /**
  * Recibe los marcajes que venian esperando en el telefono.
@@ -162,6 +163,7 @@ export async function POST(request: Request) {
           note: typeof m.note === "string" ? m.note.slice(0, 200) || null : null,
         },
       });
+      if (m.kind === "SALIDA") await anularAutomaticaAlLlegarLaReal(staff.id, markedAt);
       resultados.push({ clientKey, estado: "guardado" });
     } catch (error) {
       // La llave unica choca: dos envios del mismo marcaje llegaron a la vez.

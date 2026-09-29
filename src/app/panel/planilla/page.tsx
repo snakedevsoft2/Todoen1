@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireOwner } from "@/lib/auth";
+import { cerrarSalidasOlvidadas } from "@/lib/salida-automatica";
 import { db } from "@/lib/db";
 import { addDays, dayIn, dayRange, inicioDelDiaEn, todayIn } from "@/lib/dates";
 import { limites, type Rango } from "@/lib/rangos";
@@ -32,6 +33,7 @@ export default async function PlanillaPage({
   const tz = user.timezone;
 
   const hoy = todayIn(tz);
+  await cerrarSalidasOlvidadas(user);
   const dia = /^\d{4}-\d{2}-\d{2}$/.test(params.d ?? "") ? (params.d as string) : hoy;
   const rango: Rango = params.r === "semana" || params.r === "mes" ? params.r : "dia";
   const { desde, hasta } = limites(dia, rango);
@@ -374,7 +376,9 @@ export default async function PlanillaPage({
                             </span>
                           )}
                           {m.lat === null && " · sin ubicación"}
-                          {m.receivedAt.getTime() - m.markedAt.getTime() > 120000 && " · marcado sin señal"}
+                          {m.automatic
+                            ? " · salida automática (no la marcó)"
+                            : m.receivedAt.getTime() - m.markedAt.getTime() > 120000 && " · marcado sin señal"}
                           {m.voidedAt && <span className="text-bad"> · anulado: {m.voidedReason}</span>}
                         </span>
 

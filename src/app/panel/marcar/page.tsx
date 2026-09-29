@@ -9,6 +9,7 @@ import { Marcador, type Siguiente } from "@/components/Marcador";
 import { Icon } from "@/components/Icon";
 import { esPlanCompleto } from "@/lib/plan";
 import { esLavadorDeLavadero } from "@/lib/permisos";
+import { cerrarSalidasOlvidadas } from "@/lib/salida-automatica";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,9 @@ export default async function MarcarPage() {
   if (staff.role === "DUENO") redirect("/panel/planilla");
 
   const hoy = todayIn(user.timezone);
+  // Si ayer se le olvido marcar la salida, se la pone antes de decidir que
+  // boton le toca hoy.
+  await cerrarSalidasOlvidadas(user);
 
   // El dia va de medianoche a medianoche en la zona del NEGOCIO, no del
   // servidor: en Vercel el servidor esta en UTC y el dia se correria 5 horas.
@@ -161,10 +165,11 @@ export default async function MarcarPage() {
                         "block text-sm font-bold " + (m.voidedAt ? "text-subtle line-through" : "text-strong")
                       }
                     >
-                      {m.kind === "ENTRADA" ? "Entrada" : "Salida"} · {hora(m.markedAt)}
+                      {m.kind === "ENTRADA" ? "Entrada" : m.automatic ? "Salida automática" : "Salida"} ·{" "}
+                      {hora(m.markedAt)}
                     </span>
                     <span className="block text-[11px] text-muted">
-                      {m.site?.name ?? "Sin sitio"}
+                      {m.automatic ? "No la marcaste: la puso la aplicación al cambiar el día" : m.site?.name ?? "Sin sitio"}
                       {m.distanceM !== null && " · a " + prettyDistancia(m.distanceM)}
                       {m.lat === null && " · sin ubicación"}
                     </span>

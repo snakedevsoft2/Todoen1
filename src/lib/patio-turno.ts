@@ -23,7 +23,7 @@ export const ESTADO_PENDIENTE_LABEL: Record<string, string> = {
   EN_COLA: "En cola",
   LAVANDO: "Lavando",
   LISTO: "Listo",
-  POR_COBRAR: "Pendiente de pago",
+  POR_COBRAR: "Pendiente",
 };
 
 /** Un turno que no se entrego en 24 horas ya no cuenta: el siguiente arranca en el dia. */

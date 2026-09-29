@@ -38,7 +38,7 @@ const COLUMNAS: { status: WashJobRow["status"]; title: string }[] = [
   { status: "EN_COLA", title: "En cola" },
   { status: "LAVANDO", title: "Lavando" },
   { status: "LISTO", title: "Listo" },
-  { status: "POR_COBRAR", title: "Pendiente de pago" },
+  { status: "POR_COBRAR", title: "Pendientes" },
 ];
 
 export function PatioBoard({
@@ -296,10 +296,10 @@ function CerrarLavadoForm({ job }: { job: WashJobRow }) {
           <option value="TARJETA">Tarjeta</option>
           <option value="TRANSFERENCIA">Transferencia</option>
           <option value="OTRO">Otro</option>
-          {!yaDebe && <option value="PENDIENTE">Pendiente (paga después)</option>}
+          {!yaDebe && <option value="PENDIENTE">Pendientes</option>}
         </select>
         <SubmitButton className="btn-primary btn-sm" pendingText="Guardando...">
-          {metodo === "PENDIENTE" ? "Dejar pendiente" : "Confirmar cobro"}
+          {metodo === "PENDIENTE" ? "Dejar en pendientes" : "Confirmar cobro"}
         </SubmitButton>
       </div>
     </form>

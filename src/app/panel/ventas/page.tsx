@@ -385,6 +385,7 @@ export default async function VentasPage({
             team={team}
             defaultStaffId={me.id}
             staffLabel={isClothing ? "Quién vendió" : "Quién atendió"}
+            etiquetaCredito={user.businessType === "LAVADERO" ? "Pendientes" : undefined}
             timezone={user.timezone}
             cuenta={me.id}
             esHoy={day === today}
@@ -433,7 +434,7 @@ export default async function VentasPage({
                         <p className="text-sm font-semibold text-strong">
                           {money(f.amount, user.currency)}
                           <span className="ml-2 rounded-full border border-warn-line bg-warn-soft px-2 py-0.5 text-[10px] uppercase tracking-wide text-warn">
-                            Fiado
+                            {user.businessType === "LAVADERO" ? "Pendiente" : "Fiado"}
                           </span>
                         </p>
                         <p className="mt-1 text-xs text-body">{f.concept}</p>

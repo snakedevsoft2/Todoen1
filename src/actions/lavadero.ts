@@ -137,12 +137,12 @@ export async function cerrarLavadoAction(_prev: PatioState, formData: FormData):
     if (r.count === 0) return { error: "Ese lavado ya se cobró o no está listo." };
     await anotarActividad(
       { user, staff },
-      { tipo: "cobro", detalle: "Entregó sin cobrar el lavado de " + job.clientName + " (pendiente de pago)", monto: amount }
+      { tipo: "cobro", detalle: "Entregó sin cobrar el lavado de " + job.clientName + " (quedó en pendientes)", monto: amount }
     );
     revalidatePath("/panel/patio");
     revalidatePath("/panel/mis-lavados");
     revalidatePath("/panel");
-    return { ok: "Quedó pendiente de pago." };
+    return { ok: "Quedó en pendientes." };
   }
 
   const resultado = await cerrarLavado(user.id, washJobId, {

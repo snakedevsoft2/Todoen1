@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { inicioDelDiaEn, timeIn, todayIn } from "@/lib/dates";
 import { money, pretty12h, prettyDay, shortDay } from "@/lib/format";
 import { Icon } from "@/components/Icon";
+import { cerrarSalidasOlvidadas } from "@/lib/salida-automatica";
 import { Badge, Card, Empty, PageHeader } from "@/components/ui";
 import { FormSinSenal } from "@/components/SinSenal";
 import { marcarListoAction } from "@/actions/lavadero";
@@ -17,7 +18,7 @@ const ESTADO_LABEL: Record<string, string> = {
   LAVANDO: "Lavando",
   LISTO: "Listo",
   ENTREGADO: "Entregado",
-  POR_COBRAR: "Pendiente de pago",
+  POR_COBRAR: "Pendiente",
 };
 const ESTADO_TONO: Record<string, "amber" | "blue" | "green"> = {
   EN_COLA: "amber",
@@ -37,6 +38,7 @@ export default async function MisLavadosPage() {
   if (user.businessType !== "LAVADERO") redirect("/panel");
 
   const today = todayIn(user.timezone);
+  await cerrarSalidasOlvidadas(user);
   const [jobs, ultimoMarcaje, marcoHoy] = await Promise.all([
     // Los de hoy, y los que le quedaron sin terminar de dias anteriores.
     db.washJob.findMany({

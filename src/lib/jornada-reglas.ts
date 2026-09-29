@@ -31,10 +31,27 @@ export async function motivoParaRechazar(
       markedAt: { lt: markedAt, gte: new Date(markedAt.getTime() - VENTANA_MS) },
     },
     orderBy: { markedAt: "desc" },
-    select: { kind: true },
+    select: { kind: true, automatic: true },
   });
 
   if (kind === "SALIDA") {
+    // La salida automatica (la que pone la aplicacion al cambiar el dia) no
+    // tapa la de verdad: si la persona si marco y llega despues, se acepta y
+    // la automatica se anula (ver lib/salida-automatica.ts).
+    const real =
+      anterior?.kind === "SALIDA" && anterior.automatic
+        ? await db.attendance.findFirst({
+            where: {
+              staffId,
+              voidedAt: null,
+              automatic: false,
+              markedAt: { lt: markedAt, gte: new Date(markedAt.getTime() - VENTANA_MS) },
+            },
+            orderBy: { markedAt: "desc" },
+            select: { kind: true },
+          })
+        : anterior;
+    if (real?.kind === "ENTRADA") return null;
     if (anterior?.kind === "ENTRADA") return null;
     return anterior?.kind === "SALIDA"
       ? "Ya marcaste la salida de esa jornada."
