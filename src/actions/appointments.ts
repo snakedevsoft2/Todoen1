@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
+import { avisarVentaGuardada } from "@/lib/push";
 import type { AppointmentStatus, PaymentMethod } from "@prisma/client";
 import { db } from "@/lib/db";
 import { anotarCliente } from "@/lib/clientes";
@@ -293,8 +295,8 @@ export async function closeAppointmentSaleAction(formData: FormData) {
   const amount = Math.max(0, parseIntSafe(formData.get("amount"), appointment.price));
   const paymentMethod = readPayment(formData.get("paymentMethod"));
 
-  await db.$transaction(async (tx) => {
-    await tx.sale.create({
+  const ventaTurno = await db.$transaction(async (tx) => {
+    const venta = await tx.sale.create({
       data: {
         userId: user.id,
         day: appointment.day,
@@ -319,7 +321,9 @@ export async function closeAppointmentSaleAction(formData: FormData) {
       },
     });
     await tx.appointment.update({ where: { id: appointment.id }, data: { status: "ATENDIDO" } });
+    return venta.id;
   });
+  after(() => avisarVentaGuardada(user, { tipo: "venta", id: ventaTurno }, staff).then(() => undefined));
   await anotarActividad({ user, staff }, { tipo: "cobro", detalle: "Cobró el turno de " + appointment.clientName, monto: amount });
 
   revalidatePath("/panel/turnos");

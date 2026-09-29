@@ -8,6 +8,14 @@
     {
       "path": "/api/asistencia/salidas-automaticas",
       "schedule": "10 5 * * *"
+    },
+    {
+      "path": "/api/push/recordatorios?tipo=entrada",
+      "schedule": "30 12 * * *"
+    },
+    {
+      "path": "/api/push/recordatorios?tipo=salida",
+      "schedule": "30 23 * * *"
     }
   ]
 }

@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
+import { avisarAPersona, avisarVentaGuardada } from "@/lib/push";
 import type { PaymentMethod } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
@@ -100,7 +102,21 @@ export async function asignarLavadorAction(formData: FormData) {
   });
   if (!lavador) return;
 
-  await asignarLavador(user.id, washJobId, lavador.id);
+  const asignado = await asignarLavador(user.id, washJobId, lavador.id);
+  // Al lavador le llega al celular el carro que le toca.
+  if (asignado) {
+    const carro =
+      [asignado.vehiclePlate, asignado.vehicleType, asignado.vehicleColor].filter(Boolean).join(" · ") ||
+      asignado.clientName;
+    after(() =>
+      avisarAPersona(user.id, lavador.id, {
+        title: "Te asignaron un carro",
+        body: carro + " · " + asignado.serviceName,
+        url: "/panel/mis-lavados",
+        tag: "asignado-" + asignado.id,
+      }).then(() => undefined)
+    );
+  }
   revalidatePath("/panel/patio");
   revalidatePath("/panel/mis-lavados");
 }
@@ -151,6 +167,7 @@ export async function cerrarLavadoAction(_prev: PatioState, formData: FormData):
     day: todayIn(user.timezone),
   });
   if (!resultado) return { error: "Ese lavado ya se cobró o no está listo para cobrarse." };
+  after(() => avisarVentaGuardada(user, { tipo: "venta", id: resultado.saleId }, staff).then(() => undefined));
 
   await anotarActividad(
     { user, staff },

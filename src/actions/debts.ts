@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
+import { avisarVentaGuardada } from "@/lib/push";
 import type { PaymentMethod } from "@prisma/client";
 import { db } from "@/lib/db";
 import { anotarCliente } from "@/lib/clientes";
@@ -208,7 +210,7 @@ export async function addPaymentAction(
   const method = readPayment(formData.get("method"));
   const notes = texto(formData.get("notes")) || null;
 
-  await db.$transaction(async (tx) => {
+  const ventaAbono = await db.$transaction(async (tx) => {
     let saleId: string | null = null;
 
     if (!debt.alreadyInvoiced) {
@@ -249,7 +251,10 @@ export async function addPaymentAction(
     if (amount >= pendiente) {
       await tx.debt.update({ where: { id: debt.id }, data: { status: "PAGADA" } });
     }
+    return saleId;
   });
+  // Un abono que entra a la caja es una venta de hoy: el dueño se entera.
+  if (ventaAbono) after(() => avisarVentaGuardada(user, { tipo: "venta", id: ventaAbono }, me).then(() => undefined));
   await anotarActividad(
     { user, staff: me },
     { tipo: "abono", detalle: "Recibió un abono de " + debt.clientName + " (" + debt.concept + ")", monto: amount }

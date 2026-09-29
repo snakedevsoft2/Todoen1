@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
+import { avisarVentaGuardada } from "@/lib/push";
 import type { PaymentMethod } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireOwner, requireSession } from "@/lib/auth";
@@ -149,8 +151,8 @@ export async function closeOrderAction(formData: FormData) {
   const total = Math.max(0, computed - discount);
   const paymentMethod = readPayment(formData.get("paymentMethod"));
 
-  await db.$transaction(async (tx) => {
-    await tx.sale.create({
+  const ventaCuenta = await db.$transaction(async (tx) => {
+    const venta = await tx.sale.create({
       data: {
         userId: user.id,
         day: order.day,
@@ -174,7 +176,9 @@ export async function closeOrderAction(formData: FormData) {
       },
     });
     await tx.order.update({ where: { id: order.id }, data: { status: "PAGADA" } });
+    return venta.id;
   });
+  after(() => avisarVentaGuardada(user, { tipo: "venta", id: ventaCuenta }, staff).then(() => undefined));
   await anotarActividad(
     { user, staff },
     { tipo: "cobro", detalle: "Cobró la cuenta " + order.label + (discount > 0 ? " con descuento" : ""), monto: total }

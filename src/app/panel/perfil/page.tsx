@@ -5,6 +5,8 @@ import { PerfilForm } from "@/components/PerfilForm";
 import { PasswordForm } from "@/components/SettingsForms";
 import { StaffPasswordForm } from "@/components/StaffForms";
 import { PreguntaSeguridadForm } from "@/components/PreguntaSeguridadForm";
+import { ActivarNotificaciones } from "@/components/ActivarNotificaciones";
+import { queRecibe } from "@/lib/push-textos";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +17,7 @@ export default async function PerfilPage() {
   // mandaria de vuelta a su pantalla fija en vez de dejarlos verla.
   const { user, staff } = await requireSession({ asistenciaOk: true, lavadorOk: true });
   const esDueno = staff.role === "DUENO";
+  const avisos = queRecibe(staff.role, user.businessType);
 
   return (
     <>
@@ -32,6 +35,12 @@ export default async function PerfilPage() {
             }}
           />
         </Card>
+
+        {avisos && (
+          <Card title="Notificaciones" subtitle="Avisos al celular aunque la app esté cerrada" className="lg:col-span-2">
+            <ActivarNotificaciones variante="tarjeta" queRecibe={avisos} />
+          </Card>
+        )}
 
         <Card title="Contraseña" subtitle="Cámbiala cuando quieras">
           {esDueno ? <PasswordForm /> : <StaffPasswordForm />}

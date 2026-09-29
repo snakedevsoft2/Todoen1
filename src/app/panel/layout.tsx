@@ -26,6 +26,8 @@ import { correoDeLaSesion, esAdmin } from "@/lib/admin";
 import { ProveedorSinSenal } from "@/components/SinSenal";
 import { SinPlanCompleto } from "@/components/SinPlanCompleto";
 import { InstalarApp } from "@/components/InstalarApp";
+import { ActivarNotificaciones } from "@/components/ActivarNotificaciones";
+import { queRecibe } from "@/lib/push-textos";
 import { enlaceActivarPlan, puedeInstalar } from "@/lib/plan";
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
@@ -70,6 +72,10 @@ export default async function PanelLayout({ children }: { children: React.ReactN
       </button>
     </form>
   );
+
+  // Las notificaciones son para todos los planes: no guardan nada en el
+  // telefono, solo avisan (ver public/sw-push.js).
+  const avisosPush = queRecibe(staff.role, user.businessType);
 
   const conPagina = tienePaginaPublica(user.businessType) && !empleado && !lavador;
 
@@ -123,6 +129,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
         {/* Solo al dueño: es quien puede renovar el plan. */}
         {!empleado && staff.role === "DUENO" && <AvisoDePago paidUntil={user.paidUntil} trialEndsAt={user.trialEndsAt} businessName={user.businessName} />}
         {instalable && <InstalarApp variante="aviso" />}
+        {avisosPush && <ActivarNotificaciones variante="aviso" queRecibe={avisosPush} />}
         <ProveedorSinSenal cuenta={staff.id} sinConexion={instalable} role={staff.role}>{children}</ProveedorSinSenal>
       </Shell>
       {/* La IA Snake flotante: solo si el servidor tiene la clave del modelo, y

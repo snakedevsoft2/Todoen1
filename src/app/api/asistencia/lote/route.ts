@@ -3,6 +3,8 @@ import { getCurrentSession } from "@/lib/auth";
 import { distanciaM } from "@/lib/geo";
 import { motivoParaRechazar } from "@/lib/jornada-reglas";
 import { anularAutomaticaAlLlegarLaReal } from "@/lib/salida-automatica";
+import { after } from "next/server";
+import { avisarMarcaje } from "@/lib/push";
 
 /**
  * Recibe los marcajes que venian esperando en el telefono.
@@ -75,7 +77,7 @@ export async function POST(request: Request) {
   // Los sitios se leen una vez y no uno por marcaje.
   const sitios = await db.workSite.findMany({
     where: { userId: user.id },
-    select: { id: true, lat: true, lng: true },
+    select: { id: true, lat: true, lng: true, name: true },
   });
 
   const ahora = Date.now();
@@ -164,6 +166,11 @@ export async function POST(request: Request) {
         },
       });
       if (m.kind === "SALIDA") await anularAutomaticaAlLlegarLaReal(staff.id, markedAt);
+      // Al dueño le llega al celular quien marco. El suyo propio no (el dueño no ficha).
+      if (staff.role !== "DUENO") {
+        const aviso = { nombre: staff.name, kind: m.kind as "ENTRADA" | "SALIDA", markedAt, sitio: sitio?.name ?? null };
+        after(() => avisarMarcaje(user, aviso).then(() => undefined));
+      }
       resultados.push({ clientKey, estado: "guardado" });
     } catch (error) {
       // La llave unica choca: dos envios del mismo marcaje llegaron a la vez.

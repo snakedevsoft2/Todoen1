@@ -271,6 +271,7 @@ model User {
   staffActivities    StaffActivity[]
   washJobs           WashJob[]
   patioHandovers     PatioHandover[]
+  pushSubscriptions  PushSubscription[]
   loyaltyCards       LoyaltyCard[]
   loyaltyStamps      LoyaltyStamp[]
 
@@ -556,6 +557,8 @@ model Staff {
   entregasHechas    PatioHandover[] @relation("EntregaQueHizo")
   entregasParaMi    PatioHandover[] @relation("EntregaParaQuien")
   entregasRecibidas PatioHandover[] @relation("EntregaQueRecibio")
+  /// Los celulares o computadores donde esta persona activo las notificaciones.
+  pushSubscriptions PushSubscription[]
 
   @@index([userId, active])
 }
@@ -904,6 +907,25 @@ model WashJob {
   @@index([userId, day])
   @@index([userId, status])
   @@index([userId, assignedStaffId])
+}
+
+/// Un celular (o computador) donde una persona activo las notificaciones
+/// push. Una persona puede tener varios. Si el navegador dice que ya no
+/// existe (404/410 al mandar), se borra. Ver lib/push.ts.
+model PushSubscription {
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  staffId  String
+  staff    Staff  @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  endpoint String @unique
+  p256dh   String
+  auth     String
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([staffId])
+  @@index([userId])
 }
 
 /// Entrega de turno del patio: el jefe de patio que se va le deja al que

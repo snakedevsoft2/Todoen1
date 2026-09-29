@@ -1,4 +1,6 @@
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
+import { avisarVentaGuardada } from "@/lib/push";
 import { getCurrentSession } from "@/lib/auth";
 import { registrarVenta } from "@/lib/ventas";
 
@@ -31,6 +33,9 @@ export async function POST(request: Request) {
     revalidatePath("/panel/cartera");
     revalidatePath("/panel/clientes");
     revalidatePath("/panel");
+    // El aviso al dueño va despues de responder: el telefono no espera al push.
+    const { tipo, id } = r.datos;
+    after(() => avisarVentaGuardada(sesion.user, { tipo, id }, sesion.staff).then(() => undefined));
   }
   // `receiptSeq` tiene que ir: es el numero de recibo del negocio (0001, 0002...)
   // y el telefono lo imprime apenas termina la venta. Sin el, el recibo caia al
