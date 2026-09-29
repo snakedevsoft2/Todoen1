@@ -14,6 +14,24 @@ function texto(v: unknown, max: number) {
   return typeof v === "string" && v.length > 0 && v.length <= max ? v : null;
 }
 
+/**
+ * Los servicios de push de los navegadores (Chrome/Android/Opera/Samsung,
+ * Firefox, Edge, Safari/iPhone). El servidor le hace POST a esta direccion en
+ * cada aviso: sin esta lista, cualquiera con sesion podia ponerle una
+ * direccion suya y usar el servidor para golpear otros sitios.
+ */
+const SERVICIOS_PUSH = [".googleapis.com", ".mozilla.com", ".notify.windows.com", ".push.apple.com"];
+
+function endpointValido(endpoint: string) {
+  try {
+    const u = new URL(endpoint);
+    const host = "." + u.hostname;
+    return u.protocol === "https:" && SERVICIOS_PUSH.some((s) => host.endsWith(s));
+  } catch {
+    return false;
+  }
+}
+
 export async function POST(request: Request) {
   const sesion = await getCurrentSession();
   if (!sesion) return new Response("No autorizado.", { status: 401 });
@@ -28,7 +46,7 @@ export async function POST(request: Request) {
   const endpoint = texto(cuerpo.endpoint, 1000);
   const p256dh = texto(cuerpo.keys?.p256dh, 200);
   const auth = texto(cuerpo.keys?.auth, 100);
-  if (!endpoint || !p256dh || !auth || !endpoint.startsWith("https://")) {
+  if (!endpoint || !p256dh || !auth || !endpointValido(endpoint)) {
     return Response.json({ error: "Suscripción inválida." }, { status: 400 });
   }
 

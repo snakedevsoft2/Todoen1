@@ -30,11 +30,29 @@ function claveAplicacion(base64: string): Uint8Array {
   return Uint8Array.from(bin, (c) => c.charCodeAt(0));
 }
 
+/**
+ * El registro de sw-push.js, ya activo (sin eso no se puede suscribir).
+ *
+ * No sirve navigator.serviceWorker.ready: ese espera al trabajador que
+ * controla la pagina actual (/panel), y este vive en "/push/", asi que nunca
+ * resolvia y el boton se quedaba en "Activando..." para siempre.
+ */
 async function registro() {
-  return (
+  const reg =
     (await navigator.serviceWorker.getRegistration(SCOPE)) ??
-    (await navigator.serviceWorker.register("/sw-push.js", { scope: SCOPE }))
-  );
+    (await navigator.serviceWorker.register("/sw-push.js", { scope: SCOPE }));
+  if (reg.active) return reg;
+  const nuevo = reg.installing ?? reg.waiting;
+  if (nuevo) {
+    await new Promise<void>((listo) => {
+      const mirar = () => {
+        if (nuevo.state === "activated" || reg.active) listo();
+      };
+      nuevo.addEventListener("statechange", mirar);
+      mirar();
+    });
+  }
+  return reg;
 }
 
 export function ActivarNotificaciones({
@@ -94,7 +112,6 @@ export function ActivarNotificaciones({
         return;
       }
       const reg = await registro();
-      await navigator.serviceWorker.ready;
       const sub =
         (await reg.pushManager.getSubscription()) ??
         (await reg.pushManager.subscribe({

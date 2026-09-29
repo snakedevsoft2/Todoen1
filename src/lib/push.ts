@@ -40,7 +40,8 @@ export function pushConfigurado(): boolean {
 
 async function mandar(where: { staffId?: { in: string[] } | string; userId: string }, aviso: AvisoPush) {
   if (!pushConfigurado()) return 0;
-  const subs = await db.pushSubscription.findMany({ where });
+  // A quien desactivaron no le sigue llegando lo del negocio.
+  const subs = await db.pushSubscription.findMany({ where: { ...where, staff: { active: true } } });
   if (subs.length === 0) return 0;
 
   const payload = JSON.stringify({ url: "/panel", ...aviso });

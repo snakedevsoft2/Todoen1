@@ -7,7 +7,8 @@ import { useEffect, useState } from "react";
  * sin uso sin senal.
  *
  * Va en el panel solo cuando la cuenta tiene las funciones limitadas. Quita lo
- * que haya quedado de antes (el trabajador de fondo y las pantallas guardadas),
+ * que haya quedado de antes (el trabajador de fondo y las pantallas guardadas,
+ * pero no el de las notificaciones),
  * para que nada se abra sin senal. Lo que estaba en la cola esperando senal no
  * se toca: se sube igual.
  *
@@ -24,9 +25,11 @@ export function SinPlanCompleto({ enlace }: { enlace: string }) {
     setSitio(location.host);
 
     if ("serviceWorker" in navigator) {
+      // Menos el de las notificaciones (scope /push/): esas son de todos los
+      // planes, y quitarlo borraba la suscripcion en cada carga del panel.
       navigator.serviceWorker
         .getRegistrations()
-        .then((rs) => Promise.all(rs.map((r) => r.unregister())))
+        .then((rs) => Promise.all(rs.filter((r) => !new URL(r.scope).pathname.startsWith("/push/")).map((r) => r.unregister())))
         .catch(() => undefined);
     }
     if (typeof caches !== "undefined") {
