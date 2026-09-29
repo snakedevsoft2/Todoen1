@@ -65,9 +65,16 @@ export async function saveServiceAction(_prev: ActionState, formData: FormData):
     description: texto(formData.get("description"), 500) || null,
     price,
     cost: parseMoney(formData.get("cost"), user.currency),
-    durationMin: Math.max(5, parseIntSafe(formData.get("durationMin"), 30)),
     category,
-    bookable: formData.get("bookable") === "on",
+    // Duracion y reserva en linea solo viajan donde se reserva (barberia y
+    // lavadero). Sin el campo no se tocan: antes un formulario sin la casilla
+    // dejaba el servicio como "no reservable" y la reserva publica vacia.
+    ...(formData.has("durationMin")
+      ? {
+          durationMin: Math.max(5, parseIntSafe(formData.get("durationMin"), 30)),
+          bookable: formData.get("bookable") === "on",
+        }
+      : {}),
     active: formData.get("active") !== null ? formData.get("active") === "on" : true,
     ...(formData.has("brand") ? { brand: str(formData.get("brand")) || null } : {}),
     ...(formData.has("trackStock") ? { trackStock: formData.get("trackStock") === "on" } : {}),

@@ -28,6 +28,8 @@ export default async function CatalogoPage() {
   const esDueno = staff.role === "DUENO";
   const isBarber = user.businessType === "BARBERIA";
   const isClothing = user.businessType === "ROPA";
+  // Donde el cliente reserva en linea: el servicio lleva duracion y la casilla de reserva.
+  const seReserva = isBarber || user.businessType === "LAVADERO";
   const noun = ITEM_NOUN[user.businessType];
 
   // Las categorias escritas a mano o que llegaron desde Excel quedan creadas
@@ -106,7 +108,7 @@ export default async function CatalogoPage() {
         >
           <ServiceForm
             categories={categories}
-            showDuration={isBarber}
+            showDuration={seReserva}
             clothing={isClothing}
             photoLabel={"Foto (" + noun.singular + ")"}
             suppliers={suppliers}
@@ -195,7 +197,7 @@ export default async function CatalogoPage() {
                                 <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-strong">
                                   {s.name}
                                   {!s.active && <Badge tone="red">Inactivo</Badge>}
-                                  {isBarber && s.bookable && s.active && (
+                                  {seReserva && s.bookable && s.active && (
                                     <Badge tone="blue">Reservable</Badge>
                                   )}
                                   {isClothing && s.showcase && s.active && (
@@ -209,7 +211,7 @@ export default async function CatalogoPage() {
                                 </p>
                                 <p className="mt-0.5 text-xs text-muted">
                                   {money(s.price, user.currency)}
-                                  {isBarber ? " - " + s.durationMin + " min" : ""}
+                                  {seReserva ? " - " + s.durationMin + " min" : ""}
                                   {s.brand ? " - " + s.brand : ""}
                                   {s.cost > 0 ? " - costo " + money(s.cost, user.currency) : ""}
                                 </p>
@@ -302,7 +304,7 @@ export default async function CatalogoPage() {
                                   supplierId: s.supplierId,
                                 }}
                                 categories={categories}
-                                showDuration={isBarber}
+                                showDuration={seReserva}
                                 clothing={isClothing}
                                 photo={photo}
                                 photoLabel={"Foto (" + noun.singular + ")"}
