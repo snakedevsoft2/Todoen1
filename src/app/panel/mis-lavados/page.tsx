@@ -1,8 +1,10 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { todayIn } from "@/lib/dates";
-import { money, prettyDay } from "@/lib/format";
+import { inicioDelDiaEn, timeIn, todayIn } from "@/lib/dates";
+import { money, pretty12h, prettyDay, shortDay } from "@/lib/format";
+import { Icon } from "@/components/Icon";
 import { Badge, Card, Empty, PageHeader } from "@/components/ui";
 import { FormSinSenal } from "@/components/SinSenal";
 import { marcarListoAction } from "@/actions/lavadero";
@@ -33,11 +35,32 @@ export default async function MisLavadosPage() {
   if (user.businessType !== "LAVADERO") redirect("/panel");
 
   const today = todayIn(user.timezone);
-  const jobs = await db.washJob.findMany({
-    where: { userId: user.id, day: today, assignedStaffId: staff.id, status: { not: "CANCELADO" } },
-    orderBy: { createdAt: "asc" },
-    include: { service: { select: { durationMin: true } } },
-  });
+  const [jobs, ultimoMarcaje, marcoHoy] = await Promise.all([
+    // Los de hoy, y los que le quedaron sin terminar de dias anteriores.
+    db.washJob.findMany({
+      where: {
+        userId: user.id,
+        assignedStaffId: staff.id,
+        OR: [
+          { day: today, status: { not: "CANCELADO" } },
+          { day: { lt: today }, status: { in: ["EN_COLA", "LAVANDO", "LISTO"] } },
+        ],
+      },
+      orderBy: { createdAt: "asc" },
+      include: { service: { select: { durationMin: true } } },
+    }),
+    // Misma ventana que Marcar: una entrada de hace mas de 20 horas ya no
+    // espera salida.
+    db.attendance.findFirst({
+      where: { staffId: staff.id, voidedAt: null, markedAt: { gte: new Date(Date.now() - 20 * 60 * 60 * 1000) } },
+      orderBy: { markedAt: "desc" },
+      select: { kind: true, markedAt: true },
+    }),
+    db.attendance.count({
+      where: { staffId: staff.id, voidedAt: null, markedAt: { gte: inicioDelDiaEn(today, user.timezone) } },
+    }),
+  ]);
+  const enJornada = ultimoMarcaje?.kind === "ENTRADA";
 
   const ganancia = (precio: number) => Math.round((precio * staff.commissionPct) / 100);
   const conComision = staff.commissionPct > 0;
@@ -48,6 +71,39 @@ export default async function MisLavadosPage() {
   return (
     <>
       <PageHeader title="Mis lavados" subtitle={prettyDay(today)} />
+
+      {/* La jornada a la mano: el lavador no tiene que buscar Marcar en el menu
+          para irse. */}
+      <Link
+        href="/panel/marcar"
+        data-jornada-lavador
+        className={
+          "mb-4 flex items-center gap-3 rounded-2xl border px-4 py-3 transition hover:shadow-card-hover " +
+          (enJornada ? "border-line bg-surface" : "border-warn-line bg-warn-soft")
+        }
+      >
+        <span
+          className={
+            "flex h-10 w-10 shrink-0 items-center justify-center rounded-full " +
+            (enJornada ? "bg-brand-50 text-brand-600" : "bg-good-soft text-good")
+          }
+        >
+          <Icon name={enJornada ? "arrowOut" : "arrowIn"} className="h-5 w-5" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-bold text-strong">
+            {enJornada ? "Marcar salida" : marcoHoy > 0 ? "Jornada de hoy completa" : "Marcar entrada"}
+          </span>
+          <span className="block text-xs text-muted">
+            {enJornada && ultimoMarcaje
+              ? "Entraste a las " + pretty12h(timeIn(ultimoMarcaje.markedAt, user.timezone))
+              : marcoHoy > 0
+                ? "Ya marcaste entrada y salida hoy"
+                : "Todavía no has marcado tu entrada"}
+          </span>
+        </span>
+        <Icon name="chevronDown" className="h-4 w-4 shrink-0 -rotate-90 text-subtle" />
+      </Link>
 
       <div className="mb-4 grid grid-cols-2 gap-3">
         <div className="card-tight">
@@ -82,6 +138,9 @@ export default async function MisLavadosPage() {
                       {job.serviceName}
                       {job.service?.durationMin ? " · " + job.service.durationMin + " min aprox." : ""}
                     </p>
+                    {job.day < today && (
+                      <p className="text-[11px] font-semibold text-warn">Pendiente desde el {shortDay(job.day)}</p>
+                    )}
                   </div>
                   <Badge tone={ESTADO_TONO[job.status] ?? "amber"}>{ESTADO_LABEL[job.status] ?? job.status}</Badge>
                 </div>

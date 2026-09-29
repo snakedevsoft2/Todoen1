@@ -1,14 +1,17 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { todayIn } from "@/lib/dates";
 import { prettyDay, shortDay } from "@/lib/format";
 import { PageHeader, Card, Empty } from "@/components/ui";
+import { Icon } from "@/components/Icon";
 import { PatioBoard, type StaffOption, type WashJobRow } from "@/components/PatioBoard";
 import { SubmitButton } from "@/components/SubmitButton";
 import { FormSinSenal } from "@/components/SinSenal";
 import { recibirDesdeReservaAction } from "@/actions/lavadero";
 import { esDueno, esSupervisor } from "@/lib/permisos-empleado";
+import { ESTADOS_PENDIENTES, entregaPorRecibir } from "@/lib/patio-turno";
 
 export const dynamic = "force-dynamic";
 
@@ -19,9 +22,11 @@ export default async function PatioPage() {
 
   const today = todayIn(user.timezone);
 
-  const [jobs, lavadores, services, reservados] = await Promise.all([
+  // Sin filtrar por dia: el carro que quedo sin entregar ayer sigue en el
+  // patio hoy, y el jefe de patio que llega lo tiene que ver.
+  const [jobs, lavadores, services, reservados, porRecibir] = await Promise.all([
     db.washJob.findMany({
-      where: { userId: user.id, day: today, status: { in: ["EN_COLA", "LAVANDO", "LISTO"] } },
+      where: { userId: user.id, status: { in: ESTADOS_PENDIENTES } },
       orderBy: { createdAt: "asc" },
       include: { assignedStaff: { select: { id: true, name: true, color: true } } },
     }),
@@ -39,10 +44,12 @@ export default async function PatioPage() {
       where: { userId: user.id, day: today, status: { in: ["PENDIENTE", "CONFIRMADO"] }, washJob: null },
       orderBy: { startTime: "asc" },
     }),
+    entregaPorRecibir(user.id, me.id),
   ]);
 
   const rows: WashJobRow[] = jobs.map((j) => ({
     id: j.id,
+    day: j.day,
     clientName: j.clientName,
     clientPhone: j.clientPhone,
     vehiclePlate: j.vehiclePlate,
@@ -60,7 +67,31 @@ export default async function PatioPage() {
 
   return (
     <>
-      <PageHeader title="Patio" subtitle={prettyDay(today)} />
+      <PageHeader title="Patio" subtitle={prettyDay(today)}>
+        <Link href="/panel/patio/entrega" className="btn-ghost btn-sm">
+          <Icon name="clock" className="h-4 w-4" />
+          Entregar turno
+        </Link>
+      </PageHeader>
+
+      {porRecibir && (
+        <section className="mb-5 rounded-2xl border border-warn-line bg-warn-soft p-4">
+          <p className="text-sm font-bold text-strong">
+            {(porRecibir.fromStaff?.name ?? "El jefe de patio anterior") + " te entregó el patio"}
+          </p>
+          <p className="mt-1 text-xs text-muted">
+            {porRecibir.pendingCount === 0
+              ? "Sin vehículos pendientes."
+              : porRecibir.pendingCount === 1
+                ? "Dejó 1 vehículo pendiente."
+                : "Dejó " + porRecibir.pendingCount + " vehículos pendientes."}{" "}
+            Revísala y confírmala.
+          </p>
+          <Link href="/panel/patio/entrega" className="btn-primary btn-sm mt-3">
+            Ver la entrega
+          </Link>
+        </section>
+      )}
 
       {reservados.length > 0 && (
         <Card className="mb-5" title="Reservados hoy" subtitle="Separados desde tu página pública">
@@ -93,7 +124,7 @@ export default async function PatioPage() {
       {equipo.length === 0 ? (
         <Empty title="Todavía no tienes lavadores" hint="Agrégalos desde Equipo para poder asignarles vehículos." />
       ) : (
-        <PatioBoard jobs={rows} lavadores={equipo} services={services} currency={user.currency} />
+        <PatioBoard jobs={rows} lavadores={equipo} services={services} currency={user.currency} today={today} />
       )}
     </>
   );

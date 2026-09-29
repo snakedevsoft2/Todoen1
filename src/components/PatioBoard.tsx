@@ -12,13 +12,15 @@ import { FormSinSenal, useAccionSinSenal } from "@/components/SinSenal";
 import { SubmitButton } from "./SubmitButton";
 import { Alert, Card, Field } from "./ui";
 import { Icon } from "./Icon";
-import { money } from "@/lib/format";
+import { money, shortDay } from "@/lib/format";
 
 export type ServiceOption = { id: string; name: string; price: number };
 export type StaffOption = { id: string; name: string; color: string };
 
 export type WashJobRow = {
   id: string;
+  /** El dia en que llego: si no es hoy, es un pendiente que quedo de antes. */
+  day: string;
   clientName: string;
   clientPhone: string;
   vehiclePlate: string | null;
@@ -43,11 +45,13 @@ export function PatioBoard({
   lavadores,
   services,
   currency,
+  today,
 }: {
   jobs: WashJobRow[];
   lavadores: StaffOption[];
   services: ServiceOption[];
   currency: string;
+  today: string;
 }) {
   return (
     <div className="space-y-5">
@@ -68,7 +72,7 @@ export function PatioBoard({
                   </p>
                 ) : (
                   enEstaColumna.map((job) => (
-                    <JobCard key={job.id} job={job} lavadores={lavadores} currency={currency} />
+                    <JobCard key={job.id} job={job} lavadores={lavadores} currency={currency} today={today} />
                   ))
                 )}
               </div>
@@ -162,13 +166,21 @@ function JobCard({
   job,
   lavadores,
   currency,
+  today,
 }: {
   job: WashJobRow;
   lavadores: StaffOption[];
   currency: string;
+  today: string;
 }) {
+  const deAntes = job.day < today;
   return (
-    <div className="rounded-xl border border-line bg-surface p-3">
+    <div className={"rounded-xl border bg-surface p-3 " + (deAntes ? "border-warn-line" : "border-line")}>
+      {deAntes && (
+        <p className="mb-1.5 inline-block rounded-full bg-warn-soft px-2 py-0.5 text-[11px] font-semibold text-warn">
+          Pendiente desde el {shortDay(job.day)}
+        </p>
+      )}
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-strong">{job.clientName}</p>

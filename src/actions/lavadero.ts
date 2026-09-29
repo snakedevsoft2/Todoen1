@@ -5,7 +5,7 @@ import type { PaymentMethod } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { todayIn } from "@/lib/dates";
-import { parseIntSafe, str } from "@/lib/format";
+import { parseIntSafe, parseMoney, str } from "@/lib/format";
 import { anotarActividad } from "@/lib/actividad";
 import { esDueno, esSupervisor, puedeHacer } from "@/lib/permisos-empleado";
 import {
@@ -16,6 +16,7 @@ import {
   marcarListo,
 } from "@/lib/lavadero";
 import { avisoDeCercania } from "@/lib/fidelizacion";
+import { entregarTurno, inicioDelTurno, recibirEntrega } from "@/lib/patio-turno";
 
 export type PatioState = { error?: string; ok?: string; aviso?: string } | undefined;
 
@@ -236,4 +237,69 @@ export async function updateWashJobAction(formData: FormData) {
     { tipo: "cambio", detalle: "Cambió los datos del vehículo de " + job.clientName }
   );
   revalidatePath("/panel/patio");
+}
+
+/**
+ * El jefe de patio cierra su turno y se lo entrega al siguiente: queda la foto
+ * de lo cobrado, lo que es de los lavadores, el efectivo que deja en mano y
+ * los vehiculos que siguen en el patio. Los vehiculos no se tocan: el que
+ * llega los sigue viendo en el tablero.
+ */
+export async function entregarTurnoAction(_prev: PatioState, formData: FormData): Promise<PatioState> {
+  const { user, staff } = await requireSession();
+  if (!esDePatio(staff.role)) return { error: "Solo el jefe de patio o el dueño entregan el turno." };
+
+  const hoy = todayIn(user.timezone);
+  const toRaw = str(formData.get("toStaffId"));
+  const siguiente = toRaw
+    ? await db.staff.findFirst({
+        where: { id: toRaw, userId: user.id, active: true, role: { in: ["SUPERVISOR", "DUENO"] } },
+        select: { id: true, name: true },
+      })
+    : null;
+  if (toRaw && !siguiente) return { error: "Esa persona no puede recibir el patio." };
+  if (siguiente?.id === staff.id) return { error: "No te puedes entregar el turno a ti mismo." };
+
+  const since = await inicioDelTurno(user.id, hoy, user.timezone);
+  const entrega = await entregarTurno(user.id, {
+    day: hoy,
+    since,
+    fromStaffId: staff.id,
+    toStaffId: siguiente?.id ?? null,
+    cashDelivered: parseMoney(formData.get("cashDelivered"), user.currency),
+    notes: str(formData.get("notes"), "", 1000) || null,
+  });
+
+  await anotarActividad(
+    { user, staff },
+    {
+      tipo: "caja",
+      detalle:
+        "Entregó el turno del patio" +
+        (siguiente ? " a " + siguiente.name : "") +
+        " con " +
+        entrega.pendingCount +
+        (entrega.pendingCount === 1 ? " vehículo pendiente" : " vehículos pendientes"),
+      monto: entrega.totalSales,
+    }
+  );
+
+  revalidatePath("/panel/patio");
+  revalidatePath("/panel/patio/entrega");
+  revalidatePath("/panel");
+  return { ok: "Turno entregado" + (siguiente ? " a " + siguiente.name : "") + "." };
+}
+
+/** El jefe de patio que llega confirma que recibio el patio como se lo dejaron. */
+export async function recibirEntregaAction(formData: FormData) {
+  const { user, staff } = await requireSession();
+  if (!esDePatio(staff.role)) return;
+
+  const id = str(formData.get("id"));
+  const r = await recibirEntrega(user.id, id, staff.id);
+  if (r.count > 0) {
+    await anotarActividad({ user, staff }, { tipo: "caja", detalle: "Recibió el turno del patio" });
+  }
+  revalidatePath("/panel/patio");
+  revalidatePath("/panel/patio/entrega");
 }

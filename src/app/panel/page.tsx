@@ -15,6 +15,7 @@ import { variantLabel } from "@/lib/variants";
 import { tourSteps } from "@/lib/tour";
 import { Badge, Card, Empty, PageHeader, Stat, StatusBadge } from "@/components/ui";
 import { GuiaInicial } from "@/components/GuiaInicial";
+import { repartoDelDia, vehiculosPendientes } from "@/lib/patio-turno";
 import { Icon } from "@/components/Icon";
 
 export const dynamic = "force-dynamic";
@@ -55,7 +56,7 @@ export default async function PanelHomePage() {
           },
         })
       : Promise.resolve([]),
-    isBarber || isClothing
+    isBarber || isClothing || isLavadero
       ? Promise.resolve([])
       : db.order.findMany({
           where: { userId: user.id, status: "ABIERTA" },
@@ -112,24 +113,26 @@ export default async function PanelHomePage() {
     0
   );
 
-  // Como va cada lavador hoy: cuantos carros lleva y cuanto vendio.
-  const [lavadoresTeam, washJobsHoy] = isLavadero
+  // Lavadero: de lo que entro hoy, cuanto es de los lavadores (su comision) y
+  // cuanto del lavadero, como va cada lavador, y que carros siguen en el
+  // patio sin entregar (tambien los que quedaron de dias anteriores).
+  const [lavadoresTeam, reparto, pendientesPatio] = isLavadero
     ? await Promise.all([
         db.staff.findMany({
           where: { userId: user.id, active: true, role: "VENDEDOR" },
           orderBy: { createdAt: "asc" },
-          select: { id: true, name: true, color: true },
+          select: { id: true, name: true, color: true, commissionPct: true },
         }),
-        db.washJob.findMany({
-          where: { userId: user.id, day: today, status: "ENTREGADO" },
-          select: { assignedStaffId: true, price: true },
-        }),
+        repartoDelDia(user.id, today),
+        vehiculosPendientes(user.id),
       ])
-    : [[], []];
+    : [[], null, []];
   const porLavador = lavadoresTeam.map((person) => {
-    const suyos = washJobsHoy.filter((j) => j.assignedStaffId === person.id);
-    return { ...person, count: suyos.length, total: suyos.reduce((sum, j) => sum + j.price, 0) };
+    const suyo = reparto?.porLavador.get(person.id);
+    return { ...person, count: suyo?.count ?? 0, total: suyo?.total ?? 0, comision: suyo?.comision ?? 0 };
   });
+  const pendientesValor = pendientesPatio.reduce((sum, j) => sum + j.price, 0);
+  const lavadosHoy = reparto ? [...reparto.porLavador.values()].reduce((sum, f) => sum + f.count, 0) : 0;
 
   // Lo que hay que hacer hoy con los clientes. Sale solo si hay algo: quien no
   // usa el CRM no tiene por que ver un cuadro vacio.
@@ -172,10 +175,21 @@ export default async function PanelHomePage() {
               <Icon name="box" className="h-4 w-4" />
               Ver inventario
             </Link>
+          ) : isLavadero ? (
+            <Link href="/panel/patio" className="btn-primary btn-sm">
+              <Icon name="car" className="h-4 w-4" />
+              Ver patio
+            </Link>
           ) : (
             <Link href="/panel/cuentas" className="btn-primary btn-sm">
               <Icon name="table" className="h-4 w-4" />
               Cuentas abiertas
+            </Link>
+          )}
+          {isLavadero && (
+            <Link href="/panel/patio/entrega" className="btn-ghost btn-sm">
+              <Icon name="clock" className="h-4 w-4" />
+              Entrega de turno
             </Link>
           )}
           <Link href="/panel/ventas" className="btn-ghost btn-sm">
@@ -256,6 +270,13 @@ export default async function PanelHomePage() {
             }
             tone={stock.lowCount + stock.outCount > 0 ? "amber" : "brand"}
           />
+        ) : isLavadero ? (
+          <Stat
+            label="Carros pendientes"
+            value={String(pendientesPatio.length)}
+            hint={"Por cobrar " + money(pendientesValor, user.currency)}
+            tone={pendientesPatio.length > 0 ? "amber" : "brand"}
+          />
         ) : (
           <Stat
             label={isBarber ? "Turnos separados hoy" : "Cuentas abiertas"}
@@ -295,8 +316,35 @@ export default async function PanelHomePage() {
         </div>
       )}
 
+      {isLavadero && reparto && (
+        <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4" data-reparto-lavadero>
+          <Stat
+            label="Ingreso del lavadero"
+            value={money(reparto.lavadero, user.currency)}
+            hint="Ventas menos comisiones"
+            tone="good"
+          />
+          <Stat
+            label="Para los lavadores"
+            value={money(reparto.lavadores, user.currency)}
+            hint="Su comisión de hoy"
+          />
+          <Stat
+            label="Lavadero menos gastos"
+            value={money(reparto.lavadero - summary.totalExpenses, user.currency)}
+            hint="Lo que le queda limpio al negocio"
+            tone={reparto.lavadero - summary.totalExpenses >= 0 ? "good" : "bad"}
+          />
+          <Stat
+            label="Carros lavados hoy"
+            value={String(lavadosHoy)}
+            hint={pendientesPatio.length + " siguen en el patio"}
+          />
+        </div>
+      )}
+
       {isLavadero && porLavador.length > 0 && (
-        <Card className="mt-4" title="Tus lavadores" subtitle="Cuántos carros lleva cada uno hoy">
+        <Card className="mt-4" title="Tus lavadores" subtitle="Cuántos carros lleva cada uno hoy y cuánto gana">
           <ul className="space-y-2">
             {porLavador.map((person) => (
               <li key={person.id}>
@@ -318,6 +366,8 @@ export default async function PanelHomePage() {
                         : person.count === 1
                           ? "1 carro lavado"
                           : person.count + " carros lavados"}
+                      {person.commissionPct > 0 &&
+                        " · gana " + money(person.comision, user.currency) + " (" + person.commissionPct + "%)"}
                     </p>
                   </div>
                   <span className="shrink-0 text-base font-bold text-good">
@@ -421,6 +471,46 @@ export default async function PanelHomePage() {
                     <Badge tone={v.stock <= 0 ? "red" : "amber"}>
                       {v.stock <= 0 ? "Agotada" : "Quedan " + v.stock}
                     </Badge>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        ) : isLavadero ? (
+          <Card
+            title="Carros pendientes"
+            subtitle="Siguen en el patio sin entregar ni cobrar"
+            action={
+              <Link href="/panel/patio" className="btn-ghost btn-sm">
+                Abrir patio
+              </Link>
+            }
+          >
+            {pendientesPatio.length === 0 ? (
+              <Empty title="No hay carros pendientes" hint="Todo lo que entró ya se entregó." />
+            ) : (
+              <ul className="space-y-2" data-carros-pendientes>
+                {pendientesPatio.map((j) => (
+                  <li
+                    key={j.id}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-line bg-surface px-3 py-2.5"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-strong">
+                        {[j.vehiclePlate, j.vehicleType].filter(Boolean).join(" · ") || j.clientName}
+                      </p>
+                      <p className="truncate text-xs text-muted">
+                        {j.serviceName}
+                        {j.assignedStaff ? " · con " + j.assignedStaff.name : " · sin lavador"}
+                        {j.day < today ? " · desde el " + shortDay(j.day) : ""}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Badge tone={j.status === "LISTO" ? "blue" : "amber"}>
+                        {j.status === "EN_COLA" ? "En cola" : j.status === "LAVANDO" ? "Lavando" : "Listo"}
+                      </Badge>
+                      <span className="text-sm font-bold text-strong">{money(j.price, user.currency)}</span>
+                    </div>
                   </li>
                 ))}
               </ul>

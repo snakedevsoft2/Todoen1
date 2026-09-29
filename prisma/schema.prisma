@@ -270,6 +270,7 @@ model User {
   electronicInvoices ElectronicInvoice[]
   staffActivities    StaffActivity[]
   washJobs           WashJob[]
+  patioHandovers     PatioHandover[]
   loyaltyCards       LoyaltyCard[]
   loyaltyStamps      LoyaltyStamp[]
 
@@ -551,6 +552,10 @@ model Staff {
   washJobsAsignados WashJob[] @relation("LavadorAsignado")
   /// Lavadero: vehiculos que esta persona recibio (rol jefe de patio o dueño).
   washJobsRecibidos WashJob[] @relation("JefeDePatioQueRecibio")
+  /// Lavadero: entregas de turno que esta persona hizo, le dejaron o recibio.
+  entregasHechas    PatioHandover[] @relation("EntregaQueHizo")
+  entregasParaMi    PatioHandover[] @relation("EntregaParaQuien")
+  entregasRecibidas PatioHandover[] @relation("EntregaQueRecibio")
 
   @@index([userId, active])
 }
@@ -896,6 +901,53 @@ model WashJob {
   @@index([userId, day])
   @@index([userId, status])
   @@index([userId, assignedStaffId])
+}
+
+/// Entrega de turno del patio: el jefe de patio que se va le deja al que
+/// llega los vehiculos que quedaron sin entregar, lo que se cobro en su turno
+/// y sus notas. Los totales quedan congelados como en CashClosure: si despues
+/// se corrige una venta, la entrega sigue diciendo lo que se vio al entregar.
+/// Los vehiculos pendientes no se mueven de dia: el patio los sigue mostrando
+/// hasta que se cobran o se cancelan. pendingSnapshot es solo la foto.
+model PatioHandover {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  day    String // "YYYY-MM-DD" en la zona del negocio, del momento de entregar
+
+  fromStaffId String?
+  fromStaff   Staff?  @relation("EntregaQueHizo", fields: [fromStaffId], references: [id], onDelete: SetNull)
+  /// El jefe de patio que sigue, si se eligio. Cualquiera del patio puede recibirla.
+  toStaffId   String?
+  toStaff     Staff?  @relation("EntregaParaQuien", fields: [toStaffId], references: [id], onDelete: SetNull)
+
+  /// Desde cuando cuenta el turno que se entrega (la entrega anterior o el inicio del dia).
+  since DateTime
+
+  vehiclesDelivered Int
+  totalSales        Int
+  totalCash         Int
+  totalCard         Int
+  totalTransfer     Int
+  totalOther        Int @default(0)
+  totalExpenses     Int @default(0)
+  /// Lo que les toca a los lavadores por comision; el resto es del lavadero.
+  totalCommissions  Int @default(0)
+  pendingCount      Int
+  pendingValue      Int
+  /// [{ id, clientName, vehiclePlate, vehicleType, serviceName, price, status, lavador }]
+  pendingSnapshot   Json
+  /// El efectivo que el que sale deja en mano al que llega.
+  cashDelivered     Int @default(0)
+  notes             String?
+  createdAt         DateTime @default(now())
+
+  receivedAt   DateTime?
+  receivedById String?
+  receivedBy   Staff?    @relation("EntregaQueRecibio", fields: [receivedById], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([userId, receivedAt])
 }
 
 /// La tarjeta de fidelizacion de un cliente en un negocio: cuantos sellos

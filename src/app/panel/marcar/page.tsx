@@ -8,6 +8,7 @@ import { Card, PageHeader } from "@/components/ui";
 import { Marcador, type Siguiente } from "@/components/Marcador";
 import { Icon } from "@/components/Icon";
 import { esPlanCompleto } from "@/lib/plan";
+import { esLavadorDeLavadero } from "@/lib/permisos";
 
 export const dynamic = "force-dynamic";
 
@@ -98,7 +99,14 @@ export default async function MarcarPage() {
         </Card>
 
         {/* Lo otro que hace el empleado en el dia: avisar una novedad o
-            mandar el reporte de lo que hizo. */}
+            mandar el reporte de lo que hizo. El lavador no tiene esas
+            pantallas (su menu es fijo): a el se le devuelve a sus lavados. */}
+        {esLavadorDeLavadero(user, staff) ? (
+          <Link href="/panel/mis-lavados" className="btn-ghost w-full">
+            <Icon name="car" className="h-4 w-4" />
+            Volver a mis lavados
+          </Link>
+        ) : (
         <div className="grid grid-cols-2 gap-3">
           <Link
             href="/panel/novedades"
@@ -121,6 +129,7 @@ export default async function MarcarPage() {
             <span className="text-[11px] leading-snug text-muted">Con fotos, llega al administrador</span>
           </Link>
         </div>
+        )}
 
         <Card>
           <h2 className="text-sm font-bold text-strong">Lo que marcaste hoy</h2>
