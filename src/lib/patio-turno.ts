@@ -16,7 +16,15 @@ import { inicioDelDiaEn } from "./dates";
  * cae el dia en que de verdad se cobro y no hay que mover nada a medianoche.
  */
 
-export const ESTADOS_PENDIENTES: WashJobStatus[] = ["EN_COLA", "LAVANDO", "LISTO"];
+/** Lo que sigue abierto: en el patio, o entregado pero sin pagar (POR_COBRAR). */
+export const ESTADOS_PENDIENTES: WashJobStatus[] = ["EN_COLA", "LAVANDO", "LISTO", "POR_COBRAR"];
+
+export const ESTADO_PENDIENTE_LABEL: Record<string, string> = {
+  EN_COLA: "En cola",
+  LAVANDO: "Lavando",
+  LISTO: "Listo",
+  POR_COBRAR: "Pendiente de pago",
+};
 
 /** Un turno que no se entrego en 24 horas ya no cuenta: el siguiente arranca en el dia. */
 const TURNO_MAXIMO_MS = 24 * 60 * 60 * 1000;

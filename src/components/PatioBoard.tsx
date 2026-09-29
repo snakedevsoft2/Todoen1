@@ -28,7 +28,7 @@ export type WashJobRow = {
   vehicleColor: string | null;
   serviceName: string;
   price: number;
-  status: "EN_COLA" | "LAVANDO" | "LISTO";
+  status: "EN_COLA" | "LAVANDO" | "LISTO" | "POR_COBRAR";
   assignedStaffId: string | null;
   assignedStaffName: string | null;
   assignedStaffColor: string | null;
@@ -38,6 +38,7 @@ const COLUMNAS: { status: WashJobRow["status"]; title: string }[] = [
   { status: "EN_COLA", title: "En cola" },
   { status: "LAVANDO", title: "Lavando" },
   { status: "LISTO", title: "Listo" },
+  { status: "POR_COBRAR", title: "Pendiente de pago" },
 ];
 
 export function PatioBoard({
@@ -57,7 +58,7 @@ export function PatioBoard({
     <div className="space-y-5">
       <RecibirVehiculoForm services={services} currency={currency} />
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-4">
         {COLUMNAS.map((col) => {
           const enEstaColumna = jobs.filter((j) => j.status === col.status);
           return (
@@ -213,7 +214,7 @@ function JobCard({
       )}
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        {job.status !== "LISTO" && (
+        {(job.status === "EN_COLA" || job.status === "LAVANDO") && (
           <FormSinSenal
             accion="asignarLavadorAction"
             servidor={asignarLavadorAction}
@@ -245,7 +246,7 @@ function JobCard({
           </FormSinSenal>
         )}
 
-        {job.status === "LISTO" && <CerrarLavadoForm job={job} />}
+        {(job.status === "LISTO" || job.status === "POR_COBRAR") && <CerrarLavadoForm job={job} />}
       </div>
     </div>
   );
@@ -257,11 +258,16 @@ function CerrarLavadoForm({ job }: { job: WashJobRow }) {
     undefined
   );
   const [abierto, setAbierto] = useState(false);
+  const [metodo, setMetodo] = useState("EFECTIVO");
+  // El que ya quedo pendiente de pago no puede volver a quedar pendiente.
+  const yaDebe = job.status === "POR_COBRAR";
+
+  if (state?.ok) return <Alert kind="ok">{state.ok}</Alert>;
 
   if (!abierto) {
     return (
       <button type="button" className="btn-primary btn-sm" onClick={() => setAbierto(true)}>
-        Cobrar
+        {yaDebe ? "Ya pagó" : "Cobrar"}
       </button>
     );
   }
@@ -280,14 +286,20 @@ function CerrarLavadoForm({ job }: { job: WashJobRow }) {
           min={0}
           step={1}
         />
-        <select name="paymentMethod" defaultValue="EFECTIVO" className="input w-32 py-1.5 text-xs">
+        <select
+          name="paymentMethod"
+          value={metodo}
+          onChange={(e) => setMetodo(e.target.value)}
+          className="input w-40 py-1.5 text-xs"
+        >
           <option value="EFECTIVO">Efectivo</option>
           <option value="TARJETA">Tarjeta</option>
           <option value="TRANSFERENCIA">Transferencia</option>
           <option value="OTRO">Otro</option>
+          {!yaDebe && <option value="PENDIENTE">Pendiente (paga después)</option>}
         </select>
-        <SubmitButton className="btn-primary btn-sm" pendingText="Cobrando...">
-          Confirmar cobro
+        <SubmitButton className="btn-primary btn-sm" pendingText="Guardando...">
+          {metodo === "PENDIENTE" ? "Dejar pendiente" : "Confirmar cobro"}
         </SubmitButton>
       </div>
     </form>

@@ -14,6 +14,7 @@ const ESTADO_LABEL: Record<string, string> = {
   LAVANDO: "Lavando",
   LISTO: "Listo",
   ENTREGADO: "Entregado",
+  POR_COBRAR: "Pendiente de pago",
   CANCELADO: "Cancelado",
 };
 const ESTADO_TONO: Record<string, "amber" | "blue" | "green" | "red"> = {
@@ -21,6 +22,7 @@ const ESTADO_TONO: Record<string, "amber" | "blue" | "green" | "red"> = {
   LAVANDO: "blue",
   LISTO: "blue",
   ENTREGADO: "green",
+  POR_COBRAR: "amber",
   CANCELADO: "red",
 };
 

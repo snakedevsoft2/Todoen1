@@ -10,6 +10,7 @@ import { EntregaTurnoForm } from "@/components/EntregaTurnoForm";
 import { recibirEntregaAction } from "@/actions/lavadero";
 import { esDueno, esSupervisor } from "@/lib/permisos-empleado";
 import {
+  ESTADO_PENDIENTE_LABEL,
   entregaPorRecibir,
   inicioDelTurno,
   resumenDelTurno,
@@ -19,7 +20,7 @@ import {
 
 export const dynamic = "force-dynamic";
 
-const ESTADO_LABEL: Record<string, string> = { EN_COLA: "En cola", LAVANDO: "Lavando", LISTO: "Listo" };
+const ESTADO_LABEL = ESTADO_PENDIENTE_LABEL;
 
 /**
  * El cierre del jefe de patio: lo que paso en su turno, lo que queda en el
@@ -264,7 +265,7 @@ function ListaPendientes({
             {p.day < today && <p className="text-[11px] font-semibold text-warn">Desde el {shortDay(p.day)}</p>}
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <Badge tone={p.status === "LISTO" ? "blue" : "amber"}>{ESTADO_LABEL[p.status] ?? p.status}</Badge>
+            <Badge tone={p.status === "POR_COBRAR" ? "red" : p.status === "LISTO" ? "blue" : "amber"}>{ESTADO_LABEL[p.status] ?? p.status}</Badge>
             <span className="text-sm font-bold text-strong">{m(p.price)}</span>
           </div>
         </li>

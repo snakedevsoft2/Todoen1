@@ -86,7 +86,24 @@ export async function cancelarWashJob(userId: string, washJobId: string) {
   });
 }
 
-export type CierreLavado = { paymentMethod: PaymentMethod; amount: number };
+/**
+ * El cliente se lleva el carro sin pagar: sale del patio pero queda por
+ * cobrar. No se crea la venta todavia: la plata no ha entrado, y cuando entre
+ * se cobra con cerrarLavado() y cae ese dia.
+ */
+export async function dejarPendienteDePago(userId: string, washJobId: string, amount: number) {
+  return db.washJob.updateMany({
+    where: { id: washJobId, userId, status: { in: ["LAVANDO", "LISTO"] }, sale: { is: null } },
+    data: { status: "POR_COBRAR", price: amount, deliveredAt: new Date() },
+  });
+}
+
+export type CierreLavado = {
+  paymentMethod: PaymentMethod;
+  amount: number;
+  /** Hoy en la zona del negocio: para el que paga despues de haberse llevado el carro. */
+  day?: string;
+};
 
 /** Cobra el lavado: crea la Sale, entrega el vehiculo y deja el sello de fidelizacion. */
 export async function cerrarLavado(
@@ -95,18 +112,22 @@ export async function cerrarLavado(
   cierre: CierreLavado
 ): Promise<{ saleId: string; sello: ResultadoSello | null } | null> {
   const job = await db.washJob.findFirst({
-    where: { id: washJobId, userId, status: { in: ["LAVANDO", "LISTO"] } },
+    where: { id: washJobId, userId, status: { in: ["LAVANDO", "LISTO", "POR_COBRAR"] } },
     include: { sale: true },
   });
   if (!job || job.sale) return null;
 
   const goal = (await db.user.findUnique({ where: { id: userId }, select: { loyaltyGoal: true } }))?.loyaltyGoal ?? 10;
 
+  // El que quedo pendiente de pago se cuenta el dia en que paga, no el dia
+  // en que lo lavaron: es ese dia cuando la plata entra a la caja.
+  const day = job.status === "POR_COBRAR" ? (cierre.day ?? job.day) : job.day;
+
   return db.$transaction(async (tx) => {
     const sale = await tx.sale.create({
       data: {
         userId,
-        day: job.day,
+        day,
         total: cierre.amount,
         paymentMethod: cierre.paymentMethod,
         origin: "LAVADO",
@@ -130,7 +151,7 @@ export async function cerrarLavado(
 
     await tx.washJob.update({
       where: { id: job.id },
-      data: { status: "ENTREGADO", deliveredAt: new Date() },
+      data: { status: "ENTREGADO", deliveredAt: job.deliveredAt ?? new Date() },
     });
 
     const sello = await registrarSello(tx, {

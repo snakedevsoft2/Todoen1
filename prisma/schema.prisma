@@ -848,6 +848,9 @@ enum WashJobStatus {
   LISTO
   ENTREGADO
   CANCELADO
+  /// El cliente se llevo el carro sin pagar: queda por cobrar en el patio
+  /// hasta que pague (y ahi se crea la venta, el dia en que entra la plata).
+  POR_COBRAR
 }
 
 /// Un vehiculo en el patio del lavadero: lo recibe el jefe de patio (o el

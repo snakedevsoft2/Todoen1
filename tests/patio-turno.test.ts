@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PrismaClient } from "@prisma/client";
-import { asignarLavador, cerrarLavado, crearWashJob, marcarListo } from "../src/lib/lavadero";
+import { asignarLavador, cerrarLavado, crearWashJob, dejarPendienteDePago, marcarListo } from "../src/lib/lavadero";
 import {
   entregaPorRecibir,
   entregarTurno,
@@ -164,5 +164,38 @@ describe("carros pendientes y entrega de turno", () => {
     const ultima = await db.patioHandover.findFirst({ where: { userId }, orderBy: { createdAt: "desc" } });
     const inicio = await inicioDelTurno(userId, HOY, "America/Bogota");
     expect(inicio.getTime()).toBe(ultima!.createdAt.getTime());
+  });
+});
+
+describe("pendiente de pago", () => {
+  it("se lleva el carro sin pagar: no hay venta, y cuando paga la venta cae ese día", async () => {
+    const job = await crearWashJob(userId, AYER, {
+      clientName: "Paga después",
+      clientPhone: "302",
+      vehiclePlate: "DEB-003",
+      vehicleType: "camioneta",
+      vehicleColor: null,
+      serviceId,
+      notes: null,
+      receivedById: jefeA,
+    });
+    await asignarLavador(userId, job.id, lavadorId);
+    await marcarListo(userId, job.id);
+
+    expect((await dejarPendienteDePago(userId, job.id, 35000)).count).toBe(1);
+    const debe = await db.washJob.findUnique({ where: { id: job.id }, include: { sale: true } });
+    expect(debe?.status).toBe("POR_COBRAR");
+    expect(debe?.price).toBe(35000);
+    expect(debe?.sale).toBeNull();
+    expect((await vehiculosPendientes(userId)).some((p) => p.id === job.id)).toBe(true);
+    // No puede quedar pendiente dos veces.
+    expect((await dejarPendienteDePago(userId, job.id, 35000)).count).toBe(0);
+
+    const pago = await cerrarLavado(userId, job.id, { paymentMethod: "TRANSFERENCIA", amount: 35000, day: HOY });
+    const venta = await db.sale.findUnique({ where: { id: pago!.saleId } });
+    expect(venta?.day).toBe(HOY);
+    expect(venta?.paymentMethod).toBe("TRANSFERENCIA");
+    expect((await db.washJob.findUnique({ where: { id: job.id } }))?.status).toBe("ENTREGADO");
+    expect((await vehiculosPendientes(userId)).some((p) => p.id === job.id)).toBe(false);
   });
 });

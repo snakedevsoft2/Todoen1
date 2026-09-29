@@ -15,7 +15,7 @@ import { variantLabel } from "@/lib/variants";
 import { tourSteps } from "@/lib/tour";
 import { Badge, Card, Empty, PageHeader, Stat, StatusBadge } from "@/components/ui";
 import { GuiaInicial } from "@/components/GuiaInicial";
-import { repartoDelDia, vehiculosPendientes } from "@/lib/patio-turno";
+import { ESTADO_PENDIENTE_LABEL, repartoDelDia, vehiculosPendientes } from "@/lib/patio-turno";
 import { Icon } from "@/components/Icon";
 
 export const dynamic = "force-dynamic";
@@ -132,6 +132,7 @@ export default async function PanelHomePage() {
     return { ...person, count: suyo?.count ?? 0, total: suyo?.total ?? 0, comision: suyo?.comision ?? 0 };
   });
   const pendientesValor = pendientesPatio.reduce((sum, j) => sum + j.price, 0);
+  const sinPagar = pendientesPatio.filter((j) => j.status === "POR_COBRAR").length;
   const lavadosHoy = reparto ? [...reparto.porLavador.values()].reduce((sum, f) => sum + f.count, 0) : 0;
 
   // Lo que hay que hacer hoy con los clientes. Sale solo si hay algo: quien no
@@ -274,7 +275,11 @@ export default async function PanelHomePage() {
           <Stat
             label="Carros pendientes"
             value={String(pendientesPatio.length)}
-            hint={"Por cobrar " + money(pendientesValor, user.currency)}
+            hint={
+              "Por cobrar " +
+              money(pendientesValor, user.currency) +
+              (sinPagar > 0 ? " · " + sinPagar + " pendiente de pago" : "")
+            }
             tone={pendientesPatio.length > 0 ? "amber" : "brand"}
           />
         ) : (
@@ -506,8 +511,8 @@ export default async function PanelHomePage() {
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
-                      <Badge tone={j.status === "LISTO" ? "blue" : "amber"}>
-                        {j.status === "EN_COLA" ? "En cola" : j.status === "LAVANDO" ? "Lavando" : "Listo"}
+                      <Badge tone={j.status === "POR_COBRAR" ? "red" : j.status === "LISTO" ? "blue" : "amber"}>
+                        {ESTADO_PENDIENTE_LABEL[j.status] ?? j.status}
                       </Badge>
                       <span className="text-sm font-bold text-strong">{money(j.price, user.currency)}</span>
                     </div>

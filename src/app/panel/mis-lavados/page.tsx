@@ -17,12 +17,14 @@ const ESTADO_LABEL: Record<string, string> = {
   LAVANDO: "Lavando",
   LISTO: "Listo",
   ENTREGADO: "Entregado",
+  POR_COBRAR: "Pendiente de pago",
 };
 const ESTADO_TONO: Record<string, "amber" | "blue" | "green"> = {
   EN_COLA: "amber",
   LAVANDO: "blue",
   LISTO: "blue",
   ENTREGADO: "green",
+  POR_COBRAR: "amber",
 };
 
 /**
@@ -43,7 +45,7 @@ export default async function MisLavadosPage() {
         assignedStaffId: staff.id,
         OR: [
           { day: today, status: { not: "CANCELADO" } },
-          { day: { lt: today }, status: { in: ["EN_COLA", "LAVANDO", "LISTO"] } },
+          { day: { lt: today }, status: { in: ["EN_COLA", "LAVANDO", "LISTO", "POR_COBRAR"] } },
         ],
       },
       orderBy: { createdAt: "asc" },

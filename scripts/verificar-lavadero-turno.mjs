@@ -10,7 +10,7 @@ import { chromium } from "playwright";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
-const BASE = "http://localhost:3000";
+const BASE = process.env.BASE ?? "http://localhost:3000";
 const db = new PrismaClient();
 const fallas = [];
 const ok = (c, t) => {
@@ -83,6 +83,7 @@ try {
   {
     const { ctx, page } = await entrar(user.email);
     await page.goto(BASE + "/panel", { waitUntil: "networkidle" });
+    if (process.env.DEBUG) console.log((await page.innerText("body")).slice(0, 800));
     const reparto = await page.locator("[data-reparto-lavadero]").innerText();
     ok(/Ingreso del lavadero[\s\S]*12[.,]000/i.test(reparto), "resumen: ingreso del lavadero 12.000");
     ok(/Para los lavadores[\s\S]*8[.,]000/i.test(reparto), "resumen: para los lavadores 8.000");
@@ -126,6 +127,27 @@ try {
     await page.waitForLoadState("networkidle");
     const recibida = await db.patioHandover.findUnique({ where: { id: entrega.id } });
     ok(Boolean(recibida?.receivedAt), "entrega: Camila la recibió");
+
+    // Un carro listo que el cliente se lleva sin pagar: "Pendiente" en la lista de pago.
+    const listoJob = await db.washJob.create({
+      data: { userId: user.id, day: hoy, clientName: "Xxx", clientPhone: "302", vehiclePlate: "SQZ802", vehicleType: "camioneta", serviceName: "Lavado de camioneta", price: 35000, status: "LISTO", assignedStaffId: jhon.id },
+    });
+    await page.goto(BASE + "/panel/patio", { waitUntil: "networkidle" });
+    await page.click("text=Cobrar");
+    await page.selectOption('select[name="paymentMethod"]', "PENDIENTE");
+    await shot(page, "6-cobrar-pendiente");
+    await page.click("text=Dejar pendiente");
+    await page.waitForSelector("text=Quedó pendiente de pago", { timeout: 30000 }).catch(() => {});
+    const debe = await db.washJob.findUnique({ where: { id: listoJob.id }, include: { sale: true } });
+    ok(debe?.status === "POR_COBRAR" && !debe.sale, "patio: el carro quedó pendiente de pago sin venta");
+    await page.reload({ waitUntil: "networkidle" });
+    await shot(page, "7-columna-pendiente");
+    await page.click("text=Ya pagó");
+    await page.selectOption('select[name="paymentMethod"]', "TRANSFERENCIA");
+    await page.click("text=Confirmar cobro");
+    await page.waitForSelector("text=Lavado cobrado", { timeout: 30000 }).catch(() => {});
+    const pagado = await db.washJob.findUnique({ where: { id: listoJob.id }, include: { sale: true } });
+    ok(pagado?.status === "ENTREGADO" && pagado.sale?.paymentMethod === "TRANSFERENCIA", "patio: luego pagó por transferencia");
     await ctx.close();
   }
 

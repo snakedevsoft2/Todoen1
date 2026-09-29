@@ -13,6 +13,7 @@ import {
   cancelarWashJob,
   cerrarLavado,
   crearWashJob,
+  dejarPendienteDePago,
   marcarListo,
 } from "@/lib/lavadero";
 import { avisoDeCercania } from "@/lib/fidelizacion";
@@ -128,9 +129,26 @@ export async function cerrarLavadoAction(_prev: PatioState, formData: FormData):
   if (!job) return { error: "No encontramos ese vehículo." };
 
   const amount = Math.max(0, parseIntSafe(formData.get("amount"), job.price));
+
+  // "Pendiente": se lleva el carro y paga despues. Queda por cobrar en el patio.
+  if (String(formData.get("paymentMethod")) === "PENDIENTE") {
+    if (job.status === "POR_COBRAR") return { error: "Ese lavado ya está pendiente de pago." };
+    const r = await dejarPendienteDePago(user.id, washJobId, amount);
+    if (r.count === 0) return { error: "Ese lavado ya se cobró o no está listo." };
+    await anotarActividad(
+      { user, staff },
+      { tipo: "cobro", detalle: "Entregó sin cobrar el lavado de " + job.clientName + " (pendiente de pago)", monto: amount }
+    );
+    revalidatePath("/panel/patio");
+    revalidatePath("/panel/mis-lavados");
+    revalidatePath("/panel");
+    return { ok: "Quedó pendiente de pago." };
+  }
+
   const resultado = await cerrarLavado(user.id, washJobId, {
     paymentMethod: readPayment(formData.get("paymentMethod")),
     amount,
+    day: todayIn(user.timezone),
   });
   if (!resultado) return { error: "Ese lavado ya se cobró o no está listo para cobrarse." };
 
