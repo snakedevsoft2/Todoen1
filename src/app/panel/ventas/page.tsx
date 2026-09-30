@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { addDays, isValidDay, todayIn } from "@/lib/dates";
-import { money, prettyDay, shortDay } from "@/lib/format";
+import { cerosPara, money, prettyDay, shortDay } from "@/lib/format";
 import { ITEM_NOUN, logoUrl, photoUrl } from "@/lib/nav";
 import { variantLabel } from "@/lib/variants";
 import { hasTeam } from "@/lib/staff";
@@ -380,6 +380,7 @@ export default async function VentasPage({
             sinValorManual={soloTotalVendido(user.businessName)}
             claveOrden={"orden-ventas:" + user.id}
             currency={user.currency}
+            ceros={cerosPara(user.businessType)}
             today={day}
             itemLabel={ITEM_NOUN[user.businessType].plural}
             team={team}

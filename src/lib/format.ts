@@ -85,9 +85,27 @@ export function money(value: number, currency = "COP") {
  * las monedas con centavos, "0,40" con coma, que es como lo teclea medio
  * continente.
  */
+/**
+ * Completa los ceros que le dio pereza teclear a quien cobra: "18" es 18.000.
+ *
+ * Solo en pesos colombianos, y solo por debajo de `debajoDe`. En un lavadero o
+ * una barberia nada vale menos de $1.000, asi que ahi "30" o "250" siempre
+ * son miles (ver cerosPara). En una tienda un dulce si vale $500, y ahi solo
+ * se completa de 1 a 99.
+ */
+export function completarCeros(valor: number, currency = "COP", debajoDe = 100): number {
+  return currency === "COP" && valor > 0 && valor < debajoDe ? valor * 1000 : valor;
+}
+
+/** Hasta donde completar ceros segun el negocio: ver completarCeros. */
+export function cerosPara(businessType: string): number {
+  return businessType === "LAVADERO" || businessType === "BARBERIA" ? 1000 : 100;
+}
+
 export function parseMoney(
   input: FormDataEntryValue | null | undefined,
-  currency = "COP"
+  currency = "COP",
+  debajoDe = 100
 ): number {
   if (input === null || input === undefined) return 0;
 
@@ -122,13 +140,8 @@ export function parseMoney(
   let n = Number(raw);
   if (!Number.isFinite(n)) return 0;
 
-  /*
-   * En pesos colombianos nada vale menos de cien pesos: quien escribe "18" en
-   * una venta quiso decir 18.000 y le dio pereza teclear los ceros. Asi quedo
-   * un lavado de $18. Se completan los tres ceros de 1 a 99; de 100 para
-   * arriba se respeta lo escrito, porque un dulce si puede valer $500.
-   */
-  if (currency === "COP" && n > 0 && n < 100) n *= 1000;
+  // "18" en una venta es 18.000: asi quedaron un lavado de $18 y una moto de $30.
+  n = completarCeros(n, currency, debajoDe);
 
   /*
    * La plata nunca es negativa ni infinita.

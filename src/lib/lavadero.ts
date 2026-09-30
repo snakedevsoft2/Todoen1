@@ -151,7 +151,9 @@ export async function cerrarLavado(
 
     await tx.washJob.update({
       where: { id: job.id },
-      data: { status: "ENTREGADO", deliveredAt: job.deliveredAt ?? new Date() },
+      // El precio del lavado queda en lo que se cobro: si no, la tarjeta del
+      // lavador decia $25.000 y la venta $30, y nadie veia la diferencia.
+      data: { status: "ENTREGADO", price: cierre.amount, deliveredAt: job.deliveredAt ?? new Date() },
     });
 
     const sello = await registrarSello(tx, {

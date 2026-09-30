@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aCampo, decimalesDe, money, parseMoney, pasoMoneda } from "../src/lib/format";
+import { aCampo, cerosPara, completarCeros, decimalesDe, money, parseMoney, pasoMoneda } from "../src/lib/format";
 
 /**
  * Como se guarda y como se lee la plata.
@@ -67,6 +67,21 @@ describe("leer lo que escribe la persona", () => {
     expect(parseMoney("0", "COP")).toBe(0);
     // En monedas con centavos no se toca.
     expect(parseMoney("18", "USD")).toBe(1800);
+  });
+
+  it("en un lavadero o barbería se completa todo lo menor a mil: 30 y 250 son miles", () => {
+    const ceros = cerosPara("LAVADERO");
+    expect(parseMoney("30", "COP", ceros)).toBe(30000);
+    expect(parseMoney("250", "COP", ceros)).toBe(250000);
+    expect(parseMoney("999", "COP", ceros)).toBe(999000);
+    expect(parseMoney("1000", "COP", ceros)).toBe(1000);
+    expect(parseMoney("25.000", "COP", ceros)).toBe(25000);
+    expect(cerosPara("BARBERIA")).toBe(1000);
+    // En una tienda un dulce de $500 se respeta.
+    expect(parseMoney("500", "COP", cerosPara("TIENDA"))).toBe(500);
+    // Los precios del carrito, que ya llegan como número.
+    expect(completarCeros(30, "COP", ceros)).toBe(30000);
+    expect(completarCeros(20000, "COP", ceros)).toBe(20000);
   });
 
   it("ignora el simbolo y los espacios", () => {

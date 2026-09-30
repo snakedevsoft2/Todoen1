@@ -7,7 +7,7 @@ import type { PaymentMethod } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { todayIn } from "@/lib/dates";
-import { money, parseMoney, str } from "@/lib/format";
+import { cerosPara, money, parseMoney, str } from "@/lib/format";
 import { anotarActividad } from "@/lib/actividad";
 import { esDueno, esSupervisor, puedeHacer } from "@/lib/permisos-empleado";
 import {
@@ -57,7 +57,7 @@ export async function recibirVehiculoAction(_prev: PatioState, formData: FormDat
   // vendio mas barato o mas caro que de costumbre).
   const priceRaw = str(formData.get("price"));
   // parseMoney y no parseIntSafe: "18.000" con punto se guardaba como 18.
-  const price = priceRaw ? parseMoney(priceRaw, user.currency) : null;
+  const price = priceRaw ? parseMoney(priceRaw, user.currency, cerosPara(user.businessType)) : null;
 
   const job = await crearWashJob(user.id, todayIn(user.timezone), {
     clientName,
@@ -146,7 +146,7 @@ export async function cerrarLavadoAction(_prev: PatioState, formData: FormData):
   if (!job) return { error: "No encontramos ese vehículo." };
 
   const amountRaw = str(formData.get("amount"));
-  const amount = amountRaw ? parseMoney(amountRaw, user.currency) : job.price;
+  const amount = amountRaw ? parseMoney(amountRaw, user.currency, cerosPara(user.businessType)) : job.price;
 
   // "Pendiente": se lleva el carro y paga despues. Queda por cobrar en el patio.
   if (String(formData.get("paymentMethod")) === "PENDIENTE") {
@@ -355,24 +355,28 @@ export async function cambiarPrecioLavadoAction(formData: FormData) {
   if (!puedeHacer(staff.role, "cambiarPrecioLavadoAction")) return;
 
   const id = str(formData.get("washJobId"));
-  const price = parseMoney(formData.get("price"), user.currency);
+  const price = parseMoney(formData.get("price"), user.currency, cerosPara(user.businessType));
   if (price <= 0) return;
 
   const job = await db.washJob.findFirst({
     where: { id, userId: user.id },
     include: { sale: { include: { items: true, electronicInvoice: { select: { status: true } } } } },
   });
-  if (!job || job.price === price) return;
+  if (!job) return;
 
   const factura = job.sale?.electronicInvoice?.status;
   if (factura === "AUTORIZADA" || factura === "ENVIANDO") return;
 
+  // La linea del lavado es la que creo el cobro: la del servicio, o la primera.
+  const linea = job.sale ? (job.sale.items.find((i) => i.name === job.serviceName) ?? job.sale.items[0]) : undefined;
+  // Lo que vale hoy es lo cobrado, si ya se cobro: el lavado podia decir
+  // $25.000 y la venta $30 (se escribio "30" al cobrar).
+  const anterior = job.sale ? job.sale.total : job.price;
+  if (anterior === price && job.price === price) return;
+
   await db.$transaction(async (tx) => {
     await tx.washJob.update({ where: { id: job.id }, data: { price } });
-    if (!job.sale) return;
-    // La linea del lavado es la que creo el cobro: la del servicio, o la primera.
-    const linea = job.sale.items.find((i) => i.name === job.serviceName) ?? job.sale.items[0];
-    if (!linea) return;
+    if (!job.sale || !linea) return;
     await tx.saleItem.update({ where: { id: linea.id }, data: { unitPrice: price } });
     await tx.sale.update({
       where: { id: job.sale.id },
@@ -389,7 +393,7 @@ export async function cambiarPrecioLavadoAction(formData: FormData) {
         job.clientName +
         (job.vehiclePlate ? " (" + job.vehiclePlate + ")" : "") +
         " de " +
-        money(job.price, user.currency) +
+        money(anterior, user.currency) +
         " a " +
         money(price, user.currency),
       monto: price,

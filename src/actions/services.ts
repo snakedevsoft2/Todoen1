@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireOwner, requireSession } from "@/lib/auth";
-import { crudo, parseIntSafe, parseMoney, str, texto } from "@/lib/format";
+import { cerosPara, crudo, parseIntSafe, parseMoney, str, texto } from "@/lib/format";
 import { anotarActividad } from "@/lib/actividad";
 import { SOLO_DUENO, esDueno } from "@/lib/permisos-empleado";
 import { asegurarCategorias } from "@/lib/categorias-negocio";
@@ -21,7 +21,7 @@ export async function saveServiceAction(_prev: ActionState, formData: FormData):
   const name = str(formData.get("name"));
   if (!name) return { error: "El nombre es obligatorio." };
 
-  const price = parseMoney(formData.get("price"), user.currency);
+  const price = parseMoney(formData.get("price"), user.currency, cerosPara(user.businessType));
   if (price < 0) return { error: "El precio no puede ser negativo." };
 
   // La foto solo viaja cuando el formulario la trae (tienda de ropa).

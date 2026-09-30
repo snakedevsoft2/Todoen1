@@ -115,10 +115,12 @@ function CantidadEditable({ qty, max, onChange }: { qty: number; max?: number; o
 function PrecioEditable({
   price,
   currency,
+  ceros,
   onChange,
 }: {
   price: number;
   currency: string;
+  ceros: number;
   onChange: (price: number) => void;
 }) {
   const [texto, setTexto] = useState<string | null>(null);
@@ -131,7 +133,7 @@ function PrecioEditable({
       onFocus={(e) => e.currentTarget.select()}
       onChange={(e) => {
         setTexto(e.target.value);
-        onChange(parseMoney(e.target.value, currency));
+        onChange(parseMoney(e.target.value, currency, ceros));
       }}
       onBlur={() => setTexto(null)}
       className="input w-20 px-1.5 py-1 text-center text-xs"
@@ -147,6 +149,7 @@ export function NewSaleForm({
   claveOrden,
   services,
   currency,
+  ceros = 100,
   today,
   itemLabel,
   team = [],
@@ -174,6 +177,8 @@ export function NewSaleForm({
   /** Donde se guarda, en este aparato, el orden que el usuario le da a los productos arrastrando. */
   claveOrden?: string;
   currency: string;
+  /** Hasta donde se completan los ceros de un precio escrito a mano (ver completarCeros). */
+  ceros?: number;
   today: string;
   itemLabel: string;
   /** Personas entre las que se reparte la venta. Vacio si el negocio no tiene equipo. */
@@ -544,7 +549,7 @@ export function NewSaleForm({
     if (enviando) return;
     const fd = new FormData(e.currentTarget);
     const manualTotal = String(fd.get("manualTotal") ?? "");
-    const valor = cart.length > 0 ? total : parseMoney(manualTotal, currency);
+    const valor = cart.length > 0 ? total : parseMoney(manualTotal, currency, ceros);
     if (cart.length === 0 && valor <= 0) {
       setMensaje({ kind: "error", text: "Agrega al menos un item o escribe un valor." });
       return;
@@ -694,7 +699,7 @@ export function NewSaleForm({
           <div className="min-w-0 basis-full sm:flex-1 sm:basis-0">
             <p className="break-words text-sm font-medium text-strong">{r.name}</p>
             <p className="flex flex-wrap items-center gap-1 text-xs text-muted">
-              <PrecioEditable price={r.unitPrice} currency={currency} onChange={(price) => setUnitPrice(r.key, price)} />
+              <PrecioEditable price={r.unitPrice} currency={currency} ceros={ceros} onChange={(price) => setUnitPrice(r.key, price)} />
               c/u
               {r.max !== undefined ? " - quedan " + r.max : ""}
             </p>

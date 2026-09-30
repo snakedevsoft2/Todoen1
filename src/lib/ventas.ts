@@ -1,7 +1,7 @@
 import type { PaymentMethod } from "@prisma/client";
 import { db } from "./db";
 import { isValidDay, todayIn } from "./dates";
-import { parseMoney } from "./format";
+import { cerosPara, completarCeros, parseMoney } from "./format";
 import { applyStockMove, variantLabel } from "./inventory";
 import { LLAVE_VALIDA, falla, textoDe, type Resultado, type Sesion } from "./informes";
 import { anotarCliente } from "./clientes";
@@ -95,9 +95,12 @@ export async function registrarVenta(
   const previo = await yaEsta();
   if (previo) return previo;
 
-  const items = leerCarrito(d.items);
+  // Los precios que se escribieron a mano en el carrito tambien se completan:
+  // "30" en un lavadero es 30.000 (ver completarCeros).
+  const ceros = cerosPara(user.businessType);
+  const items = leerCarrito(d.items).map((i) => ({ ...i, unitPrice: completarCeros(i.unitPrice, user.currency, ceros) }));
   const manual = typeof d.manualTotal === "string" || typeof d.manualTotal === "number" ? String(d.manualTotal) : null;
-  const manualTotal = parseMoney(manual, user.currency);
+  const manualTotal = parseMoney(manual, user.currency, ceros);
   if (items.length === 0 && manualTotal <= 0) {
     return falla("Agrega al menos un item o escribe un valor.");
   }

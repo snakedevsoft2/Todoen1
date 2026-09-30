@@ -51,10 +51,14 @@ export default async function LavadorPage({
   const today = todayIn(user.timezone);
   const day = sp.d && isValidDay(sp.d) ? sp.d : today;
 
-  const jobs = await db.washJob.findMany({
+  const filas = await db.washJob.findMany({
     where: { userId: user.id, assignedStaffId: persona.id, day, status: { not: "CANCELADO" } },
     orderBy: { createdAt: "desc" },
+    include: { sale: { select: { total: true } } },
   });
+  // Lo cobrado manda sobre el precio del lavado: es lo que suman la caja y el
+  // resumen del dia. Asi esta pantalla y el dashboard dan la misma cifra.
+  const jobs = filas.map((j) => ({ ...j, price: j.sale ? j.sale.total : j.price }));
 
   const entregados = jobs.filter((j) => j.status === "ENTREGADO");
   const totalVendido = entregados.reduce((sum, j) => sum + j.price, 0);
