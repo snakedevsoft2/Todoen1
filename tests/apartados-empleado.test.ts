@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PrismaClient } from "@prisma/client";
-import { modulosDe, puedeUsar, rutaPermitida } from "../src/lib/modules";
+import { menuAgrupado, menuDe, modulosDe, puedeUsar, rutaPermitida } from "../src/lib/modules";
 import { queRecibe } from "../src/lib/push-textos";
 
 /**
@@ -84,6 +84,27 @@ describe("qué puede usar cada empleado", () => {
     expect(await puedeUsar({ user, staff: vigilante }, "ventas")).toBe(false);
     // Y se le ofrecen las notificaciones de marcar.
     expect(queRecibe("VENDEDOR", "OTRO", v.includes("marcar"))).toContain("marcar");
+  });
+
+  it("Marcar le sale de segundo, junto al resumen, aunque el orden guardado lo deje de último", async () => {
+    // Todo encendido y Marcar al final del orden: el caso de una tienda que ya tenía su menú armado.
+    const todos = (await modulosDe({ user, staff: vigilante })).map((m) => m.key);
+    await db.workspaceConfig.update({
+      where: { staffId: vigilante.id },
+      data: { hiddenKeys: "", orderKeys: [...todos.filter((k) => k !== "marcar"), "marcar"].join(",") },
+    });
+    const mods = await modulosDe({ user, staff: vigilante });
+    const menu = menuDe(mods).map((i) => i.href);
+    expect(menu[0]).toBe("/panel");
+    expect(menu[1]).toBe("/panel/marcar");
+    // Y en el menú de ☰ va suelto arriba, no plegado dentro de "Tu oficio".
+    const arriba = menuAgrupado(mods).find((g) => g.pin === "arriba")!;
+    expect(arriba.items.map((i) => i.href)).toContain("/panel/marcar");
+    // Se deja como estaba para las pruebas de abajo: solo Marcar.
+    await db.workspaceConfig.update({
+      where: { staffId: vigilante.id },
+      data: { hiddenKeys: todos.filter((k) => k !== "marcar").join(","), orderKeys: todos.join(",") },
+    });
   });
 
   it("el menú del vigilante no le cambia nada a la cajera", async () => {
