@@ -194,11 +194,23 @@ export async function puedeUsar(sesion: Sesion, key: string): Promise<boolean> {
   return Boolean(m?.visible);
 }
 
+/**
+ * Lo que va de primero, pegado al resumen, aunque el orden guardado diga otra
+ * cosa: "Marcar" es lo primero que hace en el dia quien lo tiene. Sin esto, a
+ * un empleado de una tienda al que se le prendio Marcar le quedaba de ultimo
+ * (lo nuevo va al final del orden guardado): fuera de la barra de abajo del
+ * celular, que muestra cinco, y escondido en una categoria plegada. El dueño
+ * nunca lo tiene (hiddenFromOwner), asi que a el no le cambia nada.
+ */
+const PRIMEROS = new Set(["marcar"]);
+
 /** Lo que se pinta en el menu lateral. */
 export function menuDe(modulos: Modulo[]): NavItem[] {
-  return modulos
-    .filter((m) => m.visible && m.inSidebar)
-    .map((m) => ({ href: m.href, label: m.label, icon: m.icon }));
+  const visibles = modulos.filter((m) => m.visible && m.inSidebar);
+  const resumen = visibles.filter((m) => m.href === "/panel");
+  const primeros = visibles.filter((m) => PRIMEROS.has(m.key));
+  const resto = visibles.filter((m) => m.href !== "/panel" && !PRIMEROS.has(m.key));
+  return [...resumen, ...primeros, ...resto].map((m) => ({ href: m.href, label: m.label, icon: m.icon }));
 }
 
 /** El orden en que se muestran las categorias del menu, de arriba a abajo. */
@@ -229,9 +241,11 @@ export function menuAgrupado(modulos: Modulo[]): NavGroup[] {
     key,
     label: GRUPO_LABEL[key],
     pin: key === "FIJO" ? ("arriba" as const) : null,
-    items: visibles
-      .filter((m) => m.group === key && !(key === "FIJO" && FIJOS_ABAJO.has(m.key)))
-      .map(item),
+    items: [
+      ...visibles.filter((m) => m.group === key && !(key === "FIJO" && FIJOS_ABAJO.has(m.key)) && !PRIMEROS.has(m.key)),
+      // Lo de PRIMEROS va suelto arriba, junto al resumen, y no plegado en su categoria.
+      ...(key === "FIJO" ? visibles.filter((m) => PRIMEROS.has(m.key)) : []),
+    ].map(item),
   }));
 
   // El pie va de ultimo siempre, sin importar el orden que la persona haya
