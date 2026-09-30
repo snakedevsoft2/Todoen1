@@ -125,6 +125,8 @@ try {
   await iphone.page.waitForTimeout(1500);
   ok((await iphone.page.locator("[data-aviso-instalar]").count()) === 0, "y no vuelve a salir");
   await iphone.page.getByRole("button", { name: "Abrir menú" }).click();
+  // Las opciones del pie del menú arrancan plegadas.
+  await iphone.page.locator("[data-opciones-menu]").last().click();
   ok(Boolean(await esperarHasta(() => iphone.page.locator("[data-boton-instalar]").last().isVisible())), "el botón Instalar la aplicación sigue en el menú");
   await iphone.ctx.close();
 

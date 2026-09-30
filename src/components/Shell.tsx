@@ -11,6 +11,8 @@ import { ActivarNotificaciones } from "./ActivarNotificaciones";
 import type { NavGroup, NavItem } from "@/lib/nav";
 import { initials } from "@/lib/staff";
 
+const CLAVE_OPCIONES = "todoen1_opciones_menu_abiertas";
+
 export function Shell({
   nav,
   navGroups,
@@ -61,6 +63,26 @@ export function Shell({
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+
+  // Las opciones del pie (portafolio, instalar, notificaciones...) arrancan
+  // plegadas; si la persona las abre, quedan abiertas la proxima vez.
+  const [opcionesAbiertas, setOpcionesAbiertas] = useState(false);
+  useEffect(() => {
+    try {
+      setOpcionesAbiertas(localStorage.getItem(CLAVE_OPCIONES) === "1");
+    } catch {
+      // Sin almacenamiento arrancan plegadas, que es lo normal.
+    }
+  }, []);
+  const guardarOpciones = (abiertas: boolean) => {
+    if (abiertas === opcionesAbiertas) return;
+    setOpcionesAbiertas(abiertas);
+    try {
+      localStorage.setItem(CLAVE_OPCIONES, abiertas ? "1" : "0");
+    } catch {
+      // No se recuerda, pero el boton sigue funcionando.
+    }
+  };
 
   useEffect(() => {
     setOpen(false);
@@ -158,6 +180,24 @@ export function Shell({
 
   const footerLinks = (
     <div className="space-y-2">
+      {/* Las opciones van plegadas para que no tapen el menu; el perfil queda
+          siempre a la vista. Se recuerda si se dejo abierto (ver CLAVE_OPCIONES). */}
+      <details
+        open={opcionesAbiertas}
+        onToggle={(e) => guardarOpciones(e.currentTarget.open)}
+        className="group"
+      >
+        <summary
+          data-opciones-menu
+          className="flex cursor-pointer list-none items-center justify-between rounded-lg px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-subtle transition-colors hover:text-strong"
+        >
+          Opciones
+          <Icon
+            name="chevronDown"
+            className="h-3.5 w-3.5 shrink-0 transition-transform duration-150 group-open:rotate-180"
+          />
+        </summary>
+        <div className="mt-2 space-y-2">
       {bookingUrl && (
         <Link href={bookingUrl} target="_blank" className="btn-ghost btn-sm w-full justify-start">
           <Icon name="link" className="h-4 w-4" />
@@ -184,6 +224,8 @@ export function Shell({
         </Link>
       )}
       {logout}
+        </div>
+      </details>
       {/* Quien entro, con su foto: tocarlo lleva a su perfil. */}
       <Link
         href="/panel/perfil"
