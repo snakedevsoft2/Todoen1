@@ -10,6 +10,7 @@ import { Icon } from "@/components/Icon";
 import { esPlanCompleto } from "@/lib/plan";
 import { esLavadorDeLavadero } from "@/lib/permisos";
 import { cerrarSalidasOlvidadas } from "@/lib/salida-automatica";
+import { puedeUsar } from "@/lib/modules";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,13 @@ export default async function MarcarPage() {
   // El dueno no ficha su propia entrada: supervisa desde Planilla. Es la
   // misma regla que ya esconde este apartado de su menu (ver modulos.ts).
   if (staff.role === "DUENO") redirect("/panel/planilla");
+
+  // Los accesos de abajo, solo si los puede abrir: en una tienda, a quien solo
+  // se le dejo Marcar, esos botones lo mandaban de vuelta al resumen.
+  const lavador = esLavadorDeLavadero(user, staff);
+  const [conNovedades, conInformes] = lavador
+    ? [false, false]
+    : await Promise.all([puedeUsar({ user, staff }, "novedades"), puedeUsar({ user, staff }, "informes")]);
 
   const hoy = todayIn(user.timezone);
   // Si ayer se le olvido marcar la salida, se la pone antes de decidir que
@@ -105,13 +113,14 @@ export default async function MarcarPage() {
         {/* Lo otro que hace el empleado en el dia: avisar una novedad o
             mandar el reporte de lo que hizo. El lavador no tiene esas
             pantallas (su menu es fijo): a el se le devuelve a sus lavados. */}
-        {esLavadorDeLavadero(user, staff) ? (
+        {lavador ? (
           <Link href="/panel/mis-lavados" className="btn-ghost w-full">
             <Icon name="car" className="h-4 w-4" />
             Volver a mis lavados
           </Link>
-        ) : (
-        <div className="grid grid-cols-2 gap-3">
+        ) : (conNovedades || conInformes) && (
+        <div className={"grid gap-3 " + (conNovedades && conInformes ? "grid-cols-2" : "grid-cols-1")}>
+          {conNovedades && (
           <Link
             href="/panel/novedades"
             className="card-tight flex flex-col items-center gap-1.5 py-4 text-center transition-shadow hover:shadow-card-hover"
@@ -122,6 +131,8 @@ export default async function MarcarPage() {
             <span className="text-sm font-bold text-strong">Novedades</span>
             <span className="text-[11px] leading-snug text-muted">Permiso, incapacidad, llegada tarde</span>
           </Link>
+          )}
+          {conInformes && (
           <Link
             href="/panel/informes"
             className="card-tight flex flex-col items-center gap-1.5 py-4 text-center transition-shadow hover:shadow-card-hover"
@@ -132,6 +143,7 @@ export default async function MarcarPage() {
             <span className="text-sm font-bold text-strong">Hacer reporte</span>
             <span className="text-[11px] leading-snug text-muted">Con fotos, llega al administrador</span>
           </Link>
+          )}
         </div>
         )}
 
