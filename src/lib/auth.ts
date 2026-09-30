@@ -6,6 +6,7 @@ import type { Staff, User } from "@prisma/client";
 import { db } from "./db";
 import { negocioTieneLogo, personaTieneFoto } from "./imagenes";
 import { suspenderSiVencio } from "./pagos";
+import { modulosDe, rutaPermitida } from "./modules";
 import { readSession } from "./session";
 import {
   esEmpleadoDeAsistencia,
@@ -239,6 +240,19 @@ export async function requireSession(opts?: { asistenciaOk?: boolean; lavadorOk?
   if (esLavadorDeLavadero(session.user, session.staff)) {
     const permitido = ruta ? rutaDeLavador(ruta) : Boolean(opts?.lavadorOk);
     if (!permitido) redirect("/panel/mis-lavados");
+  }
+
+  // El resto de empleados ve lo que el dueño le dejo (Empleados > Que puede
+  // usar). Una pantalla de un apartado apagado no se abre aunque se escriba la
+  // direccion a mano. Solo en GET: una accion no trae la ruta (ver arriba).
+  if (
+    ruta &&
+    session.staff.role !== "DUENO" &&
+    !esEmpleadoDeAsistencia(session.user, session.staff) &&
+    !esLavadorDeLavadero(session.user, session.staff) &&
+    !rutaPermitida(await modulosDe(session), ruta)
+  ) {
+    redirect("/panel");
   }
   return session;
 }

@@ -5,6 +5,8 @@ import { motivoParaRechazar } from "@/lib/jornada-reglas";
 import { anularAutomaticaAlLlegarLaReal } from "@/lib/salida-automatica";
 import { after } from "next/server";
 import { avisarMarcaje } from "@/lib/push";
+import { puedeUsar } from "@/lib/modules";
+import { esEmpleadoDeAsistencia, esLavadorDeLavadero } from "@/lib/permisos";
 
 /**
  * Recibe los marcajes que venian esperando en el telefono.
@@ -60,6 +62,13 @@ export async function POST(request: Request) {
   if (!sesion) return new Response("No autorizado.", { status: 401 });
 
   const { user, staff } = sesion;
+
+  // El empleado de asistencia y el lavador siempre marcan (es su menu fijo).
+  // Los demas, solo si el dueño les dejo "Marcar" (Empleados > Que puede usar).
+  const menuFijo = esEmpleadoDeAsistencia(user, staff) || esLavadorDeLavadero(user, staff);
+  if (!menuFijo && !(await puedeUsar(sesion, "marcar"))) {
+    return Response.json({ error: "Tu usuario no tiene permiso para marcar asistencia." }, { status: 403 });
+  }
 
   let cuerpo: { marcajes?: Entrada[] };
   try {

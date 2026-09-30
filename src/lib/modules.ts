@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { db } from "@/lib/db";
 import type { NavGroup, NavItem } from "@/lib/nav";
 
@@ -64,7 +65,13 @@ export function parseKeys(raw: string | null | undefined): string[] {
  * Devuelve tambien lo apagado, porque el configurador necesita mostrarlo para
  * poder encenderlo. Quien quiera solo el menu que use menuDe().
  */
-export async function modulosDe({ user, staff }: Sesion): Promise<Modulo[]> {
+/**
+ * Con cache() de React: el layout y requireSession() lo piden en la misma
+ * peticion, con la misma sesion, y asi la consulta corre una sola vez.
+ */
+export const modulosDe = cache(modulosSinCache);
+
+async function modulosSinCache({ user, staff }: Sesion): Promise<Modulo[]> {
   const esDueno = staff.role === "DUENO";
 
   const [filas, config, overrides] = await Promise.all([
@@ -75,10 +82,16 @@ export async function modulosDe({ user, staff }: Sesion): Promise<Modulo[]> {
     }),
     // El aislamiento va en la consulta: la config se pide por persona Y por
     // negocio, aunque el id de la persona ya sea unico.
-    // El empleado no arma su menu: usa el que armo el dueño, sin lo que es solo del dueño.
-    db.workspaceConfig.findFirst({
-      where: esDueno ? { staffId: staff.id, userId: user.id } : { userId: user.id, staff: { role: "DUENO" } },
-    }),
+    //
+    // El empleado no arma su menu. Si el dueño le armo uno a el (Empleados >
+    // Que puede usar), manda ese; si no, usa el del dueño, sin lo que es solo
+    // del dueño. Solo el dueño escribe estas filas (requireOwner en
+    // actions/workspace.ts y actions/staff.ts), asi que nadie se da permisos solo.
+    esDueno
+      ? db.workspaceConfig.findFirst({ where: { staffId: staff.id, userId: user.id } })
+      : db.workspaceConfig
+          .findMany({ where: { userId: user.id, OR: [{ staffId: staff.id }, { staff: { role: "DUENO" } }] } })
+          .then((filas) => filas.find((f) => f.staffId === staff.id) ?? filas[0] ?? null),
     // Lo que el administrador de la plataforma le prendio o le apago a esta
     // cuenta en particular.
     db.accountModule.findMany({ where: { userId: user.id } }),
@@ -150,6 +163,36 @@ export async function modulosDe({ user, staff }: Sesion): Promise<Modulo[]> {
   });
 }
 
+
+/**
+ * El apartado al que pertenece una direccion del panel: el de href mas largo
+ * que la contenga. "/panel/cartera/123" es de Cartera. Lo que no es de ningun
+ * apartado (Mi perfil, por ejemplo) solo cae en Resumen, que es fijo.
+ */
+export function moduloDeRuta(modulos: Modulo[], ruta: string): Modulo | null {
+  return (
+    modulos
+      .filter((m) => m.href !== "/panel" && (ruta === m.href || ruta.startsWith(m.href + "/")))
+      .sort((a, b) => b.href.length - a.href.length)[0] ?? null
+  );
+}
+
+/**
+ * Si esta persona puede abrir esa pantalla: no si es de un apartado que tiene
+ * apagado. Esconderlo del menu no basta, porque la direccion se puede escribir
+ * a mano o llegar por un enlace de otra pantalla.
+ */
+export function rutaPermitida(modulos: Modulo[], ruta: string): boolean {
+  const m = moduloDeRuta(modulos, ruta);
+  return !m || m.visible;
+}
+
+/** Si esta persona tiene encendido ese apartado (para las rutas de la API, que no son pantallas). */
+export async function puedeUsar(sesion: Sesion, key: string): Promise<boolean> {
+  if (sesion.staff.role === "DUENO") return true;
+  const m = (await modulosDe(sesion)).find((x) => x.key === key);
+  return Boolean(m?.visible);
+}
 
 /** Lo que se pinta en el menu lateral. */
 export function menuDe(modulos: Modulo[]): NavItem[] {

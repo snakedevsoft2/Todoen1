@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { avisarVentaGuardada } from "@/lib/push";
 import { getCurrentSession } from "@/lib/auth";
+import { puedeUsar } from "@/lib/modules";
 import { registrarVenta } from "@/lib/ventas";
 
 /**
@@ -13,6 +14,10 @@ export const dynamic = "force-dynamic";
 export async function POST(request: Request) {
   const sesion = await getCurrentSession();
   if (!sesion) return Response.json({ error: "Tu sesión se cerró." }, { status: 401 });
+  // Un empleado sin Ventas en lo que el dueño le dejo usar no registra ventas.
+  if (!(await puedeUsar(sesion, "ventas"))) {
+    return Response.json({ error: "Tu usuario no tiene permiso para registrar ventas. Pídeselo al dueño." }, { status: 403 });
+  }
   if (Number(request.headers.get("content-length") ?? 0) > 300_000) {
     return Response.json({ error: "La venta es demasiado larga." }, { status: 413 });
   }
