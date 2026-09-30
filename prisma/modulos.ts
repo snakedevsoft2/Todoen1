@@ -702,6 +702,14 @@ export const PRESETS: Record<Tipo, Record<string, Preset>> = {
       label: "Cuentas abiertas",
       ejemplo: "Si atiendes por mesa o por pedido y cobras al final.",
     },
+    // La asistencia del equipo, apagada de fabrica: la mayoria de tiendas no
+    // la usa. Planilla, Sitios y Novedades los prende el dueño en "Armar mi
+    // menu". Marcar es del empleado y el dueño no lo ve en su configurador
+    // (hiddenFromOwner), asi que ese lo prende el administrador en /admin.
+    marcar: { on: false, ejemplo: "Laura marco entrada a las 8:03 en la tienda." },
+    planilla: { on: false, ejemplo: "Hoy marcaron 2 de 3. Laura entro a las 8:03." },
+    sitios: { on: false, ejemplo: "La tienda, con su direccion y radio." },
+    novedades: { on: false, ejemplo: "Laura avisa que llega tarde el martes." },
     espacio: {},
     ajustes: {},
     soporte: {},
