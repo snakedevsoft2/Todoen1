@@ -13,7 +13,8 @@ import { FormSinSenal, useAccionSinSenal } from "@/components/SinSenal";
 import { SubmitButton } from "./SubmitButton";
 import { Alert, Card, Field } from "./ui";
 import { Icon } from "./Icon";
-import { aCampo, money, shortDay } from "@/lib/format";
+import { aCampo, cerosPara, money, parseMoney, shortDay } from "@/lib/format";
+import { precioRaro } from "@/lib/precio-raro";
 
 export type ServiceOption = { id: string; name: string; price: number };
 export type StaffOption = { id: string; name: string; color: string };
@@ -263,19 +264,24 @@ function JobCard({
           </FormSinSenal>
         )}
 
-        {(job.status === "LISTO" || job.status === "POR_COBRAR") && <CerrarLavadoForm job={job} />}
+        {(job.status === "LISTO" || job.status === "POR_COBRAR") && <CerrarLavadoForm job={job} currency={currency} />}
       </div>
     </div>
   );
 }
 
-function CerrarLavadoForm({ job }: { job: WashJobRow }) {
+function CerrarLavadoForm({ job, currency }: { job: WashJobRow; currency: string }) {
   const [state, formAction] = useActionState(
     useAccionSinSenal("cerrarLavadoAction", cerrarLavadoAction),
     undefined
   );
   const [abierto, setAbierto] = useState(false);
   const [metodo, setMetodo] = useState("EFECTIVO");
+  const [monto, setMonto] = useState(String(job.price));
+  // Lo que de verdad se va a guardar ("30" es 30.000), comparado con el precio
+  // del lavado: si se sale mucho, se avisa y se pide confirmar (ver precio-raro.ts).
+  const cobrado = parseMoney(monto, currency, cerosPara("LAVADERO"));
+  const raro = precioRaro(cobrado, job.price);
   // El que ya quedo pendiente de pago no puede volver a quedar pendiente.
   const yaDebe = job.status === "POR_COBRAR";
 
@@ -297,11 +303,12 @@ function CerrarLavadoForm({ job }: { job: WashJobRow }) {
       <div className="flex flex-wrap items-center gap-2">
         <input
           className="input w-28 py-1.5 text-xs"
-          type="number"
+          type="text"
+          inputMode="numeric"
           name="amount"
-          defaultValue={job.price}
-          min={0}
-          step={1}
+          value={monto}
+          onChange={(e) => setMonto(e.target.value)}
+          aria-label="Valor a cobrar"
         />
         <select
           name="paymentMethod"
@@ -315,10 +322,23 @@ function CerrarLavadoForm({ job }: { job: WashJobRow }) {
           <option value="OTRO">Otro</option>
           {!yaDebe && <option value="PENDIENTE">Pendientes</option>}
         </select>
-        <SubmitButton className="btn-primary btn-sm" pendingText="Guardando...">
-          {metodo === "PENDIENTE" ? "Dejar en pendientes" : "Confirmar cobro"}
+        <SubmitButton
+          className="btn-primary btn-sm"
+          pendingText="Guardando..."
+          confirm={
+            raro
+              ? "¿Seguro? Vas a cobrar " + money(cobrado, currency) + ". El precio normal es " + money(job.price, currency) + "."
+              : undefined
+          }
+        >
+          {metodo === "PENDIENTE" ? "Dejar en pendientes" : "Confirmar cobro " + money(cobrado, currency)}
         </SubmitButton>
       </div>
+      {raro && (
+        <p className="text-xs font-semibold text-bad" data-precio-raro>
+          Revisa el valor: vas a cobrar {money(cobrado, currency)} y el precio normal es {money(job.price, currency)}.
+        </p>
+      )}
     </form>
   );
 }

@@ -36,6 +36,7 @@ import { RegistrarSW } from "./RegistrarSW";
 import { BotonImprimir } from "./BotonImprimir";
 import { FacturaAutorizada, type EmisorFactura } from "./FacturaAutorizada";
 import type { Pais } from "@/lib/facturacion/paises";
+import { precioRaro } from "@/lib/precio-raro";
 
 export type VariantOption = {
   id: string;
@@ -69,6 +70,93 @@ type CartRow = {
 };
 
 type Mensaje = { kind: "ok" | "error" | "info"; text: string };
+
+const PAGO_LABEL: Record<string, string> = {
+  EFECTIVO: "Efectivo",
+  TARJETA: "Tarjeta",
+  TRANSFERENCIA: "Transferencia",
+  OTRO: "Otro",
+  CREDITO: "Cuentas por cobrar (fiado)",
+};
+
+/**
+ * El ultimo paso antes de guardar: que se vende, por cuanto y como se paga.
+ *
+ * Existe porque una venta mal escrita ($30 en vez de $30.000) se guardaba de
+ * un toque y nadie la veia hasta que el dia no cuadraba. Si algun precio se
+ * sale mucho del catalogo (ver precioRaro), lo dice aqui en rojo.
+ */
+function ConfirmarVenta({
+  venta,
+  raros,
+  currency,
+  onConfirmar,
+  onCorregir,
+}: {
+  venta: VentaPendiente;
+  raros: { name: string; cobrado: number; normal: number }[];
+  currency: string;
+  onConfirmar: () => void;
+  onCorregir: () => void;
+}) {
+  const lineas =
+    venta.items.length > 0
+      ? venta.items.map((i) => ({ texto: i.qty + "x " + i.name, valor: i.unitPrice * i.qty }))
+      : [{ texto: venta.concept.trim() || "Venta", valor: venta.total }];
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="confirmar-venta-titulo"
+      data-confirmar-venta
+      className="fixed inset-0 z-[90] flex items-end justify-center bg-black/60 p-4 sm:items-center"
+    >
+      <div className="max-h-[90dvh] w-full max-w-sm overflow-y-auto rounded-2xl bg-surface p-5 shadow-xl">
+        <h2 id="confirmar-venta-titulo" className="font-display text-lg text-strong">
+          ¿Confirmas esta venta?
+        </h2>
+
+        {raros.length > 0 && (
+          <div className="mt-3 rounded-xl border border-bad-line bg-bad-soft p-3 text-sm text-bad" data-precio-raro>
+            <p className="font-bold">Revisa el precio</p>
+            {raros.map((r) => (
+              <p key={r.name}>
+                {r.name}: vas a cobrar {money(r.cobrado, currency)}. El precio normal es {money(r.normal, currency)}.
+              </p>
+            ))}
+          </div>
+        )}
+
+        <ul className="mt-3 divide-y divide-line text-sm">
+          {lineas.map((l, n) => (
+            <li key={n} className="flex justify-between gap-3 py-1.5">
+              <span className="min-w-0 truncate text-body">{l.texto}</span>
+              <span className="shrink-0 font-semibold text-strong">{money(l.valor, currency)}</span>
+            </li>
+          ))}
+        </ul>
+        <div className="mt-2 flex items-center justify-between border-t border-line pt-2">
+          <span className="text-sm text-muted">Total</span>
+          <span className="text-2xl font-bold text-strong">{money(venta.total, currency)}</span>
+        </div>
+        <p className="mt-1 text-xs text-muted">
+          {PAGO_LABEL[venta.paymentMethod] ?? venta.paymentMethod}
+          {venta.clientName.trim() ? " · " + venta.clientName.trim() : ""}
+        </p>
+
+        <div className="mt-4 flex flex-col gap-2">
+          <button type="button" className="btn-primary w-full justify-center" onClick={onConfirmar} autoFocus>
+            <Icon name="check" className="h-4 w-4" />
+            Confirmar venta
+          </button>
+          <button type="button" className="btn-ghost w-full justify-center" onClick={onCorregir}>
+            Corregir
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /**
  * Registrar una venta, con senal o sin ella.
@@ -219,6 +307,8 @@ export function NewSaleForm({
   const [freePrice, setFreePrice] = useState("");
   const [mensaje, setMensaje] = useState<Mensaje | null>(null);
   const [enviando, setEnviando] = useState(false);
+  // La venta armada que espera el "Confirmar venta" antes de guardarse.
+  const [porConfirmar, setPorConfirmar] = useState<VentaPendiente | null>(null);
   const [pendientes, setPendientes] = useState<VentaPendiente[]>([]);
   const [enLinea, setEnLinea] = useState(true);
   // Cambia cada vez que se limpia el formulario: al usarlo como key, el
@@ -470,7 +560,9 @@ export function NewSaleForm({
   }
 
   function addFree() {
-    const price = Math.round(Number(freePrice.replace(/[^\d]/g, "")) || 0);
+    // Como cualquier otro precio: completa los ceros ("30" es 30.000) y entiende
+    // los centavos en dolares o soles (antes "12.50" quedaba en 12,50 centavos).
+    const price = parseMoney(freePrice, currency, ceros);
     if (!freeName.trim() || price <= 0) return;
     setCart((prev) => [
       ...prev,
@@ -585,6 +677,21 @@ export function NewSaleForm({
       error: null,
     };
 
+    // No se guarda todavia: primero se confirma (ver ConfirmarVenta).
+    setPorConfirmar(venta);
+  }
+
+  /** Lo que se cobro por debajo de la mitad o por mas del triple del precio del catalogo. */
+  function preciosRaros(venta: VentaPendiente) {
+    return venta.items.flatMap((i) => {
+      const servicio = services.find((s) => s.id === i.serviceId);
+      const normal = servicio?.variants?.find((v) => v.id === i.variantId)?.price ?? servicio?.price;
+      return normal && precioRaro(i.unitPrice, normal) ? [{ name: i.name, cobrado: i.unitPrice, normal }] : [];
+    });
+  }
+
+  async function registrar(venta: VentaPendiente) {
+    setPorConfirmar(null);
     setEnviando(true);
     setMensaje(null);
     setUltima(null);
@@ -1064,6 +1171,16 @@ export function NewSaleForm({
           <span className="text-xl font-bold text-strong">{money(total, currency)}</span>
         </div>
       </div>
+
+      {porConfirmar && (
+        <ConfirmarVenta
+          venta={porConfirmar}
+          raros={preciosRaros(porConfirmar)}
+          currency={currency}
+          onConfirmar={() => registrar(porConfirmar)}
+          onCorregir={() => setPorConfirmar(null)}
+        />
+      )}
 
       <form ref={formRef} onSubmit={guardar} className="space-y-3">
         {team.length > 1 && (

@@ -1,6 +1,7 @@
 import webpush from "web-push";
 import { db } from "./db";
 import { money } from "./format";
+import { precioMuyBajo } from "./precio-raro";
 
 /**
  * Notificaciones push: las que le llegan al celular aunque la app este cerrada.
@@ -38,11 +39,22 @@ export function pushConfigurado(): boolean {
   return (configurado = true);
 }
 
-async function mandar(where: { staffId?: { in: string[] } | string; userId: string }, aviso: AvisoPush) {
-  if (!pushConfigurado()) return 0;
+/** `fallas`, si se pasa, junta por que no salio cada aviso (para la prueba de Mi perfil). */
+async function mandar(
+  where: { staffId?: { in: string[] } | string; userId: string },
+  aviso: AvisoPush,
+  fallas?: string[]
+) {
+  if (!pushConfigurado()) {
+    fallas?.push("El servidor no tiene las claves de notificaciones (VAPID).");
+    return 0;
+  }
   // A quien desactivaron no le sigue llegando lo del negocio.
   const subs = await db.pushSubscription.findMany({ where: { ...where, staff: { active: true } } });
-  if (subs.length === 0) return 0;
+  if (subs.length === 0) {
+    fallas?.push("No hay ningún celular guardado para recibirlas.");
+    return 0;
+  }
 
   const payload = JSON.stringify({ url: "/panel", ...aviso });
   let enviados = 0;
@@ -54,16 +66,41 @@ async function mandar(where: { staffId?: { in: string[] } | string; userId: stri
         });
         enviados++;
       } catch (error) {
-        const codigo = (error as { statusCode?: number }).statusCode;
+        const { statusCode: codigo, body } = error as { statusCode?: number; body?: string };
+        const servicio = (() => {
+          try {
+            return new URL(s.endpoint).hostname;
+          } catch {
+            return "?";
+          }
+        })();
         if (codigo === 404 || codigo === 410) {
           await db.pushSubscription.deleteMany({ where: { id: s.id } });
+          fallas?.push("Un celular ya no existe para " + servicio + " y se borró: vuelve a activarlas.");
         } else {
-          console.error("No se pudo mandar la notificación:", codigo ?? error);
+          console.error("No se pudo mandar la notificación:", servicio, codigo ?? error, body ?? "");
+          fallas?.push(servicio + " respondió " + (codigo ?? "error") + (body ? ": " + String(body).slice(0, 200) : ""));
         }
       }
     })
   );
   return enviados;
+}
+
+/**
+ * La prueba de Mi perfil: le manda un aviso a los celulares de quien la pide y
+ * dice que paso con cada uno. Es para saber por que no llegan sin tener que
+ * mirar los registros del servidor.
+ */
+export async function probarAvisos(userId: string, staffId: string) {
+  const fallas: string[] = [];
+  const guardados = await db.pushSubscription.count({ where: { userId, staffId } });
+  const enviados = await mandar(
+    { userId, staffId },
+    { title: "Prueba de Todoen1", body: "Si ves esto, las notificaciones funcionan en este celular.", url: "/panel/perfil", tag: "prueba" },
+    fallas
+  );
+  return { guardados, enviados, fallas };
 }
 
 /** A una persona del equipo (solo lo suyo). */
@@ -147,14 +184,54 @@ export async function avisarVentaGuardada(
     }
     const venta = await db.sale.findFirst({
       where: { id: guardada.id, userId: user.id },
-      select: { total: true, clientName: true, items: { select: { name: true, qty: true } } },
+      select: {
+        total: true,
+        clientName: true,
+        items: {
+          select: {
+            name: true,
+            qty: true,
+            unitPrice: true,
+            service: { select: { price: true } },
+            variant: { select: { price: true } },
+          },
+        },
+      },
     });
     if (!venta) return 0;
-    return avisarVenta(user, {
+    const enviados = await avisarVenta(user, {
       total: venta.total,
       detalle: [resumenItems(venta.items), venta.clientName].filter(Boolean).join(" · "),
       quien,
     });
+
+    // Aparte, y solo si pasa: algo cobrado a menos de la mitad de su precio.
+    // Asi el dueño se entera de un $30 que debio ser $30.000 el mismo dia.
+    const bajos = venta.items.filter((i) => precioMuyBajo(i.unitPrice, i.variant?.price ?? i.service?.price));
+    if (bajos.length > 0) {
+      await avisarAlDueno(user.id, {
+        title: "Revisa esta venta: precio muy bajo",
+        body: [
+          bajos
+            .map(
+              (i) =>
+                i.name +
+                ": se cobró " +
+                money(i.unitPrice, user.currency) +
+                " (normal " +
+                money(i.variant?.price ?? i.service?.price ?? 0, user.currency) +
+                ")"
+            )
+            .join(" · "),
+          quien ? "Registró " + quien.name : null,
+        ]
+          .filter(Boolean)
+          .join(" · "),
+        url: "/panel/ventas",
+        tag: "precio-bajo-" + guardada.id,
+      });
+    }
+    return enviados;
   } catch (error) {
     console.error("Aviso push fallido:", error);
     return 0;

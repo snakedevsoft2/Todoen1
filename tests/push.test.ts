@@ -24,6 +24,10 @@ process.env.VAPID_PRIVATE_KEY = "privada";
 
 const { avisarAPersona, avisarMarcaje, avisarVentaGuardada } = await import("../src/lib/push");
 const { recordarMarcar } = await import("../src/lib/recordar-marcar");
+const { armarResumen, diaParaResumir, mandarResumenes } = await import("../src/lib/resumen-dia");
+const { precioMuyBajo, precioRaro } = await import("../src/lib/precio-raro");
+const { money } = await import("../src/lib/format");
+const $ = (n: number) => money(n, "COP");
 
 const db = new PrismaClient();
 const S = "push-" + Date.now();
@@ -140,6 +144,85 @@ describe("avisos al dueño", () => {
     await avisarMarcaje({ id: userId, timezone: "America/Bogota" }, { nombre: "Jhon", kind: "SALIDA", markedAt: AHORA });
     expect(await db.pushSubscription.count({ where: { endpoint: a("dueno") } })).toBe(0);
     await suscribir(userId, dueno, "dueno");
+  });
+});
+
+describe("precio raro", () => {
+  it("menos de la mitad es muy bajo; más del triple también es raro", () => {
+    expect(precioMuyBajo(30, 25000)).toBe(true);
+    expect(precioMuyBajo(12000, 25000)).toBe(true);
+    expect(precioMuyBajo(20000, 25000)).toBe(false);
+    expect(precioRaro(80000, 25000)).toBe(true);
+    expect(precioRaro(30000, 25000)).toBe(false);
+    // Sin precio de catálogo no hay con qué comparar.
+    expect(precioRaro(30, null)).toBe(false);
+    expect(precioRaro(30, 0)).toBe(false);
+  });
+
+  it("una venta muy por debajo del catálogo le avisa aparte al dueño", async () => {
+    const moto = await db.service.create({ data: { userId, name: "Moto mediana", price: 25000 } });
+    const venta = await db.sale.create({
+      data: {
+        userId,
+        day: "2026-09-29",
+        total: 30,
+        paymentMethod: "EFECTIVO",
+        items: { create: [{ userId, serviceId: moto.id, name: "Moto mediana", unitPrice: 30, qty: 1 }] },
+      },
+    });
+    await avisarVentaGuardada({ id: userId, currency: "COP" }, { tipo: "venta", id: venta.id }, { name: "Juan" });
+    const titulos = enviados.map((e) => e.payload.title);
+    expect(titulos).toContain("Revisa esta venta: precio muy bajo");
+    const aviso = enviados.find((e) => e.payload.title.startsWith("Revisa"))!;
+    expect(aviso.endpoint).toBe(a("dueno"));
+    expect(aviso.payload.body).toContain("Moto mediana: se cobró " + $(30));
+    expect(aviso.payload.body).toContain("normal " + $(25000));
+    expect(aviso.payload.body).toContain("Registró Juan");
+  });
+
+  it("una venta a precio normal no avisa nada extra", async () => {
+    await avisarVentaGuardada({ id: userId, currency: "COP" }, { tipo: "venta", id: ventaId }, null);
+    expect(enviados.map((e) => e.payload.title).some((t) => t.startsWith("Revisa"))).toBe(false);
+  });
+});
+
+describe("resumen del día", () => {
+  it("dice los carros, la plata y cuánto lavó cada uno, con las cifras del panel", async () => {
+    const dia = "2026-09-20";
+    const andrea = await db.staff.create({ data: { userId, name: "Andrea López", role: "VENDEDOR", commissionPct: 50 } });
+    for (const total of [20000, 30000]) {
+      await db.sale.create({
+        data: { userId, day: dia, total, paymentMethod: "EFECTIVO", origin: "LAVADO", staffId: andrea.id, items: { create: [{ userId, name: "Lavado", unitPrice: total, qty: 1 }] } },
+      });
+    }
+    await db.sale.create({
+      data: { userId, day: dia, total: 25000, paymentMethod: "EFECTIVO", origin: "LAVADO", staffId: lavador, items: { create: [{ userId, name: "Moto", unitPrice: 25000, qty: 1 }] } },
+    });
+
+    const aviso = await armarResumen({ id: userId, currency: "COP", businessType: "LAVADERO" }, dia);
+    expect(aviso?.title).toBe("Resumen del día · " + $(75000));
+    expect(aviso?.body).toContain("3 carros · " + $(75000));
+    expect(aviso?.body).toContain("Para lavadores " + $(25000));
+    expect(aviso?.body).toContain("Andrea 2, Jhon 1");
+  });
+
+  it("un día sin ventas no manda nada", async () => {
+    expect(await armarResumen({ id: userId, currency: "COP", businessType: "LAVADERO" }, "2026-01-01")).toBeNull();
+  });
+
+  it("le llega solo al dueño, y nunca a otro negocio", async () => {
+    // 21:15 en Bogotá del 29: se resume el 29, que tiene la venta de $20.000.
+    await mandarResumenes(new Date("2026-09-30T02:15:00Z"));
+    const mios = enviados.filter((e) => e.endpoint.endsWith(S));
+    expect(mios.map((e) => e.endpoint)).toEqual([a("dueno")]);
+    expect(mios[0].payload.title).toContain("Resumen del día");
+  });
+
+  it("si allá ya es de madrugada, resume el día de ayer", () => {
+    // 02:15 UTC del 30 = 21:15 del 29 en Bogotá, y 04:15 del 30 en Madrid.
+    const cron = new Date("2026-09-30T02:15:00Z");
+    expect(diaParaResumir("America/Bogota", cron)).toBe("2026-09-29");
+    expect(diaParaResumir("Europe/Madrid", cron)).toBe("2026-09-29");
   });
 });
 

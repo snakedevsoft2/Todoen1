@@ -16,6 +16,10 @@
     {
       "path": "/api/push/recordatorios?tipo=salida",
       "schedule": "30 23 * * *"
+    },
+    {
+      "path": "/api/push/resumen",
+      "schedule": "15 2 * * *"
     }
   ]
 }

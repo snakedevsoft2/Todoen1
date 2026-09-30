@@ -156,6 +156,35 @@ export function ActivarNotificaciones({
     }
   }, []);
 
+  // "Enviar prueba": el servidor le manda un aviso a este celular y dice que paso.
+  const [probando, setProbando] = useState(false);
+  const [prueba, setPrueba] = useState<{ ok: boolean; texto: string } | null>(null);
+  const probar = useCallback(async () => {
+    setProbando(true);
+    setPrueba(null);
+    try {
+      // Primero se vuelve a guardar la suscripcion de este celular, por si el
+      // servidor no la tenia (es lo mas comun cuando no llegan).
+      const reg = await navigator.serviceWorker.getRegistration(SCOPE);
+      const sub = await reg?.pushManager.getSubscription();
+      if (sub) {
+        await fetch("/api/push", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sub) });
+      }
+      const r = await fetch("/api/push/prueba", { method: "POST" });
+      if (!r.ok) throw new Error("servidor");
+      const d = (await r.json()) as { guardados: number; enviados: number; fallas: string[] };
+      setPrueba(
+        d.enviados > 0 && d.fallas.length === 0
+          ? { ok: true, texto: "Enviada. Debe llegarte en unos segundos. Si no llega, revisa Ajustes > Notificaciones > Todoen1 en el celular." }
+          : { ok: false, texto: "No salió. " + (d.fallas.join(" ") || "Sin detalle.") }
+      );
+    } catch {
+      setPrueba({ ok: false, texto: "No se pudo hablar con el servidor. Revisa tu conexión." });
+    } finally {
+      setProbando(false);
+    }
+  }, []);
+
   const ocultar = () => {
     setOculto(true);
     try {
@@ -239,10 +268,18 @@ export function ActivarNotificaciones({
       {estado === "activo" && (
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-semibold text-good">Activas en este celular.</span>
+          <button type="button" className="btn-ghost btn-sm" onClick={probar} disabled={probando} data-probar-notificacion>
+            {probando ? "Enviando..." : "Enviar prueba"}
+          </button>
           <button type="button" className="btn-ghost btn-sm" onClick={apagar}>
             Apagar
           </button>
         </div>
+      )}
+      {prueba && (
+        <p className={prueba.ok ? "text-good" : "text-bad"} data-resultado-prueba>
+          {prueba.texto}
+        </p>
       )}
       {(estado === "apagado" || estado === "activando") && (
         <button type="button" className="btn-primary btn-sm" onClick={activar} disabled={estado === "activando"}>
