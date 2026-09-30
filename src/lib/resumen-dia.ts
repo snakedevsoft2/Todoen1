@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { addDays, timeIn, todayIn } from "./dates";
+import { addDays, dayIn, timeIn } from "./dates";
 import { money } from "./format";
 import { getDaySummary } from "./queries";
 import { repartoDelDia } from "./patio-turno";
@@ -23,7 +23,9 @@ import { avisarAlDueno, type AvisoPush } from "./push";
  * de ayer.
  */
 export function diaParaResumir(timezone: string, ahora = new Date()): string {
-  const hoy = todayIn(timezone);
+  // dayIn(ahora) y no todayIn(): el dia tiene que salir de la misma hora que
+  // la cuenta de abajo, no del reloj del servidor.
+  const hoy = dayIn(ahora, timezone);
   const hora = Number(timeIn(ahora, timezone).slice(0, 2));
   return hora < 12 ? addDays(hoy, -1) : hoy;
 }

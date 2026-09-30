@@ -132,6 +132,10 @@ try {
   await page.getByRole("button", { name: /Hamburguesa prueba/ }).click();
   await page.getByRole("button", { name: /Hamburguesa prueba/ }).click();
   await page.getByRole("button", { name: /Guardar venta/ }).click();
+
+  // Antes de guardar, la venta pide confirmar (ConfirmarVenta en NewSaleForm).
+
+  await page.getByRole("button", { name: "Confirmar venta" }).click();
   ok(Boolean(await esperarHasta(() => page.getByText(/quedó guardada en este teléfono/).count())), "la venta queda guardada en el teléfono");
   await page.getByRole("button", { name: "Imprimir recibo" }).click();
   await page.getByRole("button", { name: /Tirilla 58 mm/ }).click();
@@ -144,6 +148,10 @@ try {
   await page.fill('input[name="manualTotal"]', "5000");
   await page.fill('input[name="concept"]', "Propina prueba");
   await page.getByRole("button", { name: /Guardar venta/ }).click();
+
+  // Antes de guardar, la venta pide confirmar (ConfirmarVenta en NewSaleForm).
+
+  await page.getByRole("button", { name: "Confirmar venta" }).click();
   ok(
     Boolean(await esperarHasta(() => page.locator("[data-ventas-pendientes]").getByText(/2 ventas por subir/).count())),
     "muestra 2 ventas por subir con su total"

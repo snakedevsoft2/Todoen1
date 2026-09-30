@@ -148,6 +148,10 @@ try {
   await page.fill('input[name="clientName"]', "Ana Pérez");
   await page.fill('input[name="clientPhone"]', "3001234567");
   await page.getByRole("button", { name: /Guardar venta/ }).click();
+
+  // Antes de guardar, la venta pide confirmar (ConfirmarVenta en NewSaleForm).
+
+  await page.getByRole("button", { name: "Confirmar venta" }).click();
   const comprador = page.locator("[data-comprador]");
   ok(Boolean(await esperarHasta(() => comprador.count())), "pide los datos del comprador apenas se guarda la venta");
   await comprador.getByRole("checkbox").first().uncheck();
@@ -183,6 +187,10 @@ try {
   await formularioVenta.locator('select[name="paymentMethod"]').selectOption("CREDITO");
   await page.fill('input[name="clientName"]', "Doña Marta");
   await page.getByRole("button", { name: /Guardar venta/ }).click();
+
+  // Antes de guardar, la venta pide confirmar (ConfirmarVenta en NewSaleForm).
+
+  await page.getByRole("button", { name: "Confirmar venta" }).click();
   ok(Boolean(await esperarHasta(() => page.getByText(/Quedó en Cuentas por cobrar a nombre de Doña Marta/).count())), "confirma que quedó en cuentas por cobrar");
   const deuda = await db.debt.findFirst({ where: { userId: cuenta.id } });
   ok(deuda?.amount === 11900 && deuda?.clientName === "Doña Marta" && deuda?.alreadyInvoiced === false, "la deuda queda con el valor y el cliente");

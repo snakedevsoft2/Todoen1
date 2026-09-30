@@ -72,6 +72,8 @@ try {
   ok(await page.locator("[data-sin-senal]").isVisible().catch(() => false), "avisa que está sin señal");
   await page.getByRole("button", { name: "Gaseosa", exact: false }).click();
   await page.getByRole("button", { name: /Guardar venta/ }).click();
+  // Antes de guardar, la venta pide confirmar (ConfirmarVenta en NewSaleForm).
+  await page.getByRole("button", { name: "Confirmar venta" }).click();
   ok(
     Boolean(
       await page
@@ -105,6 +107,8 @@ try {
   await page.getByRole("button", { name: "Gaseosa", exact: false }).click();
   const desde = Date.now();
   await page.getByRole("button", { name: /Guardar venta/ }).click();
+  // Antes de guardar, la venta pide confirmar (ConfirmarVenta en NewSaleForm).
+  await page.getByRole("button", { name: "Confirmar venta" }).click();
   const salio = await page
     .getByText(/quedó guardada en este teléfono/)
     .first()

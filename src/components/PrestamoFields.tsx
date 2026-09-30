@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { money, pasoMoneda } from "@/lib/format";
+import { money, parseMoney, pasoMoneda } from "@/lib/format";
 import {
   FRECUENCIAS,
   ganancia,
@@ -44,8 +44,9 @@ export function CamposPrestamo({ today, currency }: { today: string; currency: s
 
   // Se lee igual que lo va a leer el servidor, o el numero que se ve en la
   // pantalla no seria el que queda guardado.
-  const factor = pasoMoneda(currency) === "1" ? 1 : 100;
-  const capitalNum = Math.round((Number(capital.replace(",", ".")) || 0) * factor);
+  // parseMoney es literalmente lo que usa el servidor: antes "1.000.000" con
+  // puntos salia aqui como 0 y "50" como $50, pero se guardaban $1.000.000 y $50.000.
+  const capitalNum = parseMoney(capital, currency);
   const interesNum = Math.max(0, Math.trunc(Number(interes) || 0));
   const cuotasNum = Math.max(0, Math.trunc(Number(cuotas) || 0));
 

@@ -507,7 +507,19 @@ export default async function TurnosPage({
                                 <option value="OTRO">Otro</option>
                               </select>
                             </label>
-                            <SubmitButton className="btn-success btn-sm" pendingText="Cerrando...">
+                            <SubmitButton
+                              className="btn-success btn-sm"
+                              pendingText="Cerrando..."
+                              confirm={
+                                "¿Confirmas la venta de " +
+                                a.serviceName +
+                                " a " +
+                                a.clientName +
+                                "? Revisa que el valor cobrado esté bien (precio normal " +
+                                money(a.price, user.currency) +
+                                ")."
+                              }
+                            >
                               Guardar venta
                             </SubmitButton>
                           </FormSinSenal>

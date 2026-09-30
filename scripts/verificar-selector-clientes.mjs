@@ -112,6 +112,8 @@ try {
   await page.fill('input[name="manualTotal"]', "").catch(() => {});
   await input.fill("Compradora De Prueba");
   await page.getByRole("button", { name: "Guardar venta" }).click();
+  // Antes de guardar, la venta pide confirmar (ConfirmarVenta en NewSaleForm).
+  await page.getByRole("button", { name: "Confirmar venta" }).click();
   ok(Boolean(await esperarHasta(() => page.getByText("Venta registrada.").count())), "la venta se guarda");
   ok(Boolean(await esperarHasta(async () => (await input.inputValue()) === "")), "el nombre del cliente se limpia solo");
 

@@ -153,9 +153,10 @@ try {
   }
   // La venta sale como JSON a /api/ventas (asi tambien puede guardarse sin
   // senal): se mide el carrito que de verdad viaja en esa peticion.
+  await page.getByRole("button", { name: /Guardar venta/ }).click();
   const [peticion] = await Promise.all([
     page.waitForRequest((r) => r.url().endsWith("/api/ventas") && r.method() === "POST", { timeout: 15000 }),
-    page.getByRole("button", { name: /Guardar venta/ }).click(),
+    page.getByRole("button", { name: "Confirmar venta" }).click(),
   ]);
   const largo = JSON.stringify(JSON.parse(peticion.postData() ?? "{}").items ?? []).length;
   ok(largo > 200, "el carrito pasa de doscientos caracteres", String(largo));
