@@ -322,6 +322,14 @@ export function StaffCard({
           Ver lo que hizo
         </Link>
 
+        {/* Que apartados le salen y puede abrir: ventas, marcar, reportes... */}
+        {!isOwner && (
+          <Link href={"/panel/equipo/" + staff.id + "/apartados"} className="btn-ghost btn-sm" data-que-puede-usar>
+            <Icon name="sliders" className="h-4 w-4" />
+            Qué puede usar
+          </Link>
+        )}
+
         {!isOwner && (
           <button
             type="button"

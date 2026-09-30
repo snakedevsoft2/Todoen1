@@ -9,6 +9,8 @@ import { normalizeHex } from "@/lib/theme";
 import { ROLES_ELEGIBLES, STAFF_COLORS, teamNoun } from "@/lib/staff";
 import { USUARIO_INVALIDO, USUARIO_VALIDO, normalizarUsuario } from "@/lib/usuario";
 import { cookieJar, signSession, writeSessionCookie } from "@/lib/session";
+import { modulosDe } from "@/lib/modules";
+import { anotarActividad } from "@/lib/actividad";
 
 export type StaffState = { error?: string; ok?: string } | undefined;
 
@@ -280,4 +282,61 @@ export async function changeStaffPasswordAction(
     })
   );
   return { ok: "Contrasena actualizada." };
+}
+
+/**
+ * Lo que puede usar un empleado: el dueño prende y apaga cada apartado para
+ * esa persona (Empleados > Que puede usar). Se guarda como el menu propio del
+ * empleado (WorkspaceConfig con su staffId), que modulosDe() prefiere sobre el
+ * menu del dueño. No solo esconde: requireSession() y las rutas de la API
+ * tampoco dejan abrir lo apagado.
+ *
+ * Solo apartados que ese negocio tiene y que no son solo del dueño: la lista
+ * valida sale de modulosDe() para esa persona, no de lo que mande el navegador.
+ */
+export async function guardarApartadosEmpleadoAction(formData: FormData): Promise<void> {
+  const { user, staff: yo } = await requireOwner();
+  const persona = await db.staff.findFirst({
+    where: { id: str(formData.get("staffId")), userId: user.id, role: { not: "DUENO" } },
+    select: { id: true, name: true, role: true },
+  });
+  if (!persona) return;
+
+  const modulos = await modulosDe({ user, staff: persona });
+  const elegibles = modulos.filter((m) => !m.fixed).map((m) => m.key);
+  const pedidos = new Set(formData.getAll("key").map(String));
+  const encendidos = elegibles.filter((k) => pedidos.has(k));
+  const apagados = elegibles.filter((k) => !pedidos.has(k));
+
+  const datos = {
+    hiddenKeys: apagados.join(","),
+    // Todas las llaves mencionadas: asi un apartado nuevo que se estrene
+    // despues no le aparece solo a este empleado sin que el dueño lo decida.
+    orderKeys: modulos.map((m) => m.key).join(","),
+  };
+  await db.workspaceConfig.upsert({
+    where: { staffId: persona.id },
+    create: { userId: user.id, staffId: persona.id, ...datos },
+    update: datos,
+  });
+
+  const nombres = modulos.filter((m) => encendidos.includes(m.key)).map((m) => m.label);
+  await anotarActividad(
+    { user, staff: yo },
+    { tipo: "cambio", detalle: "Cambió lo que puede usar " + persona.name + ": " + (nombres.join(", ") || "solo lo fijo") }
+  );
+  revalidatePath("/panel/equipo");
+  revalidatePath("/panel/equipo/" + persona.id + "/apartados");
+}
+
+/** Vuelve a que el empleado use el mismo menu que el dueño (sin lo que es solo del dueño). */
+export async function apartadosComoElNegocioAction(formData: FormData): Promise<void> {
+  const { user } = await requireOwner();
+  const persona = await db.staff.findFirst({
+    where: { id: str(formData.get("staffId")), userId: user.id, role: { not: "DUENO" } },
+    select: { id: true },
+  });
+  if (!persona) return;
+  await db.workspaceConfig.deleteMany({ where: { staffId: persona.id, userId: user.id } });
+  revalidatePath("/panel/equipo/" + persona.id + "/apartados");
 }

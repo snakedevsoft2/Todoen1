@@ -75,7 +75,9 @@ export default async function PanelLayout({ children }: { children: React.ReactN
 
   // Las notificaciones son para todos los planes: no guardan nada en el
   // telefono, solo avisan (ver public/sw-push.js).
-  const avisosPush = queRecibe(staff.role, user.businessType);
+  // A un empleado se le ofrecen si marca asistencia: siempre en el lavadero y
+  // el gestor, y en otro negocio si el dueño le dejo "Marcar".
+  const avisosPush = queRecibe(staff.role, user.businessType, nav.some((i) => i.href === "/panel/marcar"));
 
   const conPagina = tienePaginaPublica(user.businessType) && !empleado && !lavador;
 

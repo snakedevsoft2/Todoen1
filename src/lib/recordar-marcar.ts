@@ -2,6 +2,7 @@ import { db } from "./db";
 import { addDays, dayIn, inicioDelDiaEn } from "./dates";
 import { avisarAPersona } from "./push";
 import { recibeRecordatorioDeMarcar } from "./push-textos";
+import { puedeUsar } from "./modules";
 
 /**
  * Recordatorio al celular para marcar, a cada empleado (jefe de patio
@@ -21,7 +22,7 @@ export async function recordarMarcar(tipo: "entrada" | "salida", ahora = new Dat
     where: { staff: { active: true, role: { not: "DUENO" } } },
     select: {
       staffId: true,
-      staff: { select: { name: true } },
+      staff: { select: { name: true, role: true } },
       user: { select: { id: true, timezone: true, businessType: true } },
     },
     distinct: ["staffId"],
@@ -29,7 +30,12 @@ export async function recordarMarcar(tipo: "entrada" | "salida", ahora = new Dat
 
   let enviados = 0;
   for (const s of subs) {
-    if (!recibeRecordatorioDeMarcar(s.user.businessType)) continue;
+    // Lavadero y gestor de asistencia siempre marcan; otro negocio, solo quien
+    // tiene "Marcar" en lo que el dueño le dejo usar.
+    const marca =
+      recibeRecordatorioDeMarcar(s.user.businessType) ||
+      (await puedeUsar({ user: s.user, staff: { id: s.staffId, role: s.staff.role } }, "marcar"));
+    if (!marca) continue;
 
     const ultimo = await db.attendance.findFirst({
       where: { staffId: s.staffId, voidedAt: null, markedAt: { gte: new Date(ahora.getTime() - VENTANA_MS), lte: ahora } },

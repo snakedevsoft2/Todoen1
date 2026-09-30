@@ -6,7 +6,8 @@ import { PasswordForm } from "@/components/SettingsForms";
 import { StaffPasswordForm } from "@/components/StaffForms";
 import { PreguntaSeguridadForm } from "@/components/PreguntaSeguridadForm";
 import { ActivarNotificaciones } from "@/components/ActivarNotificaciones";
-import { queRecibe } from "@/lib/push-textos";
+import { queRecibe, recibeRecordatorioDeMarcar } from "@/lib/push-textos";
+import { puedeUsar } from "@/lib/modules";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,12 @@ export default async function PerfilPage() {
   // mandaria de vuelta a su pantalla fija en vez de dejarlos verla.
   const { user, staff } = await requireSession({ asistenciaOk: true, lavadorOk: true });
   const esDueno = staff.role === "DUENO";
-  const avisos = queRecibe(staff.role, user.businessType);
+  // Igual que en el menu (panel/layout.tsx): al empleado se le ofrecen si marca asistencia.
+  const avisos = queRecibe(
+    staff.role,
+    user.businessType,
+    recibeRecordatorioDeMarcar(user.businessType) || (await puedeUsar({ user, staff }, "marcar"))
+  );
 
   return (
     <>
