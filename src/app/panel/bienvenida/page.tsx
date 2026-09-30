@@ -75,6 +75,12 @@ const PRIMER_PASO: Record<string, { texto: string; href: string; boton: string }
     href: "/panel/catalogo",
     boton: "Cargar mis lavados",
   },
+  PARQUEADERO: {
+    texto:
+      "Revisa cuánto cobras por hora y por día a motos y carros. Te dejamos unas tarifas de ejemplo: cámbialas por las tuyas y ya puedes ingresar el primer vehículo.",
+    href: "/panel/parqueadero/tarifas",
+    boton: "Poner mis tarifas",
+  },
 };
 
 export default async function BienvenidaPage() {

@@ -28,6 +28,9 @@ enum BusinessType {
   /// Lavadero de carros, motos y camionetas. Vende lavados por turno, con
   /// quien lo atendio.
   LAVADERO
+  /// Parqueadero de motos y carros. Cobra por el tiempo que el vehiculo se
+  /// queda adentro, con las tarifas que configura el dueño. Ver lib/parqueadero.ts.
+  PARQUEADERO
 }
 
 /// Cada cuanto se cobra una cuota del prestamo.
@@ -78,6 +81,8 @@ enum SaleOrigin {
   CARTERA
   /// Se cobro desde el tablero de patio del lavadero (WashJob).
   LAVADO
+  /// La salida de un vehiculo del parqueadero (ParkingTicket).
+  PARQUEADERO
 }
 
 enum DebtStatus {
@@ -221,6 +226,10 @@ model User {
   loyaltyGoal   Int     @default(10)
   loyaltyReward String?
 
+  /// El numero que le toca al proximo ticket del parqueadero. Aparte del de
+  /// los recibos: el ticket se entrega al entrar, y el recibo solo si paga.
+  nextTicketSeq Int @default(1)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -274,6 +283,8 @@ model User {
   pushSubscriptions  PushSubscription[]
   loyaltyCards       LoyaltyCard[]
   loyaltyStamps      LoyaltyStamp[]
+  parkingRates       ParkingRate[]
+  parkingTickets     ParkingTicket[]
 
   @@index([slug])
 }
@@ -550,15 +561,18 @@ model Staff {
   activities     StaffActivity[]
 
   /// Lavadero: vehiculos que esta persona lava (rol lavador).
-  washJobsAsignados WashJob[] @relation("LavadorAsignado")
+  washJobsAsignados WashJob[]          @relation("LavadorAsignado")
   /// Lavadero: vehiculos que esta persona recibio (rol jefe de patio o dueño).
-  washJobsRecibidos WashJob[] @relation("JefeDePatioQueRecibio")
+  washJobsRecibidos WashJob[]          @relation("JefeDePatioQueRecibio")
   /// Lavadero: entregas de turno que esta persona hizo, le dejaron o recibio.
-  entregasHechas    PatioHandover[] @relation("EntregaQueHizo")
-  entregasParaMi    PatioHandover[] @relation("EntregaParaQuien")
-  entregasRecibidas PatioHandover[] @relation("EntregaQueRecibio")
+  entregasHechas    PatioHandover[]    @relation("EntregaQueHizo")
+  entregasParaMi    PatioHandover[]    @relation("EntregaParaQuien")
+  entregasRecibidas PatioHandover[]    @relation("EntregaQueRecibio")
   /// Los celulares o computadores donde esta persona activo las notificaciones.
   pushSubscriptions PushSubscription[]
+  /// Parqueadero: los vehiculos que esta persona ingreso y los que cobro.
+  ticketsRecibidos  ParkingTicket[]    @relation("ParqueaderoRecibio")
+  ticketsCobrados   ParkingTicket[]    @relation("ParqueaderoCobro")
 
   @@index([userId, active])
 }
@@ -787,31 +801,33 @@ model OrderItem {
 
 /// Venta cerrada. Es la fuente de verdad del dinero del dia.
 model Sale {
-  id            String        @id @default(cuid())
-  userId        String
-  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  day           String // "YYYY-MM-DD" en la zona del negocio
-  total         Int
-  paymentMethod PaymentMethod @default(EFECTIVO)
-  origin        SaleOrigin    @default(MANUAL)
-  clientName    String?
-  notes         String?
-  staffId       String?
-  staff         Staff?        @relation(fields: [staffId], references: [id], onDelete: SetNull)
-  appointmentId String?       @unique
-  appointment   Appointment?  @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
-  orderId       String?       @unique
-  order         Order?        @relation(fields: [orderId], references: [id], onDelete: SetNull)
-  washJobId     String?       @unique
-  washJob       WashJob?      @relation(fields: [washJobId], references: [id], onDelete: SetNull)
+  id              String         @id @default(cuid())
+  userId          String
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  day             String // "YYYY-MM-DD" en la zona del negocio
+  total           Int
+  paymentMethod   PaymentMethod  @default(EFECTIVO)
+  origin          SaleOrigin     @default(MANUAL)
+  clientName      String?
+  notes           String?
+  staffId         String?
+  staff           Staff?         @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  appointmentId   String?        @unique
+  appointment     Appointment?   @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  orderId         String?        @unique
+  order           Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  washJobId       String?        @unique
+  washJob         WashJob?       @relation(fields: [washJobId], references: [id], onDelete: SetNull)
+  parkingTicketId String?        @unique
+  parkingTicket   ParkingTicket? @relation(fields: [parkingTicketId], references: [id], onDelete: SetNull)
   /// La llave que le puso el telefono a la venta. Si se guardo sin senal y la
   /// subida se corta y se reintenta, la venta no queda dos veces ni descuenta
   /// el inventario dos veces.
-  clientKey     String?       @unique
+  clientKey       String?        @unique
   /// El numero del recibo/factura que se le imprime al cliente. Ver
   /// User.nextReceiptSeq. Nulo en las ventas de antes de que esto existiera.
-  receiptSeq    Int?
-  createdAt     DateTime      @default(now())
+  receiptSeq      Int?
+  createdAt       DateTime       @default(now())
 
   items             SaleItem[]
   electronicInvoice ElectronicInvoice?
@@ -909,18 +925,115 @@ model WashJob {
   @@index([userId, assignedStaffId])
 }
 
+/// La tarifa del parqueadero para un tipo de vehiculo (moto, carro, camioneta...).
+/// La plata va en la unidad minima de la moneda, como todo lo demas.
+model ParkingRate {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// "Moto", "Carro", "Camioneta". Es lo que se elige al ingresar el vehiculo.
+  name   String
+
+  /// Cuanto vale una hora. 0 = solo se cobra por dia.
+  pricePerHour    Int @default(0)
+  /// Cada cuanto sube el cobro, en minutos: 60 cobra por hora empezada, 15
+  /// cobra de a cuarto de hora (cada fraccion vale la parte de la hora).
+  fractionMinutes Int @default(60)
+  /// Minutos de cortesia: si sale antes, no paga nada.
+  graceMinutes    Int @default(0)
+  /// Lo mas que se cobra por un dia (24 horas). 0 = sin tope: se cobran todas
+  /// las horas. Si no hay precio por hora, es el precio de cada dia empezado.
+  pricePerDay     Int @default(0)
+
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tickets ParkingTicket[]
+
+  @@index([userId, active])
+}
+
+/// En que va un vehiculo del parqueadero.
+enum ParkingStatus {
+  /// Esta adentro: el reloj sigue corriendo.
+  DENTRO
+  /// Salio y pago: tiene su venta (Sale.parkingTicketId).
+  PAGADO
+  /// Salio sin pagar: el cobro quedo congelado y se debe. Se crea la venta el
+  /// dia en que pague, que es cuando la plata entra a la caja.
+  POR_COBRAR
+  /// Se anulo (se equivocaron al ingresarlo). No cuenta para nada.
+  ANULADO
+}
+
+/// Un vehiculo que entro al parqueadero, con su ticket. El QR del ticket
+/// lleva qrToken (no el id) a la pagina publica /ticket/[token], donde el
+/// cliente ve cuanto tiempo lleva y cuanto va a pagar.
+///
+/// La tarifa se copia al ingresar: si el dueño cambia los precios despues, el
+/// vehiculo que ya estaba adentro paga lo que decia su ticket.
+model ParkingTicket {
+  id      String @id @default(cuid())
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Dia de entrada, "YYYY-MM-DD" en la zona del negocio.
+  day     String
+  /// Numero del ticket (1, 2, 3...) para decirlo en voz alta. Ver User.nextTicketSeq.
+  seq     Int
+  /// Lo que va en el QR. Largo y al azar: nadie puede adivinar el de otro carro.
+  qrToken String @unique @default(cuid())
+
+  plate String
+  phone String?
+  email String?
+  /// Donde quedo parqueado adentro: "Piso 2, puesto 14". Opcional.
+  spot  String?
+  notes String?
+
+  rateId          String?
+  rate            ParkingRate? @relation(fields: [rateId], references: [id], onDelete: SetNull)
+  vehicleType     String
+  pricePerHour    Int
+  fractionMinutes Int
+  graceMinutes    Int
+  pricePerDay     Int
+
+  status    ParkingStatus @default(DENTRO)
+  enteredAt DateTime      @default(now())
+  exitedAt  DateTime?
+  /// Lo que se cobro (o se debe, si esta POR_COBRAR). Nulo mientras esta adentro.
+  amount    Int?
+
+  receivedById String?
+  receivedBy   Staff?  @relation("ParqueaderoRecibio", fields: [receivedById], references: [id], onDelete: SetNull)
+  closedById   String?
+  closedBy     Staff?  @relation("ParqueaderoCobro", fields: [closedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sale Sale?
+
+  @@unique([userId, seq])
+  @@index([userId, status])
+  @@index([userId, day])
+  @@index([userId, plate])
+}
+
 /// Un celular (o computador) donde una persona activo las notificaciones
 /// push. Una persona puede tener varios. Si el navegador dice que ya no
 /// existe (404/410 al mandar), se borra. Ver lib/push.ts.
 model PushSubscription {
-  id       String @id @default(cuid())
-  userId   String
-  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  staffId  String
-  staff    Staff  @relation(fields: [staffId], references: [id], onDelete: Cascade)
-  endpoint String @unique
-  p256dh   String
-  auth     String
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  staffId   String
+  staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
   userAgent String?
   createdAt DateTime @default(now())
 
@@ -954,16 +1067,16 @@ model PatioHandover {
   totalCash         Int
   totalCard         Int
   totalTransfer     Int
-  totalOther        Int @default(0)
-  totalExpenses     Int @default(0)
+  totalOther        Int      @default(0)
+  totalExpenses     Int      @default(0)
   /// Lo que les toca a los lavadores por comision; el resto es del lavadero.
-  totalCommissions  Int @default(0)
+  totalCommissions  Int      @default(0)
   pendingCount      Int
   pendingValue      Int
   /// [{ id, clientName, vehiclePlate, vehicleType, serviceName, price, status, lavador }]
   pendingSnapshot   Json
   /// El efectivo que el que sale deja en mano al que llega.
-  cashDelivered     Int @default(0)
+  cashDelivered     Int      @default(0)
   notes             String?
   createdAt         DateTime @default(now())
 
@@ -1025,10 +1138,10 @@ model Expense {
 
 /// Cierre de caja del dia.
 model CashClosure {
-  id            String   @id @default(cuid())
-  userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  day           String // "YYYY-MM-DD"
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  day    String // "YYYY-MM-DD"
 
   /// Quien cerro: cada quien cierra la suya, para que dos personas que
   /// atienden el mismo dia no se pisen el cierre ni vean los totales del
@@ -1114,9 +1227,9 @@ model Module {
 
   /// No se puede esconder. Sin resumen no hay a donde volver, sin ajustes no
   /// se podria deshacer el menu, y soporte es a donde acude quien se trabo.
-  fixed     Boolean @default(false)
+  fixed           Boolean @default(false)
   /// Configuracion del negocio: el empleado no lo ve aunque este encendido.
-  ownerOnly Boolean @default(false)
+  ownerOnly       Boolean @default(false)
   /// Al reves de ownerOnly: es del empleado, no del dueno. El dueno supervisa
   /// (por ejemplo con Planilla), no marca su propia entrada como un empleado.
   hiddenFromOwner Boolean @default(false)

@@ -59,6 +59,7 @@
     "verificar:ventas-por-empleado": "node scripts/verificar-ventas-por-empleado.mjs",
     "verificar:ajustes-empleado": "node scripts/verificar-ajustes-empleado.mjs",
     "verificar:mesas": "node scripts/verificar-mesas.mjs",
+    "verificar:parqueadero": "node scripts/verificar-parqueadero.mjs",
     "verificar:asistente-crea": "node scripts/verificar-asistente-crea.mjs",
     "verificar:oferta-mes": "node scripts/verificar-oferta-mes.mjs",
     "verificar:ventas-sin-conexion": "node scripts/verificar-ventas-sin-conexion.mjs"

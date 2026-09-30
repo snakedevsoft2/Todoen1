@@ -127,6 +127,21 @@ export function par(label: string, value: string, cols: number): string[] {
   return [...partir(l, cols), ...partir(v, cols).map((x) => x.padStart(cols))];
 }
 
+/**
+ * QR con el comando propio de la impresora (GS ( k), que traen casi todas las
+ * termicas de los ultimos anos: la impresora lo dibuja sola, sin mandarle una
+ * imagen punto por punto. `modulo` es el tamano de cada cuadrito en puntos.
+ */
+function qrNativo(b: number[], texto: string, modulo: number) {
+  const datos = aBytes(texto);
+  const largo = datos.length + 3;
+  b.push(GS, 0x28, 0x6b, 0x04, 0x00, 0x31, 0x41, 0x32, 0x00); // Modelo 2.
+  b.push(GS, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x43, modulo); // Tamano del cuadrito.
+  b.push(GS, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x45, 0x31); // Correccion M.
+  b.push(GS, 0x28, 0x6b, largo & 0xff, (largo >> 8) & 0xff, 0x31, 0x50, 0x30, ...datos);
+  b.push(GS, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x51, 0x30); // Imprimir.
+}
+
 export function tirillaEscPos(lineas: Linea[], ancho: AnchoTirilla, letraChica = false): Uint8Array {
   const cols = columnasDe(ancho, letraChica);
   const b: number[] = [];
@@ -183,6 +198,12 @@ export function tirillaEscPos(lineas: Linea[], ancho: AnchoTirilla, letraChica =
         break;
       case "espacio":
         b.push(LF);
+        break;
+      case "qr":
+        alinear(1);
+        qrNativo(b, l.text, ancho === 58 ? 6 : 8);
+        b.push(LF);
+        alinear(0);
         break;
     }
   }

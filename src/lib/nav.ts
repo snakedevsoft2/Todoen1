@@ -34,6 +34,7 @@ export const BUSINESS_LABEL: Record<BusinessType, string> = {
   ASISTENCIA: "Gestor de asistencia",
   OTRO: "Otro negocio",
   LAVADERO: "Lavadero de carros",
+  PARQUEADERO: "Parqueadero",
 };
 
 export const ITEM_NOUN: Record<BusinessType, { singular: string; plural: string }> = {
@@ -49,6 +50,9 @@ export const ITEM_NOUN: Record<BusinessType, { singular: string; plural: string 
   // Sirve para cualquier oficio, asi que no se casa con ninguno.
   OTRO: { singular: "producto / servicio", plural: "productos y servicios" },
   LAVADERO: { singular: "lavado / servicio", plural: "lavados y servicios" },
+  // Lo que cobra lo dicen las tarifas por tiempo, no un catalogo. El par se
+  // necesita igual para las pantallas comunes (ventas, reportes).
+  PARQUEADERO: { singular: "servicio", plural: "servicios" },
 };
 
 /**

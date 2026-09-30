@@ -19,6 +19,7 @@ const TYPES = [
     hint: "Personal, marcaje con ubicación y reportes",
   },
   { value: "LAVADERO", label: "Lavadero de carros", hint: "Turnos, lavados y caja" },
+  { value: "PARQUEADERO", label: "Parqueadero", hint: "Motos y carros, ticket con QR" },
   // Va de ultimo a proposito: primero que intente reconocerse en los de
   // arriba, que le quedan mejor armados. Este es la salida para el resto.
   { value: "OTRO", label: "Otro negocio", hint: "Lo armas tú mismo" },
@@ -34,6 +35,7 @@ const EJEMPLO_NOMBRE: Record<string, string> = {
   ASISTENCIA: "Ej: Servicios de Aseo Total",
   OTRO: "Ej: Mi negocio",
   LAVADERO: "Ej: Lavadero Los Amigos",
+  PARQUEADERO: "Ej: Parqueadero El Centro",
 };
 
 export function RegistroForm({

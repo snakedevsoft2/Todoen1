@@ -110,6 +110,13 @@ const PRIMERO: Record<BusinessType, TourStep> = {
     href: "/panel/turnos",
     action: "Ver los turnos",
   },
+  PARQUEADERO: {
+    icon: "car",
+    title: "Entra la placa, sale el ticket",
+    text: "Escribe la placa, elige moto o carro y sale el ticket con su QR para imprimir o mandar por WhatsApp. El cliente escanea el QR y ve cuánto tiempo lleva y cuánto va a pagar. Al salir, se cobra solo por el tiempo.",
+    href: "/panel/parqueadero",
+    action: "Ir al parqueadero",
+  },
 };
 
 const SEGUNDO: Record<BusinessType, TourStep> = {
@@ -168,6 +175,15 @@ const SEGUNDO: Record<BusinessType, TourStep> = {
     text: "Te dejamos varios de ejemplo, de carro, moto y camioneta. Cambialos por los tuyos con su precio y su duracion: eso es lo que ves al agendar un turno.",
     href: "/panel/catalogo",
     action: "Ver mis lavados",
+  },
+  // Va al parqueadero y no a Tarifas: la guia tambien la ve el empleado, y
+  // Tarifas es solo del dueño (desde ahi mismo esta el boton).
+  PARQUEADERO: {
+    icon: "tag",
+    title: "Primero, cuánto cobras",
+    text: "Te dejamos tarifas de ejemplo para moto y carro, por hora y con tope por día. Cámbialas en el botón Tarifas del parqueadero: puedes cobrar por hora, por fracción o solo por día, y dar minutos gratis.",
+    href: "/panel/parqueadero",
+    action: "Ver el parqueadero",
   },
 };
 

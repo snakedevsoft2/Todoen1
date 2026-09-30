@@ -31,6 +31,7 @@ const ORIGIN_LABEL: Record<string, string> = {
   MANUAL: "Directa",
   TURNO: "Turno",
   ORDEN: "Cuenta",
+  PARQUEADERO: "Parqueadero",
 };
 
 /** Cuanto se vendio de cada producto en un grupo de ventas, de mas a menos. */

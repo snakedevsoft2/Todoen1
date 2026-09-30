@@ -52,6 +52,7 @@ export const ACCIONES_SOLO_DUENO = new Set<string>([
   "deleteWashJobAction",
   "updateWashJobAction",
   "cambiarPrecioLavadoAction",
+  "anularTicketAction",
 ]);
 
 /** Las que crean y editan con el mismo formulario: el empleado solo crea (sin id). */

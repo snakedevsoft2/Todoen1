@@ -90,4 +90,14 @@ export const NEGOCIOS: NegocioDemo[] = [
     detalle: "$ 420.000 - 4 lavadores",
     puntos: ["Agenda por lavador", "Carros, motos y camionetas", "Cierre de caja del día"],
   },
+  {
+    key: "PARQUEADERO",
+    label: "Parqueadero",
+    icon: "car",
+    color: "#1d4ed8",
+    titular: "Cobra solo por el tiempo",
+    stat: "24 vehículos adentro",
+    detalle: "Van debiendo $ 186.000",
+    puntos: ["Ticket con QR", "Tarifa por hora y por día", "Pendientes por pagar"],
+  },
 ];

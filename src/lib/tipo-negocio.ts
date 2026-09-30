@@ -17,6 +17,7 @@ export const TIPOS_ELEGIBLES: BusinessType[] = [
   "ASISTENCIA",
   "OTRO",
   "LAVADERO",
+  "PARQUEADERO",
 ];
 
 export function esTipoElegible(v: unknown): v is BusinessType {
@@ -33,6 +34,7 @@ export const COLOR_POR_TIPO: Record<BusinessType, string> = {
   ASISTENCIA: "#3730a3",
   OTRO: "#0369a1",
   LAVADERO: "#0284c7",
+  PARQUEADERO: "#1d4ed8",
 };
 
 export const CATALOGO_POR_TIPO: Record<BusinessType, { name: string; price: number; durationMin: number; category: string }[]> = {
@@ -89,6 +91,9 @@ export const CATALOGO_POR_TIPO: Record<BusinessType, { name: string; price: numb
     { name: "Lavado de chasis", price: 12000, durationMin: 15, category: "Extras" },
     { name: "Aromatizante", price: 3000, durationMin: 5, category: "Extras" },
   ],
+  // Cobra por tiempo con sus tarifas (ParkingRate), no con un catalogo. Las
+  // tarifas de ejemplo las deja lib/parqueadero.ts al abrir el apartado.
+  PARQUEADERO: [],
 };
 
 const PISTA_POR_TIPO: Record<BusinessType, string> = {
@@ -100,6 +105,7 @@ const PISTA_POR_TIPO: Record<BusinessType, string> = {
   ASISTENCIA: "Personal, marcaje con ubicación y reportes",
   OTRO: "Lo armas tú mismo",
   LAVADERO: "Turnos, lavados y caja",
+  PARQUEADERO: "Motos y carros, ticket con QR y cobro por tiempo",
 };
 
 /** Las opciones para el selector, ya con nombre y descripcion. */

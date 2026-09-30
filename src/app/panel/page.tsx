@@ -17,6 +17,7 @@ import { Badge, Card, Empty, PageHeader, Stat, StatusBadge } from "@/components/
 import { GuiaInicial } from "@/components/GuiaInicial";
 import { ESTADO_PENDIENTE_LABEL, repartoDelDia, vehiculosPendientes } from "@/lib/patio-turno";
 import { Icon } from "@/components/Icon";
+import { resumenParqueadero } from "@/lib/parqueadero";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +43,7 @@ export default async function PanelHomePage() {
   const isBarber = user.businessType === "BARBERIA";
   const isClothing = user.businessType === "ROPA";
   const isLavadero = user.businessType === "LAVADERO";
+  const isParqueadero = user.businessType === "PARQUEADERO";
 
   const [summary, appointments, openOrders, recentSales, closure, expenses, stock, lowStock] =
     await Promise.all([
@@ -56,7 +58,7 @@ export default async function PanelHomePage() {
           },
         })
       : Promise.resolve([]),
-    isBarber || isClothing || isLavadero
+    isBarber || isClothing || isLavadero || isParqueadero
       ? Promise.resolve([])
       : db.order.findMany({
           where: { userId: user.id, status: "ABIERTA" },
@@ -135,6 +137,8 @@ export default async function PanelHomePage() {
   const sinPagar = pendientesPatio.filter((j) => j.status === "POR_COBRAR").length;
   const lavadosHoy = reparto ? [...reparto.porLavador.values()].reduce((sum, f) => sum + f.count, 0) : 0;
 
+  const parqueo = isParqueadero ? await resumenParqueadero(user.id, today, user.timezone) : null;
+
   // Lo que hay que hacer hoy con los clientes. Sale solo si hay algo: quien no
   // usa el CRM no tiene por que ver un cuadro vacio.
   const deQuien = { userId: user.id, doneAt: null, dueDay: { lte: today }, ...filtroDeSeguimientos(me) };
@@ -180,6 +184,11 @@ export default async function PanelHomePage() {
             <Link href="/panel/patio" className="btn-primary btn-sm">
               <Icon name="car" className="h-4 w-4" />
               Ver patio
+            </Link>
+          ) : isParqueadero ? (
+            <Link href="/panel/parqueadero" className="btn-primary btn-sm">
+              <Icon name="car" className="h-4 w-4" />
+              Ingresar vehículo
             </Link>
           ) : (
             <Link href="/panel/cuentas" className="btn-primary btn-sm">
@@ -282,6 +291,13 @@ export default async function PanelHomePage() {
             }
             tone={pendientesPatio.length > 0 ? "amber" : "brand"}
           />
+        ) : parqueo ? (
+          <Stat
+            label="Vehículos adentro"
+            value={String(parqueo.adentro)}
+            hint={"Van debiendo " + money(parqueo.adentroValor, user.currency)}
+            tone="brand"
+          />
         ) : (
           <Stat
             label={isBarber ? "Turnos separados hoy" : "Cuentas abiertas"}
@@ -318,6 +334,25 @@ export default async function PanelHomePage() {
               <p className="text-sm font-bold text-good">{money(person.collected, user.currency)}</p>
             </div>
           ))}
+        </div>
+      )}
+
+      {parqueo && (
+        <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4" data-resumen-parqueadero>
+          <Stat label="Entraron hoy" value={String(parqueo.entraronHoy)} />
+          <Stat label="Salieron hoy" value={String(parqueo.salieronHoy)} />
+          <Stat
+            label="Pendientes por pagar"
+            value={String(parqueo.porCobrar)}
+            hint={money(parqueo.porCobrarValor, user.currency)}
+            tone={parqueo.porCobrar > 0 ? "amber" : "default"}
+          />
+          <Stat
+            label="Recaudado del parqueadero"
+            value={money(parqueo.recaudadoHoy, user.currency)}
+            hint={parqueo.pagosHoy + (parqueo.pagosHoy === 1 ? " salida cobrada" : " salidas cobradas")}
+            tone="good"
+          />
         </div>
       )}
 

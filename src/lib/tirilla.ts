@@ -45,10 +45,32 @@ export type Linea =
   | { t: "par"; label: string; value: string; fuerte?: boolean }
   | { t: "texto"; text: string; tenue?: boolean }
   | { t: "total"; label: string; value: string }
-  | { t: "espacio" };
+  | { t: "espacio" }
+  /**
+   * Codigo QR centrado (el ticket del parqueadero lleva el suyo). Trae la
+   * matriz ya armada en el servidor (lib/qr.ts qrModulos) para no cargar la
+   * libreria del QR en cada pantalla que imprime; `text` es lo mismo, para la
+   * termica directa, que dibuja el QR ella sola.
+   */
+  | { t: "qr"; text: string; modulos: boolean[][] };
 
 function esc(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+}
+
+/** La matriz del QR como SVG, un cuadrito por modulo negro y un margen de uno. */
+export function svgDeModulos(modulos: boolean[][]): string {
+  const n = modulos.length;
+  const partes: string[] = [];
+  modulos.forEach((fila, y) =>
+    fila.forEach((negro, x) => {
+      if (negro) partes.push("M" + (x + 1) + " " + (y + 1) + "h1v1h-1z");
+    })
+  );
+  return (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + (n + 2) + " " + (n + 2) + '" shape-rendering="crispEdges">' +
+    '<rect width="100%" height="100%" fill="#fff"/><path fill="#000" d="' + partes.join("") + '"/></svg>'
+  );
 }
 
 function clases(base: string, l: { fuerte?: boolean; tenue?: boolean }): string {
@@ -84,6 +106,8 @@ export function tirillaHtml(lineas: Linea[], formato: Formato, logoUrl?: string 
           return '<p class="ti-total"><span>' + esc(l.label) + "</span><span>" + esc(l.value) + "</span></p>";
         case "espacio":
           return '<p class="ti-espacio"></p>';
+        case "qr":
+          return '<div class="ti-qr">' + svgDeModulos(l.modulos) + "</div>";
       }
     })
     .join("");
@@ -131,4 +155,8 @@ export const TIRILLA_CSS = `
 #ten-impresion .ti-par span:last-child,#ten-impresion .ti-total span:last-child{flex:0 1 auto;text-align:right}
 #ten-impresion .ti-total{font-weight:700;font-size:1.3em;border-top:1.5px solid #000;margin-top:1mm;padding-top:.5mm}
 #ten-impresion .ti-espacio{height:1mm}
+#ten-impresion .ti-qr{margin:1.5mm auto;width:34mm}
+#ten-impresion .ti-80 .ti-qr{width:42mm}
+#ten-impresion .ti-a4 .ti-qr{width:50mm}
+#ten-impresion .ti-qr svg{display:block;width:100%;height:auto}
 `;

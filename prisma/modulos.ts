@@ -43,6 +43,7 @@ export const TIPOS = [
   "ASISTENCIA",
   "OTRO",
   "LAVADERO",
+  "PARQUEADERO",
   "DISTRIBUIDORA",
   "SERVICIOS",
   "FREELANCE",
@@ -60,6 +61,7 @@ export const TIPOS_ABIERTOS: Tipo[] = [
   "ASISTENCIA",
   "OTRO",
   "LAVADERO",
+  "PARQUEADERO",
 ];
 
 export const MODULOS: ModuloDef[] = [
@@ -124,6 +126,18 @@ export const MODULOS: ModuloDef[] = [
     shortDescription: "El tablero del lavadero: el vehiculo que llega, quien lo lava y cuando se cobra.",
     longDescription:
       "Recibes el vehiculo con los datos del cliente, se lo asignas a un lavador y lo vas pasando de en cola a lavando a listo. Cuando el cliente se lo lleva, cobras ahi mismo y queda como venta del dia. Lo que alguien reservo en tu pagina publica tambien aparece aqui para recibirlo.",
+  },
+  {
+    key: "parqueadero",
+    href: "/panel/parqueadero",
+    label: "Parqueadero",
+    icon: "car",
+    group: "NUCLEO",
+    sortOrder: 11,
+    shortDescription:
+      "Entra un vehiculo con su placa, sale el ticket con QR y al salir se cobra solo por el tiempo que estuvo.",
+    longDescription:
+      "Anotas la placa (y si quieres el telefono o el correo) y sale el ticket para imprimir o mandar por WhatsApp. El QR del ticket le muestra al cliente cuanto tiempo lleva y cuanto va a pagar. Ves cuantos carros y motos hay adentro, cuantos salieron y cuantos se fueron debiendo, y las tarifas por hora y por dia las pones tu.",
   },
   {
     key: "cuentas",
@@ -588,6 +602,37 @@ export const PRESETS: Record<Tipo, Record<string, Preset>> = {
     planilla: { ejemplo: "Hoy marcaron 3 de 3. Miguel entro a las 8:05." },
     sitios: { ejemplo: "El lavadero, con su direccion y radio." },
     novedades: { ejemplo: "Miguel avisa que llega tarde el martes." },
+    espacio: {},
+    ajustes: {},
+    soporte: {},
+  },
+
+  /**
+   * Parqueadero de motos y carros.
+   *
+   * Su dia es el apartado Parqueadero: ingresar placas, dar salida y cobrar
+   * por tiempo. No tiene catalogo (lo que cobra lo dicen las tarifas, que
+   * viven dentro del mismo apartado), ni cuentas, ni agenda. Las salidas
+   * cobradas son ventas, asi que Ventas, Caja y Reportes funcionan igual que
+   * en cualquier negocio.
+   */
+  PARQUEADERO: {
+    resumen: {},
+    parqueadero: { orden: 1, ejemplo: "Moto ABC12D entró a las 7:40, lleva 2 h y va en $3.000." },
+    ventas: { ejemplo: "Salida del carro XYZ123, 3 horas, $9.000 en efectivo." },
+    gastos: { ejemplo: "Vigilancia nocturna, $50.000." },
+    caja: { ejemplo: "Cuadrar lo cobrado en la portería contra lo que hay en el cajón." },
+    cartera: { on: false, ejemplo: "La mensualidad de la empresa de al lado, que paga a fin de mes." },
+    reportes: { ejemplo: "A qué hora entra más gente y cuánto dejó cada tipo de vehículo." },
+    clientes: { on: false, ejemplo: "Los mensualistas, con su placa y su teléfono." },
+    asistente: { on: false, ejemplo: "¿Qué día se me llena más el parqueadero?" },
+    avisos: { on: false },
+    escaner: { on: false, ejemplo: "La póliza del parqueadero, en PDF." },
+    guia: {},
+    equipo: { label: "Empleados", ejemplo: "El portero del día y el de la noche, cada uno con su usuario." },
+    personalizar: { on: false },
+    marcar: { on: false, ejemplo: "El portero marcó entrada a las 6:00 a.m." },
+    planilla: { on: false, ejemplo: "Hoy marcaron 2 de 2." },
     espacio: {},
     ajustes: {},
     soporte: {},

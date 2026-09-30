@@ -68,6 +68,13 @@ export async function deleteSaleAction(formData: FormData) {
         data: { status: "ABIERTA" },
       });
     }
+    // El vehiculo ya salio: sin la venta, lo que cobro vuelve a deberse.
+    if (sale.parkingTicketId) {
+      await tx.parkingTicket.updateMany({
+        where: { id: sale.parkingTicketId, userId: user.id, status: "PAGADO" },
+        data: { status: "POR_COBRAR", amount: sale.total },
+      });
+    }
     for (const [variantId, qty] of back) {
       await applyStockMove(tx, {
         userId: user.id,
@@ -97,6 +104,7 @@ export async function deleteSaleAction(formData: FormData) {
   revalidatePath("/panel/turnos");
   revalidatePath("/panel/cuentas");
   revalidatePath("/panel/inventario");
+  revalidatePath("/panel/parqueadero");
   revalidatePath("/panel");
 }
 

@@ -55,7 +55,8 @@ export function rutaDeLavador(ruta: string): boolean {
 
 /** Los negocios que tienen pagina publica para compartir. */
 export function tienePaginaPublica(tipo: string): boolean {
-  return tipo !== "ASISTENCIA" && tipo !== "CARTERA";
+  // El parqueadero no tiene catalogo: lo publico suyo es el QR de cada ticket.
+  return tipo !== "ASISTENCIA" && tipo !== "CARTERA" && tipo !== "PARQUEADERO";
 }
 
 /**
