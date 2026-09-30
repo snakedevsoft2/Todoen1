@@ -7,6 +7,7 @@ import { Icon } from "./Icon";
 import { BrandMark } from "./BrandMark";
 import { CompartirPortafolio } from "./CompartirPortafolio";
 import { InstalarApp } from "./InstalarApp";
+import { ActivarNotificaciones } from "./ActivarNotificaciones";
 import type { NavGroup, NavItem } from "@/lib/nav";
 import { initials } from "@/lib/staff";
 
@@ -26,6 +27,7 @@ export function Shell({
   menuPropio = true,
   compartir,
   instalar = false,
+  notificaciones = null,
   logout,
   children,
 }: {
@@ -52,6 +54,8 @@ export function Shell({
   compartir?: { ruta: string; qr: string; negocio: string };
   /** Boton para instalar la aplicacion en el celular. No en la cuenta con funciones limitadas. */
   instalar?: boolean;
+  /** Lo que le llega por notificacion a quien entro; null si no le llega nada (ver push-textos.ts). */
+  notificaciones?: string | null;
   logout: ReactNode;
   children: ReactNode;
 }) {
@@ -161,6 +165,7 @@ export function Shell({
         </Link>
       )}
       {instalar && <InstalarApp variante="boton" />}
+      {notificaciones && <ActivarNotificaciones variante="boton" queRecibe={notificaciones} />}
       {compartir && <CompartirPortafolio {...compartir} />}
       {/* Va aqui abajo y no en el menu a proposito: el objetivo de esta
           pantalla es tener menos botones, no uno mas. */}

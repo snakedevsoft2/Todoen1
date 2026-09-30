@@ -118,6 +118,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
         fotoPerfil={foto}
         menuPropio={staff.role === "DUENO"}
         instalar={instalable}
+        notificaciones={avisosPush}
         logo={logo}
         bookingUrl={conPagina ? publicPath(user.businessType, user.slug) : undefined}
         bookingLabel="Ver mi portafolio"

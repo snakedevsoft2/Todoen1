@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { Icon } from "./Icon";
 
 /**
@@ -21,7 +22,7 @@ import { Icon } from "./Icon";
 const CLAVE_OCULTO = "todoen1_push_aviso_oculto";
 const SCOPE = "/push/";
 
-type Estado = "cargando" | "no-soportado" | "denegado" | "apagado" | "activo" | "activando";
+type Estado = "cargando" | "sin-clave" | "no-soportado" | "denegado" | "apagado" | "activo" | "activando";
 
 function claveAplicacion(base64: string): Uint8Array {
   const relleno = "=".repeat((4 - (base64.length % 4)) % 4);
@@ -59,7 +60,8 @@ export function ActivarNotificaciones({
   variante,
   queRecibe,
 }: {
-  variante: "aviso" | "tarjeta";
+  /** "boton": el del menu lateral, que siempre se ve (ver abajo). */
+  variante: "aviso" | "tarjeta" | "boton";
   /** Lo que le va a llegar a esta persona, dicho corto. */
   queRecibe: string;
 }) {
@@ -76,7 +78,13 @@ export function ActivarNotificaciones({
       setOculto(false);
     }
 
-    if (!clave || !("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+    // Sin la clave publica (NEXT_PUBLIC_VAPID_PUBLIC_KEY en Vercel) no es culpa
+    // del celular: se dice aparte para saber donde buscar.
+    if (!clave) {
+      setEstado("sin-clave");
+      return;
+    }
+    if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
       setEstado("no-soportado");
       return;
     }
@@ -157,6 +165,33 @@ export function ActivarNotificaciones({
     }
   };
 
+  // En el menu lateral siempre hay algo: si se pueden activar, se activan con
+  // un toque; si no (iPhone sin instalar, bloqueadas, falta la clave), lleva a
+  // Mi perfil, que dice el motivo. Antes, si no se podia, no aparecia nada y
+  // nadie sabia donde buscarlas.
+  if (variante === "boton") {
+    if (estado === "apagado" || estado === "activando") {
+      return (
+        <button
+          type="button"
+          data-notificaciones-menu
+          className="btn-ghost btn-sm w-full justify-start"
+          onClick={activar}
+          disabled={estado === "activando"}
+        >
+          <Icon name="bell" className="h-4 w-4" />
+          {estado === "activando" ? "Activando..." : "Activar notificaciones"}
+        </button>
+      );
+    }
+    return (
+      <Link href="/panel/perfil" data-notificaciones-menu className="btn-ghost btn-sm w-full justify-start">
+        <Icon name="bell" className="h-4 w-4" />
+        {estado === "activo" ? "Notificaciones activas" : "Notificaciones"}
+      </Link>
+    );
+  }
+
   if (variante === "aviso") {
     if (oculto || (estado !== "apagado" && estado !== "activando")) return null;
     return (
@@ -185,6 +220,11 @@ export function ActivarNotificaciones({
   return (
     <div className="space-y-2 text-sm" data-notificaciones-perfil>
       <p className="text-muted">{queRecibe}</p>
+      {estado === "sin-clave" && (
+        <p className="text-bad">
+          Las notificaciones todavía no están configuradas en el servidor. Escríbele a soporte para activarlas.
+        </p>
+      )}
       {estado === "no-soportado" && (
         <p className="text-muted">
           Este navegador no recibe notificaciones. En iPhone primero instala la app en la pantalla de inicio.
