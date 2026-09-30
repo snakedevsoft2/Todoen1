@@ -25,6 +25,12 @@
  *   (LoginForm borra todo lo que empieza por "ten-paginas").
  */
 
+// Las notificaciones push tambien las recibe este trabajador. En iPhone, el
+// aviso que llega a un trabajador que no esta en la raiz (sw-push.js vive en
+// "/push/") Apple lo acepta pero el telefono no lo muestra. Donde existe este,
+// ActivarNotificaciones se suscribe con el. Ver public/sw-push.js.
+importScripts("/sw-push.js");
+
 const VERSION = "v1";
 const ESTATICOS = "ten-estaticos-" + VERSION;
 const PAGINAS = "ten-paginas-" + VERSION;

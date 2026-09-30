@@ -12,6 +12,13 @@ import { Icon } from "./Icon";
  * manda la suscripcion al servidor, que la guarda a nombre de quien tiene la
  * sesion (ver api/push).
  *
+ * OJO: getRegistration("/push/") devuelve el de sw.js (scope "/") cuando el de
+ * "/push/" no existe, porque "/" tambien cubre "/push/". En las cuentas de plan
+ * pago eso pasa siempre, y la suscripcion queda hecha con sw.js. Por eso sw.js
+ * importa sw-push.js: cualquiera de los dos que tenga la suscripcion sabe
+ * mostrar el aviso. Antes sw.js no lo sabia, y en iPhone Apple entregaba la
+ * notificacion ("Enviada") pero nadie la mostraba.
+ *
  * En iPhone solo existe si la app esta instalada en la pantalla de inicio
  * (iOS 16.4+). Donde no se puede, el componente no se muestra.
  *
