@@ -23,6 +23,9 @@ export const MENU_EMPLEADO_ASISTENCIA: NavItem[] = [
   { href: "/panel/informes", label: "Reportes", icon: "image" },
   { href: "/panel/escaner", label: "Escáner", icon: "scan" },
   { href: "/panel/perfil", label: "Perfil", icon: "user" },
+  // Despues de Perfil a proposito: el menu de abajo del celular muestra los
+  // cinco primeros, y Perfil tiene que seguir ahi. Firmas sale en el menu completo.
+  { href: "/panel/firmas", label: "Firmas", icon: "pencil" },
 ];
 
 export function rutaDeEmpleadoAsistencia(ruta: string): boolean {
@@ -47,6 +50,9 @@ export const MENU_LAVADOR: NavItem[] = [
   { href: "/panel/mis-lavados", label: "Mis lavados", icon: "car" },
   { href: "/panel/marcar", label: "Marcar", icon: "clock" },
   { href: "/panel/perfil", label: "Perfil", icon: "user" },
+  // Despues de Perfil a proposito: el menu de abajo del celular muestra los
+  // cinco primeros, y Perfil tiene que seguir ahi. Firmas sale en el menu completo.
+  { href: "/panel/firmas", label: "Firmas", icon: "pencil" },
 ];
 
 export function rutaDeLavador(ruta: string): boolean {

@@ -271,6 +271,8 @@ model User {
   novelties          Novelty[]
   visitAttachments   VisitAttachment[]
   scanDocuments      ScanDocument[]
+  signRequests       SignRequest[]
+  signDocuments      SignDocument[]
   locationPings      LocationPing[]
   siteVisits         SiteVisit[]
   offlineActions     OfflineAction[]
@@ -1899,6 +1901,74 @@ model ScanDocument {
   createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
+}
+
+// ------------------------------------------------ FIRMA DE DOCUMENTOS
+
+enum SignStatus {
+  /// Enviada, esperando que el cliente firme.
+  PENDIENTE
+  /// El cliente firmo: los PDF firmados ya estan guardados.
+  FIRMADO
+  /// El negocio la cancelo. El enlace deja de servir.
+  ANULADO
+}
+
+/// Uno o varios documentos que el negocio le manda a un cliente para que los
+/// firme desde su telefono, por un enlace que no se puede adivinar.
+model SignRequest {
+  id               String     @id @default(cuid())
+  userId           String
+  user             User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Quien la creo. El administrador ve las de todos; cada quien, las suyas.
+  createdByStaffId String?
+  title            String
+  message          String?
+  signerName       String
+  signerPhone      String?
+  signerEmail      String?
+  /// Lo que va en el enlace. Al azar y largo: nadie puede abrir la de otro.
+  token            String     @unique
+  status           SignStatus @default(PENDIENTE)
+  viewedAt         DateTime?
+  signedAt         DateTime?
+  /// Lo que escribio el cliente al firmar, y desde donde firmo: la constancia.
+  signedName       String?
+  signedDocNumber  String?
+  signerIp         String?
+  signerAgent      String?
+  /// La firma como imagen PNG (data URL).
+  signature        String?
+  createdAt        DateTime   @default(now())
+
+  documents SignDocument[]
+
+  @@index([userId, createdAt])
+}
+
+/// Un PDF de la solicitud. Guarda el original y, cuando firman, el firmado.
+model SignDocument {
+  id           String      @id @default(cuid())
+  userId       String
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  requestId    String
+  request      SignRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  name         String
+  /// El PDF original como data URL. Tope de 3 MB.
+  pdf          String
+  size         Int
+  pages        Int
+  /// Huella SHA-256 del original: va en la constancia de firma.
+  sha256       String
+  /// Donde pidio el negocio que firmen, en JSON: [{page,x,y,w,h}] con x,y,w,h
+  /// como fraccion de la pagina (0 a 1) contada desde la esquina de arriba.
+  spots        String?
+  signedPdf    String?
+  signedSha256 String?
+  sortOrder    Int         @default(0)
+  createdAt    DateTime    @default(now())
+
+  @@index([requestId])
 }
 
 // ------------------------------------------------ MENSAJES A LOS CLIENTES

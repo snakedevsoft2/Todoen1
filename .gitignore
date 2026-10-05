@@ -14,3 +14,6 @@ prisma/dev.db-journal
 
 # Archivos del lector de texto, copiados de node_modules al compilar
 public/ocr
+
+# Trabajador del visor de PDF, copiado de node_modules al compilar
+public/pdfjs

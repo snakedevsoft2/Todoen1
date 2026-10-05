@@ -393,6 +393,18 @@ export const MODULOS: ModuloDef[] = [
       "Anotas que se hizo, en que sitio y para que cliente, y le agregas las fotos desde el telefono. El PDF sale con las fotos, el personal que estuvo ese dia en el sitio con sus horas de entrada y salida, y se comparte por WhatsApp o se imprime. La planilla de asistencia tambien se exporta en PDF desde Planilla.",
   },
   {
+    key: "firmas",
+    href: "/panel/firmas",
+    label: "Firmas",
+    icon: "pencil",
+    group: "NUCLEO",
+    sortOrder: 16,
+    shortDescription:
+      "Mándale a tu cliente un documento por WhatsApp o correo para que lo firme desde su celular y te llegue firmado.",
+    longDescription:
+      "Adjuntas el PDF (o una foto, o algo que escaneaste), marcas dónde se firma y le mandas el enlace al cliente. Él lo abre sin instalar nada, firma con el dedo, escribiendo su nombre o subiendo la imagen de su firma, la mueve a donde va y confirma. Te llegan los PDF firmados con una hoja de constancia (quién, cuándo y desde dónde firmó), y él también se queda con sus copias. También puede firmar ahí mismo en tu celular.",
+  },
+  {
     key: "novedades",
     href: "/panel/novedades",
     label: "Novedades",
@@ -677,6 +689,7 @@ export const PRESETS: Record<Tipo, Record<string, Preset>> = {
     sitios: { ejemplo: "Sede Norte, Edificio Los Cedros, la obra de la 80." },
     equipo: { label: "Personal", ejemplo: "Cada persona con su usuario para marcar." },
     informes: { ejemplo: "Visita a Edificio Los Cedros: fachada limpia, 6 fotos, en PDF." },
+    firmas: { ejemplo: "El acta de entrega de la obra, firmada por el cliente desde su celular." },
     novedades: { ejemplo: "Rosa tiene cita médica el jueves de 8 a 12. Adjuntó la orden." },
     gastos: { on: false, ejemplo: "Transporte, dotacion, herramienta." },
     avisos: { on: false },
