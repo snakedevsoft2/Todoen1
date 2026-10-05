@@ -9,7 +9,7 @@ import { logoutAction } from "@/actions/auth";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Icon } from "@/components/Icon";
 import { CambiarTipoNegocio } from "@/components/CambiarTipoNegocio";
-import { OPCIONES_TIPO } from "@/lib/tipo-negocio";
+import { opcionesTipo } from "@/lib/tipo-negocio";
 import { FacturacionForm } from "@/components/FacturacionForm";
 import { configuracionFacturacion } from "@/lib/facturacion";
 import { esPlanCompleto } from "@/lib/plan";
@@ -79,7 +79,7 @@ export default async function AjustesPage() {
             subtitle="¿Te equivocaste al registrarte? Cámbialo aquí sin crear otra cuenta"
             className="lg:col-span-2"
           >
-            <CambiarTipoNegocio actual={user.businessType} opciones={OPCIONES_TIPO} />
+            <CambiarTipoNegocio actual={user.businessType} opciones={opcionesTipo(user.businessType)} />
           </Card>
         )}
 

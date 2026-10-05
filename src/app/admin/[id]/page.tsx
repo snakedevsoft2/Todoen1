@@ -11,7 +11,7 @@ import { InterruptorModulo } from "@/components/admin/InterruptorModulo";
 import { ReponerClave } from "@/components/ReponerClave";
 import { Icon } from "@/components/Icon";
 import { CambiarTipoNegocio } from "@/components/CambiarTipoNegocio";
-import { OPCIONES_TIPO } from "@/lib/tipo-negocio";
+import { opcionesTipo } from "@/lib/tipo-negocio";
 import { PagosCuenta } from "@/components/admin/PagosCuenta";
 import { estadoDePago, fechaLarga } from "@/lib/pagos";
 import { planDeCuenta } from "@/lib/plan";
@@ -224,7 +224,7 @@ export default async function AdminCuentaPage({ params }: { params: Promise<{ id
             <p className="mb-3 text-[11px] leading-relaxed text-slate-500">
               Para quien se registró con el tipo equivocado. Cambia su menú; no borra ningún dato.
             </p>
-            <CambiarTipoNegocio actual={cuenta.businessType} opciones={OPCIONES_TIPO} userId={cuenta.id} />
+            <CambiarTipoNegocio actual={cuenta.businessType} opciones={opcionesTipo(cuenta.businessType)} userId={cuenta.id} />
           </Bloque>
 
           <Bloque titulo={cuenta.suspendedAt ? "Cuenta suspendida" : "Suspender la cuenta"}>

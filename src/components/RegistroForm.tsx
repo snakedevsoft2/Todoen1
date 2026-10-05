@@ -10,7 +10,6 @@ import { PaisMonedaZona } from "./PaisMonedaZona";
 const TYPES = [
   { value: "BARBERIA", label: "Barbería", hint: "Turnos, cortes y caja" },
   { value: "RESTAURANTE", label: "Restaurante", hint: "Cuentas por mesa y caja" },
-  { value: "COMIDAS_RAPIDAS", label: "Comidas rápidas", hint: "Venta al mostrador y caja" },
   { value: "ROPA", label: "Tienda de ropa", hint: "Inventario por talla y catálogo" },
   { value: "CARTERA", label: "Cartera y cobranza", hint: "Préstamos por cuotas y cobros" },
   {
@@ -29,7 +28,6 @@ const TYPES = [
 const EJEMPLO_NOMBRE: Record<string, string> = {
   BARBERIA: "Ej: Barbería El Estilo",
   RESTAURANTE: "Ej: Restaurante La Sazón",
-  COMIDAS_RAPIDAS: "Ej: Perros y Hamburguesas Don Pepe",
   ROPA: "Ej: Boutique Valentina",
   CARTERA: "Ej: Inversiones La Confianza",
   ASISTENCIA: "Ej: Servicios de Aseo Total",

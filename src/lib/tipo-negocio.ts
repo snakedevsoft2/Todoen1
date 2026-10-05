@@ -8,10 +8,14 @@ import { BUSINESS_LABEL } from "./nav";
  * exactamente lo mismo.
  */
 
+/**
+ * COMIDAS_RAPIDAS ya no se ofrece (se quito el 5 de octubre de 2026). El tipo
+ * sigue en la base: las cuentas que ya lo tienen funcionan igual, solo que
+ * nadie nuevo lo puede elegir.
+ */
 export const TIPOS_ELEGIBLES: BusinessType[] = [
   "BARBERIA",
   "RESTAURANTE",
-  "COMIDAS_RAPIDAS",
   "ROPA",
   "CARTERA",
   "ASISTENCIA",
@@ -108,8 +112,18 @@ const PISTA_POR_TIPO: Record<BusinessType, string> = {
   PARQUEADERO: "Motos y carros, ticket con QR y cobro por tiempo",
 };
 
-/** Las opciones para el selector, ya con nombre y descripcion. */
-export const OPCIONES_TIPO = TIPOS_ELEGIBLES.map((t) => ({ value: t, label: BUSINESS_LABEL[t], hint: PISTA_POR_TIPO[t] }));
+const opcion = (t: BusinessType) => ({ value: t, label: BUSINESS_LABEL[t], hint: PISTA_POR_TIPO[t] });
+
+/**
+ * Las opciones para el selector, ya con nombre y descripcion.
+ *
+ * Si la cuenta tiene un tipo que ya no se ofrece, va primero en la lista: sin
+ * el, el selector mostraria otro tipo como si fuera el de ahora.
+ */
+export function opcionesTipo(actual: BusinessType) {
+  const lista = TIPOS_ELEGIBLES.map(opcion);
+  return esTipoElegible(actual) ? lista : [opcion(actual), ...lista];
+}
 
 /**
  * Cambia el tipo de negocio de una cuenta sin crear otra.
