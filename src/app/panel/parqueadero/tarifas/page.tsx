@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { requireOwner } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { money } from "@/lib/format";
-import { asegurarTarifas } from "@/lib/parqueadero";
+import { asegurarTarifas, tieneParqueadero } from "@/lib/parqueadero";
 import { cobroDe, rangoTexto, tarifaEnPalabras } from "@/lib/parqueadero-tarifa";
 import { alternarTarifaAction } from "@/actions/parqueadero";
 import { Badge, Card, PageHeader } from "@/components/ui";
@@ -23,7 +23,7 @@ const EJEMPLOS = [
 
 export default async function TarifasPage() {
   const { user } = await requireOwner();
-  if (user.businessType !== "PARQUEADERO") redirect("/panel");
+  if (!tieneParqueadero(user.businessType)) redirect("/panel");
   await asegurarTarifas(user.id);
 
   const tarifas = await db.parkingRate.findMany({

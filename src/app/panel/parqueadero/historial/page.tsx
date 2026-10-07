@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { tieneParqueadero } from "@/lib/parqueadero";
 import { requireSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { addDays, inicioDelDiaEn, isValidDay, todayIn } from "@/lib/dates";
@@ -24,7 +25,7 @@ const ESTADO: Record<string, { label: string; tone: "blue" | "green" | "amber" |
  */
 export default async function HistorialParqueaderoPage({ searchParams }: { searchParams: Promise<{ dia?: string }> }) {
   const { user } = await requireSession();
-  if (user.businessType !== "PARQUEADERO") redirect("/panel");
+  if (!tieneParqueadero(user.businessType)) redirect("/panel");
 
   const hoy = todayIn(user.timezone);
   const { dia: diaIn } = await searchParams;

@@ -7,7 +7,7 @@ import { logoUrl } from "@/lib/nav";
 import { qrSvg } from "@/lib/qr";
 import { toInternational } from "@/lib/whatsapp";
 import { esDueno, puedeHacer } from "@/lib/permisos-empleado";
-import { datosDelTicket, origenDeLaPeticion, rutaPublicaDelTicket, tarifaDelTicket } from "@/lib/parqueadero";
+import { datosDelTicket, origenDeLaPeticion, rutaPublicaDelTicket, tarifaDelTicket, tieneParqueadero } from "@/lib/parqueadero";
 import { duracionTexto, minutosEntre, numeroTicket, rangoTexto, tarifaEnPalabras } from "@/lib/parqueadero-tarifa";
 import { fechaHora } from "@/lib/ticket-parqueadero";
 import { anularTicketAction } from "@/actions/parqueadero";
@@ -35,7 +35,7 @@ export default async function TicketPage({
   searchParams: Promise<{ nuevo?: string }>;
 }) {
   const { user, staff: me } = await requireSession();
-  if (user.businessType !== "PARQUEADERO") redirect("/panel");
+  if (!tieneParqueadero(user.businessType)) redirect("/panel");
   const { id } = await params;
   const { nuevo } = await searchParams;
 

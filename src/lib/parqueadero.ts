@@ -19,6 +19,14 @@ import { cobroDe, duracionTexto, minutosEntre, normalizarPlaca, type Tarifa } fr
  * otro, aunque alguien adivine el id.
  */
 
+/**
+ * Los negocios que tienen el apartado Parqueadero: el parqueadero, y el
+ * lavadero, que tambien cobra por guardar carros mientras el dueno no esta.
+ */
+export function tieneParqueadero(tipo: string): boolean {
+  return tipo === "PARQUEADERO" || tipo === "LAVADERO";
+}
+
 /** Las tarifas con que arranca un parqueadero nuevo. Las cambia en Tarifas. */
 export const TARIFAS_DE_EJEMPLO: (Tarifa & { name: string })[] = [
   { name: "Moto", pricePerHour: 1500, fractionMinutes: 60, graceMinutes: 0, pricePerDay: 10000 },

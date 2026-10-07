@@ -9,7 +9,7 @@ import { todayIn } from "@/lib/dates";
 import { money, parseIntSafe, parseMoney, str } from "@/lib/format";
 import { anotarActividad } from "@/lib/actividad";
 import { esDueno, puedeHacer } from "@/lib/permisos-empleado";
-import { anularTicket, ingresarVehiculo, registrarSalida, validarTarifa } from "@/lib/parqueadero";
+import { anularTicket, ingresarVehiculo, registrarSalida, validarTarifa, tieneParqueadero } from "@/lib/parqueadero";
 import { FRACCIONES, numeroTicket } from "@/lib/parqueadero-tarifa";
 
 export type ParqueaderoState = { error?: string; ok?: string } | undefined;
@@ -25,7 +25,7 @@ function revalidar(ticketId?: string) {
 /** Entra un vehiculo: solo la placa y el tipo. Telefono, correo y puesto son opcionales. */
 export async function ingresarVehiculoAction(_prev: ParqueaderoState, formData: FormData): Promise<ParqueaderoState> {
   const { user, staff } = await requireSession();
-  if (user.businessType !== "PARQUEADERO") return { error: "Esto es solo para parqueaderos." };
+  if (!tieneParqueadero(user.businessType)) return { error: "Tu negocio no tiene parqueadero." };
 
   const email = str(formData.get("email"), "", 120);
   if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { error: "Ese correo no parece válido." };

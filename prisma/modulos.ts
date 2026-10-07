@@ -593,6 +593,9 @@ export const PRESETS: Record<Tipo, Record<string, Preset>> = {
     patio: {
       ejemplo: "Camioneta placa ABC-123, lavado y encerado, con Andres.",
     },
+    // Los carros que se quedan guardados por horas: cuantos entran, cuantos
+    // pagan y cuantos se fueron debiendo, aparte de los lavados.
+    parqueadero: { ejemplo: "Carro ABC123 entró a las 8:10 a guardar, lleva 3 h y va en $9.000." },
     ventas: { ejemplo: "Lavado completo, $22.000, efectivo." },
     gastos: { ejemplo: "Shampoo, cera y trapos, $60.000." },
     cartera: { on: false, ejemplo: "Don Jose quedo debiendo $15.000 del lavado del sabado." },

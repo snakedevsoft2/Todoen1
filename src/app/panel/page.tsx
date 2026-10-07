@@ -137,7 +137,15 @@ export default async function PanelHomePage() {
   const sinPagar = pendientesPatio.filter((j) => j.status === "POR_COBRAR").length;
   const lavadosHoy = reparto ? [...reparto.porLavador.values()].reduce((sum, f) => sum + f.count, 0) : 0;
 
-  const parqueo = isParqueadero ? await resumenParqueadero(user.id, today, user.timezone) : null;
+  const resumenParqueo = isParqueadero || isLavadero ? await resumenParqueadero(user.id, today, user.timezone) : null;
+  // El lavadero solo lo ve si de verdad guarda carros: al que no usa el
+  // parqueadero no se le llena el resumen de ceros.
+  const parqueo =
+    resumenParqueo &&
+    (isParqueadero ||
+      resumenParqueo.adentro + resumenParqueo.entraronHoy + resumenParqueo.porCobrar + resumenParqueo.pagosHoy > 0)
+      ? resumenParqueo
+      : null;
 
   // Lo que hay que hacer hoy con los clientes. Sale solo si hay algo: quien no
   // usa el CRM no tiene por que ver un cuadro vacio.
@@ -339,7 +347,15 @@ export default async function PanelHomePage() {
 
       {parqueo && (
         <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4" data-resumen-parqueadero>
-          <Stat label="Entraron hoy" value={String(parqueo.entraronHoy)} />
+          {isLavadero ? (
+            <Stat
+              label="Parqueos de hoy"
+              value={String(parqueo.entraronHoy)}
+              hint={parqueo.adentro + (parqueo.adentro === 1 ? " guardado ahora" : " guardados ahora")}
+            />
+          ) : (
+            <Stat label="Entraron hoy" value={String(parqueo.entraronHoy)} />
+          )}
           <Stat label="Salieron hoy" value={String(parqueo.salieronHoy)} />
           <Stat
             label="Pendientes por pagar"

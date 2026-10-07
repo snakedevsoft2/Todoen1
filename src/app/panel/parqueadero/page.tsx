@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { todayIn } from "@/lib/dates";
 import { money, prettyDay } from "@/lib/format";
 import { esDueno } from "@/lib/permisos-empleado";
-import { asegurarTarifas, resumenParqueadero, tarifaDelTicket, tarifasActivas } from "@/lib/parqueadero";
+import { asegurarTarifas, resumenParqueadero, tarifaDelTicket, tarifasActivas, tieneParqueadero } from "@/lib/parqueadero";
 import { duracionTexto, minutosEntre, numeroTicket, normalizarPlaca } from "@/lib/parqueadero-tarifa";
 import { fechaHora } from "@/lib/ticket-parqueadero";
 import { Card, Empty, PageHeader, Stat } from "@/components/ui";
@@ -22,7 +22,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function ParqueaderoPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const { user, staff: me } = await requireSession();
-  if (user.businessType !== "PARQUEADERO") redirect("/panel");
+  if (!tieneParqueadero(user.businessType)) redirect("/panel");
 
   const { q } = await searchParams;
   const buscar = normalizarPlaca(q ?? "");
@@ -86,9 +86,9 @@ export default async function ParqueaderoPage({ searchParams }: { searchParams: 
           tone={resumen.porCobrar > 0 ? "amber" : "default"}
         />
         <Stat
-          label="Recaudado hoy"
-          value={money(resumen.recaudadoHoy, user.currency)}
-          hint={resumen.pagosHoy + (resumen.pagosHoy === 1 ? " pago" : " pagos")}
+          label="Pagaron hoy"
+          value={String(resumen.pagosHoy)}
+          hint={money(resumen.recaudadoHoy, user.currency) + " recaudado"}
           tone="good"
         />
       </div>
