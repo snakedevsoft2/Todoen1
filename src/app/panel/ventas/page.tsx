@@ -6,7 +6,7 @@ import { cerosPara, money, prettyDay, shortDay } from "@/lib/format";
 import { ITEM_NOUN, logoUrl, photoUrl } from "@/lib/nav";
 import { variantLabel } from "@/lib/variants";
 import { hasTeam } from "@/lib/staff";
-import { esDueno } from "@/lib/permisos-empleado";
+import { esDueno, puedeHacer } from "@/lib/permisos-empleado";
 import { Card, Empty, PageHeader, Stat } from "@/components/ui";
 import { NewSaleForm, type VariantOption } from "@/components/NewSaleForm";
 import { InvoiceActions } from "@/components/InvoiceActions";
@@ -49,6 +49,13 @@ function agruparPorProducto(
   }
   return [...porNombre.values()].sort((a, b) => b.qty - a.qty);
 }
+
+const PAGO_VISTA: Record<string, string> = {
+  EFECTIVO: "Efectivo",
+  TARJETA: "Tarjeta",
+  TRANSFERENCIA: "Transferencia",
+  OTRO: "Otro",
+};
 
 export default async function VentasPage({
   searchParams,
@@ -500,6 +507,12 @@ export default async function VentasPage({
                           )}
                         </div>
                         <div className="flex items-center gap-2">
+                          {!puedeHacer(me.role, "updateSalePaymentAction") && (
+                            // Quien no puede cambiar el pago igual tiene que ver como se pago.
+                            <span className="rounded-full border border-line px-2 py-1 text-xs text-muted">
+                              {PAGO_VISTA[s.paymentMethod] ?? s.paymentMethod}
+                            </span>
+                          )}
                           <FormSinSenal accion="updateSalePaymentAction" servidor={updateSalePaymentAction} className="flex items-center gap-1">
                             <input type="hidden" name="id" value={s.id} />
                             <select

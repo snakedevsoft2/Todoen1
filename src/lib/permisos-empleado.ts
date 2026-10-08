@@ -71,13 +71,17 @@ export const ACCIONES_SOLO_CREAR = new Set<string>([
  * el sistema de modulos, no esta lista).
  *
  * Corrige pero NO borra: borrar una venta o un vehiculo es solo del dueño.
+ * Tampoco cambia la forma de pago de una venta ya registrada (efectivo,
+ * transferencia...): la dueña del lavadero pidió que eso quede solo en sus
+ * manos, porque es lo que mueve la plata que cuadra en la caja. Al cobrar si
+ * elige el pago, igual que cualquier empleado; lo que no puede es cambiarlo
+ * despues.
  * Cada cambio que hace un supervisor por esta via queda anotado con
  * anotarActividad() igual que si lo hiciera el dueño, asi que el dueño lo ve
  * despues en Empleados > Auditoria sin que el supervisor sepa que quedo
  * registrado.
  */
 export const ACCIONES_SUPERVISOR = new Set<string>([
-  "updateSalePaymentAction",
   "updateSaleAction",
   "updateWashJobAction",
   "cambiarPrecioLavadoAction",

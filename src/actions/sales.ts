@@ -13,9 +13,10 @@ import { puedeHacer } from "@/lib/permisos-empleado";
 // Registrar una venta ya no pasa por aqui: va por /api/ventas (lib/ventas.ts),
 // para que la venta hecha sin senal se guarde en el telefono y se suba sola.
 //
-// Borrar una venta o cambiarle el pago es del dueño, y del jefe de patio del
-// lavadero (ver ACCIONES_SUPERVISOR en lib/permisos-empleado): el resto de
-// empleados no puede, por eso el chequeo es con puedeHacer() y no requireOwner().
+// Borrar una venta o cambiarle el pago es solo del dueño. Corregir sus datos
+// lo puede hacer tambien el jefe de patio del lavadero (ver ACCIONES_SUPERVISOR
+// en lib/permisos-empleado), por eso el chequeo es con puedeHacer() y no
+// requireOwner().
 
 const VALID_PAYMENTS: PaymentMethod[] = ["EFECTIVO", "TARJETA", "TRANSFERENCIA", "OTRO"];
 
