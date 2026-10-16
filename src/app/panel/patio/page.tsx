@@ -58,6 +58,7 @@ export default async function PatioPage() {
     assignedStaffId: j.assignedStaff?.id ?? null,
     assignedStaffName: j.assignedStaff?.name ?? null,
     assignedStaffColor: j.assignedStaff?.color ?? null,
+    fromReserva: Boolean(j.appointmentId),
   }));
 
   const equipo: StaffOption[] = lavadores;
@@ -74,6 +75,13 @@ export default async function PatioPage() {
   return (
     <>
       <PageHeader title="Patio" subtitle={prettyDay(today)}>
+        {/* Todos los vehiculos, tambien los ya cobrados, para corregirlos o borrarlos: solo la dueña. */}
+        {esDueno(me.role) && (
+          <Link href="/panel/patio/historial" className="btn-ghost btn-sm">
+            <Icon name="search" className="h-4 w-4" />
+            Historial
+          </Link>
+        )}
         <Link href="/panel/patio/entrega" className="btn-ghost btn-sm">
           <Icon name="clock" className="h-4 w-4" />
           Entregar turno

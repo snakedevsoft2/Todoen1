@@ -7,6 +7,7 @@ import { requireSession } from "@/lib/auth";
 import { isValidDay } from "@/lib/dates";
 import { parseIntSafe, parseMoney, str } from "@/lib/format";
 import { applyStockMove } from "@/lib/inventory";
+import { borrarVenta } from "@/lib/borrar-registros";
 import { anotarActividad } from "@/lib/actividad";
 import { puedeHacer } from "@/lib/permisos-empleado";
 
@@ -35,62 +36,12 @@ function readPayment(value: FormDataEntryValue | null): PaymentMethod {
 export async function deleteSaleAction(formData: FormData) {
   const { user, staff } = await requireSession();
   if (!puedeHacer(staff.role, "deleteSaleAction")) return;
-  const id = str(formData.get("id"));
-  const sale = await db.sale.findFirst({
-    where: { id, userId: user.id },
-    include: {
-      items: { select: { variantId: true, qty: true } },
-      electronicInvoice: { select: { status: true } },
-    },
-  });
+  // Devuelve prendas, reabre la cuenta o el turno, deja el vehiculo del
+  // lavado en Pendientes y le quita el sello (ver lib/borrar-registros.ts).
+  // Una venta con factura autorizada no se borra: ante la DIAN o el SRI se
+  // anula con una nota credito.
+  const sale = await borrarVenta(user.id, str(formData.get("id")));
   if (!sale) return;
-  // Una venta con factura autorizada, o camino a serlo, no se borra: ante la
-  // DIAN o el SRI una factura emitida se anula con una nota credito.
-  const factura = sale.electronicInvoice?.status;
-  if (factura === "AUTORIZADA" || factura === "ENVIANDO") return;
-
-  // Lo que se vendio por talla vuelve al inventario al borrar la venta.
-  const back = new Map<string, number>();
-  for (const item of sale.items) {
-    if (!item.variantId) continue;
-    back.set(item.variantId, (back.get(item.variantId) ?? 0) + item.qty);
-  }
-
-  await db.$transaction(async (tx) => {
-    if (sale.appointmentId) {
-      await tx.appointment.updateMany({
-        where: { id: sale.appointmentId, userId: user.id },
-        data: { status: "CONFIRMADO" },
-      });
-    }
-    if (sale.orderId) {
-      await tx.order.updateMany({
-        where: { id: sale.orderId, userId: user.id },
-        data: { status: "ABIERTA" },
-      });
-    }
-    // El vehiculo ya salio: sin la venta, lo que cobro vuelve a deberse.
-    if (sale.parkingTicketId) {
-      await tx.parkingTicket.updateMany({
-        where: { id: sale.parkingTicketId, userId: user.id, status: "PAGADO" },
-        data: { status: "POR_COBRAR", amount: sale.total },
-      });
-    }
-    for (const [variantId, qty] of back) {
-      await applyStockMove(tx, {
-        userId: user.id,
-        variantId,
-        type: "DEVOLUCION",
-        delta: qty,
-        day: sale.day,
-        reason: "Venta borrada",
-        saleId: sale.id,
-      });
-    }
-    // La factura rechazada o con error no llego a existir ante la entidad.
-    await tx.electronicInvoice.deleteMany({ where: { saleId: sale.id } });
-    await tx.sale.delete({ where: { id: sale.id } });
-  });
 
   await anotarActividad(
     { user, staff },
@@ -106,6 +57,10 @@ export async function deleteSaleAction(formData: FormData) {
   revalidatePath("/panel/cuentas");
   revalidatePath("/panel/inventario");
   revalidatePath("/panel/parqueadero");
+  revalidatePath("/panel/patio");
+  revalidatePath("/panel/patio/historial");
+  revalidatePath("/panel/mis-lavados");
+  revalidatePath("/panel/caja");
   revalidatePath("/panel");
 }
 

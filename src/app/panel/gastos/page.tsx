@@ -5,9 +5,10 @@ import { addDays, isValidDay, startOfMonth, todayIn } from "@/lib/dates";
 import { money, prettyDay } from "@/lib/format";
 import { Card, Empty, PageHeader, Stat } from "@/components/ui";
 import { NewExpenseForm } from "@/components/NewExpenseForm";
-import { SubmitButton } from "@/components/SubmitButton";
 import { Icon } from "@/components/Icon";
 import { deleteExpenseAction } from "@/actions/expenses";
+import { BotonBorrar } from "@/components/BotonBorrar";
+import { avisoBorrarGasto } from "@/lib/impacto-borrado";
 import { getDaySummary } from "@/lib/queries";
 import { FormSinSenal } from "@/components/SinSenal";
 
@@ -24,7 +25,7 @@ export default async function GastosPage({
   const day = params.d && isValidDay(params.d) ? params.d : today;
   const monthStart = startOfMonth(day);
 
-  const [expenses, monthAgg, summary] = await Promise.all([
+  const [expenses, monthAgg, summary, cierres] = await Promise.all([
     db.expense.findMany({ where: { userId: user.id, day }, orderBy: { createdAt: "desc" } }),
     db.expense.aggregate({
       where: { userId: user.id, day: { gte: monthStart, lte: day } },
@@ -32,6 +33,8 @@ export default async function GastosPage({
       _count: true,
     }),
     getDaySummary(user.id, day),
+    // Para avisar, antes de borrar un gasto, si la caja de ese dia ya se cerro.
+    db.cashClosure.count({ where: { userId: user.id, day } }),
   ]);
 
   const byCategory = expenses.reduce<Record<string, number>>((acc, e) => {
@@ -99,13 +102,12 @@ export default async function GastosPage({
                       </span>
                       <FormSinSenal accion="deleteExpenseAction" servidor={deleteExpenseAction}>
                         <input type="hidden" name="id" value={e.id} />
-                        <SubmitButton
-                          className="btn-ghost btn-sm px-2 text-bad"
-                          pendingText="..."
-                          confirm="Borrar este gasto"
+                        <BotonBorrar
+                          ariaLabel="Borrar gasto"
+                          aviso={avisoBorrarGasto(e, { currency: user.currency, cajaCerrada: cierres > 0 })}
                         >
                           <Icon name="trash" className="h-4 w-4" />
-                        </SubmitButton>
+                        </BotonBorrar>
                       </FormSinSenal>
                     </div>
                   </li>

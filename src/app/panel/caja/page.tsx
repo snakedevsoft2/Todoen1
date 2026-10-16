@@ -7,8 +7,9 @@ import { getDaySummary } from "@/lib/queries";
 import { esDueno } from "@/lib/permisos-empleado";
 import { Card, Empty, PageHeader, Stat } from "@/components/ui";
 import { CashCloseForm } from "@/components/CashCloseForm";
-import { SubmitButton } from "@/components/SubmitButton";
 import { reopenCashAction } from "@/actions/cash";
+import { BotonBorrar } from "@/components/BotonBorrar";
+import { avisoReabrirCaja } from "@/lib/impacto-borrado";
 import { FormSinSenal } from "@/components/SinSenal";
 
 export const dynamic = "force-dynamic";
@@ -147,13 +148,12 @@ export default async function CajaPage({
               <FormSinSenal accion="reopenCashAction" servidor={reopenCashAction} className="pt-1">
                 <input type="hidden" name="day" value={day} />
                 <input type="hidden" name="staffId" value={me.id} />
-                <SubmitButton
+                <BotonBorrar
                   className="btn-ghost btn-sm w-full"
-                  pendingText="..."
-                  confirm="Reabrir la caja de este día"
+                  aviso={avisoReabrirCaja({ ...closure, day, persona: me.name }, { currency: user.currency })}
                 >
                   Reabrir la caja
-                </SubmitButton>
+                </BotonBorrar>
               </FormSinSenal>
             </div>
           )}
@@ -263,13 +263,15 @@ export default async function CajaPage({
                     <FormSinSenal accion="reopenCashAction" servidor={reopenCashAction}>
                       <input type="hidden" name="day" value={day} />
                       <input type="hidden" name="staffId" value={c.staffId ?? ""} />
-                      <SubmitButton
+                      <BotonBorrar
                         className="btn-ghost btn-sm"
-                        pendingText="..."
-                        confirm={"Reabrir la caja de " + (c.staff?.name ?? "esta persona") + " de este día"}
+                        aviso={avisoReabrirCaja(
+                          { ...c, day, persona: c.staff?.name ?? "un ex empleado" },
+                          { currency: user.currency }
+                        )}
                       >
                         Reabrir
-                      </SubmitButton>
+                      </BotonBorrar>
                     </FormSinSenal>
                   </li>
                 ))}

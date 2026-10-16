@@ -102,6 +102,7 @@ const ETIQUETA: Record<string, string> = {
   cancelWashJobAction: "Cancelar un lavado",
   deleteWashJobAction: "Borrar un vehículo del patio",
   updateWashJobAction: "Editar un vehículo",
+  borrarEntregaAction: "Borrar una entrega de turno",
 };
 
 /** Por que no se guarda en el telefono lo que se haga sin senal. */

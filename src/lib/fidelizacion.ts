@@ -64,3 +64,28 @@ export async function avisoDeCercania(
   if (faltan > 2 || faltan <= 0) return null;
   return { stamps: tarjeta.stamps, faltan };
 }
+
+/**
+ * Al borrar la venta de un lavado se quita su sello: la tarjeta no puede
+ * contar un lavado que ya no esta en la caja. Si ese sello era el que
+ * completo la meta (la tarjeta quedo en cero y sumo un premio), se deshace el
+ * premio y la tarjeta vuelve a quedar a un sello de la meta.
+ */
+export async function quitarSello(
+  tx: Prisma.TransactionClient,
+  datos: { userId: string; saleId: string; goal: number }
+): Promise<boolean> {
+  const sello = await tx.loyaltyStamp.findUnique({ where: { saleId: datos.saleId }, include: { loyaltyCard: true } });
+  if (!sello || sello.userId !== datos.userId) return false;
+  await tx.loyaltyStamp.delete({ where: { id: sello.id } });
+  const tarjeta = sello.loyaltyCard;
+  if (tarjeta.stamps > 0) {
+    await tx.loyaltyCard.update({ where: { id: tarjeta.id }, data: { stamps: { decrement: 1 } } });
+  } else if (tarjeta.rewardsEarned > 0) {
+    await tx.loyaltyCard.update({
+      where: { id: tarjeta.id },
+      data: { rewardsEarned: { decrement: 1 }, stamps: Math.max(0, datos.goal - 1) },
+    });
+  }
+  return true;
+}

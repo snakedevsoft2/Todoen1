@@ -47,6 +47,8 @@ function readPayment(value: FormDataEntryValue | null): PaymentMethod {
 function refresh(id?: string) {
   revalidatePath("/panel/cartera");
   if (id) revalidatePath("/panel/cartera/" + id);
+  // Las deudas que se dejan desde Ventas (el "Pendiente" del lavadero) salen ahi.
+  revalidatePath("/panel/ventas");
   revalidatePath("/panel");
 }
 

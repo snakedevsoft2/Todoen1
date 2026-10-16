@@ -6,8 +6,12 @@ import { dayIn, timeIn, todayIn } from "@/lib/dates";
 import { money, pretty12h, prettyDay, shortDay } from "@/lib/format";
 import { Badge, Card, Empty, PageHeader, Stat } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
+import { Icon } from "@/components/Icon";
 import { EntregaTurnoForm } from "@/components/EntregaTurnoForm";
-import { recibirEntregaAction } from "@/actions/lavadero";
+import { borrarEntregaAction, recibirEntregaAction } from "@/actions/lavadero";
+import { FormSinSenal } from "@/components/SinSenal";
+import { BotonBorrar } from "@/components/BotonBorrar";
+import { avisoBorrarEntrega } from "@/lib/impacto-borrado";
 import { esDueno, esSupervisor } from "@/lib/permisos-empleado";
 import {
   ESTADO_PENDIENTE_LABEL,
@@ -150,8 +154,8 @@ export default async function EntregaTurnoPage() {
           <Empty title="Todavía no hay entregas de turno" hint="La primera aparece aquí apenas alguien entregue." />
         ) : (
           <ul className="space-y-3">
-            {historial.map((e) => (
-              <li key={e.id} className="rounded-xl border border-line bg-surface p-3">
+            {historial.map((e, i) => (
+              <li key={e.id} data-entrega={e.id} className="rounded-xl border border-line bg-surface p-3">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-strong">
@@ -170,6 +174,30 @@ export default async function EntregaTurnoPage() {
                   )}
                 </div>
                 <DetalleEntrega entrega={e} m={m} />
+                {/* Borrar el reporte de una entrega es solo de la dueña (FormSinSenal no se lo muestra a nadie mas). */}
+                <FormSinSenal accion="borrarEntregaAction" servidor={borrarEntregaAction} className="mt-2 flex justify-end">
+                  <input type="hidden" name="id" value={e.id} />
+                  <BotonBorrar
+                    ariaLabel="Borrar entrega"
+                    className="btn-ghost btn-sm text-bad"
+                    aviso={avisoBorrarEntrega(
+                      {
+                        day: e.day,
+                        de: e.fromStaff?.name ?? null,
+                        para: e.toStaff?.name ?? null,
+                        totalSales: e.totalSales,
+                        cashDelivered: e.cashDelivered,
+                        pendingCount: e.pendingCount,
+                        recibida: Boolean(e.receivedAt),
+                        esLaUltima: i === 0 && e.day === today,
+                      },
+                      { currency: user.currency }
+                    )}
+                  >
+                    <Icon name="trash" className="h-4 w-4" />
+                    Borrar
+                  </BotonBorrar>
+                </FormSinSenal>
               </li>
             ))}
           </ul>

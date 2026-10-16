@@ -20,6 +20,8 @@ import { precioRaro } from "@/lib/precio-raro";
 import { todayIn } from "@/lib/dates";
 import { nuevaLlave } from "@/lib/cola-pendientes";
 import { patioConPendientes } from "@/lib/patio-sin-senal";
+import { avisoBorrarVehiculo } from "@/lib/impacto-borrado";
+import { BotonBorrar } from "./BotonBorrar";
 
 export type ServiceOption = { id: string; name: string; price: number };
 export type StaffOption = { id: string; name: string; color: string };
@@ -41,6 +43,8 @@ export type WashJobRow = {
   assignedStaffColor: string | null;
   /** Se hizo sin senal y espera para subir (ver lib/patio-sin-senal.ts). */
   sinSubir?: boolean;
+  /** Se recibio desde una reserva publica. */
+  fromReserva?: boolean;
 };
 
 /** Una reserva publica de hoy que todavia no llego al patio. */
@@ -331,14 +335,21 @@ function JobCard({
         </div>
         <FormSinSenal accion="deleteWashJobAction" servidor={deleteWashJobAction}>
           <input type="hidden" name="id" value={job.id} />
-          <SubmitButton
-            className="btn-ghost btn-sm px-2 text-bad"
-            pendingText="..."
+          {/* En el tablero nada esta cobrado todavia: no hay venta que borrar con el. */}
+          <BotonBorrar
             ariaLabel="Borrar"
-            confirm={"Borrar el vehículo de " + job.clientName + " del patio"}
+            aviso={avisoBorrarVehiculo(
+              {
+                ...job,
+                lavador: job.assignedStaffName ? { name: job.assignedStaffName, commissionPct: 0 } : null,
+                appointment: Boolean(job.fromReserva),
+                sale: null,
+              },
+              { currency, cajaCerrada: false }
+            )}
           >
             <Icon name="trash" className="h-4 w-4" />
-          </SubmitButton>
+          </BotonBorrar>
         </FormSinSenal>
       </div>
 

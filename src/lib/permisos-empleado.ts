@@ -52,6 +52,7 @@ export const ACCIONES_SOLO_DUENO = new Set<string>([
   "deleteWashJobAction",
   "updateWashJobAction",
   "cambiarPrecioLavadoAction",
+  "borrarEntregaAction",
   "anularTicketAction",
 ]);
 

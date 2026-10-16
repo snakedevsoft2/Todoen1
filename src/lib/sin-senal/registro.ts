@@ -54,6 +54,7 @@ import { deleteSupplierAction, saveSupplierAction, toggleSupplierAction } from "
 import { addSaleItemAction, deleteSaleAction, updateSaleAction, updateSalePaymentAction } from "@/actions/sales";
 import {
   asignarLavadorAction,
+  borrarEntregaAction,
   cambiarPrecioLavadoAction,
   cancelWashJobAction,
   cerrarLavadoAction,
@@ -146,4 +147,5 @@ export const ACCIONES_SIN_SENAL: Registro = {
   updateWashJobAction: simple(updateWashJobAction),
   cambiarPrecioLavadoAction: simple(cambiarPrecioLavadoAction),
   recibirDesdeReservaAction: simple(recibirDesdeReservaAction),
+  borrarEntregaAction: simple(borrarEntregaAction),
 };

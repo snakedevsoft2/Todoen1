@@ -5,7 +5,7 @@ import { after } from "next/server";
 import { avisarAPersona, avisarVentaGuardada } from "@/lib/push";
 import type { PaymentMethod } from "@prisma/client";
 import { db } from "@/lib/db";
-import { requireSession } from "@/lib/auth";
+import { requireOwner, requireSession } from "@/lib/auth";
 import { diaDelTelefono, todayIn } from "@/lib/dates";
 import { MAX_DIAS_SIN_CONEXION } from "@/lib/pagos";
 import { cerosPara, money, parseMoney, str } from "@/lib/format";
@@ -21,6 +21,7 @@ import {
   marcarListo,
 } from "@/lib/lavadero";
 import { avisoDeCercania } from "@/lib/fidelizacion";
+import { borrarVehiculo } from "@/lib/borrar-registros";
 import { entregarTurno, inicioDelTurno, recibirEntrega } from "@/lib/patio-turno";
 
 export type PatioState = { error?: string; ok?: string; aviso?: string } | undefined;
@@ -220,22 +221,38 @@ export async function cerrarLavadoAction(_prev: PatioState, formData: FormData):
   return { ok: "Lavado cobrado.", aviso: avisoDeSello(job.clientName, resultado.sello) };
 }
 
-/** Borra un vehiculo del tablero (se equivocaron al recibirlo). Queda en la auditoria del dueño. */
+/**
+ * Borra un vehiculo, en cualquier estado: del tablero (se equivocaron al
+ * recibirlo) o del historial, ya cobrado. Si ya se cobro, su venta se borra
+ * con el (ver lib/borrar-registros.ts). Solo el dueño, y queda en la auditoria.
+ */
 export async function deleteWashJobAction(formData: FormData) {
   const { user, staff } = await requireSession();
   if (!puedeHacer(staff.role, "deleteWashJobAction")) return;
 
-  const id = str(formData.get("id"));
-  const job = await db.washJob.findFirst({ where: { id, userId: user.id } });
-  if (!job || job.status === "ENTREGADO") return;
-
-  await db.washJob.delete({ where: { id: job.id } });
+  const borrado = await borrarVehiculo(user.id, str(formData.get("id")));
+  if (!borrado) return;
 
   await anotarActividad(
     { user, staff },
-    { tipo: "borrado", detalle: "Borró el vehículo de " + job.clientName + " del patio" }
+    {
+      tipo: "borrado",
+      detalle:
+        "Borró el vehículo de " +
+        borrado.clientName +
+        (borrado.vehiclePlate ? " (" + borrado.vehiclePlate + ")" : "") +
+        (borrado.ventaTotal !== null ? " y su venta de " + money(borrado.ventaTotal, user.currency) : " del patio"),
+      monto: borrado.ventaTotal ?? undefined,
+    }
   );
   revalidatePath("/panel/patio");
+  revalidatePath("/panel/patio/historial");
+  revalidatePath("/panel/mis-lavados");
+  if (borrado.ventaTotal !== null) {
+    revalidatePath("/panel/ventas");
+    revalidatePath("/panel/caja");
+    revalidatePath("/panel");
+  }
 }
 
 /**
@@ -283,31 +300,50 @@ export async function cancelWashJobAction(formData: FormData) {
   revalidatePath("/panel/patio");
 }
 
-/** El jefe de patio corrige datos del vehiculo (cliente, placa, servicio) antes de cobrarlo. */
+/**
+ * Corrige los datos del vehiculo: cliente, placa, tipo, color, servicio. El
+ * jefe de patio, antes de cobrarlo; el dueño, tambien despues.
+ *
+ * El servicio solo cambia mientras no se haya cobrado: la venta ya dice que
+ * se cobro. Y el precio solo cambia si cambia el servicio (el que se escribio
+ * a mano no se pisa con el del catalogo); para cambiarlo esta
+ * cambiarPrecioLavadoAction, que corrige tambien la venta.
+ */
 export async function updateWashJobAction(formData: FormData) {
   const { user, staff } = await requireSession();
   if (!puedeHacer(staff.role, "updateWashJobAction")) return;
 
   const id = str(formData.get("id"));
-  const job = await db.washJob.findFirst({ where: { id, userId: user.id } });
-  if (!job || job.status === "ENTREGADO") return;
+  const job = await db.washJob.findFirst({ where: { id, userId: user.id }, include: { sale: { select: { id: true } } } });
+  if (!job) return;
+  if (job.status === "ENTREGADO" && !esDueno(staff.role)) return;
 
   const serviceId = str(formData.get("serviceId"));
-  const service = serviceId ? await db.service.findFirst({ where: { id: serviceId, userId: user.id } }) : null;
+  const service =
+    serviceId && serviceId !== job.serviceId && !job.sale
+      ? await db.service.findFirst({ where: { id: serviceId, userId: user.id } })
+      : null;
+  const clientName = str(formData.get("clientName"), job.clientName);
 
-  await db.washJob.update({
-    where: { id: job.id },
-    data: {
-      clientName: str(formData.get("clientName"), job.clientName),
-      clientPhone: str(formData.get("clientPhone"), job.clientPhone),
-      vehiclePlate: str(formData.get("vehiclePlate")) || null,
-      vehicleType: str(formData.get("vehicleType")) || null,
-      vehicleColor: str(formData.get("vehicleColor")) || null,
-      serviceId: service?.id ?? job.serviceId,
-      serviceName: service?.name ?? job.serviceName,
-      price: service ? service.price : job.price,
-      notes: str(formData.get("notes")) || null,
-    },
+  await db.$transaction(async (tx) => {
+    await tx.washJob.update({
+      where: { id: job.id },
+      data: {
+        clientName,
+        clientPhone: str(formData.get("clientPhone"), job.clientPhone),
+        vehiclePlate: str(formData.get("vehiclePlate")) || null,
+        vehicleType: str(formData.get("vehicleType")) || null,
+        vehicleColor: str(formData.get("vehicleColor")) || null,
+        serviceId: service?.id ?? job.serviceId,
+        serviceName: service?.name ?? job.serviceName,
+        price: service ? service.price : job.price,
+        notes: str(formData.get("notes")) || null,
+      },
+    });
+    // El recibo y la lista de Ventas dicen el cliente de la venta.
+    if (job.sale && clientName !== job.clientName) {
+      await tx.sale.update({ where: { id: job.sale.id }, data: { clientName } });
+    }
   });
 
   await anotarActividad(
@@ -315,6 +351,8 @@ export async function updateWashJobAction(formData: FormData) {
     { tipo: "cambio", detalle: "Cambió los datos del vehículo de " + job.clientName }
   );
   revalidatePath("/panel/patio");
+  revalidatePath("/panel/patio/historial");
+  if (job.sale) revalidatePath("/panel/ventas");
 }
 
 /**
@@ -445,4 +483,31 @@ export async function cambiarPrecioLavadoAction(formData: FormData) {
   revalidatePath("/panel/ventas");
   revalidatePath("/panel/caja");
   revalidatePath("/panel");
+}
+
+/**
+ * Borra una entrega de turno (el reporte que deja el jefe de patio al irse).
+ * Solo el dueño. Las ventas, los gastos y los vehiculos no se tocan: la
+ * entrega es una foto de ese momento.
+ */
+export async function borrarEntregaAction(formData: FormData) {
+  const { user, staff } = await requireOwner();
+  const id = str(formData.get("id"));
+  const entrega = await db.patioHandover.findFirst({
+    where: { id, userId: user.id },
+    select: { day: true, totalSales: true, fromStaff: { select: { name: true } } },
+  });
+  if (!entrega) return;
+
+  await db.patioHandover.delete({ where: { id } });
+  await anotarActividad(
+    { user, staff },
+    {
+      tipo: "borrado",
+      detalle: "Borró la entrega de turno del " + entrega.day + (entrega.fromStaff ? " de " + entrega.fromStaff.name : ""),
+      monto: entrega.totalSales,
+    }
+  );
+  revalidatePath("/panel/patio");
+  revalidatePath("/panel/patio/entrega");
 }

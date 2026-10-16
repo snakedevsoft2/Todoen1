@@ -18,6 +18,9 @@ import type { InvoiceData } from "@/lib/invoice";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Icon } from "@/components/Icon";
 import { deleteSaleAction, updateSaleAction, updateSalePaymentAction } from "@/actions/sales";
+import { deleteDebtAction } from "@/actions/debts";
+import { BotonBorrar } from "@/components/BotonBorrar";
+import { avisoBorrarPendiente, avisoBorrarVenta } from "@/lib/impacto-borrado";
 import { AgregarItemVenta } from "@/components/AgregarItemVenta";
 import { FormSinSenal } from "@/components/SinSenal";
 import { esPlanCompleto } from "@/lib/plan";
@@ -32,6 +35,7 @@ const ORIGIN_LABEL: Record<string, string> = {
   TURNO: "Turno",
   ORDEN: "Cuenta",
   PARQUEADERO: "Parqueadero",
+  LAVADO: "Lavado",
 };
 
 /** Cuanto se vendio de cada producto en un grupo de ventas, de mas a menos. */
@@ -77,14 +81,22 @@ export default async function VentasPage({
     db.sale.findMany({
       where: { userId: user.id, day, ...soloMias },
       orderBy: { createdAt: "desc" },
-      include: { items: true, staff: { select: { name: true, color: true } }, electronicInvoice: true },
+      include: {
+        items: true,
+        staff: { select: { name: true, color: true, commissionPct: true } },
+        electronicInvoice: true,
+        // Para decirle al dueño, antes de borrar, que mas cambia (ver lib/impacto-borrado.ts).
+        washJob: { select: { vehiclePlate: true, vehicleType: true, vehicleColor: true } },
+        order: { select: { label: true } },
+        parkingTicket: { select: { plate: true } },
+      },
     }),
     // Los fiados hechos desde esta pantalla (llevan llave): no son plata que
     // entro, asi que salen en la lista pero no suman en el resumen de arriba.
     db.debt.findMany({
-      where: { userId: user.id, day, clientKey: { not: null }, ...soloMias },
+      where: { userId: user.id, day, clientKey: { not: null }, status: { not: "ANULADA" }, ...soloMias },
       orderBy: { createdAt: "desc" },
-      include: { staff: { select: { name: true, color: true } } },
+      include: { staff: { select: { name: true, color: true } }, _count: { select: { payments: true } } },
     }),
     db.service.findMany({
       where: { userId: user.id, active: true },
@@ -163,6 +175,41 @@ export default async function VentasPage({
   const masVendido = porProducto[0] ?? null;
 
   const logo = logoUrl(user.slug, user.hasLogo, user.updatedAt);
+
+  // Lo que el dueño tiene que saber antes de borrar: si la caja del dia ya se
+  // cerro, si la venta dio un sello de fidelizacion, si ya hay entregas de
+  // turno que la contaron. Solo para el dueño: es el unico que borra.
+  const [selladas, cierres, entregas] = propias
+    ? await Promise.all([
+        db.loyaltyStamp.findMany({
+          where: { userId: user.id, saleId: { in: sales.map((s) => s.id) } },
+          select: { saleId: true },
+        }),
+        db.cashClosure.count({ where: { userId: user.id, day } }),
+        esLavadero ? db.patioHandover.count({ where: { userId: user.id, day } }) : Promise.resolve(0),
+      ])
+    : [[], 0, 0];
+  const conSello = new Set(selladas.map((x) => x.saleId));
+  const avisoDeVenta = (s: (typeof sales)[number]) =>
+    avisoBorrarVenta(
+      {
+        day: s.day,
+        total: s.total,
+        paymentMethod: s.paymentMethod,
+        origin: s.origin,
+        clientName: s.clientName,
+        receiptSeq: s.receiptSeq,
+        items: s.items,
+        staff: s.staff ? { name: s.staff.name, commissionPct: s.staff.commissionPct } : null,
+        washJob: s.washJob,
+        conSello: conSello.has(s.id),
+        conFacturaFallida: Boolean(s.electronicInvoice),
+        orderLabel: s.order?.label ?? null,
+        appointment: Boolean(s.appointmentId),
+        parkingPlate: s.parkingTicket?.plate ?? null,
+      },
+      { currency: user.currency, cajaCerrada: cierres > 0, conEntregaDeTurno: entregas > 0 }
+    );
 
   // La factura autorizada (DIAN o SRI), si el negocio la tiene activa.
   const facturacion = await configuracionFacturacion(user.id);
@@ -459,9 +506,26 @@ export default async function VentasPage({
                         )}
                         <div className="mt-2 flex flex-wrap gap-2">
                           <ImprimirVenta data={datosFiado(f)} soloBluetooth={!propias} />
-                          <Link href={"/panel/cartera"} className="btn-ghost btn-sm">
-                            Ver en Cuentas por cobrar
-                          </Link>
+                          {!esLavadero && (
+                            <Link href={"/panel/cartera"} className="btn-ghost btn-sm">
+                              Ver en Cuentas por cobrar
+                            </Link>
+                          )}
+                          {/* En el lavadero Cuentas por cobrar viene apagado: el dueño lo borra aqui. */}
+                          <FormSinSenal accion="deleteDebtAction" servidor={deleteDebtAction}>
+                            <input type="hidden" name="id" value={f.id} />
+                            <BotonBorrar
+                              ariaLabel="Borrar"
+                              className="btn-ghost btn-sm text-bad"
+                              aviso={avisoBorrarPendiente(
+                                { day: f.day, clientName: f.clientName, amount: f.amount, concept: f.concept, abonos: f._count.payments },
+                                { currency: user.currency, etiqueta: esLavadero ? "Pendiente" : "Fiado" }
+                              )}
+                            >
+                              <Icon name="trash" className="h-4 w-4" />
+                              Borrar
+                            </BotonBorrar>
+                          </FormSinSenal>
                         </div>
                       </li>
                     );
@@ -532,19 +596,9 @@ export default async function VentasPage({
                           {!(s.electronicInvoice && ["AUTORIZADA", "ENVIANDO"].includes(s.electronicInvoice.status)) && (
                           <FormSinSenal accion="deleteSaleAction" servidor={deleteSaleAction}>
                             <input type="hidden" name="id" value={s.id} />
-                            <SubmitButton
-                              className="btn-ghost btn-sm px-2 text-bad"
-                              pendingText="..."
-                              ariaLabel="Borrar venta"
-                              confirm={
-                                "Borrar esta venta del día" +
-                                (s.items.some((i) => i.variantId)
-                                  ? ". Las prendas vuelven al inventario."
-                                  : "")
-                              }
-                            >
+                            <BotonBorrar ariaLabel="Borrar venta" aviso={avisoDeVenta(s)}>
                               <Icon name="trash" className="h-4 w-4" />
-                            </SubmitButton>
+                            </BotonBorrar>
                           </FormSinSenal>
                           )}
                         </div>
