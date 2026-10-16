@@ -6,7 +6,8 @@ import { avisarAPersona, avisarVentaGuardada } from "@/lib/push";
 import type { PaymentMethod } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
-import { todayIn } from "@/lib/dates";
+import { diaDelTelefono, todayIn } from "@/lib/dates";
+import { MAX_DIAS_SIN_CONEXION } from "@/lib/pagos";
 import { cerosPara, money, parseMoney, str } from "@/lib/format";
 import { anotarActividad } from "@/lib/actividad";
 import { esDueno, esSupervisor, puedeHacer } from "@/lib/permisos-empleado";
@@ -16,6 +17,7 @@ import {
   cerrarLavado,
   crearWashJob,
   dejarPendienteDePago,
+  LLAVE_VEHICULO,
   marcarListo,
 } from "@/lib/lavadero";
 import { avisoDeCercania } from "@/lib/fidelizacion";
@@ -43,10 +45,38 @@ function avisoDeSello(clientName: string, sello: { stamps: number; goal: number;
       : undefined;
 }
 
+/**
+ * El dia en que se hizo, segun el telefono: lo hecho sin senal se sube mas
+ * tarde y tiene que caer en la caja del dia en que paso (ver diaDelTelefono).
+ */
+function diaDe(formData: FormData, timezone: string): string {
+  return diaDelTelefono(formData.get("day"), todayIn(timezone), MAX_DIAS_SIN_CONEXION);
+}
+
+/**
+ * La llave que el telefono le puso al vehiculo, si trae una. "ya": ese
+ * vehiculo ya se recibio (la subida se repitio); "ajena": la llave es de otro.
+ */
+async function llaveDeVehiculo(userId: string, formData: FormData): Promise<{ id: string | null; ya: boolean; ajena: boolean }> {
+  const crudo = str(formData.get("washJobId"));
+  if (!crudo || !LLAVE_VEHICULO.test(crudo)) return { id: null, ya: false, ajena: false };
+  const previo = await db.washJob.findUnique({ where: { id: crudo }, select: { userId: true } });
+  return { id: crudo, ya: previo?.userId === userId, ajena: Boolean(previo) && previo?.userId !== userId };
+}
+
+/** Dos subidas a la vez del mismo vehiculo: la segunda choca con la llave. */
+function esLlaveRepetida(e: unknown): boolean {
+  return (e as { code?: string })?.code === "P2002";
+}
+
 /** El jefe de patio (o el dueño) recibe un vehiculo que llego al lavadero. */
 export async function recibirVehiculoAction(_prev: PatioState, formData: FormData): Promise<PatioState> {
   const { user, staff } = await requireSession();
   if (!esDePatio(staff.role)) return { error: "No tienes permiso para recibir vehículos." };
+
+  const llave = await llaveDeVehiculo(user.id, formData);
+  if (llave.ajena) return { error: "Ese vehículo no se puede recibir." };
+  if (llave.ya) return { ok: "Vehículo recibido." };
 
   const clientName = str(formData.get("clientName"));
   const clientPhone = str(formData.get("clientPhone"), "-");
@@ -59,17 +89,24 @@ export async function recibirVehiculoAction(_prev: PatioState, formData: FormDat
   // parseMoney y no parseIntSafe: "18.000" con punto se guardaba como 18.
   const price = priceRaw ? parseMoney(priceRaw, user.currency, cerosPara(user.businessType)) : null;
 
-  const job = await crearWashJob(user.id, todayIn(user.timezone), {
-    clientName,
-    clientPhone,
-    vehiclePlate: str(formData.get("vehiclePlate")) || null,
-    vehicleType: str(formData.get("vehicleType")) || null,
-    vehicleColor: str(formData.get("vehicleColor")) || null,
-    serviceId: str(formData.get("serviceId")) || null,
-    price,
-    notes: str(formData.get("notes")) || null,
-    receivedById: staff.id,
-  });
+  let job: Awaited<ReturnType<typeof crearWashJob>>;
+  try {
+    job = await crearWashJob(user.id, diaDe(formData, user.timezone), {
+      id: llave.id,
+      clientName,
+      clientPhone,
+      vehiclePlate: str(formData.get("vehiclePlate")) || null,
+      vehicleType: str(formData.get("vehicleType")) || null,
+      vehicleColor: str(formData.get("vehicleColor")) || null,
+      serviceId: str(formData.get("serviceId")) || null,
+      price,
+      notes: str(formData.get("notes")) || null,
+      receivedById: staff.id,
+    });
+  } catch (e) {
+    if (llave.id && esLlaveRepetida(e)) return { ok: "Vehículo recibido." };
+    throw e;
+  }
 
   const aviso = await avisoDeCercania(db, job.customerId, user.loyaltyGoal);
 
@@ -166,7 +203,7 @@ export async function cerrarLavadoAction(_prev: PatioState, formData: FormData):
   const resultado = await cerrarLavado(user.id, washJobId, {
     paymentMethod: readPayment(formData.get("paymentMethod")),
     amount,
-    day: todayIn(user.timezone),
+    day: diaDe(formData, user.timezone),
   });
   if (!resultado) return { error: "Ese lavado ya se cobró o no está listo para cobrarse." };
   after(() => avisarVentaGuardada(user, { tipo: "venta", id: resultado.saleId }, staff).then(() => undefined));
@@ -216,7 +253,11 @@ export async function recibirDesdeReservaAction(formData: FormData) {
   });
   if (!appointment || appointment.washJob) return;
 
-  await crearWashJob(user.id, todayIn(user.timezone), {
+  const llave = await llaveDeVehiculo(user.id, formData);
+  if (llave.ya || llave.ajena) return;
+
+  await crearWashJob(user.id, diaDe(formData, user.timezone), {
+    id: llave.id,
     clientName: appointment.clientName,
     clientPhone: appointment.clientPhone,
     vehiclePlate: null,

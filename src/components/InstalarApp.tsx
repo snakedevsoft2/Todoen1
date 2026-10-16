@@ -4,6 +4,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import {
   detectarDispositivo,
   escucharInstalacion,
+  estaInstalada,
   hayAvisoInstalacion,
   pedirInstalacion,
   suscribirInstalacion,
@@ -88,9 +89,7 @@ export function InstalarApp({ variante }: { variante: "aviso" | "boton" }) {
 
   useEffect(() => {
     escucharInstalacion();
-    const nav = navigator as Navigator & { standalone?: boolean };
-    const instalada = window.matchMedia("(display-mode: standalone)").matches || nav.standalone === true;
-    setDispositivo(detectarDispositivo(navigator.userAgent, instalada, navigator.maxTouchPoints > 1));
+    setDispositivo(detectarDispositivo(navigator.userAgent, estaInstalada(), navigator.maxTouchPoints > 1));
     try {
       setAhoraNo(localStorage.getItem(CLAVE_AHORA_NO) === "no");
     } catch {

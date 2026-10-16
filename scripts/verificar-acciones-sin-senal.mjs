@@ -76,6 +76,17 @@ const pendientes = (page) => page.locator("[data-acciones-pendientes]").textCont
 
 try {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  // Sin la presentacion que sale antes del ingreso, y como la aplicacion
+  // instalada: sin senal, solo ahi se guardan ventas y cambios (ver
+  // estaInstalada en src/lib/instalar.ts).
+  await ctx.addInitScript(() => {
+    localStorage.setItem("todoen1_onboarding_seen", "true");
+    const original = window.matchMedia.bind(window);
+    window.matchMedia = (q) =>
+      q.includes("display-mode: standalone")
+        ? { matches: true, media: q, onchange: null, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {}, dispatchEvent: () => false }
+        : original(q);
+  });
   const page = await ctx.newPage();
   page.on("response", (r) => r.status() >= 500 && r.status() !== 503 && errores.push(r.status() + " " + r.url()));
 

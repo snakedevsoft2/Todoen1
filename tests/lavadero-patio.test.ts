@@ -54,7 +54,8 @@ afterAll(async () => {
 
 describe("permisos del jefe de patio", () => {
   it("el jefe de patio cambia ventas, vehículos y precios, pero no borra; el lavador ninguna", () => {
-    expect(puedeHacer("SUPERVISOR", "updateSalePaymentAction")).toBe(true);
+    // La forma de pago de una venta ya registrada la cambia solo la dueña (ver ACCIONES_SUPERVISOR).
+    expect(puedeHacer("SUPERVISOR", "updateSalePaymentAction")).toBe(false);
     expect(puedeHacer("SUPERVISOR", "updateWashJobAction")).toBe(true);
     expect(puedeHacer("SUPERVISOR", "cambiarPrecioLavadoAction")).toBe(true);
     expect(puedeHacer("SUPERVISOR", "deleteSaleAction")).toBe(false);
@@ -185,5 +186,62 @@ describe("la tarjeta de fidelización se completa y se reinicia", () => {
     const tarjeta = await db.loyaltyCard.findUnique({ where: { customerId: job.customerId! } });
     expect(tarjeta?.stamps).toBe(0);
     expect(tarjeta?.rewardsEarned).toBe(1);
+  });
+});
+
+describe("un vehículo recibido sin señal", () => {
+  it("queda con la llave que le puso el teléfono, y lo que sigue le cae al mismo", async () => {
+    const llave = "sin-senal-" + S;
+    const job = await crearWashJob(userId, "2026-09-23", {
+      id: llave,
+      clientName: "Ana Sin Señal",
+      clientPhone: "3009990000",
+      vehiclePlate: null,
+      vehicleType: "moto",
+      vehicleColor: null,
+      serviceId,
+      notes: null,
+      receivedById: jefeId,
+    });
+    expect(job.id).toBe(llave);
+    expect(job.day).toBe("2026-09-23");
+
+    // Asignar, terminar y cobrar con la misma llave, como llegan de la cola.
+    expect((await asignarLavador(userId, llave, lavadorId))?.status).toBe("LAVANDO");
+    expect((await marcarListo(userId, llave))?.status).toBe("LISTO");
+    const cierre = await cerrarLavado(userId, llave, { paymentMethod: "EFECTIVO", amount: 20000, day: "2026-09-24" });
+    const venta = await db.sale.findUnique({ where: { id: cierre!.saleId } });
+    // La venta cae el día del lavado, no el día en que se subió.
+    expect(venta?.day).toBe("2026-09-23");
+
+    // La misma llave no crea otro vehículo.
+    await expect(
+      crearWashJob(userId, "2026-09-23", {
+        id: llave,
+        clientName: "Ana Sin Señal",
+        clientPhone: "3009990000",
+        vehiclePlate: null,
+        vehicleType: null,
+        vehicleColor: null,
+        serviceId: null,
+        notes: null,
+        receivedById: jefeId,
+      })
+    ).rejects.toMatchObject({ code: "P2002" });
+  });
+
+  it("una llave rara no se usa: el servidor pone la suya", async () => {
+    const job = await crearWashJob(userId, "2026-09-23", {
+      id: "x'; drop",
+      clientName: "Otra",
+      clientPhone: "3009990001",
+      vehiclePlate: null,
+      vehicleType: null,
+      vehicleColor: null,
+      serviceId: null,
+      notes: null,
+      receivedById: jefeId,
+    });
+    expect(job.id).not.toBe("x'; drop");
   });
 });

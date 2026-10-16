@@ -7,9 +7,7 @@ import { money, pretty12h, prettyDay, shortDay } from "@/lib/format";
 import { Icon } from "@/components/Icon";
 import { cerrarSalidasOlvidadas } from "@/lib/salida-automatica";
 import { Badge, Card, Empty, PageHeader } from "@/components/ui";
-import { FormSinSenal } from "@/components/SinSenal";
-import { marcarListoAction } from "@/actions/lavadero";
-import { SubmitButton } from "@/components/SubmitButton";
+import { YaTermine } from "@/components/YaTermine";
 
 export const dynamic = "force-dynamic";
 
@@ -156,12 +154,10 @@ export default async function MisLavadosPage() {
                 )}
 
                 {job.status === "LAVANDO" && (
-                  <FormSinSenal accion="marcarListoAction" servidor={marcarListoAction} className="mt-2">
-                    <input type="hidden" name="washJobId" value={job.id} />
-                    <SubmitButton className="btn-primary btn-sm" pendingText="...">
-                      Ya terminé
-                    </SubmitButton>
-                  </FormSinSenal>
+                  <YaTermine
+                    washJobId={job.id}
+                    vehiculo={[job.vehiclePlate, job.vehicleType].filter(Boolean).join(" · ") || job.clientName}
+                  />
                 )}
               </li>
             ))}

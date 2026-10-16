@@ -36,6 +36,18 @@ export function isValidDay(day: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(day) && !Number.isNaN(Date.parse(`${day}T00:00:00Z`));
 }
 
+/**
+ * El dia en que el telefono dice que se hizo algo, si es creible: lo que se
+ * hizo sin senal llega mas tarde, y sin esto caia el dia en que se subio. Se
+ * acepta hasta `maxAtras` dias antes de hoy y nunca un dia que no ha llegado;
+ * cualquier otra cosa es hoy.
+ */
+export function diaDelTelefono(raw: unknown, hoy: string, maxAtras: number): string {
+  const dia = typeof raw === "string" ? raw.trim() : "";
+  if (!isValidDay(dia) || dia > hoy || dia < addDays(hoy, -maxAtras)) return hoy;
+  return dia;
+}
+
 /** 1 = lunes ... 7 = domingo */
 export function isoWeekday(day: string): number {
   const [y, m, d] = day.split("-").map(Number);

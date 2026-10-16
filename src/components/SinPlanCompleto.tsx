@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { estaInstalada } from "@/lib/instalar";
 
 /**
  * La cuenta con funciones limitadas en el telefono: sin aplicacion instalada y
@@ -20,8 +21,7 @@ export function SinPlanCompleto({ enlace }: { enlace: string }) {
   const [sitio, setSitio] = useState("");
 
   useEffect(() => {
-    const nav = navigator as Navigator & { standalone?: boolean };
-    setInstalada(window.matchMedia("(display-mode: standalone)").matches || nav.standalone === true);
+    setInstalada(estaInstalada());
     setSitio(location.host);
 
     if ("serviceWorker" in navigator) {

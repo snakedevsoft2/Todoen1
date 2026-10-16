@@ -33,6 +33,7 @@ import {
 import { invoiceFileName, invoiceTirilla, type InvoiceData } from "@/lib/invoice";
 import { Icon } from "./Icon";
 import { RegistrarSW } from "./RegistrarSW";
+import { useGuardaSinSenal } from "./SinSenal";
 import { BotonImprimir } from "./BotonImprimir";
 import { FacturaAutorizada, type EmisorFactura } from "./FacturaAutorizada";
 import type { Pais } from "@/lib/facturacion/paises";
@@ -299,6 +300,9 @@ export function NewSaleForm({
   esDueno?: boolean;
 }) {
   const router = useRouter();
+  // Sin senal la venta solo se guarda en el telefono desde la aplicacion
+  // instalada de una cuenta que la tiene (ver ProveedorSinSenal).
+  const sinSenal = useGuardaSinSenal();
   const formRef = useRef<HTMLFormElement>(null);
   const raizRef = useRef<HTMLDivElement>(null);
   const [cart, setCart] = useState<CartRow[]>([]);
@@ -723,6 +727,16 @@ export function NewSaleForm({
           return;
         }
         if (p.conRed) aviso = p.motivo + " La venta quedó guardada en este teléfono, con su recibo listo para imprimir.";
+        if (p.conRed && !sinSenal.puede) {
+          setMensaje({ kind: "error", text: "No se pudo guardar la venta. Revisa la conexión e inténtalo otra vez." });
+          return;
+        }
+      }
+
+      if (!sinSenal.puede) {
+        // No se guarda en el telefono: el carrito queda para intentarlo con senal.
+        setMensaje({ kind: "error", text: sinSenal.motivo });
+        return;
       }
 
       // Sin red, o el servidor no respondio: a la cola, con la misma llave.

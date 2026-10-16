@@ -3,13 +3,10 @@ import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { todayIn } from "@/lib/dates";
-import { prettyDay, shortDay } from "@/lib/format";
-import { PageHeader, Card, Empty } from "@/components/ui";
+import { prettyDay } from "@/lib/format";
+import { PageHeader } from "@/components/ui";
 import { Icon } from "@/components/Icon";
-import { PatioBoard, type StaffOption, type WashJobRow } from "@/components/PatioBoard";
-import { SubmitButton } from "@/components/SubmitButton";
-import { FormSinSenal } from "@/components/SinSenal";
-import { recibirDesdeReservaAction } from "@/actions/lavadero";
+import { PatioBoard, type ReservaPatio, type StaffOption, type WashJobRow } from "@/components/PatioBoard";
 import { esDueno, esSupervisor } from "@/lib/permisos-empleado";
 import { ESTADOS_PENDIENTES, entregaPorRecibir } from "@/lib/patio-turno";
 
@@ -64,6 +61,15 @@ export default async function PatioPage() {
   }));
 
   const equipo: StaffOption[] = lavadores;
+  const reservas: ReservaPatio[] = reservados.map((a) => ({
+    id: a.id,
+    day: a.day,
+    startTime: a.startTime,
+    clientName: a.clientName,
+    clientPhone: a.clientPhone,
+    serviceId: a.serviceId,
+    serviceName: a.serviceName,
+  }));
 
   return (
     <>
@@ -93,39 +99,15 @@ export default async function PatioPage() {
         </section>
       )}
 
-      {reservados.length > 0 && (
-        <Card className="mb-5" title="Reservados hoy" subtitle="Separados desde tu página pública">
-          <ul className="space-y-2">
-            {reservados.map((a) => (
-              <li
-                key={a.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface p-3"
-              >
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-strong">
-                    {a.startTime} · {a.clientName}
-                  </p>
-                  <p className="text-xs text-subtle">
-                    {a.serviceName} · {shortDay(a.day)}
-                  </p>
-                </div>
-                <FormSinSenal accion="recibirDesdeReservaAction" servidor={recibirDesdeReservaAction}>
-                  <input type="hidden" name="appointmentId" value={a.id} />
-                  <SubmitButton className="btn-primary btn-sm" pendingText="...">
-                    Recibir
-                  </SubmitButton>
-                </FormSinSenal>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
-
-      {equipo.length === 0 ? (
-        <Empty title="Todavía no tienes lavadores" hint="Agrégalos desde Equipo para poder asignarles vehículos." />
-      ) : (
-        <PatioBoard jobs={rows} lavadores={equipo} services={services} currency={user.currency} today={today} />
-      )}
+      <PatioBoard
+        jobs={rows}
+        lavadores={equipo}
+        services={services}
+        reservados={reservas}
+        currency={user.currency}
+        timezone={user.timezone}
+        today={today}
+      />
     </>
   );
 }

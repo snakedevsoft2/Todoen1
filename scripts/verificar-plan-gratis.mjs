@@ -88,6 +88,8 @@ const guardadas = (page) => page.evaluate(async () => (await caches.keys()).filt
 // Perfil normal y no de incógnito: en incógnito el navegador nunca ofrece instalar.
 const perfil = fs.mkdtempSync(path.join(os.tmpdir(), "plan-gratis-"));
 const ctx = await chromium.launchPersistentContext(perfil, { channel: "msedge", viewport: { width: 390, height: 844 } });
+// Sin la presentacion que sale antes del ingreso la primera vez.
+await ctx.addInitScript(() => localStorage.setItem("todoen1_onboarding_seen", "true"));
 const browser = await chromium.launch({ channel: "msedge" });
 
 try {
@@ -193,6 +195,7 @@ try {
 
   console.log("\n6. El administrador le da cortesía: vuelven los módulos, sin instalar");
   const actx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await actx.addInitScript(() => localStorage.setItem("todoen1_onboarding_seen", "true"));
   const adm = await actx.newPage();
   vigilar(adm);
   await entrar(adm, ADMIN);

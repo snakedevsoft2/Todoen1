@@ -54,6 +54,8 @@ const ENLACE = {
   "/panel": "Ir al inicio",
   "/panel/marcar": "Marcar entrada o salida",
   "/panel/ventas": "Registrar una venta",
+  "/panel/patio": "Patio del lavadero",
+  "/panel/mis-lavados": "Mis lavados",
   "/panel/escaner": "Escanear un documento",
   "/panel/informes": "Hacer un reporte",
   "/panel/novedades": "Avisar una novedad",

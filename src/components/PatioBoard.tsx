@@ -1,20 +1,25 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import {
   asignarLavadorAction,
   cambiarPrecioLavadoAction,
   cerrarLavadoAction,
   deleteWashJobAction,
   marcarListoAction,
+  recibirDesdeReservaAction,
   recibirVehiculoAction,
+  type PatioState,
 } from "@/actions/lavadero";
-import { FormSinSenal, useAccionSinSenal } from "@/components/SinSenal";
+import { FormSinSenal, useAccionSinSenal, useCambiosPendientes } from "@/components/SinSenal";
 import { SubmitButton } from "./SubmitButton";
-import { Alert, Card, Field } from "./ui";
+import { Alert, Card, Empty, Field } from "./ui";
 import { Icon } from "./Icon";
 import { aCampo, cerosPara, money, parseMoney, shortDay } from "@/lib/format";
 import { precioRaro } from "@/lib/precio-raro";
+import { todayIn } from "@/lib/dates";
+import { nuevaLlave } from "@/lib/cola-pendientes";
+import { patioConPendientes } from "@/lib/patio-sin-senal";
 
 export type ServiceOption = { id: string; name: string; price: number };
 export type StaffOption = { id: string; name: string; color: string };
@@ -34,7 +39,38 @@ export type WashJobRow = {
   assignedStaffId: string | null;
   assignedStaffName: string | null;
   assignedStaffColor: string | null;
+  /** Se hizo sin senal y espera para subir (ver lib/patio-sin-senal.ts). */
+  sinSubir?: boolean;
 };
+
+/** Una reserva publica de hoy que todavia no llego al patio. */
+export type ReservaPatio = {
+  id: string;
+  day: string;
+  startTime: string;
+  clientName: string;
+  clientPhone: string;
+  serviceId: string | null;
+  serviceName: string;
+};
+
+/**
+ * Los campos que se ponen al momento de enviar, y no al pintar la pantalla:
+ * sin senal la pantalla puede ser la copia guardada de otro dia.
+ *   - day: el dia de hoy en el telefono, en la zona del negocio.
+ *   - washJobId: la llave del vehiculo que se recibe, para poder asignarlo y
+ *     cobrarlo antes de que exista en el servidor.
+ */
+function conDia(timezone: string) {
+  return (fd: FormData) => fd.set("day", todayIn(timezone));
+}
+
+function conLlaveYDia(timezone: string) {
+  return (fd: FormData) => {
+    fd.set("washJobId", nuevaLlave());
+    fd.set("day", todayIn(timezone));
+  };
+}
 
 const COLUMNAS: { status: WashJobRow["status"]; title: string }[] = [
   { status: "EN_COLA", title: "En cola" },
@@ -44,54 +80,125 @@ const COLUMNAS: { status: WashJobRow["status"]; title: string }[] = [
 ];
 
 export function PatioBoard({
-  jobs,
+  jobs: delServidor,
   lavadores,
   services,
+  reservados,
   currency,
+  timezone,
   today,
 }: {
   jobs: WashJobRow[];
   lavadores: StaffOption[];
   services: ServiceOption[];
+  reservados: ReservaPatio[];
   currency: string;
+  timezone: string;
   today: string;
 }) {
+  // Sin senal la pantalla puede venir guardada de otro dia: hoy es el del telefono.
+  const [hoy, setHoy] = useState(today);
+  useEffect(() => setHoy(todayIn(timezone)), [timezone]);
+
+  // Lo que se hizo sin senal se ve ya hecho, aunque todavia no se haya subido.
+  const cambios = useCambiosPendientes();
+  const { jobs, reservasRecibidas } = useMemo(
+    () => patioConPendientes(delServidor, cambios, { services, lavadores, reservados, currency, hoy }),
+    [delServidor, cambios, services, lavadores, reservados, currency, hoy]
+  );
+  const porRecibir = reservados.filter((a) => !reservasRecibidas.has(a.id));
+
   return (
     <div className="space-y-5">
-      <RecibirVehiculoForm services={services} currency={currency} />
-
-      <div className="grid gap-4 lg:grid-cols-4">
-        {COLUMNAS.map((col) => {
-          const enEstaColumna = jobs.filter((j) => j.status === col.status);
-          return (
-            <div key={col.status}>
-              <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-muted">
-                {col.title} · {enEstaColumna.length}
-              </h3>
-              <div className="space-y-2">
-                {enEstaColumna.length === 0 ? (
-                  <p className="rounded-xl border border-dashed border-line p-3 text-center text-xs text-subtle">
-                    Nada aquí
+      {porRecibir.length > 0 && (
+        <Card title="Reservados hoy" subtitle="Separados desde tu página pública">
+          <ul className="space-y-2">
+            {porRecibir.map((a) => (
+              <li
+                key={a.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface p-3"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-strong">
+                    {a.startTime} · {a.clientName}
                   </p>
-                ) : (
-                  enEstaColumna.map((job) => (
-                    <JobCard key={job.id} job={job} lavadores={lavadores} currency={currency} today={today} />
-                  ))
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+                  <p className="text-xs text-subtle">
+                    {a.serviceName} · {shortDay(a.day)}
+                  </p>
+                </div>
+                <FormSinSenal
+                  accion="recibirDesdeReservaAction"
+                  servidor={recibirDesdeReservaAction}
+                  preparar={conLlaveYDia(timezone)}
+                >
+                  <input type="hidden" name="appointmentId" value={a.id} />
+                  <input type="hidden" name="clientName" value={a.clientName} />
+                  <SubmitButton className="btn-primary btn-sm" pendingText="...">
+                    Recibir
+                  </SubmitButton>
+                </FormSinSenal>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
+      {lavadores.length === 0 ? (
+        <Empty title="Todavía no tienes lavadores" hint="Agrégalos desde Equipo para poder asignarles vehículos." />
+      ) : (
+        <>
+          <RecibirVehiculoForm services={services} currency={currency} timezone={timezone} />
+
+          <div className="grid gap-4 lg:grid-cols-4">
+            {COLUMNAS.map((col) => {
+              const enEstaColumna = jobs.filter((j) => j.status === col.status);
+              return (
+                <div key={col.status}>
+                  <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-muted">
+                    {col.title} · {enEstaColumna.length}
+                  </h3>
+                  <div className="space-y-2">
+                    {enEstaColumna.length === 0 ? (
+                      <p className="rounded-xl border border-dashed border-line p-3 text-center text-xs text-subtle">
+                        Nada aquí
+                      </p>
+                    ) : (
+                      enEstaColumna.map((job) => (
+                        <JobCard
+                          key={job.id}
+                          job={job}
+                          lavadores={lavadores}
+                          currency={currency}
+                          timezone={timezone}
+                          today={hoy}
+                        />
+                      ))
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
     </div>
   );
 }
 
-function RecibirVehiculoForm({ services, currency }: { services: ServiceOption[]; currency: string }) {
-  const [state, formAction] = useActionState(
-    useAccionSinSenal("recibirVehiculoAction", recibirVehiculoAction),
-    undefined
-  );
+function RecibirVehiculoForm({
+  services,
+  currency,
+  timezone,
+}: {
+  services: ServiceOption[];
+  currency: string;
+  timezone: string;
+}) {
+  const conCola = useAccionSinSenal("recibirVehiculoAction", recibirVehiculoAction);
+  const [state, formAction] = useActionState((prev: PatioState, fd: FormData) => {
+    conLlaveYDia(timezone)(fd);
+    return conCola(prev, fd);
+  }, undefined);
   // Al elegir el servicio se llena con su precio de catálogo, pero se puede
   // cambiar a mano: hay clientes de siempre o carros más sucios que se cobran
   // distinto.
@@ -169,19 +276,30 @@ function JobCard({
   job,
   lavadores,
   currency,
+  timezone,
   today,
 }: {
   job: WashJobRow;
   lavadores: StaffOption[];
   currency: string;
+  timezone: string;
   today: string;
 }) {
   const deAntes = job.day < today;
   return (
-    <div className={"rounded-xl border bg-surface p-3 " + (deAntes ? "border-warn-line" : "border-line")}>
+    <div data-vehiculo={job.id} className={"rounded-xl border bg-surface p-3 " + (deAntes ? "border-warn-line" : "border-line")}>
       {deAntes && (
         <p className="mb-1.5 inline-block rounded-full bg-warn-soft px-2 py-0.5 text-[11px] font-semibold text-warn">
           Pendiente desde el {shortDay(job.day)}
+        </p>
+      )}
+      {job.sinSubir && (
+        <p
+          data-sin-subir
+          className="mb-1.5 ml-1 inline-flex items-center gap-1 rounded-full bg-warn-soft px-2 py-0.5 text-[11px] font-semibold text-warn"
+        >
+          <Icon name="clock" className="h-3 w-3" />
+          Sin subir: se sube cuando vuelva la señal
         </p>
       )}
       <div className="flex items-start justify-between gap-2">
@@ -239,6 +357,7 @@ function JobCard({
             className="flex items-center gap-1.5"
           >
             <input type="hidden" name="washJobId" value={job.id} />
+            <input type="hidden" name="clientName" value={job.clientName} />
             <select name="staffId" defaultValue={job.assignedStaffId ?? ""} className="input w-36 py-1.5 text-xs">
               <option value="" disabled>
                 Elegir lavador
@@ -258,23 +377,28 @@ function JobCard({
         {job.status === "LAVANDO" && (
           <FormSinSenal accion="marcarListoAction" servidor={marcarListoAction}>
             <input type="hidden" name="washJobId" value={job.id} />
+            <input type="hidden" name="clientName" value={job.clientName} />
             <SubmitButton className="btn-ghost btn-sm" pendingText="...">
               Ya está listo
             </SubmitButton>
           </FormSinSenal>
         )}
 
-        {(job.status === "LISTO" || job.status === "POR_COBRAR") && <CerrarLavadoForm job={job} currency={currency} />}
+        {(job.status === "LISTO" || job.status === "POR_COBRAR") && (
+          <CerrarLavadoForm job={job} currency={currency} timezone={timezone} />
+        )}
       </div>
     </div>
   );
 }
 
-function CerrarLavadoForm({ job, currency }: { job: WashJobRow; currency: string }) {
-  const [state, formAction] = useActionState(
-    useAccionSinSenal("cerrarLavadoAction", cerrarLavadoAction),
-    undefined
-  );
+function CerrarLavadoForm({ job, currency, timezone }: { job: WashJobRow; currency: string; timezone: string }) {
+  const conCola = useAccionSinSenal("cerrarLavadoAction", cerrarLavadoAction);
+  const [state, formAction] = useActionState((prev: PatioState, fd: FormData) => {
+    // Lo que se cobra sin senal cae en la caja del dia en que se cobro.
+    conDia(timezone)(fd);
+    return conCola(prev, fd);
+  }, undefined);
   const [abierto, setAbierto] = useState(false);
   const [metodo, setMetodo] = useState("EFECTIVO");
   const [monto, setMonto] = useState(String(job.price));
@@ -298,6 +422,7 @@ function CerrarLavadoForm({ job, currency }: { job: WashJobRow; currency: string
   return (
     <form action={formAction} className="mt-1 w-full space-y-2 rounded-lg border border-line bg-panel p-2">
       <input type="hidden" name="washJobId" value={job.id} />
+      <input type="hidden" name="clientName" value={job.clientName} />
       {state?.error && <Alert kind="error">{state.error}</Alert>}
       {state?.aviso && <Alert kind="info">{state.aviso}</Alert>}
       <div className="flex flex-wrap items-center gap-2">

@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
+import { estaInstalada } from "@/lib/instalar";
 
 /** Cada cuanto se vuelven a guardar todas las pantallas del menu. */
 const CADA_MS = 30 * 60_000;
@@ -34,7 +35,9 @@ async function confirmarLicencia(reg: ServiceWorkerRegistration, senal: AbortSig
  * Con senal, y sin estorbar:
  *   - guarda la pantalla que se esta viendo cada vez que cambia;
  *   - cada media hora, en segundo plano, guarda todas las pantallas del menu
- *     de esta persona con sus archivos, el logo y el armador de PDF.
+ *     de esta persona con sus archivos, el logo y el armador de PDF. Solo en
+ *     la aplicacion instalada: es la que se usa sin senal, y desde el
+ *     navegador eso solo gastaria datos del telefono.
  * Asi, sin senal se puede abrir cualquier apartado, ver lo ultimo que se
  * cargo, y descargar o imprimir facturas y recibos.
  *
@@ -91,7 +94,7 @@ export function PrepararSinConexion({
     if (!("serviceWorker" in navigator) || process.env.NODE_ENV !== "production") return;
     const clave = "ten_precarga:" + cuenta;
     const precargar = async () => {
-      if (!navigator.onLine || document.visibilityState !== "visible") return;
+      if (!estaInstalada() || !navigator.onLine || document.visibilityState !== "visible") return;
       try {
         if (Date.now() - Number(localStorage.getItem(clave) ?? 0) < CADA_MS) return;
         localStorage.setItem(clave, String(Date.now()));

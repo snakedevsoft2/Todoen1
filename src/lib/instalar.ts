@@ -48,6 +48,20 @@ export function detectarDispositivo(ua: string, instalada: boolean, tactil = fal
   return "escritorio";
 }
 
+/**
+ * Si la pantalla se abrio desde la aplicacion instalada (el icono del
+ * telefono) y no desde una pestaña del navegador. Corre en el navegador.
+ */
+export function estaInstalada(): boolean {
+  if (typeof window === "undefined") return false;
+  const nav = navigator as Navigator & { standalone?: boolean };
+  // iPhone dice "standalone" en navigator; los demas, en el modo de pantalla.
+  return (
+    nav.standalone === true ||
+    ["standalone", "fullscreen", "minimal-ui"].some((m) => window.matchMedia("(display-mode: " + m + ")").matches)
+  );
+}
+
 type AvisoInstalacion = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;

@@ -29,7 +29,16 @@ export type DatosVehiculo = {
   notes: string | null;
   receivedById: string;
   appointmentId?: string | null;
+  /**
+   * La llave que le puso el telefono. Sin senal, el vehiculo se recibe, se
+   * asigna y se cobra antes de que exista en el servidor: las acciones que
+   * siguen lo nombran con esta llave, y al subir quedan apuntando al mismo.
+   */
+  id?: string | null;
 };
+
+/** Las llaves que el telefono le pone a un vehiculo recibido sin senal. */
+export const LLAVE_VEHICULO = /^[A-Za-z0-9-]{8,64}$/;
 
 export async function crearWashJob(userId: string, day: string, datos: DatosVehiculo) {
   const service = datos.serviceId
@@ -44,6 +53,7 @@ export async function crearWashJob(userId: string, day: string, datos: DatosVehi
 
   return db.washJob.create({
     data: {
+      ...(datos.id && LLAVE_VEHICULO.test(datos.id) ? { id: datos.id } : {}),
       userId,
       day,
       clientName: datos.clientName,
