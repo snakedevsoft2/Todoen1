@@ -43,6 +43,20 @@ const cuenta = await db.user.create({
 
 const browser = await chromium.launch({ channel: "msedge" });
 
+// Sin la presentacion que sale antes del ingreso la primera vez.
+
+const nuevoContexto = browser.newContext.bind(browser);
+
+browser.newContext = async (...a) => {
+
+  const c = await nuevoContexto(...a);
+
+  await c.addInitScript(() => localStorage.setItem("todoen1_onboarding_seen", "true"));
+
+  return c;
+
+};
+
 try {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 950 } });
   const page = await ctx.newPage();

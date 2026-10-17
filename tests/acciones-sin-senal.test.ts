@@ -28,6 +28,7 @@ const registro: Registro = {
   },
   abreFicha: { kind: "simple", fn: async () => { throw redirect("/panel/clientes/123"); } },
   sinSesion: { kind: "simple", fn: async () => { throw redirect("/salir"); } },
+  sinPermiso: { kind: "simple", fn: async () => { throw redirect("/panel/mis-lavados"); } },
   explota: { kind: "simple", fn: async () => { throw new Error("se cayó la base"); } },
 };
 
@@ -85,6 +86,13 @@ describe("acciones hechas sin señal", () => {
     expect(cerrada.resultados).toHaveLength(0);
     expect(llamadas).not.toContain("anotar:no");
     expect(await db.offlineAction.count({ where: { clientKey: "cerrada-" + S } })).toBe(0);
+  });
+
+  it("lo que la persona no tiene permitido queda rechazado, no como guardado", async () => {
+    // requireSession manda al lavador a Mis lavados sin hacer nada.
+    const r = await ejecutarAcciones(otra, [accion("sin-permiso", "sinPermiso")], registro);
+    expect(r.resultados[0]).toMatchObject({ estado: "rechazado", motivo: expect.stringContaining("no tiene permiso") });
+    expect((await ejecutarAcciones(otra, [accion("sin-permiso", "sinPermiso")], registro)).resultados[0].estado).toBe("rechazado");
   });
 
   it("si el servidor falla la deja para reintentar, y rechaza lo que no está en el registro", async () => {

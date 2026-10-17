@@ -55,6 +55,20 @@ const deudaAjena = await db.debt.create({
 });
 
 const browser = await chromium.launch({ channel: "msedge" });
+
+// Sin la presentacion que sale antes del ingreso la primera vez.
+
+const nuevoContexto = browser.newContext.bind(browser);
+
+browser.newContext = async (...a) => {
+
+  const c = await nuevoContexto(...a);
+
+  await c.addInitScript(() => localStorage.setItem("todoen1_onboarding_seen", "true"));
+
+  return c;
+
+};
 const errores = [];
 
 try {
@@ -106,6 +120,8 @@ try {
   console.log("\n4. Texto larguisimo y etiquetas HTML en el nombre");
   const largo = "A".repeat(5000);
   await page.fill('input[name="clientName"]', largo);
+  // El prestamo pide el celular de quien lo recibe.
+  await page.fill('input[name="clientPhone"]', "3001234567");
   await page.fill('input[name="concept"]', '<img src=x onerror="document.title=\'roto\'">');
   await page.fill('input[name="principal"]', "100000");
   await page.fill('input[name="interestPct"]', "20");

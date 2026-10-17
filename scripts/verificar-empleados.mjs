@@ -57,6 +57,13 @@ const usuarioEmpleado = "juliana." + S.replace(/[^a-z0-9]/g, "");
 
 const errores = [];
 const browser = await chromium.launch({ channel: "msedge" });
+// Sin la presentacion que sale antes del ingreso la primera vez.
+const nuevoContexto = browser.newContext.bind(browser);
+browser.newContext = async (...a) => {
+  const c = await nuevoContexto(...a);
+  await c.addInitScript(() => localStorage.setItem("todoen1_onboarding_seen", "true"));
+  return c;
+};
 
 async function entrar(ctx, email, clavePlana = "demo1234") {
   const page = await ctx.newPage();

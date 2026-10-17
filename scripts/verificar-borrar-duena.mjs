@@ -199,11 +199,32 @@ try {
   await aviso(page).getByRole("button", { name: /Sí, borrar la entrega/ }).click();
   ok(await esperarHasta(async () => !(await db.patioHandover.findUnique({ where: { id: entrega.id } }))), "la entrega se borró");
 
+  console.log("\n5. Eliminar a un lavador del equipo");
+  await page.goto(BASE + "/panel/equipo", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Eliminar a Jhon" }).click();
+  const textoPersona = await aviso(page).innerText();
+  await foto(page, "3-aviso-eliminar-persona");
+  ok(/Sus registros se quedan/.test(textoPersona) && /Ex colaborador/.test(textoPersona), "el aviso dice que sus registros se quedan, como Ex colaborador");
+  await aviso(page).getByRole("button", { name: /Sí, eliminar/ }).click();
+  ok(
+    await esperarHasta(async () => Boolean((await db.staff.findUnique({ where: { id: jhon.id } }))?.deletedAt)),
+    "Jhon quedó eliminado"
+  );
+  await page.goto(BASE + "/panel/equipo", { waitUntil: "networkidle" });
+  ok((await page.getByText("Jhon", { exact: true }).count()) === 0, "ya no sale en Equipo");
+  ok((await page.getByText("Ex colaborador").count()) === 0, "ni como Ex colaborador: en Equipo desaparece del todo");
+  ok((await db.washJob.count({ where: { assignedStaffId: jhon.id } })) === 1, "sus lavados siguen ahí");
+  await page.goto(BASE + "/panel/patio/historial", { waitUntil: "networkidle" });
+  const filaHistorial = await page.locator("[data-vehiculo-historial]").first().innerText();
+  ok(/lavó Ex colaborador/.test(filaHistorial), "en el historial su lavado dice «lavó Ex colaborador»", filaHistorial);
+  const entrar_jhon = await fetch(BASE + "/login").then((r) => r.status);
+  ok(entrar_jhon === 200 && !(await db.staff.findFirst({ where: { username: { startsWith: "jhon" }, userId: user.id } })), "ya no tiene usuario para entrar");
+
   const auditoria = await db.staffActivity.count({ where: { userId: user.id, tipo: "borrado" } });
   ok(auditoria >= 5, "cada borrado quedó en la auditoría", String(auditoria));
   await ctx.close();
 
-  console.log("\n5. El jefe de patio no borra");
+  console.log("\n6. El jefe de patio no borra");
   {
     await db.expense.create({ data: { userId: user.id, day: hoy, description: "Cera", amount: 30000, category: "Insumos" } });
     const { ctx: c2, page: p2 } = await entrar("andres-" + S + "@test.local");

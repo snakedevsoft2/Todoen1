@@ -95,6 +95,13 @@ await db.workSite.create({
 
 const errores = [];
 const browser = await chromium.launch({ channel: "msedge" });
+// Sin la presentacion que sale antes del ingreso la primera vez.
+const nuevoContexto = browser.newContext.bind(browser);
+browser.newContext = async (...a) => {
+  const c = await nuevoContexto(...a);
+  await c.addInitScript(() => localStorage.setItem("todoen1_onboarding_seen", "true"));
+  return c;
+};
 
 async function entrar(ctx, email) {
   const page = await ctx.newPage();
@@ -140,8 +147,8 @@ try {
   }
   const enlaces = await tel.evaluate(() => [...new Set([...document.querySelectorAll("nav a")].map((a) => a.getAttribute("href")))]);
   ok(
-    enlaces.every((h) => ["/panel/marcar", "/panel/novedades", "/panel/informes", "/panel/escaner", "/panel/perfil"].includes(h)),
-    "su menu es Marcar, Novedades, Reportes, Escáner y Perfil",
+    enlaces.every((h) => ["/panel/marcar", "/panel/novedades", "/panel/informes", "/panel/escaner", "/panel/perfil", "/panel/firmas"].includes(h)),
+    "su menu es Marcar, Novedades, Reportes, Escáner, Perfil y Firmas",
     enlaces.join(" ")
   );
 

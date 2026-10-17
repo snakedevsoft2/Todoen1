@@ -33,6 +33,14 @@ const MAX_TEXTO = 3_000_000;
 /** Una accion que quedo "procesando" mas de esto se da por caida y se retoma. */
 const CAIDA_MS = 2 * 60_000;
 
+/**
+ * A donde manda la aplicacion a quien no tiene permiso (ver requireSession y
+ * requireOwner). Ninguna accion del registro termina bien mandando aqui: las
+ * que redirigen al terminar van a otra pantalla (crear un cliente abre su ficha).
+ */
+const SIN_PERMISO = new Set(["/panel", "/panel/marcar", "/panel/mis-lavados"]);
+const NO_PERMITIDA = "Tu usuario no tiene permiso para esto. Pídeselo al dueño.";
+
 /** A donde manda un redirect() de Next, o null si el error no es un redirect. */
 function destinoDeRedireccion(e: unknown): string | null {
   const digest = (e as { digest?: unknown })?.digest;
@@ -131,6 +139,14 @@ export async function ejecutarAcciones(
       }
     } catch (e) {
       const destino = destinoDeRedireccion(e);
+      // requireSession y requireOwner devuelven a quien no tiene permiso a su
+      // pantalla de siempre: no se hizo nada, y el telefono tiene que saberlo
+      // (antes quedaba como "guardado" y desaparecia de la cola).
+      if (destino !== null && SIN_PERMISO.has(destino.split("?")[0])) {
+        await db.offlineAction.update({ where: { clientKey }, data: { estado: "RECHAZADO", mensaje: NO_PERMITIDA } });
+        rechazar(NO_PERMITIDA);
+        continue;
+      }
       if (destino !== null && !/^\/(salir|login)(\/|$|\?)/.test(destino)) {
         // La accion termino y mando a otra pantalla (crear un cliente abre su ficha).
         await db.offlineAction.update({ where: { clientKey }, data: { estado: "HECHO" } });

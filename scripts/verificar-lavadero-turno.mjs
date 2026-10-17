@@ -157,7 +157,10 @@ try {
     await page.goto(BASE + "/panel/mis-lavados", { waitUntil: "networkidle" });
     ok((await page.content()).includes("AYE-001"), "mis lavados: ve su carro pendiente de ayer");
     ok((await page.locator("[data-jornada-lavador]").innerText()).includes("Marcar entrada"), "mis lavados: acceso a marcar entrada");
-    await db.attendance.create({ data: { userId: user.id, staffId: jhon.id, kind: "ENTRADA", clientKey: "k-" + S, markedAt: new Date(Date.now() - 3600000) } });
+    // Hace una hora, pero sin salirse de hoy: pasada la medianoche, una entrada de
+    // hace una hora es de ayer y la app le pone sola la salida (salida-automatica.ts).
+    const inicioDeHoy = Date.parse(hoy + "T00:00:00-05:00");
+    await db.attendance.create({ data: { userId: user.id, staffId: jhon.id, kind: "ENTRADA", clientKey: "k-" + S, markedAt: new Date(Math.max(Date.now() - 3600000, inicioDeHoy + 60000)) } });
     await page.reload({ waitUntil: "networkidle" });
     ok((await page.locator("[data-jornada-lavador]").innerText()).includes("Marcar salida"), "mis lavados: con entrada abierta ofrece marcar salida");
     await shot(page, "4-mis-lavados-jhon");
