@@ -49,32 +49,6 @@ export function guardarConexion(c: Conexion): void {
   }
 }
 
-const CLAVE_LETRA = "ten_letra_chica_impresion";
-
-/**
- * Si en ESTE equipo se pidio la letra chica de la termica.
- *
- * Se guarda por equipo, como el tamano y la conexion, porque depende de la
- * impresora que tenga cada uno: hay termicas que no entienden el comando y
- * sueltan el papel en blanco. Por eso arranca apagado y lo prende la persona
- * despues de hacer una prueba. Ver LETRA_CHICA en lib/escpos.ts.
- */
-export function letraChicaGuardada(): boolean {
-  try {
-    return localStorage.getItem(CLAVE_LETRA) === "1";
-  } catch {
-    return false;
-  }
-}
-
-export function guardarLetraChica(si: boolean): void {
-  try {
-    localStorage.setItem(CLAVE_LETRA, si ? "1" : "0");
-  } catch {
-    // Que no se pueda recordar no impide imprimir.
-  }
-}
-
 const ID = "ten-impresion";
 let limpiarAnterior: (() => void) | null = null;
 
@@ -103,6 +77,8 @@ export async function imprimirHtml(html: string, formato: Formato, titulo?: stri
   const limpiar = () => {
     if (hecho) return;
     hecho = true;
+    document.removeEventListener("pointerdown", limpiar, true);
+    document.removeEventListener("keydown", limpiar, true);
     caja.remove();
     estilo.remove();
     document.title = tituloAntes;
@@ -138,13 +114,20 @@ export async function imprimirHtml(html: string, formato: Formato, titulo?: stri
   // El nombre que propone "Guardar como PDF".
   if (titulo) document.title = titulo;
 
-  // En el computador print() espera a que se cierre el dialogo; en el celular
-  // vuelve de una. Se limpia un rato despues de imprimir, y por si el aviso de
-  // "ya imprimio" no llega, a los dos minutos.
-  window.addEventListener("afterprint", () => setTimeout(limpiar, 1500), { once: true });
-  setTimeout(limpiar, 120_000);
   await new Promise((r) => setTimeout(r, 30));
   window.print();
+
+  // El recibo se quita cuando la persona vuelve a tocar la pantalla, y no al
+  // terminar print(). En el computador da igual (print() espera a que se
+  // cierre el dialogo), pero en el celular print() vuelve de una, con el
+  // dialogo todavia abierto. Antes se quitaba al segundo y medio, y si la
+  // persona tardaba escogiendo la impresora o el papel y el dialogo volvia a
+  // armar la hoja (Chrome en Android lo hace al cambiar de impresora o de
+  // papel), ya no encontraba el recibo. Mientras tanto no estorba: esta escondido y
+  // fuera de la pantalla, y la siguiente impresion lo cambia por el nuevo.
+  if (hecho) return;
+  document.addEventListener("pointerdown", limpiar, true);
+  document.addEventListener("keydown", limpiar, true);
 }
 
 /** Como termino el intento de imprimir, para poder decirselo a la persona. */

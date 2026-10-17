@@ -70,34 +70,17 @@ describe("recibo para termica sin driver (ESC/POS)", () => {
     }
   });
 
-  it("de fabrica no le cambia la letra a la impresora", () => {
-    // Se intento mandar ESC M 1 (la letra chica) para gastar menos papel y la
-    // termica del mostrador solto el papel EN BLANCO en plena jornada. Desde
-    // entonces no se toca la letra salvo que la persona lo pida a proposito.
-    // Ver LETRA_CHICA en lib/escpos.ts.
-    const b = Array.from(tirillaEscPos(venta, 58));
-    expect(b.some((x, n) => x === 0x1b && b[n + 1] === 0x4d)).toBe(false);
-    expect(b.some((x, n) => x === 0x1b && b[n + 1] === 0x21)).toBe(false);
-  });
-
-  it("con la letra chica prendida la pide con ESC ! y cuenta 42 columnas", () => {
-    const b = Array.from(tirillaEscPos(venta, 58, true));
-    const i = b.findIndex((x, n) => x === 0x1b && b[n + 1] === 0x21);
-    expect(i).toBeGreaterThan(-1);
-    expect(b[i + 2]).toBe(0x01);
-    // Nunca con el comando que dejo el papel en blanco.
-    expect(b.some((x, n) => x === 0x1b && b[n + 1] === 0x4d)).toBe(false);
-    expect(columnasDe(58, true)).toBe(42);
-    expect(columnasDe(80, true)).toBe(64);
-  });
-
-  it("con la letra chica los renglones tampoco se salen del rollo", () => {
+  it("nunca le cambia la letra a la impresora", () => {
+    // Se pidio la letra chica (fuente B) para gastar menos papel, con ESC M 1 y
+    // despues con ESC ! 1, y la termica del mostrador solto el papel EN BLANCO.
+    // Ver columnasDe en lib/escpos.ts.
     for (const ancho of [58, 80] as const) {
-      const cols = columnasDe(ancho, true);
-      for (const r of soloTexto(tirillaEscPos(venta, ancho, true)).split("\n")) {
-        expect(r.length).toBeLessThanOrEqual(cols);
-      }
+      const b = Array.from(tirillaEscPos(venta, ancho));
+      expect(b.some((x, n) => x === 0x1b && b[n + 1] === 0x4d)).toBe(false);
+      expect(b.some((x, n) => x === 0x1b && b[n + 1] === 0x21)).toBe(false);
     }
+    expect(columnasDe(58)).toBe(32);
+    expect(columnasDe(80)).toBe(48);
   });
 
   it("parte el nombre largo del producto sin perderlo", () => {

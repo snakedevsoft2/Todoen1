@@ -1,15 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import {
-  conexionGuardada,
-  formatoGuardado,
-  guardarConexion,
-  guardarFormato,
-  guardarLetraChica,
-  imprimirHtml,
-  letraChicaGuardada,
-} from "@/lib/imprimir";
+import { conexionGuardada, formatoGuardado, guardarConexion, guardarFormato, imprimirHtml } from "@/lib/imprimir";
 import { CONEXIONES, conexionesDisponibles, imprimirDirecto, type Conexion } from "@/lib/impresora-directa";
 import { tirillaEscPos } from "@/lib/escpos";
 import { FORMATOS, tirillaHtml, type Formato, type Linea } from "@/lib/tirilla";
@@ -56,7 +48,6 @@ export function BotonImprimir({
   const [formato, setFormato] = useState<Formato | null>(null);
   const [conexion, setConexion] = useState<Conexion>(soloBluetooth ? "bluetooth" : "sistema");
   const [disponibles, setDisponibles] = useState<Conexion[]>(["sistema"]);
-  const [letraChica, setLetraChica] = useState(false);
   const [abierto, setAbierto] = useState(false);
   const [ocupado, setOcupado] = useState(false);
   const [aviso, setAviso] = useState<{ tono: "ok" | "error"; texto: string } | null>(null);
@@ -81,7 +72,6 @@ export function BotonImprimir({
     setDisponibles(hay);
     setFormato(soloBluetooth && guardado === "a4" ? "58" : guardado);
     setConexion(guardada && hay.includes(guardada) ? guardada : soloBluetooth ? "bluetooth" : "sistema");
-    setLetraChica(letraChicaGuardada());
   }, [soloBluetooth]);
 
   // Cerrar el menu al tocar por fuera. Sin esto se queda abierto tapando la
@@ -112,7 +102,7 @@ export function BotonImprimir({
       if (directa) {
         // Sin nada que espere antes: el navegador solo deja buscar la
         // impresora justo despues del toque.
-        const r = await imprimirDirecto(c, tirillaEscPos(tirilla(), f === "58" ? 58 : 80, letraChica), elegirOtra);
+        const r = await imprimirDirecto(c, tirillaEscPos(tirilla(), f === "58" ? 58 : 80), elegirOtra);
         setAviso(r === "impreso" ? { tono: "ok", texto: "Enviado a la impresora." } : null);
       } else {
         await imprimirHtml(tirillaHtml(tirilla(), f, logoUrl), f, nombreArchivo.replace(/\.pdf$/i, ""));
@@ -178,34 +168,9 @@ export function BotonImprimir({
               Cerrar
             </button>
           </div>
-          {/* Va de primero porque es lo que la gente viene a buscar: gastar
-              menos papel. Solo aplica a la termica directa; por el dialogo del
-              sistema la letra la decide el CSS. Arranca apagado a proposito:
-              hay termicas que no entienden el comando y sacan el papel en
-              blanco, asi que se prueba una vez y se deja como quede. */}
-          {disponibles.some((c) => c !== "sistema") && (
-            <label className="flex w-full cursor-pointer items-start gap-2.5 border-b border-line px-3 py-2.5 transition hover:bg-soft">
-              <input
-                type="checkbox"
-                checked={letraChica}
-                onChange={(e) => {
-                  setLetraChica(e.target.checked);
-                  guardarLetraChica(e.target.checked);
-                }}
-                className="mt-0.5 h-4 w-4 shrink-0 rounded border-line bg-panel accent-brand-600"
-              />
-              <span>
-                <span className="block text-[13px] font-bold text-strong">
-                  Letra pequeña {letraChica ? "· prendida" : "· gasta menos papel"}
-                </span>
-                <span className="block text-[11px] leading-snug text-muted">
-                  La tirilla sale bastante más corta. Imprime una de prueba: si saliera en blanco, tu
-                  impresora no la soporta — apágala aquí mismo y vuelve a imprimir.
-                </span>
-              </span>
-            </label>
-          )}
-
+          {/* Aqui hubo una casilla de "letra pequena" para la termica directa.
+              Se quito: con ella la termica del mostrador sacaba las facturas
+              en blanco. Ver columnasDe en lib/escpos.ts. */}
           {formatos.map((f) => (
             <button
               key={f.value}

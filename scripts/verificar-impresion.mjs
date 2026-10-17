@@ -184,11 +184,18 @@ try {
     ok(Number(m[1]) > 60, "el alto crece con el contenido, no es una hoja fija", m[1] + "mm");
     console.log("       (tirilla de 58 x " + m[1] + " mm)");
   }
-  // Se limpia un momento despues de cerrar el dialogo, no al instante.
+  // En el celular el dialogo sigue abierto despues de print() y puede volver a
+  // armar la hoja: el recibo tiene que seguir ahi hasta que la persona vuelva
+  // a tocar la pantalla.
   await page.waitForTimeout(2000);
   ok(
+    (await page.evaluate(() => document.getElementById("ten-impresion"))) !== null,
+    "mientras el dialogo puede seguir abierto, el recibo sigue listo"
+  );
+  await page.mouse.click(5, 5);
+  ok(
     (await page.evaluate(() => document.getElementById("ten-impresion"))) === null,
-    "despues de imprimir no queda nada pegado en la pantalla"
+    "al volver a tocar la pantalla no queda nada pegado"
   );
   await ctx.setOffline(false);
 

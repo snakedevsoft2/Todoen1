@@ -15,31 +15,22 @@ const GS = 0x1d;
 const LF = 0x0a;
 
 /**
- * La letra chica de la impresora, que gasta bastante menos papel.
+ * Cuantas letras caben por renglon: 32 en 58mm y 48 en 80mm.
  *
- * Toda termica trae dos letras de fabrica: la A (12 puntos de ancho) y la B
- * (9, y mas bajita). Esto pide la B con ESC ! 1 ("modo de impresion", bit 0).
+ * Es el ancho del cabezal en puntos dividido por el ancho de la letra de
+ * fabrica (la "fuente A", de 12 puntos): 384/12 y 576/12.
  *
- * OJO, LEER ANTES DE TOCAR: ya se intento una vez pedir la misma letra con el
- * OTRO comando, ESC M 1, y la termica del mostrador no lo digirio: soltaba el
- * papel EN BLANCO, sin una sola letra, en medio de la jornada. Por eso ahora
- * (a) se pide con ESC !, que es un comando distinto, y (b) NO viene prendido:
- * la persona lo prende desde el menu de imprimir, hace una prueba con SU
- * impresora, y si sale en blanco lo apaga y sigue trabajando. Nunca se debe
- * volver a dejar prendido por defecto para todos sin probarlo en cada equipo.
+ * OJO, LEER ANTES DE TOCAR: aqui no se le pide NUNCA otra letra a la
+ * impresora. Se intento dos veces pedir la letra chica (la "fuente B", de 9
+ * puntos) para gastar menos papel: primero con ESC M 1 y despues, como opcion
+ * que se prendia en el menu de imprimir, con ESC ! 1. Los dos comandos piden
+ * la MISMA fuente B, y con ella la termica del mostrador solto el papel EN
+ * BLANCO, sin una sola letra. Como la opcion quedaba guardada en el telefono,
+ * una vez prendida todas las facturas de ese equipo salian con esa letra.
+ * Para gastar menos papel se acorta el contenido (ver invoiceTirilla), que
+ * eso si funciona en cualquier impresora.
  */
-const LETRA_CHICA = 0x01;
-
-/**
- * Cuantas letras caben por renglon.
- *
- * Es el ancho del cabezal en puntos dividido por el ancho de la letra: con la
- * de fabrica (12 puntos) son 384/12 y 576/12; con la chica (9), 384/9 y 576/9.
- * Las dos cosas van juntas SIEMPRE: si se pide una letra y se cuenta con el
- * ancho de la otra, los renglones se salen del papel o quedan cortos.
- */
-export function columnasDe(ancho: AnchoTirilla, letraChica = false): number {
-  if (letraChica) return ancho === 58 ? 42 : 64;
+export function columnasDe(ancho: AnchoTirilla): number {
   return ancho === 58 ? 32 : 48;
 }
 
@@ -142,8 +133,8 @@ function qrNativo(b: number[], texto: string, modulo: number) {
   b.push(GS, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x51, 0x30); // Imprimir.
 }
 
-export function tirillaEscPos(lineas: Linea[], ancho: AnchoTirilla, letraChica = false): Uint8Array {
-  const cols = columnasDe(ancho, letraChica);
+export function tirillaEscPos(lineas: Linea[], ancho: AnchoTirilla): Uint8Array {
+  const cols = columnasDe(ancho);
   const b: number[] = [];
   const renglon = (s: string) => {
     for (const x of aBytes(s)) b.push(x);
@@ -156,8 +147,7 @@ export function tirillaEscPos(lineas: Linea[], ancho: AnchoTirilla, letraChica =
 
   b.push(ESC, 0x40); // Deja la impresora como recien prendida.
   b.push(ESC, 0x74, 0); // Tabla PC437.
-  // Solo si la persona lo prendio y lo probo en su impresora. Ver LETRA_CHICA.
-  if (letraChica) b.push(ESC, 0x21, LETRA_CHICA);
+  // Sin pedir otra letra: ver columnasDe.
 
   for (const l of lineas) {
     switch (l.t) {
