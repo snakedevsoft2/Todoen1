@@ -278,6 +278,44 @@ try {
   console.log("     2 MB en un campo -> " + respuesta + " en " + (Date.now() - t0) + "ms");
   const vive = await fetch(BASE + "/login");
   ok(vive.status === 200, "el servidor sigue en pie despues del envio gordo");
+  console.log("\n=== Un lavador no se salta su menu con la cabecera x-ruta ===");
+  {
+    // requireSession decide que puede hacer un lavador mirando x-ruta. Esa
+    // cabecera solo la escribe el middleware; la que mande el navegador se
+    // tiene que borrar, tambien en /api/sin-senal (que ejecuta acciones).
+    const lav = await db.user.create({
+      data: {
+        email: "lav-" + SUFIJO + "@test.local",
+        passwordHash: "x",
+        ownerName: "Fer",
+        businessName: "Lavadero " + SUFIJO,
+        businessType: "LAVADERO",
+        slug: "lav-" + SUFIJO,
+        staff: { create: [{ name: "Fer", role: "DUENO" }, { name: "Jhon", role: "VENDEDOR", username: "jhon" + SUFIJO }] },
+      },
+      include: { staff: true },
+    });
+    const cookieDe = (p) =>
+      firmar({ uid: lav.id, email: lav.email, type: "LAVADERO", sid: p.id, role: p.role, uv: lav.sessionVersion, sv: p.sessionVersion });
+    const anotarGasto = async (persona, llave, cabeceras = {}) =>
+      fetch(BASE + "/api/sin-senal", {
+        method: "POST",
+        headers: { cookie: "ten_session=" + (await cookieDe(persona)), "content-type": "application/json", ...cabeceras },
+        body: JSON.stringify({
+          acciones: [{ clientKey: llave + "-" + SUFIJO, accion: "createExpenseAction", campos: [["description", "Gasto " + llave], ["amount", "50000"], ["category", "General"]] }],
+        }),
+      });
+    const jhon = lav.staff.find((x) => x.role === "VENDEDOR");
+    const fer = lav.staff.find((x) => x.role === "DUENO");
+
+    await anotarGasto(jhon, "sin-cabecera");
+    await anotarGasto(jhon, "con-cabecera", { "x-ruta": "/panel/mis-lavados" });
+    const delLavador = await db.expense.count({ where: { userId: lav.id } });
+    ok(delLavador === 0, "un lavador no anota gastos mandando x-ruta a /api/sin-senal", delLavador + " gastos");
+
+    await anotarGasto(fer, "duena");
+    ok((await db.expense.count({ where: { userId: lav.id } })) === 1, "(control) la dueña si los anota por la misma via");
+  }
 } catch (e) {
   fallos++;
   console.log("\nEXPLOTO: " + e.message);
