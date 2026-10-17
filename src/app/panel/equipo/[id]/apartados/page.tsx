@@ -23,7 +23,7 @@ export default async function ApartadosEmpleadoPage({ params }: { params: Promis
   const { user } = await requireOwner();
   const { id } = await params;
   const persona = await db.staff.findFirst({
-    where: { id, userId: user.id, role: { not: "DUENO" } },
+    where: { id, userId: user.id, role: { not: "DUENO" }, deletedAt: null },
     select: { id: true, name: true, role: true, workspace: { select: { id: true } } },
   });
   if (!persona) notFound();

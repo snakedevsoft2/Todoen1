@@ -394,11 +394,15 @@ export async function getStaffTotals(
     if (appointment.status === "NO_ASISTIO") row.noShow += 1;
   }
 
-  const out = [...rows.values()].map((row) => ({
-    ...row,
-    ticketAverage: row.salesCount ? Math.round(row.totalSales / row.salesCount) : 0,
-    commission: Math.round((row.totalSales * row.commissionPct) / 100),
-  }));
+  // Quien se elimino del equipo solo sale si tuvo movimiento en el rango (como "Ex colaborador").
+  const eliminados = new Set(team.filter((p) => p.deletedAt).map((p) => p.id));
+  const out = [...rows.values()]
+    .filter((row) => !eliminados.has(row.staffId) || row.salesCount > 0 || row.booked > 0)
+    .map((row) => ({
+      ...row,
+      ticketAverage: row.salesCount ? Math.round(row.totalSales / row.salesCount) : 0,
+      commission: Math.round((row.totalSales * row.commissionPct) / 100),
+    }));
 
   // Primero quien mas vendio; los inactivos sin movimiento quedan al final.
   out.sort((a, b) => b.totalSales - a.totalSales || a.name.localeCompare(b.name));

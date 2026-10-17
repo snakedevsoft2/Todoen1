@@ -13,6 +13,8 @@ import {
 } from "@/actions/staff";
 import { ROLES_ELEGIBLES, STAFF_COLORS, etiquetaDeRol, initials, teamNoun } from "@/lib/staff";
 import { SubmitButton } from "./SubmitButton";
+import { BotonBorrar } from "./BotonBorrar";
+import { avisoEliminarPersona } from "@/lib/impacto-borrado";
 import { Alert, Badge, Field } from "./ui";
 import { Icon } from "./Icon";
 
@@ -372,17 +374,17 @@ export function StaffCard({
         {!isOwner && (
           <form action={deleteStaffAction} className="ml-auto">
             <input type="hidden" name="id" value={staff.id} />
-            <SubmitButton
+            <BotonBorrar
+              ariaLabel={"Eliminar a " + staff.name}
               className="btn-ghost btn-sm text-bad"
-              pendingText="..."
-              confirm={
-                "Quitar a " +
-                staff.name +
-                " del equipo. Si ya tiene turnos o ventas, se guarda el historial y solo queda inactivo."
-              }
+              aviso={avisoEliminarPersona({
+                name: staff.name,
+                rol: etiquetaDeRol(staff.role, businessType),
+                acceso: staff.email ?? staff.username,
+              })}
             >
               <Icon name="trash" className="h-4 w-4" />
-            </SubmitButton>
+            </BotonBorrar>
           </form>
         )}
       </div>

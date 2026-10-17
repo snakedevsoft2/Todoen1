@@ -526,6 +526,11 @@ model Staff {
   /// cronometrar a nadie.
   lastSeenAt DateTime?
 
+  /// Cuando se elimino del equipo. La fila no se borra: sus ventas, lavados y
+  /// marcajes la siguen nombrando. Al eliminarla se le quitan los datos y el
+  /// acceso, y su nombre pasa a "Ex colaborador" (ver deleteStaffAction).
+  deletedAt DateTime?
+
   /// Cuando acepto compartir su ubicacion durante la jornada. Vacio: no la
   /// ha aceptado y no se envia nada, aunque el negocio lo tenga activado.
   locationConsentAt DateTime?

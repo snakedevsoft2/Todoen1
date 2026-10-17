@@ -43,7 +43,7 @@ export async function resumenPlataforma(): Promise<ResumenPlataforma> {
     await Promise.all([
       db.user.count(),
       db.user.count({ where: { suspendedAt: { not: null } } }),
-      db.staff.count(),
+      db.staff.count({ where: { deletedAt: null } }),
       db.staff.count({ where: { email: { not: null }, active: true } }),
       db.staff.count({ where: { lastSeenAt: { gte: hoy } } }),
       db.staff.count({ where: { lastSeenAt: { gte: hace7 } } }),

@@ -293,3 +293,21 @@ export function avisoBorrarPendiente(
     boton: "Sí, borrar",
   };
 }
+
+export function avisoEliminarPersona(p: {
+  name: string;
+  rol: string;
+  acceso: string | null;
+}): AvisoBorrado {
+  return {
+    titulo: "¿Eliminar a " + p.name + " del equipo?",
+    que: [p.name + " · " + p.rol, p.acceso ? "Entra con " + p.acceso : "Sin usuario para entrar"],
+    efectos: [
+      "Ya no puede entrar: su sesión se cierra en todos los teléfonos.",
+      "Desaparece de Equipo y de las listas para asignar o elegir personas.",
+      "Sus registros se quedan: ventas, lavados, turnos, marcajes y reportes. En ellos aparece como «Ex colaborador».",
+      p.acceso ? "Su " + (p.acceso.includes("@") ? "correo" : "usuario") + " queda libre para usarlo con otra persona." : "",
+    ].filter(Boolean),
+    boton: "Sí, eliminar",
+  };
+}

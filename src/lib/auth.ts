@@ -188,7 +188,7 @@ export const getCurrentSession = cache(async (): Promise<Session | null> => {
   // Nunca caemos al dueno aqui: seria darle permisos que no tiene.
   const [filaStaff, hasPhoto] = await Promise.all([
     db.staff.findFirst({
-      where: { id: session.sid, userId: user.id, active: true },
+      where: { id: session.sid, userId: user.id, active: true, deletedAt: null },
       omit: { photo: true },
     }),
     personaTieneFoto(session.sid),

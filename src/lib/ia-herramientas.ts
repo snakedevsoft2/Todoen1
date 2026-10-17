@@ -63,7 +63,7 @@ export async function agregarEmpleadoIA(
   const nombre = texto(args.nombre, 80);
   if (!nombre) return { ok: false, error: "Falta el nombre de la persona." };
 
-  const count = await db.staff.count({ where: { userId } });
+  const count = await db.staff.count({ where: { userId, deletedAt: null } });
   if (count >= 20) return { ok: false, error: "Ya hay 20 personas en el equipo, el máximo. No se puede agregar otra." };
 
   let username = normalizarUsuario(texto(args.usuario, 30) || nombre);

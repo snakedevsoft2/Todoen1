@@ -7,6 +7,8 @@ import { checkPassword, hashPassword, requireOwner, requireSession } from "@/lib
 import { parseIntSafe, str } from "@/lib/format";
 import { normalizeHex } from "@/lib/theme";
 import { ROLES_ELEGIBLES, STAFF_COLORS, teamNoun } from "@/lib/staff";
+import { eliminarPersona } from "@/lib/eliminar-persona";
+import { esAdmin } from "@/lib/admin";
 import { USUARIO_INVALIDO, USUARIO_VALIDO, normalizarUsuario } from "@/lib/usuario";
 import { cookieJar, signSession, writeSessionCookie } from "@/lib/session";
 import { modulosDe } from "@/lib/modules";
@@ -21,7 +23,10 @@ async function emailTaken(email: string, ignoreStaffId?: string) {
   const owner = await db.user.findUnique({ where: { email }, select: { id: true } });
   if (owner) return true;
   const staff = await db.staff.findUnique({ where: { email }, select: { id: true } });
-  return Boolean(staff && staff.id !== ignoreStaffId);
+  if (staff) return staff.id !== ignoreStaffId;
+  // El correo de un administrador de la plataforma no se le pone a nadie: el
+  // dueño lo escribe sin que nadie lo verifique, y ese empleado entraria a /admin.
+  return esAdmin(email);
 }
 
 /** El usuario de entrar no se repite en ningun negocio: el ingreso no sabe de que negocio es. */
@@ -62,7 +67,8 @@ export async function createStaffAction(
 
   if (!name) return { error: "Escribe el nombre del " + noun.singular + "." };
 
-  const count = await db.staff.count({ where: { userId: user.id } });
+  // Los que se eliminaron no cuentan: ya no son del equipo.
+  const count = await db.staff.count({ where: { userId: user.id, deletedAt: null } });
   if (count >= 20) return { error: "Por ahora puedes tener hasta 20 personas en el equipo." };
 
   // El correo y la contrasena son opcionales: puedes tener a alguien que solo
@@ -111,7 +117,7 @@ export async function createStaffAction(
 export async function updateStaffAction(formData: FormData) {
   const { user } = await requireOwner();
   const id = str(formData.get("id"));
-  const staff = await db.staff.findFirst({ where: { id, userId: user.id } });
+  const staff = await db.staff.findFirst({ where: { id, userId: user.id, deletedAt: null } });
   if (!staff) return;
 
   await db.staff.update({
@@ -141,7 +147,7 @@ export async function setStaffAccessAction(
 ): Promise<StaffState> {
   const { user } = await requireOwner();
   const id = str(formData.get("id"));
-  const staff = await db.staff.findFirst({ where: { id, userId: user.id } });
+  const staff = await db.staff.findFirst({ where: { id, userId: user.id, deletedAt: null } });
   if (!staff) return { error: "No encontramos a esa persona." };
   if (staff.role === "DUENO") {
     return { error: "El correo del dueno se cambia en Ajustes." };
@@ -189,7 +195,7 @@ export async function setStaffAccessAction(
 export async function removeStaffAccessAction(formData: FormData) {
   const { user } = await requireOwner();
   const id = str(formData.get("id"));
-  const staff = await db.staff.findFirst({ where: { id, userId: user.id } });
+  const staff = await db.staff.findFirst({ where: { id, userId: user.id, deletedAt: null } });
   if (!staff || staff.role === "DUENO") return;
 
   await db.staff.update({
@@ -204,7 +210,7 @@ export async function removeStaffAccessAction(formData: FormData) {
 export async function toggleStaffActiveAction(formData: FormData) {
   const { user } = await requireOwner();
   const id = str(formData.get("id"));
-  const staff = await db.staff.findFirst({ where: { id, userId: user.id } });
+  const staff = await db.staff.findFirst({ where: { id, userId: user.id, deletedAt: null } });
   if (!staff || staff.role === "DUENO") return;
 
   await db.staff.update({ where: { id: staff.id }, data: { active: !staff.active } });
@@ -213,33 +219,27 @@ export async function toggleStaffActiveAction(formData: FormData) {
 }
 
 /**
- * Solo se puede borrar a quien no tiene historial. Si ya atendio turnos o hizo
- * ventas, se desactiva: asi los reportes de meses pasados no se dañan.
+ * Elimina a una persona del equipo: desaparece de Equipo y de todas las listas
+ * para elegir gente, no vuelve a entrar y su correo y su usuario quedan
+ * libres. Lo que hizo no se borra: sus ventas, lavados, turnos y marcajes se
+ * quedan, y en ellos aparece como "Ex colaborador" (ver datosDeExColaborador).
+ *
+ * Antes, a quien tenia historial solo se le desactivaba y seguia saliendo en
+ * Equipo con su nombre; a quien no tenia se le borraba la fila, y con ella
+ * sus marcajes y novedades. Ahora siempre es lo mismo, y nada se pierde.
  */
 export async function deleteStaffAction(formData: FormData): Promise<void> {
-  const { user } = await requireOwner();
-  const id = str(formData.get("id"));
-  const staff = await db.staff.findFirst({ where: { id, userId: user.id } });
-  if (!staff || staff.role === "DUENO") return;
+  const { user, staff: yo } = await requireOwner();
+  const persona = await eliminarPersona(user.id, str(formData.get("id")));
+  if (!persona) return;
 
-  const [turnos, ventas, actividad] = await Promise.all([
-    db.appointment.count({ where: { staffId: staff.id } }),
-    db.sale.count({ where: { staffId: staff.id } }),
-    db.staffActivity.count({ where: { staffId: staff.id } }),
-  ]);
-
-  // Con historial no se borra: se desactiva, para no perder lo que hizo.
-  if (turnos > 0 || ventas > 0 || actividad > 0) {
-    await db.staff.update({
-      where: { id: staff.id },
-      data: { active: false, email: null, passwordHash: null, username: null, sessionVersion: { increment: 1 } },
-    });
-  } else {
-    await db.staff.delete({ where: { id: staff.id } });
-  }
+  // La auditoria si guarda quien era: el dueño tiene que poder saberlo.
+  await anotarActividad({ user, staff: yo }, { tipo: "borrado", detalle: "Eliminó a " + persona.name + " del equipo" });
 
   revalidatePath("/panel/equipo");
   revalidatePath("/panel/turnos");
+  revalidatePath("/panel/patio");
+  revalidatePath("/panel/planilla");
 }
 
 /** Cada barbero puede cambiar su propia contrasena desde Ajustes. */
@@ -297,7 +297,7 @@ export async function changeStaffPasswordAction(
 export async function guardarApartadosEmpleadoAction(formData: FormData): Promise<void> {
   const { user, staff: yo } = await requireOwner();
   const persona = await db.staff.findFirst({
-    where: { id: str(formData.get("staffId")), userId: user.id, role: { not: "DUENO" } },
+    where: { id: str(formData.get("staffId")), userId: user.id, role: { not: "DUENO" }, deletedAt: null },
     select: { id: true, name: true, role: true },
   });
   if (!persona) return;
@@ -333,7 +333,7 @@ export async function guardarApartadosEmpleadoAction(formData: FormData): Promis
 export async function apartadosComoElNegocioAction(formData: FormData): Promise<void> {
   const { user } = await requireOwner();
   const persona = await db.staff.findFirst({
-    where: { id: str(formData.get("staffId")), userId: user.id, role: { not: "DUENO" } },
+    where: { id: str(formData.get("staffId")), userId: user.id, role: { not: "DUENO" }, deletedAt: null },
     select: { id: true },
   });
   if (!persona) return;

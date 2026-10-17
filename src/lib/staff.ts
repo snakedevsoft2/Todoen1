@@ -123,3 +123,31 @@ export function initials(name: string): string {
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[1][0]).toUpperCase();
 }
+
+/** Como aparece en sus registros alguien que se elimino del equipo. */
+export const EX_COLABORADOR = "Ex colaborador";
+
+/**
+ * Lo que queda de una persona al eliminarla del equipo: la fila sigue (sus
+ * ventas, lavados y marcajes la nombran), pero sin nada suyo y sin poder
+ * entrar. El correo y el usuario quedan libres para otra persona, y subir la
+ * version de sesion cierra la suya en todos los telefonos.
+ */
+export function datosDeExColaborador(ahora = new Date()) {
+  return {
+    deletedAt: ahora,
+    name: EX_COLABORADOR,
+    color: "#94a3b8",
+    active: false,
+    bookable: false,
+    email: null,
+    username: null,
+    passwordHash: null,
+    phone: null,
+    photo: null,
+    securityQuestion: null,
+    securityAnswerHash: null,
+    locationConsentAt: null,
+    sessionVersion: { increment: 1 },
+  };
+}

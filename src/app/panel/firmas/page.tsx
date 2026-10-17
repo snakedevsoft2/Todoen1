@@ -45,7 +45,7 @@ export default async function FirmasPage() {
       take: 30,
       select: { id: true, title: true, pages: true },
     }),
-    esDueno ? db.staff.findMany({ where: { userId: user.id }, select: { id: true, name: true } }) : Promise.resolve([]),
+    esDueno ? db.staff.findMany({ where: { userId: user.id, deletedAt: null }, select: { id: true, name: true } }) : Promise.resolve([]),
   ]);
   const nombres = new Map(personas.map((p) => [p.id, p.name]));
   const pendientes = solicitudes.filter((s) => s.status === "PENDIENTE").length;

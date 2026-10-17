@@ -35,7 +35,7 @@ export default async function EscanerPage() {
       take: 50,
       select: { id: true, title: true, pages: true, size: true, createdAt: true, staffId: true, text: true },
     }),
-    esDueno ? db.staff.findMany({ where: { userId: user.id }, select: { id: true, name: true } }) : Promise.resolve([]),
+    esDueno ? db.staff.findMany({ where: { userId: user.id, deletedAt: null }, select: { id: true, name: true } }) : Promise.resolve([]),
   ]);
   const nombres = new Map(personas.map((p) => [p.id, p.name]));
 

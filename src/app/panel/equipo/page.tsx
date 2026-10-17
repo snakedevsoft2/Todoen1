@@ -28,7 +28,7 @@ export default async function EquipoPage() {
 
   const [team, totals] = await Promise.all([
     db.staff.findMany({
-      where: { userId: user.id },
+      where: { userId: user.id, deletedAt: null },
       orderBy: [{ role: "asc" }, { createdAt: "asc" }],
       // Sin la foto de perfil: esta pantalla no la muestra, y traer el data URL
       // de todo el equipo era lo mas pesado de la consulta.

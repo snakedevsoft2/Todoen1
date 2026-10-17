@@ -45,7 +45,7 @@ export default async function InformesPage() {
       },
     }),
     esDueno
-      ? db.staff.findMany({ where: { userId: user.id }, select: { id: true, name: true } })
+      ? db.staff.findMany({ where: { userId: user.id, deletedAt: null }, select: { id: true, name: true } })
       : Promise.resolve([]),
   ]);
 

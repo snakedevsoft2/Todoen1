@@ -24,7 +24,7 @@ export default async function ActividadEmpleadoPage({
 }) {
   const { user } = await requireOwner();
   const { id } = await params;
-  const persona = await db.staff.findFirst({ where: { id, userId: user.id } });
+  const persona = await db.staff.findFirst({ where: { id, userId: user.id, deletedAt: null } });
   if (!persona) notFound();
 
   const sp = await searchParams;

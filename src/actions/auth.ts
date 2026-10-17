@@ -12,6 +12,7 @@ import { finDePrueba } from "@/lib/plan";
 import { headers } from "next/headers";
 import { esUsuario, normalizarUsuario } from "@/lib/usuario";
 import { destinoTrasEntrar } from "@/lib/permisos";
+import { esAdmin } from "@/lib/admin";
 import {
   anotarIntentoDeLogin,
   anotarIntentoDeUsuario,
@@ -64,8 +65,14 @@ export async function registerAction(_prev: AuthState, formData: FormData): Prom
   if (!businessName) return { error: "Escribe el nombre del negocio." };
   if (!esTipoElegible(businessType)) return { error: "Elige el tipo de negocio." };
 
-  const exists = await db.user.findUnique({ where: { email }, select: { id: true } });
-  if (exists) return { error: "Ya existe una cuenta con ese correo." };
+  // El correo no se verifica al registrarse: por eso no puede ser el de un
+  // empleado de otro negocio (el ingreso busca primero al dueño y se quedaria
+  // con su usuario) ni el de un administrador de la plataforma (entraria a /admin).
+  const [exists, deEmpleado] = await Promise.all([
+    db.user.findUnique({ where: { email }, select: { id: true } }),
+    db.staff.findUnique({ where: { email }, select: { id: true } }),
+  ]);
+  if (exists || deEmpleado || esAdmin(email)) return { error: "Ya existe una cuenta con ese correo." };
 
   const slug = await uniqueSlug(businessName);
   const user = await db.user.create({
