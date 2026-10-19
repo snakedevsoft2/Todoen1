@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { recargarSiEsVersion, reportarError } from "@/lib/error-cliente";
 
 /**
  * Cuando algo del panel falla, en vez de la pantalla en blanco.
@@ -8,9 +9,15 @@ import { useEffect, useState } from "react";
  * El caso comun es tocar un boton que necesita internet (borrar una venta,
  * cambiar el pago) estando sin senal: se explica eso y se deja reintentar.
  */
-export default function ErrorDelPanel({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
+export default function ErrorDelPanel({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   const [sinSenal, setSinSenal] = useState(false);
   useEffect(() => setSinSenal(!navigator.onLine), []);
+  useEffect(() => {
+    // Sin senal ya se sabe que paso; lo demas se cuenta al servidor (ver lib/error-cliente.ts).
+    if (!navigator.onLine) return;
+    reportarError(error, "panel");
+    recargarSiEsVersion(error);
+  }, [error]);
 
   return (
     <div className="mx-auto max-w-md py-16 text-center">

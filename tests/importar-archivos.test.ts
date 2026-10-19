@@ -104,6 +104,13 @@ describe("contactos del celular (.vcf)", () => {
       ["Luisa Gómez", "310 9876543"],
     ]);
   });
+
+  it("no parte la dirección en un punto y coma escapado", () => {
+    // Antes se partia con una expresion que los iPhone con iOS anterior a
+    // 16.4 no entienden (ver partes en lib/importar.ts).
+    const vcf = ["BEGIN:VCARD", "VERSION:3.0", "FN:Ana", "ADR:;;Local 3\\; piso 2;Cali;;;", "END:VCARD"].join("\n");
+    expect(filasDeVcf(vcf)[1]).toEqual(["Ana", "", "", "Local 3; piso 2, Cali", ""]);
+  });
 });
 
 describe("Excel, LibreOffice y CSV", () => {

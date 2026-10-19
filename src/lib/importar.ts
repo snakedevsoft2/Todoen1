@@ -497,7 +497,30 @@ function decodificarQP(valor: string, charset: string): string {
 }
 
 const sinEscape = (v: string) => v.replace(/\\n/gi, " ").replace(/\\([,;:\\])/g, "$1").trim();
-const partes = (v: string) => v.split(/(?<!\\);/).map(sinEscape);
+/**
+ * Parte en los ";" que no van escapados ("\;" es un punto y coma del texto).
+ *
+ * A mano y no con split(/(?<!\\);/): esa expresion mira hacia atras, y los
+ * iPhone con iOS anterior a 16.4 no la entienden. Ahi importar los contactos
+ * se caia con "Invalid regular expression".
+ */
+function partes(v: string): string[] {
+  const out: string[] = [];
+  let actual = "";
+  for (let i = 0; i < v.length; i++) {
+    if (v[i] === "\\" && i + 1 < v.length) {
+      actual += v[i] + v[i + 1];
+      i++;
+    } else if (v[i] === ";") {
+      out.push(actual);
+      actual = "";
+    } else {
+      actual += v[i];
+    }
+  }
+  out.push(actual);
+  return out.map(sinEscape);
+}
 
 /**
  * Los contactos exportados del celular (vCard, .vcf), como una tabla con
