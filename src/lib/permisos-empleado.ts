@@ -98,6 +98,23 @@ export function esSupervisor(role: string | null | undefined): boolean {
   return role === "SUPERVISOR";
 }
 
+/**
+ * A quien se le asignan carros en el patio del lavadero: al lavador y tambien
+ * al jefe de patio, que en algunos lavaderos lava (Andrea, en el de Fer).
+ */
+export const ROLES_QUE_LAVAN: ("VENDEDOR" | "SUPERVISOR")[] = ["VENDEDOR", "SUPERVISOR"];
+
+/**
+ * Si quien asigna (el dueño o un jefe de patio) le puede asignar un carro a
+ * esa persona. Al jefe de patio solo se los asigna otro jefe de patio o el
+ * dueño: nadie se asigna carros a si mismo.
+ */
+export function puedeAsignarleCarro(quien: { id: string; role: string }, lavador: { id: string; role: string }): boolean {
+  if (!esDueno(quien.role) && !esSupervisor(quien.role)) return false;
+  if (!ROLES_QUE_LAVAN.some((r) => r === lavador.role)) return false;
+  return lavador.id !== quien.id;
+}
+
 /** Si esta persona puede hacer esa accion con esos campos. */
 export function puedeHacer(role: string, accion: string, campos: [string, string][] = []): boolean {
   if (esDueno(role)) return true;

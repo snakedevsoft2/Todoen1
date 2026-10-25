@@ -10,7 +10,7 @@ import { diaDelTelefono, todayIn } from "@/lib/dates";
 import { MAX_DIAS_SIN_CONEXION } from "@/lib/pagos";
 import { cerosPara, money, parseMoney, str } from "@/lib/format";
 import { anotarActividad } from "@/lib/actividad";
-import { esDueno, esSupervisor, puedeHacer } from "@/lib/permisos-empleado";
+import { esDueno, esSupervisor, puedeAsignarleCarro, puedeHacer, ROLES_QUE_LAVAN } from "@/lib/permisos-empleado";
 import {
   asignarLavador,
   cancelarWashJob,
@@ -137,9 +137,9 @@ export async function asignarLavadorAction(formData: FormData) {
   const washJobId = str(formData.get("washJobId"));
   const lavadorId = str(formData.get("staffId"));
   const lavador = await db.staff.findFirst({
-    where: { id: lavadorId, userId: user.id, active: true, role: { not: "DUENO" } },
+    where: { id: lavadorId, userId: user.id, active: true, role: { in: ROLES_QUE_LAVAN } },
   });
-  if (!lavador) return;
+  if (!lavador || !puedeAsignarleCarro(staff, lavador)) return;
 
   const asignado = await asignarLavador(user.id, washJobId, lavador.id);
   // Al lavador le llega al celular el carro que le toca.

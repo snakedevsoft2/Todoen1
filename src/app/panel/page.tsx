@@ -7,7 +7,7 @@ import { getDaySummary } from "@/lib/queries";
 import { money, pretty12h, prettyDay, shortDay } from "@/lib/format";
 import { filtroDeSeguimientos } from "@/lib/crm-filas";
 import { esEmpleadoDeAsistencia, esLavadorDeLavadero } from "@/lib/permisos";
-import { esDueno } from "@/lib/permisos-empleado";
+import { esDueno, ROLES_QUE_LAVAN } from "@/lib/permisos-empleado";
 import { ResumenAsistencia } from "@/components/ResumenAsistencia";
 import { BUSINESS_LABEL, ITEM_NOUN } from "@/lib/nav";
 import { getInventorySummary, getLowStock } from "@/lib/inventory";
@@ -121,18 +121,21 @@ export default async function PanelHomePage() {
   const [lavadoresTeam, reparto, pendientesPatio] = isLavadero
     ? await Promise.all([
         db.staff.findMany({
-          where: { userId: user.id, active: true, role: "VENDEDOR" },
+          where: { userId: user.id, active: true, role: { in: ROLES_QUE_LAVAN } },
           orderBy: { createdAt: "asc" },
-          select: { id: true, name: true, color: true, commissionPct: true },
+          select: { id: true, name: true, color: true, commissionPct: true, role: true },
         }),
         repartoDelDia(user.id, today),
         vehiculosPendientes(user.id),
       ])
     : [[], null, []];
-  const porLavador = lavadoresTeam.map((person) => {
-    const suyo = reparto?.porLavador.get(person.id);
-    return { ...person, count: suyo?.count ?? 0, total: suyo?.total ?? 0, comision: suyo?.comision ?? 0 };
-  });
+  // El jefe de patio sale solo si hoy lavo algo: al que no lava no se le pone en ceros.
+  const porLavador = lavadoresTeam
+    .map((person) => {
+      const suyo = reparto?.porLavador.get(person.id);
+      return { ...person, count: suyo?.count ?? 0, total: suyo?.total ?? 0, comision: suyo?.comision ?? 0 };
+    })
+    .filter((person) => person.role !== "SUPERVISOR" || person.count > 0);
   const pendientesValor = pendientesPatio.reduce((sum, j) => sum + j.price, 0);
   const sinPagar = pendientesPatio.filter((j) => j.status === "POR_COBRAR").length;
   const lavadosHoy = reparto ? [...reparto.porLavador.values()].reduce((sum, f) => sum + f.count, 0) : 0;

@@ -369,7 +369,14 @@ function JobCard({
           >
             <input type="hidden" name="washJobId" value={job.id} />
             <input type="hidden" name="clientName" value={job.clientName} />
-            <select name="staffId" defaultValue={job.assignedStaffId ?? ""} className="input w-36 py-1.5 text-xs">
+            {/* Si lo lava alguien que no esta en la lista (el jefe de patio que
+                mira, al que le asigno otro), sale "Elegir": si no, el
+                navegador mostraria al primero y "Cambiar" se lo pasaria a el. */}
+            <select
+              name="staffId"
+              defaultValue={lavadores.some((l) => l.id === job.assignedStaffId) ? (job.assignedStaffId ?? "") : ""}
+              className="input w-36 py-1.5 text-xs"
+            >
               <option value="" disabled>
                 Elegir lavador
               </option>

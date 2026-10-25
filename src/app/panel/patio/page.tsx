@@ -7,7 +7,7 @@ import { prettyDay } from "@/lib/format";
 import { PageHeader } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { PatioBoard, type ReservaPatio, type StaffOption, type WashJobRow } from "@/components/PatioBoard";
-import { esDueno, esSupervisor } from "@/lib/permisos-empleado";
+import { esDueno, esSupervisor, puedeAsignarleCarro, ROLES_QUE_LAVAN } from "@/lib/permisos-empleado";
 import { ESTADOS_PENDIENTES, entregaPorRecibir } from "@/lib/patio-turno";
 
 export const dynamic = "force-dynamic";
@@ -28,9 +28,9 @@ export default async function PatioPage() {
       include: { assignedStaff: { select: { id: true, name: true, color: true } } },
     }),
     db.staff.findMany({
-      where: { userId: user.id, active: true, role: "VENDEDOR" },
+      where: { userId: user.id, active: true, role: { in: ROLES_QUE_LAVAN } },
       orderBy: { createdAt: "asc" },
-      select: { id: true, name: true, color: true },
+      select: { id: true, name: true, color: true, role: true },
     }),
     db.service.findMany({
       where: { userId: user.id, active: true },
@@ -61,7 +61,11 @@ export default async function PatioPage() {
     fromReserva: Boolean(j.appointmentId),
   }));
 
-  const equipo: StaffOption[] = lavadores;
+  // Los lavadores y los otros jefes de patio: el que esta mirando no sale, no
+  // se asigna carros a si mismo (ver puedeAsignarleCarro).
+  const equipo: StaffOption[] = lavadores
+    .filter((l) => puedeAsignarleCarro(me, l))
+    .map((l) => ({ id: l.id, name: l.name, color: l.color }));
   const reservas: ReservaPatio[] = reservados.map((a) => ({
     id: a.id,
     day: a.day,
@@ -80,6 +84,13 @@ export default async function PatioPage() {
           <Link href="/panel/patio/historial" className="btn-ghost btn-sm">
             <Icon name="search" className="h-4 w-4" />
             Historial
+          </Link>
+        )}
+        {/* El jefe de patio tambien lava: ahi ve los carros que le asignaron y lo que gana. */}
+        {esSupervisor(me.role) && (
+          <Link href="/panel/mis-lavados" className="btn-ghost btn-sm">
+            <Icon name="car" className="h-4 w-4" />
+            Mis lavados
           </Link>
         )}
         <Link href="/panel/patio/entrega" className="btn-ghost btn-sm">

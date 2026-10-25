@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PrismaClient } from "@prisma/client";
 import { asignarLavador, cerrarLavado, crearWashJob, marcarListo } from "../src/lib/lavadero";
 import { getStaffTotals } from "../src/lib/queries";
-import { puedeHacer } from "../src/lib/permisos-empleado";
+import { puedeAsignarleCarro, puedeHacer } from "../src/lib/permisos-empleado";
 import { etiquetaDeRol } from "../src/lib/staff";
 
 /**
@@ -13,7 +13,9 @@ const db = new PrismaClient();
 const S = "patio-" + Date.now();
 
 let userId: string;
+let dueñoId: string;
 let jefeId: string;
+let andreaId: string;
 let lavadorId: string;
 let serviceId: string;
 
@@ -31,6 +33,7 @@ beforeAll(async () => {
         create: [
           { name: "Dueño", role: "DUENO" },
           { name: "Andrés (jefe de patio)", role: "SUPERVISOR" },
+          { name: "Andrea (jefe de patio que lava)", role: "SUPERVISOR", commissionPct: 30 },
           { name: "Jhon (lavador)", role: "VENDEDOR", commissionPct: 20 },
         ],
       },
@@ -38,7 +41,9 @@ beforeAll(async () => {
     include: { staff: true },
   });
   userId = user.id;
-  jefeId = user.staff.find((s) => s.role === "SUPERVISOR")!.id;
+  dueñoId = user.staff.find((s) => s.role === "DUENO")!.id;
+  jefeId = user.staff.find((s) => s.name.startsWith("Andrés"))!.id;
+  andreaId = user.staff.find((s) => s.name.startsWith("Andrea"))!.id;
   lavadorId = user.staff.find((s) => s.role === "VENDEDOR")!.id;
 
   const service = await db.service.create({
@@ -65,6 +70,23 @@ describe("permisos del jefe de patio", () => {
     expect(puedeHacer("VENDEDOR", "cambiarPrecioLavadoAction")).toBe(false);
     expect(puedeHacer("DUENO", "deleteSaleAction")).toBe(true);
     expect(puedeHacer("DUENO", "cambiarPrecioLavadoAction")).toBe(true);
+  });
+
+  it("al jefe de patio le asigna carros otro jefe de patio o el dueño, nunca él mismo", () => {
+    const dueño = { id: "d", role: "DUENO" };
+    const andres = { id: "a", role: "SUPERVISOR" };
+    const andrea = { id: "b", role: "SUPERVISOR" };
+    const jhon = { id: "j", role: "VENDEDOR" };
+
+    expect(puedeAsignarleCarro(dueño, andrea)).toBe(true);
+    expect(puedeAsignarleCarro(andres, andrea)).toBe(true);
+    expect(puedeAsignarleCarro(andrea, andrea)).toBe(false);
+    // Al lavador sí se los sigue asignando cualquiera de los dos.
+    expect(puedeAsignarleCarro(andrea, jhon)).toBe(true);
+    expect(puedeAsignarleCarro(dueño, jhon)).toBe(true);
+    // El lavador no asigna, y al dueño no se le asignan carros.
+    expect(puedeAsignarleCarro(jhon, andrea)).toBe(false);
+    expect(puedeAsignarleCarro(andres, dueño)).toBe(false);
   });
 
   it("se llama Jefe de patio en el lavadero, y Supervisor en cualquier otro negocio", () => {
@@ -161,6 +183,35 @@ describe("recibir, asignar y cobrar un vehículo", () => {
     expect(primero).not.toBeNull();
     const segundo = await cerrarLavado(userId, job.id, { paymentMethod: "EFECTIVO", amount: 20000 });
     expect(segundo).toBeNull();
+  });
+});
+
+describe("un jefe de patio que también lava", () => {
+  it("el carro que le asignó otro jefe de patio queda a su nombre, con su comisión", async () => {
+    // Otro día y otro cliente: no se mezcla con las cuentas de Jhon ni con los sellos de Carlos.
+    const job = await crearWashJob(userId, "2026-09-25", {
+      clientName: "Cliente de Andrea",
+      clientPhone: "3005550000",
+      vehiclePlate: "XYZ-987",
+      vehicleType: "camioneta",
+      vehicleColor: null,
+      serviceId,
+      notes: null,
+      receivedById: jefeId,
+    });
+    expect(puedeAsignarleCarro({ id: jefeId, role: "SUPERVISOR" }, { id: andreaId, role: "SUPERVISOR" })).toBe(true);
+    expect(puedeAsignarleCarro({ id: dueñoId, role: "DUENO" }, { id: andreaId, role: "SUPERVISOR" })).toBe(true);
+    await asignarLavador(userId, job.id, andreaId);
+    await marcarListo(userId, job.id);
+
+    const cierre = await cerrarLavado(userId, job.id, { paymentMethod: "EFECTIVO", amount: 20000 });
+    const venta = await db.sale.findUnique({ where: { id: cierre!.saleId } });
+    expect(venta?.staffId).toBe(andreaId);
+
+    const totales = await getStaffTotals(userId, "2026-09-25", "2026-09-25");
+    const fila = totales.rows.find((r) => r.staffId === andreaId);
+    expect(fila?.totalSales).toBe(20000);
+    expect(fila?.commission).toBe(6000); // 30% de 20.000
   });
 });
 
