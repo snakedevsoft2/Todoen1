@@ -3,7 +3,9 @@ import { esChopoSnacks, normalizar } from "./orden-productos";
 /**
  * La administradora de Chopo Snacks: Juliana Intriago.
  *
- * Lo que el negocio pidio solo para ella (Cuentas por pagar, Mejores clientes)
+ * Lo que el negocio pidio solo para ella (Reparto, Cuentas por pagar, Mejores
+ * clientes, y en Ventas y Cartera la hora, la vista previa, agregar del
+ * inventario, acomodar productos y el buscador)
  * no lo ve nadie mas de la cuenta, ni el dueño si es otra persona, ni los
  * empleados, ni otro negocio. Se reconoce por el nombre con el que esta en el
  * equipo, igual que al negocio por el suyo (ver esChopoSnacks), y da igual si
@@ -23,6 +25,7 @@ export function esAdminDeChopo(
 
 /** Lo que va en su menu, ademas de lo de siempre. */
 export const MENU_ADMIN_CHOPO = [
+  { href: "/panel/reparto", label: "Reparto", icon: "car", grupo: "NUCLEO" as const },
   { href: "/panel/por-pagar", label: "Cuentas por pagar", icon: "truck", grupo: "DINERO" as const },
   { href: "/panel/mejores-clientes", label: "Mejores clientes", icon: "trend", grupo: "CRECIMIENTO" as const },
 ];

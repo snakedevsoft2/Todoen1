@@ -117,11 +117,11 @@ export async function toggleServiceAction(formData: FormData) {
 /**
  * Ocultar un producto de Ventas arrastrandolo a la papelera (Chopo Snacks), o
  * volverlo a mostrar con "Deshacer". No se borra: queda pausado en Inventario
- * y las ventas viejas no cambian. Solo el dueño o la administradora (ver lib/chopo.ts).
+ * y las ventas viejas no cambian. Solo la administradora (ver lib/chopo.ts).
  */
 export async function ocultarDeVentasAction(id: string, mostrar: boolean): Promise<ActionState> {
   const { user, staff } = await requireSession();
-  if (!esDueno(staff.role) && !esAdminDeChopo(user, staff)) return { error: SOLO_DUENO };
+  if (!esAdminDeChopo(user, staff)) return { error: "Solo la administradora acomoda los productos de Ventas." };
   const service = await db.service.findFirst({
     where: { id: String(id), userId: user.id },
     select: { id: true, name: true },
@@ -140,13 +140,13 @@ export async function ocultarDeVentasAction(id: string, mostrar: boolean): Promi
 }
 
 /**
- * El orden de Ventas que el dueño arma arrastrando, guardado para todos los
+ * El orden de Ventas que la administradora arma arrastrando, guardado para todos los
  * telefonos del negocio (Chopo Snacks). `ids` son los productos de una
  * categoria como quedaron; con `deSiempre` esos vuelven al orden de siempre.
  */
 export async function ordenVentasAction(ids: string[], deSiempre = false): Promise<ActionState> {
   const { user, staff } = await requireSession();
-  if (!esDueno(staff.role) && !esAdminDeChopo(user, staff)) return { error: "Solo el dueño acomoda los productos de Ventas." };
+  if (!esAdminDeChopo(user, staff)) return { error: "Solo la administradora acomoda los productos de Ventas." };
   if (!Array.isArray(ids) || ids.length > 500) return { error: "No se pudo guardar el orden." };
   const limpios = ids.map(String);
   await db.$transaction(

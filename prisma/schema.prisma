@@ -254,6 +254,14 @@ model User {
   payableBills       PayableBill[]
   payableItems       PayableItem[]
   payablePayments    PayablePayment[]
+  repartoProductos   RepartoProducto[]
+  repartoPrecios     RepartoPrecio[]
+  repartoClientes    RepartoCliente[]
+  repartoPlanillas   RepartoPlanilla[]
+  repartoLineas      RepartoLinea[]
+  repartoCreditos    RepartoCredito[]
+  repartoCobros      RepartoCobro[]
+  repartoPagos       RepartoPago[]
   orderItems         OrderItem[]
   saleItems          SaleItem[]
   workspaces         WorkspaceConfig[]
@@ -562,6 +570,218 @@ model PayablePayment {
   @@index([billId])
 }
 
+/// Reparto (lo pidio Chopo Snacks, ver lib/reparto.ts): la planilla diaria de
+/// cada vendedor de ruta, que antes llevaban en el Excel "VENTAS REPARTO". Solo
+/// la ve la administradora. Va en tablas propias a proposito: no toca Ventas,
+/// Caja, Clientes ni Cuentas por cobrar, que ven los empleados.
+/// Plata en centavos, como en el resto de la aplicacion.
+enum RepartoEstado {
+  BORRADOR
+  CERRADA
+  ANULADA
+}
+
+/// Lo que sale en el camion. Su precio cambia con el tiempo (RepartoPrecio) y
+/// cada planilla guarda el del dia en su linea.
+model RepartoProducto {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// P001, P002... El codigo del Excel no servia como llave: cambiaba entre hojas.
+  code      String
+  name      String
+  /// El nombre sin tildes ni mayusculas: con esto se reconoce al importar.
+  nameKey   String
+  /// El precio vigente, en centavos.
+  price     Int
+  active    Boolean  @default(true)
+  position  Int      @default(0)
+  /// El mismo producto en Inventario, si lo hay.
+  serviceId String?
+  service   Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  precios RepartoPrecio[]
+  lineas  RepartoLinea[]
+
+  @@unique([userId, nameKey])
+  @@index([userId])
+}
+
+model RepartoPrecio {
+  id         String          @id @default(cuid())
+  userId     String
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productoId String
+  producto   RepartoProducto @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  price      Int
+  /// "YYYY-MM-DD" desde el que vale.
+  desde      String
+
+  @@unique([productoId, desde])
+  @@index([userId])
+}
+
+/// Los clientes de la ruta. Aparte de Clientes a proposito (ver arriba).
+model RepartoCliente {
+  id      String  @id @default(cuid())
+  userId  String
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name    String
+  nameKey String
+  /// El vendedor que lo visita normalmente.
+  staffId String?
+  staff   Staff?  @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  notes   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  creditos RepartoCredito[]
+  cobros   RepartoCobro[]
+
+  @@unique([userId, nameKey])
+  @@index([userId])
+}
+
+/// La planilla de un vendedor en un dia: lo que cargo, lo que vendio, lo que
+/// fio, lo que cobro, lo que gasto y lo que entrego. Los totales no se guardan:
+/// salen siempre de calcularCuadre().
+model RepartoPlanilla {
+  id               String        @id @default(cuid())
+  userId           String
+  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// El vendedor. NoAction y no Restrict: si se borra la cuenta entera, la
+  /// persona y la planilla se van en la misma cascada.
+  staffId          String
+  staff            Staff         @relation(fields: [staffId], references: [id], onDelete: NoAction)
+  day              String
+  /// Con quien salio ("SÓLO" si fue solo).
+  acompanante      String?
+  otrosDescuentos  Int           @default(0)
+  entregado        Int           @default(0)
+  /// Como se entrego: "33.15+246", o lo que escriban.
+  entregadoDetalle String?
+  estado           RepartoEstado @default(BORRADOR)
+  notes            String?
+  createdById      String?
+  closedById       String?
+  closedAt         DateTime?
+  /// Cada vez que se reabre una cerrada: quien, cuando y por que. Solo crece.
+  auditoria        String?
+  /// MANUAL o EXCEL. Con EXCEL, origenRef es "HOJA#fecha" del libro importado.
+  origen           String        @default("MANUAL")
+  origenRef        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lineas   RepartoLinea[]
+  creditos RepartoCredito[]
+  cobros   RepartoCobro[]
+  pagos    RepartoPago[]
+
+  @@unique([userId, staffId, day])
+  @@index([userId, day])
+}
+
+/// Un producto en la planilla. Lo vendido, la base y el total se calculan.
+model RepartoLinea {
+  id                 String          @id @default(cuid())
+  userId             String
+  user               User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planillaId         String
+  planilla           RepartoPlanilla @relation(fields: [planillaId], references: [id], onDelete: Cascade)
+  productoId         String
+  producto           RepartoProducto @relation(fields: [productoId], references: [id], onDelete: NoAction)
+  carga              Int             @default(0)
+  /// "105+55" cuando salio en dos cargas.
+  cargaDetalle       String?
+  devolucion         Int             @default(0)
+  /// El precio de ese dia, en centavos.
+  precio             Int
+  base12             Int             @default(0)
+  iva                Int             @default(0)
+  unidVendCant       Int             @default(0)
+  unidVendValor      Int             @default(0)
+  docDescuento       String?
+  dctoPrecio         Int             @default(0)
+  dctoPromocion      Int             @default(0)
+  caducadoCant       Int             @default(0)
+  devolUnidadesValor Int             @default(0)
+
+  @@unique([planillaId, productoId])
+  @@index([userId])
+}
+
+/// Una venta a credito: un documento por cobrar. Sin planilla es un saldo
+/// inicial (las "CUENTAS ATRASADAS" del Excel).
+model RepartoCredito {
+  id         String           @id @default(cuid())
+  userId     String
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planillaId String?
+  planilla   RepartoPlanilla? @relation(fields: [planillaId], references: [id], onDelete: Cascade)
+  clienteId  String
+  cliente    RepartoCliente   @relation(fields: [clienteId], references: [id], onDelete: NoAction)
+  day        String
+  documento  String?
+  factura    String?
+  valor      Int
+  notes      String?
+  position   Int              @default(0)
+
+  cobros RepartoCobro[]
+
+  @@index([userId, clienteId])
+  @@index([planillaId])
+}
+
+/// Lo que se cobro de la cartera en una planilla. Con creditoId se aplico a
+/// ese documento; sin el es un abono a la cuenta del cliente (y se marca para
+/// revisar). AJUSTE es el "DIF A FAVOR" del Excel, que tambien suma.
+model RepartoCobro {
+  id             String          @id @default(cuid())
+  userId         String
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planillaId     String
+  planilla       RepartoPlanilla @relation(fields: [planillaId], references: [id], onDelete: Cascade)
+  clienteId      String?
+  cliente        RepartoCliente? @relation(fields: [clienteId], references: [id], onDelete: NoAction)
+  creditoId      String?
+  credito        RepartoCredito? @relation(fields: [creditoId], references: [id], onDelete: SetNull)
+  fechaDocumento String?
+  documento      String?
+  factura        String?
+  valor          Int
+  tipo           String          @default("COBRO")
+  revisar        Boolean         @default(false)
+  position       Int             @default(0)
+
+  @@index([userId, clienteId])
+  @@index([planillaId])
+  @@index([creditoId])
+}
+
+/// Un gasto pagado con la plata de la venta (almuerzo, transporte, deposito...).
+model RepartoPago {
+  id         String          @id @default(cuid())
+  userId     String
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planillaId String
+  planilla   RepartoPlanilla @relation(fields: [planillaId], references: [id], onDelete: Cascade)
+  documento  String?
+  concepto   String
+  categoria  String          @default("otro")
+  valor      Int
+  position   Int             @default(0)
+
+  @@index([userId])
+  @@index([planillaId])
+}
+
 /// Persona que atiende en el negocio (barberos). Puede tener su propio usuario
 /// para entrar a la aplicacion, pero siempre trabaja dentro del mismo negocio.
 model Staff {
@@ -668,6 +888,8 @@ model Staff {
   /// Parqueadero: los vehiculos que esta persona ingreso y los que cobro.
   ticketsRecibidos  ParkingTicket[]    @relation("ParqueaderoRecibio")
   ticketsCobrados   ParkingTicket[]    @relation("ParqueaderoCobro")
+  repartoPlanillas  RepartoPlanilla[]
+  repartoClientes   RepartoCliente[]
 
   @@index([userId, active])
 }
@@ -722,12 +944,13 @@ model Service {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  appointments Appointment[]
-  saleItems    SaleItem[]
-  orderItems   OrderItem[]
-  variants     ProductVariant[]
-  views        ProductView[]
-  washJobs     WashJob[]
+  appointments     Appointment[]
+  saleItems        SaleItem[]
+  orderItems       OrderItem[]
+  variants         ProductVariant[]
+  views            ProductView[]
+  washJobs         WashJob[]
+  repartoProductos RepartoProducto[]
 
   @@index([userId, active])
 }

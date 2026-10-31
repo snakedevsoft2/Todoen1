@@ -16,7 +16,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { Icon } from "@/components/Icon";
 import { markCollectedAction } from "@/actions/debts";
 import { FormSinSenal } from "@/components/SinSenal";
-import { esChopoSnacks } from "@/lib/orden-productos";
+import { esAdminDeChopo } from "@/lib/chopo";
 import { coincideBusqueda } from "@/lib/categorias";
 import { VistaPreviaFactura } from "@/components/VistaPreviaFactura";
 import type { InvoiceData } from "@/lib/invoice";
@@ -38,8 +38,9 @@ export default async function CarteraPage({
   const { user, staff: me } = await requireSession();
   const params = await searchParams;
   const filtro = FILTROS.some((f) => f.key === params.f) ? params.f! : "pendientes";
-  // Buscar y filtrar por vendedor: lo pidio Chopo Snacks (ver esChopoSnacks).
-  const chopo = esChopoSnacks(user.businessName);
+  // Buscar, filtrar por vendedor, la hora y la vista previa: lo pidio la
+  // administradora de Chopo Snacks y es solo suyo (ver lib/chopo.ts).
+  const chopo = esAdminDeChopo(user, me);
   const busqueda = chopo ? (params.q ?? "").trim().slice(0, 80) : "";
 
   const hoy = todayIn(user.timezone);

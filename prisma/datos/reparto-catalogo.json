@@ -1,0 +1,538 @@
+[
+ {
+  "code": "P001",
+  "name": "PAPA GRANDE NAT",
+  "price": 80,
+  "active": true,
+  "precios": [
+   {
+    "price": 80,
+    "desde": "2026-10-05"
+   }
+  ]
+ },
+ {
+  "code": "P002",
+  "name": "PAPA MEDIANA NAT",
+  "price": 40,
+  "active": true,
+  "precios": [
+   {
+    "price": 40,
+    "desde": "2026-10-05"
+   }
+  ]
+ },
+ {
+  "code": "P003",
+  "name": "PAPA PICANTE GRANDE",
+  "price": 80,
+  "active": true,
+  "precios": [
+   {
+    "price": 80,
+    "desde": "2026-10-05"
+   }
+  ]
+ },
+ {
+  "code": "P004",
+  "name": "PAPA PICANTE MEDIANA",
+  "price": 40,
+  "active": true,
+  "precios": [
+   {
+    "price": 40,
+    "desde": "2026-10-05"
+   }
+  ]
+ },
+ {
+  "code": "P005",
+  "name": "PAPA BASTÓN GRANDE",
+  "price": 80,
+  "active": true,
+  "precios": [
+   {
+    "price": 80,
+    "desde": "2026-10-05"
+   }
+  ]
+ },
+ {
+  "code": "P006",
+  "name": "YUCA MEDIANAS",
+  "price": 50,
+  "active": true,
+  "precios": [
+   {
+    "price": 40,
+    "desde": "2026-07-02"
+   },
+   {
+    "price": 50,
+    "desde": "2026-10-05"
+   }
+  ]
+ },
+ {
+  "code": "P007",
+  "name": "CHIFLE DULCE GRANDE",
+  "price": 80,
+  "active": true,
+  "precios": [
+   {
+    "price": 80,
+    "desde": "2026-10-05"
+   }
+  ]
+ },
+ {
+  "code": "P008",
+  "name": "CHIFLE DULCE MEDIANO",
+  "price": 40,
+  "active": true,
+  "precios": [
+   {
+    "price": 40,
+    "desde": "2026-10-05"
+   }
+  ]
+ },
+ {
+  "code": "P009",
+  "name": "CHIFLE SAL LARGO GRANDE",
+  "price": 80,
+  "active": true,
+  "precios": [
+   {
+    "price": 80,
+    "desde": "2026-10-05"
+   }
+  ]
+ },
+ {
+  "code": "P010",
+  "name": "CHIFLE SAL LARGO MEDIANO",
+  "price": 40,
+  "active": true,
+  "precios": [
+   {
+    "price": 40,
+    "desde": "2026-10-05"
+   }
+  ]
+ },
+ {
+  "code": "P011",
+  "name": "CHIFLE REDONDO LIMÓN GRANDE",
+  "price": 80,
+  "active": true,
+  "precios": [
+   {
+    "price": 80,
+    "desde": "2026-10-05"
+   }
+  ]
+ },
+ {
+  "code": "P012",
+  "name": "CHIFLE REDONDO LIMÓN MEDIANO",
+  "price": 40,
+  "active": true,
+  "precios": [
+   {
+    "price": 40,
+    "desde": "2026-10-05"
+   }
+  ]
+ },
+ {
+  "code": "P013",
+  "name": "CHIFLE REDONDO GRANDE",
+  "price": 80,
+  "active": true,
+  "precios": [
+   {
+    "price": 80,
+    "desde": "2026-10-05"
+   }
+  ]
+ },
+ {
+  "code": "P014",
+  "name": "CHIFLE REDONDO MEDIADO",
+  "price": 40,
+  "active": true,
+  "precios": [
+   {
+    "price": 40,
+    "desde": "2026-10-05"
+   }
+  ]
+ },
+ {
+  "code": "P015",
+  "name": "CHIFLE REDONDO PICANTE GRANDE",
+  "price": 80,
+  "active": true,
+  "precios": [
+   {
+    "price": 80,
+    "desde": "2026-10-05"
+   }
+  ]
+ },
+ {
+  "code": "P016",
+  "name": "CHIFLE REDONDO PICANTE MEDIANO",
+  "price": 40,
+  "active": true,
+  "precios": [
+   {
+    "price": 40,
+    "desde": "2026-10-05"
+   }
+  ]
+ },
+ {
+  "code": "P017",
+  "name": "MIXTO GRANDE",
+  "price": 80,
+  "active": true,
+  "precios": [
+   {
+    "price": 80,
+    "desde": "2026-10-05"
+   }
+  ]
+ },
+ {
+  "code": "P018",
+  "name": "REMIXTO GRANDE",
+  "price": 80,
+  "active": true,
+  "precios": [
+   {
+    "price": 80,
+    "desde": "2026-10-05"
+   }
+  ]
+ },
+ {
+  "code": "P019",
+  "name": "REMIXTO MEDIANO",
+  "price": 40,
+  "active": true,
+  "precios": [
+   {
+    "price": 40,
+    "desde": "2026-10-05"
+   }
+  ]
+ },
+ {
+  "code": "P020",
+  "name": "CHICHARRON GRANDE",
+  "price": 80,
+  "active": true,
+  "precios": [
+   {
+    "price": 80,
+    "desde": "2026-10-05"
+   }
+  ]
+ },
+ {
+  "code": "P021",
+  "name": "CHICHARRON MEDIANO",
+  "price": 40,
+  "active": true,
+  "precios": [
+   {
+    "price": 40,
+    "desde": "2026-10-05"
+   }
+  ]
+ },
+ {
+  "code": "P022",
+  "name": "MANÍ /HABAS X 12 UNIDADES",
+  "price": 240,
+  "active": true,
+  "precios": [
+   {
+    "price": 240,
+    "desde": "2026-10-05"
+   }
+  ]
+ },
+ {
+  "code": "P023",
+  "name": "BASTÓN MINI X 12 UNIDADES",
+  "price": 200,
+  "active": true,
+  "precios": [
+   {
+    "price": 200,
+    "desde": "2026-10-05"
+   }
+  ]
+ },
+ {
+  "code": "P024",
+  "name": "BIZCOCHUELOS SAL- DULCE- MOJICON",
+  "price": 80,
+  "active": true,
+  "precios": [
+   {
+    "price": 90,
+    "desde": "2026-10-05"
+   },
+   {
+    "price": 80,
+    "desde": "2026-10-09"
+   }
+  ]
+ },
+ {
+  "code": "P025",
+  "name": "GOMAS TIRAS X 12 UND",
+  "price": 225,
+  "active": true,
+  "precios": [
+   {
+    "price": 200,
+    "desde": "2026-10-05"
+   },
+   {
+    "price": 225,
+    "desde": "2026-10-12"
+   }
+  ]
+ },
+ {
+  "code": "P026",
+  "name": "SABROFRITAS / CANGUILES X 20",
+  "price": 200,
+  "active": true,
+  "precios": [
+   {
+    "price": 170,
+    "desde": "2026-07-02"
+   },
+   {
+    "price": 200,
+    "desde": "2026-10-05"
+   }
+  ]
+ },
+ {
+  "code": "P027",
+  "name": "TOSTADO/MANÍ/HABAS",
+  "price": 80,
+  "active": true,
+  "precios": [
+   {
+    "price": 80,
+    "desde": "2026-10-05"
+   }
+  ]
+ },
+ {
+  "code": "P028",
+  "name": "FAMILIARES SNACKS",
+  "price": 120,
+  "active": true,
+  "precios": [
+   {
+    "price": 120,
+    "desde": "2026-10-05"
+   }
+  ]
+ },
+ {
+  "code": "P029",
+  "name": "CUEROS LIMÓN GRANDE NIC",
+  "price": 80,
+  "active": true,
+  "precios": [
+   {
+    "price": 170,
+    "desde": "2026-07-02"
+   },
+   {
+    "price": 80,
+    "desde": "2026-10-05"
+   }
+  ]
+ },
+ {
+  "code": "P030",
+  "name": "CUEROS LIMON x 10 UND NIC",
+  "price": 200,
+  "active": true,
+  "precios": [
+   {
+    "price": 200,
+    "desde": "2026-10-05"
+   }
+  ]
+ },
+ {
+  "code": "P031",
+  "name": "PIPAS NIC X 20",
+  "price": 380,
+  "active": true,
+  "precios": [
+   {
+    "price": 380,
+    "desde": "2026-10-05"
+   }
+  ]
+ },
+ {
+  "code": "P032",
+  "name": "PAPA GRANDE",
+  "price": 80,
+  "active": false,
+  "precios": [
+   {
+    "price": 80,
+    "desde": "2026-01-01"
+   }
+  ]
+ },
+ {
+  "code": "P033",
+  "name": "PAPA MEDIANA",
+  "price": 40,
+  "active": false,
+  "precios": [
+   {
+    "price": 40,
+    "desde": "2026-01-01"
+   }
+  ]
+ },
+ {
+  "code": "P034",
+  "name": "PAPA LIMÓN GRANDE",
+  "price": 80,
+  "active": false,
+  "precios": [
+   {
+    "price": 80,
+    "desde": "2026-01-01"
+   }
+  ]
+ },
+ {
+  "code": "P035",
+  "name": "PAPA LIMÓN MEDIANA",
+  "price": 40,
+  "active": false,
+  "precios": [
+   {
+    "price": 40,
+    "desde": "2026-01-01"
+   }
+  ]
+ },
+ {
+  "code": "P036",
+  "name": "PAPA BASTON MEDIANA",
+  "price": 40,
+  "active": false,
+  "precios": [
+   {
+    "price": 40,
+    "desde": "2026-01-01"
+   }
+  ]
+ },
+ {
+  "code": "P037",
+  "name": "MANÍ /HABAS X 10 UNIDADES",
+  "price": 200,
+  "active": false,
+  "precios": [
+   {
+    "price": 200,
+    "desde": "2026-01-01"
+   }
+  ]
+ },
+ {
+  "code": "P038",
+  "name": "SNACKS MINI X 10 UNIDADES",
+  "price": 200,
+  "active": false,
+  "precios": [
+   {
+    "price": 200,
+    "desde": "2026-01-01"
+   }
+  ]
+ },
+ {
+  "code": "P039",
+  "name": "GOMAS TARRINAS X 50 UND",
+  "price": 330,
+  "active": false,
+  "precios": [
+   {
+    "price": 330,
+    "desde": "2026-01-01"
+   }
+  ]
+ },
+ {
+  "code": "P040",
+  "name": "GOMAS TARRINAS X 60 UND",
+  "price": 230,
+  "active": false,
+  "precios": [
+   {
+    "price": 230,
+    "desde": "2026-01-01"
+   }
+  ]
+ },
+ {
+  "code": "P041",
+  "name": "SABROFRITA X 20",
+  "price": 170,
+  "active": false,
+  "precios": [
+   {
+    "price": 170,
+    "desde": "2026-01-01"
+   }
+  ]
+ },
+ {
+  "code": "P042",
+  "name": "SABROFRITA X 12",
+  "price": 225,
+  "active": false,
+  "precios": [
+   {
+    "price": 225,
+    "desde": "2026-01-01"
+   }
+  ]
+ },
+ {
+  "code": "P043",
+  "name": "TOSTADO",
+  "price": 80,
+  "active": false,
+  "precios": [
+   {
+    "price": 80,
+    "desde": "2026-01-01"
+   }
+  ]
+ }
+]

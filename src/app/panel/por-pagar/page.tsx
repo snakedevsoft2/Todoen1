@@ -21,7 +21,7 @@ import {
 import { Card, Empty, PageHeader, Stat } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { BotonBorrar } from "@/components/BotonBorrar";
-import { CompraBoton, PagosCompra, ProveedorForm, type Sugerencia } from "@/components/PorPagarForms";
+import { CompraBoton, ImportarPorPagar, PagosCompra, ProveedorForm, type Sugerencia } from "@/components/PorPagarForms";
 import { borrarCompraAction, borrarProveedorAction } from "@/actions/por-pagar";
 
 export const dynamic = "force-dynamic";
@@ -182,6 +182,16 @@ export default async function PorPagarPage({
             </summary>
             <div className="mt-3">
               <ProveedorForm />
+            </div>
+          </details>
+
+          <details className="card-tight" data-importar-excel>
+            <summary className="flex cursor-pointer list-none items-center gap-1.5 text-sm font-semibold text-brand-600">
+              <Icon name="upload" className="h-4 w-4" />
+              Importar desde Excel
+            </summary>
+            <div className="mt-3">
+              <ImportarPorPagar currency={cur} />
             </div>
           </details>
         </aside>

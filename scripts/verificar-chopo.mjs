@@ -46,18 +46,24 @@ async function crearCuenta(nombre, correo) {
     data: {
       email: correo,
       passwordHash: bcrypt.hashSync("demo1234", 10),
-      ownerName: "Dueña",
+      ownerName: "Juliana Intriago",
       businessName: nombre,
       businessType: "OTRO",
       slug: "prueba-" + correo.split("@")[0],
       currency: "USD",
       timezone: ZONA,
-      staff: { create: [{ name: "Dueña", role: "DUENO" }, { name: "Juliana", role: "VENDEDOR" }] },
+      // La dueña es Juliana Intriago, la administradora: lo nuevo es solo suyo.
+      staff: {
+        create: [
+          { name: "Juliana Intriago", role: "DUENO" },
+          { name: "Henry", role: "VENDEDOR", username: "henry." + correo.split("@")[0] },
+        ],
+      },
     },
     include: { staff: true },
   });
   const duena = cuenta.staff.find((s) => s.role === "DUENO");
-  const juliana = cuenta.staff.find((s) => s.role === "VENDEDOR");
+  const henry = cuenta.staff.find((s) => s.role === "VENDEDOR");
   const productos = {};
   for (const [name, price] of [
     ["Papa natural grande", 60],
@@ -87,7 +93,7 @@ async function crearCuenta(nombre, correo) {
       concept: "3x Papa natural mediana",
       amount: 120,
       day: hoy,
-      staffId: juliana.id,
+      staffId: henry.id,
       clientKey: "k-" + correo,
     },
   });
@@ -103,7 +109,8 @@ async function entrar(browser, correo) {
   await page.addInitScript(() => localStorage.setItem("todoen1_onboarding_seen", "true"));
   await page.goto(BASE + "/login", { waitUntil: "networkidle" });
   await page.fill('input[name="email"]', correo);
-  await page.fill('input[name="password"]', "demo1234");
+  // El empleado entra con su usuario, sin contraseña (ver LoginForm).
+  if (correo.includes("@")) await page.fill('input[name="password"]', "demo1234");
   await page.click('button[type="submit"]');
   await page.waitForURL(/\/panel/, { timeout: 30000 });
   return page;
@@ -228,14 +235,14 @@ try {
   let lista = await page.locator("li.card").allInnerTexts();
   ok(lista.length === 1 && lista[0].includes("Viveres Carlitos"), "buscar por nombre deja solo esa", String(lista.length));
   await page.goto(BASE + "/panel/cartera", { waitUntil: "networkidle" });
-  const juliana = chopo.cuenta.staff.find((s) => s.role === "VENDEDOR");
-  await page.locator("[data-buscar-cartera] select[name=v]").selectOption(juliana.id);
+  const henry = chopo.cuenta.staff.find((s) => s.role === "VENDEDOR");
+  await page.locator("[data-buscar-cartera] select[name=v]").selectOption(henry.id);
   await page.locator("[data-buscar-cartera]").getByRole("button", { name: "Buscar" }).click();
   await page.waitForLoadState("networkidle");
   lista = await page.locator("li.card").allInnerTexts();
-  ok(lista.length === 1 && lista[0].includes("Rosa Vizcaino"), "filtrar por vendedor deja solo lo de Juliana", String(lista.length));
+  ok(lista.length === 1 && lista[0].includes("Rosa Vizcaino"), "filtrar por vendedor deja solo lo de Henry", String(lista.length));
   const todas = await page.getByRole("link", { name: "Todas" }).getAttribute("href");
-  ok(todas.includes("f=todas") && todas.includes("v=" + juliana.id), "cambiar de filtro no pierde el vendedor", todas);
+  ok(todas.includes("f=todas") && todas.includes("v=" + henry.id), "cambiar de filtro no pierde el vendedor", todas);
   await page.locator("li.card").first().getByRole("button", { name: "Vista previa" }).click();
   await page.locator("[data-vista-factura]").waitFor({ timeout: 5000 });
   ok(true, "la vista previa abre en Cuentas por cobrar");
@@ -250,6 +257,20 @@ try {
   ok((await p2.locator("[data-agregar-inventario]").count()) === 0, "con el Agregar más de siempre");
   await p2.goto(BASE + "/panel/cartera", { waitUntil: "networkidle" });
   ok((await p2.locator("[data-buscar-cartera]").count()) === 0, "sin buscador en Cartera");
+
+  console.log("\n9. Un empleado de Chopo sigue viendo lo de siempre");
+  const p3 = await entrar(browser, chopo.cuenta.staff.find((s) => s.role === "VENDEDOR").username);
+  await p3.goto(BASE + "/panel/ventas", { waitUntil: "networkidle" });
+  const texto3 = await p3.locator("body").innerText();
+  ok(texto3.includes("Rosa Vizcaino"), "ve su fiado");
+  ok(!HORA.test(texto3), "sin hora en la lista");
+  ok((await p3.getByRole("button", { name: "Vista previa" }).count()) === 0, "sin vista previa");
+  ok((await p3.locator("[data-agregar-inventario]").count()) === 0, "con el Agregar más de siempre");
+  ok(!texto3.includes("suéltalo en la papelera"), "no puede ocultar productos");
+  const primero3 = await p3.locator('button:has(span.break-words)').first().innerText();
+  ok(primero3.startsWith("Mixto"), "pero ve el orden que dejó la administradora", primero3.split("\n")[0]);
+  await p3.goto(BASE + "/panel/cartera", { waitUntil: "networkidle" });
+  ok((await p3.locator("[data-buscar-cartera]").count()) === 0, "sin buscador en Cartera");
 } finally {
   await browser.close();
   for (const c of [chopo, otro]) {

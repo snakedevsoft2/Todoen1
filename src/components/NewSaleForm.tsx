@@ -668,7 +668,10 @@ export function NewSaleForm({
   /** Los productos de una categoria en el orden que se ve (el guardado manda sobre el fijo). */
   function enOrden(category: string, list: ServiceRow[]): (ServiceRow | null)[] {
     const guardado = ordenLibre[category];
-    if (guardado && puedeMover) {
+    // El orden compartido lo ve todo el negocio, aunque solo la administradora
+    // lo pueda cambiar; el del telefono, solo quien lo armo. Buscando, el de siempre.
+    const aplica = ordenCompartido ? !busqueda.trim() : puedeMover;
+    if (guardado && aplica) {
       const lugar = new Map(guardado.map((id, i) => [id, i]));
       return [...list].sort((a, b) => (lugar.get(a.id) ?? 1e9) - (lugar.get(b.id) ?? 1e9));
     }

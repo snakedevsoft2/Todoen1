@@ -80,9 +80,13 @@ export default async function VentasPage({
   const propias = esDueno(me.role);
   const soloMias = propias ? {} : { staffId: me.id };
   // Lo que pidio Chopo Snacks y ningun otro negocio tiene (ver esChopoSnacks).
+  // El orden de los productos es el mismo para todos sus telefonos.
   const chopo = esChopoSnacks(user.businessName);
-  // Quien acomoda y oculta los productos de Ventas de Chopo, para todos los telefonos.
-  const acomoda = chopo && (propias || esAdminDeChopo(user, me));
+  // Lo demas que se le hizo (hora, vista previa, agregar del inventario,
+  // acomodar y ocultar productos) es solo de su administradora: los empleados
+  // siguen viendo lo de siempre. Ver lib/chopo.ts.
+  const nuevo = esAdminDeChopo(user, me);
+  const acomoda = nuevo;
   // La hora en que se guardo: no se edita, asi que no se puede cambiar ni quitar.
   const horaDe = (cuando: Date) => pretty12h(timeIn(cuando, user.timezone));
 
@@ -264,7 +268,7 @@ export default async function VentasPage({
     logoUrl: logo,
     currency: user.currency,
     day: f.day,
-    hora: chopo ? horaDe(f.createdAt) : null,
+    hora: nuevo ? horaDe(f.createdAt) : null,
     clientName: f.clientName,
     clientPhone: f.clientPhone,
     businessEmail: user.email,
@@ -286,7 +290,7 @@ export default async function VentasPage({
     logoUrl: logo,
     currency: user.currency,
     day: s.day,
-    hora: chopo ? horaDe(s.createdAt) : null,
+    hora: nuevo ? horaDe(s.createdAt) : null,
     clientName: s.clientName,
     // El telefono del cliente no queda guardado en la venta: solo se conoce
     // justo al terminar (ver NewSaleForm), asi que en el historial no sale.
@@ -475,7 +479,7 @@ export default async function VentasPage({
             ordenCompartido={chopo ? ordenCompartido : undefined}
             acomoda={acomoda}
             papelera={acomoda}
-            conHora={chopo}
+            conHora={nuevo}
             facturacion={
               completo && facturacion.enabled
                 ? {
@@ -524,7 +528,7 @@ export default async function VentasPage({
                         <p className="mt-1 text-xs text-body">{f.concept}</p>
                         <p className="mt-0.5 text-xs text-subtle">
                           {f.clientName} - {shortDay(f.day)}
-                          {chopo ? " · " + horaDe(f.createdAt) : ""}
+                          {nuevo ? " · " + horaDe(f.createdAt) : ""}
                         </p>
                         {f.staff && (
                           <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted">
@@ -534,7 +538,7 @@ export default async function VentasPage({
                           </p>
                         )}
                         <div className="mt-2 flex flex-wrap gap-2">
-                          {chopo && <VistaPreviaFactura data={datosFiado(f)} soloBluetooth={!propias} />}
+                          {nuevo && <VistaPreviaFactura data={datosFiado(f)} soloBluetooth={!propias} />}
                           <ImprimirVenta data={datosFiado(f)} soloBluetooth={!propias} />
                           {!esLavadero && (
                             <Link href={"/panel/cartera"} className="btn-ghost btn-sm">
@@ -557,7 +561,7 @@ export default async function VentasPage({
                             </BotonBorrar>
                           </FormSinSenal>
                         </div>
-                        {chopo && (
+                        {nuevo && (
                           <AgregarDelInventario
                             tipo="fiado"
                             id={f.id}
@@ -596,7 +600,7 @@ export default async function VentasPage({
                           </p>
                           <p className="mt-0.5 text-xs text-subtle">
                             {s.clientName ?? "Mostrador"} - {shortDay(s.day)}
-                            {chopo ? " · " + horaDe(s.createdAt) : ""}
+                            {nuevo ? " · " + horaDe(s.createdAt) : ""}
                             {s.notes ? " - " + s.notes : ""}
                           </p>
                           {s.staff && (
@@ -650,7 +654,7 @@ export default async function VentasPage({
                           clientes={clientesGuardados}
                           soloBluetooth={!propias}
                         />
-                        {chopo && <VistaPreviaFactura data={datosFactura(s)} soloBluetooth={!propias} />}
+                        {nuevo && <VistaPreviaFactura data={datosFactura(s)} soloBluetooth={!propias} />}
                         <ImprimirVenta data={datosFactura(s)} soloBluetooth={!propias} />
                         <FacturaAutorizada
                           saleId={s.id}
@@ -702,7 +706,7 @@ export default async function VentasPage({
                       </FormSinSenal>
 
                       {!(s.electronicInvoice && ["AUTORIZADA", "ENVIANDO"].includes(s.electronicInvoice.status)) &&
-                        (chopo ? (
+                        (nuevo ? (
                           <AgregarDelInventario
                             tipo="venta"
                             id={s.id}

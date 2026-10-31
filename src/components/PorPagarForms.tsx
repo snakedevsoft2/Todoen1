@@ -4,12 +4,14 @@ import { useActionState, useEffect, useState, useTransition, type ReactNode } fr
 import {
   borrarPagoAction,
   guardarCompraAction,
+  importarExcelPorPagarAction,
   guardarProveedorAction,
   pagarCompraAction,
   type CompraPedida,
 } from "@/actions/por-pagar";
 import { dinero, leerCifra, subtotalDe, totalDe } from "@/lib/por-pagar";
 import { normalizar as normalizarDescripcion } from "@/lib/orden-productos";
+import type { ReportePorPagar } from "@/lib/por-pagar-importar";
 import { Alert, Field } from "./ui";
 import { Icon } from "./Icon";
 import { SubmitButton } from "./SubmitButton";
@@ -579,5 +581,90 @@ export function PagosCompra({
         </Ventana>
       )}
     </>
+  );
+}
+
+// ------------------------------------------------------------------ importar
+
+/**
+ * Subir el Excel "CUENTAS POR PAGAR PROVEEDORES": primero se revisa sin
+ * guardar nada, despues se importa. Lo que ya estaba se salta.
+ */
+export function ImportarPorPagar({ currency }: { currency: string }) {
+  const [archivo, setArchivo] = useState<File | null>(null);
+  const [reporte, setReporte] = useState<ReportePorPagar | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [trabajando, startTransition] = useTransition();
+
+  function correr(aplicar: boolean) {
+    if (!archivo) return;
+    setError(null);
+    const fd = new FormData();
+    fd.set("archivo", archivo);
+    if (aplicar) fd.set("aplicar", "1");
+    startTransition(async () => {
+      try {
+        const r = await importarExcelPorPagarAction(fd);
+        if (r.error) setError(r.error);
+        else setReporte(r.reporte ?? null);
+      } catch {
+        setError("No se pudo leer el archivo. Revisa la conexión e inténtalo otra vez.");
+      }
+    });
+  }
+
+  const nuevas = reporte?.proveedores.reduce((s, p) => s + p.nuevas, 0) ?? 0;
+  return (
+    <div className="space-y-3" data-importar-por-pagar>
+      {error && <Alert kind="error">{error}</Alert>}
+      <input
+        type="file"
+        accept=".xlsx,.xlsm,.xls"
+        className="input max-w-full py-1.5 text-sm"
+        onChange={(e) => {
+          setArchivo(e.target.files?.[0] ?? null);
+          setReporte(null);
+        }}
+        aria-label="Archivo de Excel de proveedores"
+      />
+      <button type="button" className="btn-primary btn-sm" disabled={!archivo || trabajando} onClick={() => correr(false)}>
+        {trabajando ? "Leyendo..." : "Revisar (no guarda nada)"}
+      </button>
+      {reporte && (
+        <div className="space-y-2 text-[13px]">
+          <Alert kind={reporte.aplicado ? "ok" : "info"}>
+            {reporte.aplicado ? "Importado." : nuevas ? "Ensayo: " + nuevas + " compras para importar. Nada se guardó todavía." : "Todo ya estaba importado."}
+          </Alert>
+          <ul className="divide-y divide-line rounded-xl border border-line">
+            {reporte.proveedores.map((p) => (
+              <li key={p.nombre} className="flex items-center justify-between gap-2 px-2.5 py-1.5">
+                <span className="min-w-0 truncate">
+                  {p.nombre}
+                  {p.nuevo && <span className="ml-1 text-[10px] text-brand-600">nuevo</span>}
+                </span>
+                <span className="shrink-0 text-[12px] text-muted">
+                  {p.nuevas}/{p.compras} · {dinero(p.total, currency)}
+                  {p.pendiente > 0.004 && <span className="text-bad"> · debe {dinero(p.pendiente, currency)}</span>}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {reporte.avisos.length > 0 && (
+            <details className="text-[12px] text-muted">
+              <summary className="cursor-pointer">Avisos ({reporte.avisos.length})</summary>
+              {reporte.avisos.map((a) => (
+                <p key={a}>{a}</p>
+              ))}
+            </details>
+          )}
+          {!reporte.aplicado && nuevas > 0 && (
+            <button type="button" className="btn-success btn-sm" disabled={trabajando} onClick={() => correr(true)} data-importar-proveedores>
+              <Icon name="check" className="h-4 w-4" />
+              {trabajando ? "Importando..." : "Importar " + nuevas + " compras"}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

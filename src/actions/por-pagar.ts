@@ -6,6 +6,8 @@ import { requireSession } from "@/lib/auth";
 import { isValidDay, todayIn } from "@/lib/dates";
 import { str, texto } from "@/lib/format";
 import { RUTA_POR_PAGAR, estadoDe, leerCifra, puedeVerPorPagar, redondear, totalDe } from "@/lib/por-pagar";
+import { leerExcelPorPagar } from "@/lib/por-pagar-excel";
+import { importarPorPagar, type ReportePorPagar } from "@/lib/por-pagar-importar";
 
 // Cuentas por pagar a proveedores (ver lib/por-pagar.ts). Cada accion vuelve a
 // mirar quien la pide: esconder el menu no basta, una accion se puede llamar
@@ -231,4 +233,35 @@ export async function borrarPagoAction(formData: FormData) {
   if (!sesion) return;
   await db.payablePayment.deleteMany({ where: { id: str(formData.get("id")), userId: sesion.user.id } });
   refrescar();
+}
+
+// ------------------------------------------------------------------ importar
+
+/** Lo que deja subir una accion del servidor (next.config: bodySizeLimit 2mb), con margen. */
+const MAX_EXCEL = 1.9 * 1024 * 1024;
+
+/**
+ * Importar el Excel "CUENTAS POR PAGAR PROVEEDORES" (ver lib/por-pagar-excel.ts).
+ * Sin `aplicar` es un ensayo que no guarda nada.
+ */
+export async function importarExcelPorPagarAction(formData: FormData): Promise<{ error?: string; reporte?: ReportePorPagar }> {
+  const sesion = await acceso();
+  if (!sesion) return { error: SIN_ACCESO };
+  const archivo = formData.get("archivo");
+  if (!(archivo instanceof File) || archivo.size === 0) return { error: "Escoge el archivo de Excel." };
+  if (archivo.size > MAX_EXCEL) return { error: "El archivo pesa más de 2 MB." };
+  let libro;
+  try {
+    libro = leerExcelPorPagar(new Uint8Array(await archivo.arrayBuffer()));
+  } catch {
+    return { error: "No se pudo leer ese archivo. ¿Es un Excel (.xlsx)?" };
+  }
+  if (libro.proveedores.length === 0) return { error: "No encontré proveedores en ese Excel." };
+  try {
+    const reporte = await importarPorPagar(db, { userId: sesion.user.id, libro, aplicar: formData.get("aplicar") === "1" });
+    if (reporte.aplicado) refrescar();
+    return { reporte };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "No se pudo importar. No se guardó nada." };
+  }
 }
