@@ -8,7 +8,7 @@ import { db } from "@/lib/db";
 import { anotarCliente } from "@/lib/clientes";
 import { requireOwner, requireSession } from "@/lib/auth";
 import { isValidDay, todayIn } from "@/lib/dates";
-import { parseIntSafe, parseMoney, str, texto } from "@/lib/format";
+import { cerosPara, parseIntSafe, parseMoney, str, texto } from "@/lib/format";
 import { saldo } from "@/lib/debts";
 import {
   esFrecuencia,
@@ -19,6 +19,7 @@ import {
 import { anotarActividad } from "@/lib/actividad";
 import { SOLO_DUENO, esDueno } from "@/lib/permisos-empleado";
 import { nextReceiptSeq } from "@/lib/receipt-seq";
+import { itemsParaAgregar, resumenDeItems, type ItemPedido } from "@/lib/items-agregados";
 
 export type DebtState =
   | {
@@ -293,6 +294,44 @@ export async function deletePaymentAction(formData: FormData) {
 
   refresh(pago.debtId);
   revalidatePath("/panel/ventas");
+}
+
+/**
+ * Agregar productos a un fiado que ya estaba anotado (lo pidio Chopo Snacks):
+ * el cliente se lleva algo mas y queda debiendo eso tambien. El fiado no
+ * guarda renglones, asi que lo agregado se suma al concepto y al valor. Si ya
+ * estaba pagado vuelve a quedar por cobrar. El empleado solo le agrega a los
+ * fiados que anoto, que son los unicos que ve.
+ */
+export async function addDebtItemsAction(debtId: string, pedidos: ItemPedido[]): Promise<DebtState> {
+  const { user, staff } = await requireSession();
+  const debt = await db.debt.findFirst({
+    where: { id: String(debtId), userId: user.id, ...(esDueno(staff.role) ? {} : { staffId: staff.id }) },
+    select: { id: true, concept: true, status: true, clientName: true },
+  });
+  if (!debt) return { error: "No encontramos ese fiado." };
+  if (debt.status === "ANULADA") return { error: "Ese fiado está anulado." };
+
+  const r = await itemsParaAgregar(user.id, user.currency, cerosPara(user.businessType), pedidos);
+  if ("error" in r) return { error: r.error };
+  const suma = r.items.reduce((s, i) => s + i.unitPrice * i.qty, 0);
+  const resumen = resumenDeItems(r.items);
+
+  await db.debt.update({
+    where: { id: debt.id },
+    data: {
+      concept: (debt.concept.trim() ? debt.concept.trim() + ", " : "") + resumen,
+      amount: { increment: suma },
+      ...(debt.status === "PAGADA" ? { status: "PENDIENTE" as const } : {}),
+    },
+  });
+  await anotarActividad(
+    { user, staff },
+    { tipo: "deuda", detalle: "Agregó al fiado de " + debt.clientName + ": " + resumen, monto: suma }
+  );
+
+  refresh(debt.id);
+  return { ok: "Se agregó al fiado de " + debt.clientName + "." };
 }
 
 /** Deja anotado que ya se le cobro, para no acosar al cliente. */

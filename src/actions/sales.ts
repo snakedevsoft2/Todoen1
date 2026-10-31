@@ -5,11 +5,12 @@ import type { PaymentMethod } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { isValidDay } from "@/lib/dates";
-import { parseIntSafe, parseMoney, str } from "@/lib/format";
+import { cerosPara, parseIntSafe, parseMoney, str } from "@/lib/format";
 import { applyStockMove } from "@/lib/inventory";
 import { borrarVenta } from "@/lib/borrar-registros";
 import { anotarActividad } from "@/lib/actividad";
-import { puedeHacer } from "@/lib/permisos-empleado";
+import { esDueno, puedeHacer } from "@/lib/permisos-empleado";
+import { itemsParaAgregar, resumenDeItems, type ItemPedido } from "@/lib/items-agregados";
 
 // Registrar una venta ya no pasa por aqui: va por /api/ventas (lib/ventas.ts),
 // para que la venta hecha sin senal se guarde en el telefono y se suba sola.
@@ -162,6 +163,48 @@ export async function addSaleItemAction(
 
   revalidatePath("/panel/ventas");
   revalidatePath("/panel/inventario");
+  revalidatePath("/panel");
+  return { ok: "Se agregó a la venta." };
+}
+
+/**
+ * Como addSaleItemAction, pero escogiendo del inventario y varios de una vez
+ * (lo pidio Chopo Snacks). El empleado solo le agrega a sus propias ventas,
+ * que son las unicas que ve.
+ */
+export async function addSaleItemsAction(saleId: string, pedidos: ItemPedido[]): Promise<AddSaleItemState> {
+  const { user, staff } = await requireSession();
+  const sale = await db.sale.findFirst({
+    where: { id: String(saleId), userId: user.id, ...(esDueno(staff.role) ? {} : { staffId: staff.id }) },
+    select: { id: true, electronicInvoice: { select: { status: true } } },
+  });
+  if (!sale) return { error: "No encontramos esa venta." };
+  const factura = sale.electronicInvoice?.status;
+  if (factura === "AUTORIZADA" || factura === "ENVIANDO") {
+    return { error: "Esta venta ya tiene factura autorizada: no se le puede agregar nada por fuera de la entidad." };
+  }
+
+  const r = await itemsParaAgregar(user.id, user.currency, cerosPara(user.businessType), pedidos);
+  if ("error" in r) return { error: r.error };
+  const suma = r.items.reduce((s, i) => s + i.unitPrice * i.qty, 0);
+
+  await db.$transaction([
+    db.saleItem.createMany({
+      data: r.items.map((i) => ({
+        userId: user.id,
+        saleId: sale.id,
+        serviceId: i.serviceId,
+        name: i.name,
+        unitPrice: i.unitPrice,
+        qty: i.qty,
+      })),
+    }),
+    db.sale.update({ where: { id: sale.id }, data: { total: { increment: suma } } }),
+  ]);
+  await anotarActividad({ user, staff }, { tipo: "venta", detalle: "Agregó a una venta: " + resumenDeItems(r.items), monto: suma });
+
+  revalidatePath("/panel/ventas");
+  revalidatePath("/panel/caja");
   revalidatePath("/panel");
   return { ok: "Se agregó a la venta." };
 }

@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { addDays, isValidDay, todayIn } from "@/lib/dates";
-import { cerosPara, money, prettyDay, shortDay } from "@/lib/format";
+import { addDays, isValidDay, timeIn, todayIn } from "@/lib/dates";
+import { cerosPara, money, prettyDay, pretty12h, shortDay } from "@/lib/format";
 import { ITEM_NOUN, logoUrl, photoUrl } from "@/lib/nav";
 import { variantLabel } from "@/lib/variants";
 import { hasTeam } from "@/lib/staff";
@@ -25,8 +25,10 @@ import { AgregarItemVenta } from "@/components/AgregarItemVenta";
 import { FormSinSenal } from "@/components/SinSenal";
 import { esPlanCompleto } from "@/lib/plan";
 import { ordenDeCategorias } from "@/lib/categorias-negocio";
-import { categoriasVisiblesParaNegocio, ordenParaNegocio, soloTotalVendido } from "@/lib/orden-productos";
+import { categoriasVisiblesParaNegocio, esChopoSnacks, ordenParaNegocio, soloTotalVendido } from "@/lib/orden-productos";
 import { serviciosConFoto } from "@/lib/imagenes";
+import { VistaPreviaFactura } from "@/components/VistaPreviaFactura";
+import { AgregarDelInventario } from "@/components/AgregarDelInventario";
 
 export const dynamic = "force-dynamic";
 
@@ -76,6 +78,10 @@ export default async function VentasPage({
   // el dueño las ve todas (ver lib/permisos-empleado.ts).
   const propias = esDueno(me.role);
   const soloMias = propias ? {} : { staffId: me.id };
+  // Lo que pidio Chopo Snacks y ningun otro negocio tiene (ver esChopoSnacks).
+  const chopo = esChopoSnacks(user.businessName);
+  // La hora en que se guardo: no se edita, asi que no se puede cambiar ni quitar.
+  const horaDe = (cuando: Date) => pretty12h(timeIn(cuando, user.timezone));
 
   const [sales, fiados, catalog, team, conFoto] = await Promise.all([
     db.sale.findMany({
@@ -108,6 +114,7 @@ export default async function VentasPage({
         category: true,
         updatedAt: true,
         trackStock: true,
+        ventaPos: true,
         variants: {
           where: { active: true },
           orderBy: [{ size: "asc" }, { color: "asc" }],
@@ -141,6 +148,18 @@ export default async function VentasPage({
         })) satisfies VariantOption[])
       : undefined,
   }));
+
+  // El orden que el dueño de Chopo armo arrastrando, por categoria: el mismo
+  // en todos los telefonos. Los que nunca movio no tienen lugar y van al final.
+  const ordenCompartido: Record<string, string[]> = {};
+  if (chopo) {
+    for (const s of [...catalog].sort((a, b) => (a.ventaPos ?? 0) - (b.ventaPos ?? 0))) {
+      if (s.ventaPos === null) continue;
+      (ordenCompartido[s.category] ??= []).push(s.id);
+    }
+  }
+  // Para "Agregar más": los que tienen tallas se venden escogiendo la talla.
+  const paraAgregar = catalog.filter((s) => !s.trackStock).map((s) => ({ id: s.id, name: s.name, price: s.price }));
 
   // De las mismas ventas que se muestran: si es un empleado, ya vienen
   // filtradas a las suyas, y el resumen de arriba cuenta solo eso.
@@ -242,6 +261,7 @@ export default async function VentasPage({
     logoUrl: logo,
     currency: user.currency,
     day: f.day,
+    hora: chopo ? horaDe(f.createdAt) : null,
     clientName: f.clientName,
     clientPhone: f.clientPhone,
     businessEmail: user.email,
@@ -263,6 +283,7 @@ export default async function VentasPage({
     logoUrl: logo,
     currency: user.currency,
     day: s.day,
+    hora: chopo ? horaDe(s.createdAt) : null,
     clientName: s.clientName,
     // El telefono del cliente no queda guardado en la venta: solo se conoce
     // justo al terminar (ver NewSaleForm), asi que en el historial no sale.
@@ -448,6 +469,9 @@ export default async function VentasPage({
             clientes={clientesGuardados}
             marcaGratis={!completo}
             esDueno={propias}
+            ordenCompartido={chopo ? ordenCompartido : undefined}
+            papelera={chopo}
+            conHora={chopo}
             facturacion={
               completo && facturacion.enabled
                 ? {
@@ -496,6 +520,7 @@ export default async function VentasPage({
                         <p className="mt-1 text-xs text-body">{f.concept}</p>
                         <p className="mt-0.5 text-xs text-subtle">
                           {f.clientName} - {shortDay(f.day)}
+                          {chopo ? " · " + horaDe(f.createdAt) : ""}
                         </p>
                         {f.staff && (
                           <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted">
@@ -505,6 +530,7 @@ export default async function VentasPage({
                           </p>
                         )}
                         <div className="mt-2 flex flex-wrap gap-2">
+                          {chopo && <VistaPreviaFactura data={datosFiado(f)} soloBluetooth={!propias} />}
                           <ImprimirVenta data={datosFiado(f)} soloBluetooth={!propias} />
                           {!esLavadero && (
                             <Link href={"/panel/cartera"} className="btn-ghost btn-sm">
@@ -527,6 +553,15 @@ export default async function VentasPage({
                             </BotonBorrar>
                           </FormSinSenal>
                         </div>
+                        {chopo && (
+                          <AgregarDelInventario
+                            tipo="fiado"
+                            id={f.id}
+                            productos={paraAgregar}
+                            currency={user.currency}
+                            ceros={cerosPara(user.businessType)}
+                          />
+                        )}
                       </li>
                     );
                   }
@@ -557,6 +592,7 @@ export default async function VentasPage({
                           </p>
                           <p className="mt-0.5 text-xs text-subtle">
                             {s.clientName ?? "Mostrador"} - {shortDay(s.day)}
+                            {chopo ? " · " + horaDe(s.createdAt) : ""}
                             {s.notes ? " - " + s.notes : ""}
                           </p>
                           {s.staff && (
@@ -610,6 +646,7 @@ export default async function VentasPage({
                           clientes={clientesGuardados}
                           soloBluetooth={!propias}
                         />
+                        {chopo && <VistaPreviaFactura data={datosFactura(s)} soloBluetooth={!propias} />}
                         <ImprimirVenta data={datosFactura(s)} soloBluetooth={!propias} />
                         <FacturaAutorizada
                           saleId={s.id}
@@ -660,9 +697,18 @@ export default async function VentasPage({
                         </details>
                       </FormSinSenal>
 
-                      {!(s.electronicInvoice && ["AUTORIZADA", "ENVIANDO"].includes(s.electronicInvoice.status)) && (
-                        <AgregarItemVenta saleId={s.id} currency={user.currency} />
-                      )}
+                      {!(s.electronicInvoice && ["AUTORIZADA", "ENVIANDO"].includes(s.electronicInvoice.status)) &&
+                        (chopo ? (
+                          <AgregarDelInventario
+                            tipo="venta"
+                            id={s.id}
+                            productos={paraAgregar}
+                            currency={user.currency}
+                            ceros={cerosPara(user.businessType)}
+                          />
+                        ) : (
+                          <AgregarItemVenta saleId={s.id} currency={user.currency} />
+                        ))}
                     </li>
                   );
                 })}

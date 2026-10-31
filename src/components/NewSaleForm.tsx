@@ -7,8 +7,11 @@ import {
   PointerSensor,
   TouchSensor,
   closestCenter,
+  pointerWithin,
+  useDroppable,
   useSensor,
   useSensors,
+  type CollisionDetection,
   type DragEndEvent,
 } from "@dnd-kit/core";
 import { SortableContext, arrayMove, rectSortingStrategy } from "@dnd-kit/sortable";
@@ -18,8 +21,8 @@ import { BarraCatalogo } from "./BarraCatalogo";
 import { ClienteSelector } from "./ClienteSelector";
 import { ordenarEnFilas, type FilaOrden } from "@/lib/orden-productos";
 import { agruparPorCategoria, categoriasConCantidad, filtrarCatalogo } from "@/lib/categorias";
-import { aCampo, money, parseMoney, pasoMoneda } from "@/lib/format";
-import { todayIn } from "@/lib/dates";
+import { aCampo, money, parseMoney, pasoMoneda, pretty12h } from "@/lib/format";
+import { timeIn, todayIn } from "@/lib/dates";
 import { enviar } from "@/lib/cola-reportes";
 import {
   borrarVenta,
@@ -38,6 +41,7 @@ import { BotonImprimir } from "./BotonImprimir";
 import { FacturaAutorizada, type EmisorFactura } from "./FacturaAutorizada";
 import type { Pais } from "@/lib/facturacion/paises";
 import { precioRaro } from "@/lib/precio-raro";
+import { ocultarDeVentasAction, ordenVentasAction } from "@/actions/services";
 
 export type VariantOption = {
   id: string;
@@ -159,6 +163,83 @@ function ConfirmarVenta({
   );
 }
 
+const PAPELERA = "papelera";
+
+/**
+ * Donde se suelta un producto para ocultarlo de Ventas (Chopo Snacks).
+ *
+ * Fija abajo, encima de la barra del celular, y por encima de la zona donde la
+ * pagina se desplaza sola al arrastrar (ver autoScroll mas abajo): si no, al
+ * llegar aqui la lista se correria debajo del dedo.
+ */
+function Papelera() {
+  const { setNodeRef, isOver } = useDroppable({ id: PAPELERA });
+  return (
+    <div
+      ref={setNodeRef}
+      data-papelera
+      className={
+        "fixed bottom-24 left-4 right-4 z-40 mx-auto flex max-w-md items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-4 py-4 text-sm font-semibold shadow-lg transition " +
+        (isOver ? "border-bad bg-bad text-white" : "border-bad-line bg-bad-soft text-bad")
+      }
+    >
+      <Icon name="trash" className="h-5 w-5" />
+      {isOver ? "Suelta para ocultarlo de Ventas" : "Arrastra aquí para ocultarlo"}
+    </div>
+  );
+}
+
+/**
+ * La papelera gana solo si el dedo esta encima de ella; si no, el producto se
+ * acomoda con el mas cercano, como siempre. Con closestCenter a secas la
+ * papelera ganaba con solo acercarse a la parte de abajo de la pantalla.
+ */
+const conPapelera: CollisionDetection = (args) => {
+  const papelera = args.droppableContainers.filter((c) => c.id === PAPELERA);
+  const encima = papelera.length ? pointerWithin({ ...args, droppableContainers: papelera }) : [];
+  if (encima.length > 0) return encima;
+  return closestCenter({ ...args, droppableContainers: args.droppableContainers.filter((c) => c.id !== PAPELERA) });
+};
+
+/** Antes de ocultar: soltarlo en la papelera por accidente no puede bastar. */
+function ConfirmarOcultar({
+  nombre,
+  onOcultar,
+  onCancelar,
+}: {
+  nombre: string;
+  onOcultar: () => void;
+  onCancelar: () => void;
+}) {
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="confirmar-ocultar-titulo"
+      data-confirmar-ocultar
+      className="fixed inset-0 z-[90] flex items-end justify-center bg-black/60 p-4 sm:items-center"
+    >
+      <div className="w-full max-w-sm rounded-2xl bg-surface p-5 shadow-xl">
+        <h2 id="confirmar-ocultar-titulo" className="font-display text-lg text-strong">
+          ¿Ocultar {nombre} de Ventas?
+        </h2>
+        <p className="mt-2 text-sm text-body">
+          Deja de salir aquí en todos los teléfonos. No se borra: sigue en Inventario y lo puedes volver a activar.
+        </p>
+        <div className="mt-4 flex flex-col gap-2">
+          <button type="button" className="btn-primary w-full justify-center" onClick={onOcultar} autoFocus>
+            <Icon name="trash" className="h-4 w-4" />
+            Ocultar
+          </button>
+          <button type="button" className="btn-ghost w-full justify-center" onClick={onCancelar}>
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Registrar una venta, con senal o sin ella.
  *
@@ -253,6 +334,9 @@ export function NewSaleForm({
   facturacion = null,
   marcaGratis = false,
   esDueno = true,
+  ordenCompartido,
+  papelera = false,
+  conHora = false,
 }: {
   services: ServiceRow[];
   /** El orden de categorias que armo el dueño. */
@@ -298,6 +382,16 @@ export function NewSaleForm({
   marcaGratis?: boolean;
   /** Si quien vende es el dueño: el empleado solo imprime por Bluetooth. */
   esDueno?: boolean;
+  /**
+   * El orden guardado en el servidor, por categoria, igual en todos los
+   * telefonos (Chopo Snacks). Con esto no se usa el del telefono y solo el
+   * dueño lo cambia.
+   */
+  ordenCompartido?: Record<string, string[]>;
+  /** El dueño oculta un producto de Ventas soltandolo en una papelera. */
+  papelera?: boolean;
+  /** El recibo lleva la hora de la venta al lado de la fecha. */
+  conHora?: boolean;
 }) {
   const router = useRouter();
   // Sin senal la venta solo se guarda en el telefono desde la aplicacion
@@ -363,6 +457,7 @@ export function NewSaleForm({
       logoUrl: negocio.logoUrl,
       currency,
       day: venta.day,
+      hora: conHora ? pretty12h(timeIn(new Date(venta.creadoEn), timezone)) : null,
       clientName: venta.clientName.trim() || null,
       clientPhone: venta.clientPhone?.trim() || null,
       paymentMethod: venta.paymentMethod,
@@ -375,7 +470,7 @@ export function NewSaleForm({
       notes: venta.notes.trim() || null,
       marcaGratis,
     }),
-    [negocio, currency, team, marcaGratis]
+    [negocio, currency, team, marcaGratis, conHora, timezone]
   );
 
   // Si la pagina se abrio sin senal, puede ser la copia guardada de otro dia:
@@ -442,34 +537,45 @@ export function NewSaleForm({
     };
   }, [refrescar, subir]);
 
+  // Los que el dueño acaba de soltar en la papelera: se quitan ya, sin esperar
+  // a que la pagina vuelva del servidor sin ellos.
+  const [ocultos, setOcultos] = useState<Set<string>>(() => new Set());
+  const [porOcultar, setPorOcultar] = useState<ServiceRow | null>(null);
+  const [ocultoReciente, setOcultoReciente] = useState<ServiceRow | null>(null);
+  const [arrastrando, setArrastrando] = useState<string | null>(null);
+  const enVenta = useMemo(
+    () => (ocultos.size ? services.filter((s) => !ocultos.has(s.id)) : services),
+    [services, ocultos]
+  );
+
   // Categoria tocada y busqueda: con muchos productos no hay que bajar por todo.
   const [categoria, setCategoria] = useState("");
   const [busqueda, setBusqueda] = useState("");
-  const categorias = useMemo(() => categoriasConCantidad(services, ordenCategorias), [services, ordenCategorias]);
+  const categorias = useMemo(() => categoriasConCantidad(enVenta, ordenCategorias), [enVenta, ordenCategorias]);
   const grouped = useMemo(
     () =>
       agruparPorCategoria(
-        filtrarCatalogo(services, categoria, busqueda, (s) => [s.name, s.category]),
+        filtrarCatalogo(enVenta, categoria, busqueda, (s) => [s.name, s.category]),
         "nombre",
         ordenCategorias
       ),
-    [services, categoria, busqueda, ordenCategorias]
+    [enVenta, categoria, busqueda, ordenCategorias]
   );
 
   // Orden a mano: por categoria, la lista de ids como el usuario la dejo.
-  const [ordenLibre, setOrdenLibre] = useState<Record<string, string[]>>({});
+  const [ordenLibre, setOrdenLibre] = useState<Record<string, string[]>>(ordenCompartido ?? {});
   useEffect(() => {
-    if (!claveOrden) return;
+    if (!claveOrden || ordenCompartido) return;
     try {
       const v = JSON.parse(localStorage.getItem(claveOrden) ?? "null");
       if (v && typeof v === "object") setOrdenLibre(v);
     } catch {
       /* sin almacenamiento: queda el orden de siempre */
     }
-  }, [claveOrden]);
+  }, [claveOrden, ordenCompartido]);
   function guardarOrden(nuevo: Record<string, string[]>) {
     setOrdenLibre(nuevo);
-    if (!claveOrden) return;
+    if (!claveOrden || ordenCompartido) return;
     try {
       if (Object.keys(nuevo).length === 0) localStorage.removeItem(claveOrden);
       else localStorage.setItem(claveOrden, JSON.stringify(nuevo));
@@ -495,7 +601,66 @@ export function NewSaleForm({
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 16 } })
   );
-  const puedeMover = !!claveOrden && !busqueda.trim();
+  // Con el orden compartido solo el dueño acomoda: lo que mueva un empleado
+  // le cambiaria la pantalla a todos.
+  const puedeMover = (ordenCompartido ? esDueno : !!claveOrden) && !busqueda.trim();
+
+  /** Sube el orden de una categoria; si el servidor no lo guarda, vuelve el de antes. */
+  function compartirOrden(ids: string[], deSiempre: boolean, antes: Record<string, string[]>) {
+    if (!ordenCompartido) return;
+    const fallo = (texto: string) => {
+      setOrdenLibre(antes);
+      setMensaje({ kind: "error", text: texto });
+    };
+    ordenVentasAction(ids, deSiempre).then(
+      (r) => {
+        if (r?.error) fallo(r.error);
+      },
+      () => fallo("No se pudo guardar el orden. Revisa la conexión e inténtalo otra vez.")
+    );
+  }
+
+  async function ocultar(s: ServiceRow) {
+    setPorOcultar(null);
+    setOcultos((prev) => new Set(prev).add(s.id));
+    setCart((prev) => prev.filter((r) => r.serviceId !== s.id));
+    const devolver = (texto: string) => {
+      setOcultos((prev) => {
+        const sin = new Set(prev);
+        sin.delete(s.id);
+        return sin;
+      });
+      setOcultoReciente(null);
+      setMensaje({ kind: "error", text: texto });
+    };
+    try {
+      const r = await ocultarDeVentasAction(s.id, false);
+      if (r?.error) devolver(r.error);
+      else setOcultoReciente(s);
+    } catch {
+      devolver("No se pudo ocultar. Revisa la conexión e inténtalo otra vez.");
+    }
+  }
+
+  async function deshacerOcultar() {
+    const s = ocultoReciente;
+    if (!s) return;
+    setOcultoReciente(null);
+    try {
+      const r = await ocultarDeVentasAction(s.id, true);
+      if (r?.error) {
+        setMensaje({ kind: "error", text: r.error });
+        return;
+      }
+      setOcultos((prev) => {
+        const sin = new Set(prev);
+        sin.delete(s.id);
+        return sin;
+      });
+    } catch {
+      setMensaje({ kind: "error", text: "No se pudo deshacer. Actívalo desde Inventario." });
+    }
+  }
 
   /** Los productos de una categoria en el orden que se ve (el guardado manda sobre el fijo). */
   function enOrden(category: string, list: ServiceRow[]): (ServiceRow | null)[] {
@@ -507,12 +672,21 @@ export function NewSaleForm({
     return filasOrden ? ordenarEnFilas(list, filasOrden, false) : list;
   }
   function alSoltar(category: string, ids: string[], e: DragEndEvent) {
+    setArrastrando(null);
     const { active, over } = e;
+    if (over?.id === PAPELERA) {
+      const s = services.find((x) => x.id === String(active.id));
+      if (s) setPorOcultar(s);
+      return;
+    }
     if (!over || active.id === over.id) return;
     const de = ids.indexOf(String(active.id));
     const a = ids.indexOf(String(over.id));
     if (de < 0 || a < 0) return;
-    guardarOrden({ ...ordenLibre, [category]: arrayMove(ids, de, a) });
+    const nuevos = arrayMove(ids, de, a);
+    const antes = ordenLibre;
+    guardarOrden({ ...ordenLibre, [category]: nuevos });
+    compartirOrden(nuevos, false, antes);
   }
 
   function addService(service: ServiceRow) {
@@ -1016,14 +1190,33 @@ export function NewSaleForm({
             <p className="flex items-center gap-1.5 text-[11px] text-subtle">
               <Icon name="grip" className="h-3.5 w-3.5 shrink-0" />
               Para acomodarlos a tu gusto: deja el dedo sobre un producto un momento y arrástralo.
+              {papelera && esDueno && " Para ocultar uno, suéltalo en la papelera que aparece abajo."}
             </p>
+          )}
+          {ocultoReciente && (
+            <div
+              data-oculto-reciente
+              className="flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2 text-[12px]"
+            >
+              <span className="min-w-0 flex-1 text-body">
+                {ocultoReciente.name} ya no sale en Ventas. Sigue en Inventario.
+              </span>
+              <button type="button" className="link shrink-0 font-semibold" onClick={deshacerOcultar}>
+                Deshacer
+              </button>
+            </div>
           )}
           {grouped.map(({ nombre: category, items: list }) => (
             <div key={category}>
               <p className="mb-1.5 text-[11px] text-subtle">{category}</p>
               <DndContext
                 sensors={sensoresOrden}
-                collisionDetection={closestCenter}
+                collisionDetection={papelera && esDueno ? conPapelera : closestCenter}
+                // Con la papelera abajo, la pagina solo se desplaza sola muy
+                // pegado al borde: si no, se correria con el dedo encima de ella.
+                autoScroll={papelera && esDueno ? { threshold: { x: 0, y: 0.08 } } : undefined}
+                onDragStart={() => setArrastrando(category)}
+                onDragCancel={() => setArrastrando(null)}
                 onDragEnd={(e) =>
                   alSoltar(
                     category,
@@ -1032,6 +1225,7 @@ export function NewSaleForm({
                   )
                 }
               >
+              {papelera && esDueno && arrastrando === category && <Papelera />}
               <SortableContext
                 items={enOrden(category, list).flatMap((x) => (x ? [x.id] : []))}
                 strategy={rectSortingStrategy}
@@ -1140,8 +1334,10 @@ export function NewSaleForm({
                   type="button"
                   className="link mt-1.5 text-[11px]"
                   onClick={() => {
-                    const { [category]: _quitar, ...resto } = ordenLibre;
+                    const { [category]: quitados, ...resto } = ordenLibre;
+                    const antes = ordenLibre;
                     guardarOrden(resto);
+                    if (quitados) compartirOrden(quitados, true, antes);
                   }}
                 >
                   Volver al orden de siempre
@@ -1185,6 +1381,14 @@ export function NewSaleForm({
           <span className="text-xl font-bold text-strong">{money(total, currency)}</span>
         </div>
       </div>
+
+      {porOcultar && (
+        <ConfirmarOcultar
+          nombre={porOcultar.name}
+          onOcultar={() => ocultar(porOcultar)}
+          onCancelar={() => setPorOcultar(null)}
+        />
+      )}
 
       {porConfirmar && (
         <ConfirmarVenta

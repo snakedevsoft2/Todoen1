@@ -626,6 +626,11 @@ model Service {
   supplierId String?
   supplier   Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
 
+  /// Lugar en la pantalla de Ventas cuando el dueño lo acomoda arrastrando,
+  /// para que se vea igual en todos los telefonos del negocio (lo pidio Chopo
+  /// Snacks; los demas guardan su orden en cada telefono). Nulo: el de siempre.
+  ventaPos Int?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

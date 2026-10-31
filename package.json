@@ -65,7 +65,8 @@
     "verificar:asistente-crea": "node scripts/verificar-asistente-crea.mjs",
     "verificar:oferta-mes": "node scripts/verificar-oferta-mes.mjs",
     "verificar:ventas-sin-conexion": "node scripts/verificar-ventas-sin-conexion.mjs",
-    "verificar:firmas": "node scripts/verificar-firmas.mjs"
+    "verificar:firmas": "node scripts/verificar-firmas.mjs",
+    "verificar:chopo": "node scripts/verificar-chopo.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

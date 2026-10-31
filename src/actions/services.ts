@@ -113,6 +113,50 @@ export async function toggleServiceAction(formData: FormData) {
   revalidatePath("/catalogo/" + user.slug);
 }
 
+/**
+ * Ocultar un producto de Ventas arrastrandolo a la papelera (Chopo Snacks), o
+ * volverlo a mostrar con "Deshacer". No se borra: queda pausado en Inventario
+ * y las ventas viejas no cambian. Solo el dueño.
+ */
+export async function ocultarDeVentasAction(id: string, mostrar: boolean): Promise<ActionState> {
+  const { user, staff } = await requireSession();
+  if (!esDueno(staff.role)) return { error: SOLO_DUENO };
+  const service = await db.service.findFirst({
+    where: { id: String(id), userId: user.id },
+    select: { id: true, name: true },
+  });
+  if (!service) return { error: "No encontramos ese producto." };
+  await db.service.update({ where: { id: service.id }, data: { active: Boolean(mostrar) } });
+  await anotarActividad(
+    { user, staff },
+    { tipo: "producto", detalle: (mostrar ? "Volvió a mostrar en Ventas " : "Ocultó de Ventas ") + service.name }
+  );
+  revalidatePath("/panel/ventas");
+  revalidatePath("/panel/catalogo");
+  revalidatePath("/panel/inventario");
+  revalidatePath("/catalogo/" + user.slug);
+  return { ok: mostrar ? service.name + " volvió a Ventas." : service.name + " ya no sale en Ventas." };
+}
+
+/**
+ * El orden de Ventas que el dueño arma arrastrando, guardado para todos los
+ * telefonos del negocio (Chopo Snacks). `ids` son los productos de una
+ * categoria como quedaron; con `deSiempre` esos vuelven al orden de siempre.
+ */
+export async function ordenVentasAction(ids: string[], deSiempre = false): Promise<ActionState> {
+  const { user, staff } = await requireSession();
+  if (!esDueno(staff.role)) return { error: "Solo el dueño acomoda los productos de Ventas." };
+  if (!Array.isArray(ids) || ids.length > 500) return { error: "No se pudo guardar el orden." };
+  const limpios = ids.map(String);
+  await db.$transaction(
+    limpios.map((id, lugar) =>
+      db.service.updateMany({ where: { id, userId: user.id }, data: { ventaPos: deSiempre ? null : lugar } })
+    )
+  );
+  revalidatePath("/panel/ventas");
+  return { ok: "Orden guardado." };
+}
+
 /** Borrar un producto es solo del dueño. */
 export async function deleteServiceAction(formData: FormData) {
   const { user, staff } = await requireOwner();

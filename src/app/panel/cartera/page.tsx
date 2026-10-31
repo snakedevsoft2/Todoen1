@@ -2,8 +2,8 @@ import Link from "next/link";
 import { requireSession } from "@/lib/auth";
 import { esDueno } from "@/lib/permisos-empleado";
 import { db } from "@/lib/db";
-import { startOfMonth, todayIn } from "@/lib/dates";
-import { money, prettyDay, shortDay } from "@/lib/format";
+import { startOfMonth, timeIn, todayIn } from "@/lib/dates";
+import { money, prettyDay, pretty12h, shortDay } from "@/lib/format";
 import { abonado, collectionMessage, debtState, saldo } from "@/lib/debts";
 import { esPrestamo, estadoPrestamo, ganancia, planDeDeuda } from "@/lib/prestamos";
 import { toInternational, waLink } from "@/lib/whatsapp";
@@ -16,6 +16,10 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { Icon } from "@/components/Icon";
 import { markCollectedAction } from "@/actions/debts";
 import { FormSinSenal } from "@/components/SinSenal";
+import { esChopoSnacks } from "@/lib/orden-productos";
+import { coincideBusqueda } from "@/lib/categorias";
+import { VistaPreviaFactura } from "@/components/VistaPreviaFactura";
+import type { InvoiceData } from "@/lib/invoice";
 
 export const dynamic = "force-dynamic";
 
@@ -29,11 +33,14 @@ const FILTROS = [
 export default async function CarteraPage({
   searchParams,
 }: {
-  searchParams: Promise<{ f?: string }>;
+  searchParams: Promise<{ f?: string; q?: string; v?: string }>;
 }) {
   const { user, staff: me } = await requireSession();
   const params = await searchParams;
   const filtro = FILTROS.some((f) => f.key === params.f) ? params.f! : "pendientes";
+  // Buscar y filtrar por vendedor: lo pidio Chopo Snacks (ver esChopoSnacks).
+  const chopo = esChopoSnacks(user.businessName);
+  const busqueda = chopo ? (params.q ?? "").trim().slice(0, 80) : "";
 
   const hoy = todayIn(user.timezone);
   const mes = startOfMonth(hoy);
@@ -161,7 +168,7 @@ export default async function CarteraPage({
       }, 0)
     : 0;
 
-  const visibles =
+  const delFiltro =
     filtro === "pendientes"
       ? porCobrar
       : filtro === "vencidas"
@@ -169,6 +176,55 @@ export default async function CarteraPage({
         : filtro === "pagadas"
           ? conEstado.filter((r) => r.estado.key === "pagada")
           : conEstado;
+
+  // Quienes anotaron deudas, para filtrar por vendedor. Salen de las mismas
+  // deudas, asi que aparece tambien quien ya no trabaja ahi. El empleado solo
+  // ve las suyas: para el no hay nada que filtrar.
+  const vendedores = chopo && propias
+    ? [...new Map(deudas.flatMap((d) => (d.staffId && d.staff ? [[d.staffId, d.staff.name] as const] : []))).entries()]
+        .map(([id, name]) => ({ id, name }))
+        .sort((a, b) => a.name.localeCompare(b.name, "es"))
+    : [];
+  const vendedor = vendedores.some((x) => x.id === params.v) ? params.v! : "";
+
+  const visibles = delFiltro.filter(
+    ({ deuda }) =>
+      (!vendedor || deuda.staffId === vendedor) &&
+      coincideBusqueda([deuda.clientName, deuda.clientPhone, deuda.concept, deuda.notes], busqueda)
+  );
+  const buscando = Boolean(busqueda || vendedor);
+  /** El enlace de un filtro, sin perder lo que se busco ni el vendedor. */
+  const enlaceFiltro = (f: string) => {
+    const p = new URLSearchParams({ f });
+    if (busqueda) p.set("q", busqueda);
+    if (vendedor) p.set("v", vendedor);
+    return "/panel/cartera?" + p.toString();
+  };
+
+  const logo = logoUrl(user.slug, user.hasLogo, user.updatedAt);
+  const completo = esPlanCompleto(user);
+  /** El mismo recibo del fiado que sale en Ventas, para la vista previa. */
+  const datosFiado = (d: (typeof deudas)[number]): InvoiceData => ({
+    saleId: d.id,
+    receiptSeq: d.receiptSeq,
+    businessName: user.businessName,
+    businessPhone: user.phone,
+    businessAddress: user.address,
+    logoUrl: logo,
+    currency: user.currency,
+    day: d.day,
+    hora: pretty12h(timeIn(d.createdAt, user.timezone)),
+    clientName: d.clientName,
+    clientPhone: d.clientPhone,
+    businessEmail: user.email,
+    timezone: user.timezone,
+    paymentMethod: "CREDITO",
+    staffName: d.staff?.name ?? null,
+    items: [{ name: d.concept, qty: 1, unitPrice: d.amount }],
+    total: d.amount,
+    notes: d.notes,
+    marcaGratis: !completo,
+  });
 
   return (
     <>
@@ -273,7 +329,7 @@ export default async function CarteraPage({
             {FILTROS.map((f) => (
               <Link
                 key={f.key}
-                href={"/panel/cartera?f=" + f.key}
+                href={enlaceFiltro(f.key)}
                 className={filtro === f.key ? "btn-primary btn-sm" : "btn-ghost btn-sm"}
               >
                 {f.label}
@@ -281,18 +337,72 @@ export default async function CarteraPage({
             ))}
           </div>
 
+          {chopo && (
+            <form action="/panel/cartera" className="card-tight space-y-2" data-buscar-cartera>
+              <input type="hidden" name="f" value={filtro} />
+              <div className="flex gap-2">
+                <input
+                  className="input min-w-0 flex-1 py-1.5 text-sm"
+                  type="search"
+                  name="q"
+                  defaultValue={busqueda}
+                  placeholder="Buscar cliente, teléfono o producto"
+                  aria-label="Buscar en cuentas por cobrar"
+                />
+                <button type="submit" className="btn-primary btn-sm shrink-0">
+                  <Icon name="search" className="h-4 w-4" />
+                  Buscar
+                </button>
+              </div>
+              {vendedores.length > 1 && (
+                <select
+                  className="input py-1.5 text-sm"
+                  name="v"
+                  defaultValue={vendedor}
+                  aria-label="Filtrar por vendedor"
+                >
+                  <option value="">Todos los vendedores</option>
+                  {vendedores.map((x) => (
+                    <option key={x.id} value={x.id}>
+                      Anotó {x.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {buscando && (
+                <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+                  <span>
+                    {visibles.length} {visibles.length === 1 ? "deuda" : "deudas"} ·{" "}
+                    {money(
+                      visibles.reduce((s, r) => s + r.pendiente, 0),
+                      user.currency
+                    )}{" "}
+                    por cobrar
+                  </span>
+                  <Link href={"/panel/cartera?f=" + filtro} className="link">
+                    Quitar búsqueda
+                  </Link>
+                </p>
+              )}
+            </form>
+          )}
+
           {visibles.length === 0 ? (
             <Card>
               <Empty
                 title={
                   deudas.length === 0
                     ? "Nadie te debe nada"
-                    : "No hay deudas en este filtro"
+                    : buscando
+                      ? "No hay deudas con esa búsqueda"
+                      : "No hay deudas en este filtro"
                 }
                 hint={
                   deudas.length === 0
                     ? "Cuando fies o quede un saldo pendiente, anotalo a la derecha."
-                    : "Prueba con otro filtro."
+                    : buscando
+                      ? "Prueba con otro nombre, otro vendedor u otro filtro."
+                      : "Prueba con otro filtro."
                 }
               />
             </Card>
@@ -337,6 +447,7 @@ export default async function CarteraPage({
                         <p className="mt-1 text-sm text-body">{deuda.concept}</p>
                         <p className="mt-1 text-xs text-subtle">
                           Debe desde el {shortDay(deuda.day)}
+                          {chopo ? " · " + pretty12h(timeIn(deuda.createdAt, user.timezone)) : ""}
                           {deuda.dueDay ? " - vence el " + shortDay(deuda.dueDay) : ""}
                           {deuda.payments.length > 0
                             ? " - " + deuda.payments.length + " abonos"
@@ -368,6 +479,8 @@ export default async function CarteraPage({
                       <Link href={"/panel/cartera/" + deuda.id} className="btn-primary btn-sm">
                         Abrir
                       </Link>
+
+                      {chopo && <VistaPreviaFactura data={datosFiado(deuda)} soloBluetooth={!propias} />}
 
                       {pendiente > 0 && enlace && (
                         <>
@@ -418,8 +531,8 @@ export default async function CarteraPage({
                 businessName: user.businessName,
                 businessPhone: user.phone,
                 businessAddress: user.address,
-                logoUrl: logoUrl(user.slug, user.hasLogo, user.updatedAt),
-                marcaGratis: !esPlanCompleto(user),
+                logoUrl: logo,
+                marcaGratis: !completo,
               }}
             />
           </Card>

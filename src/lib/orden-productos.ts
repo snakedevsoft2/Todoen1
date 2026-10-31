@@ -19,19 +19,29 @@ export function normalizar(texto: string): string {
     .trim();
 }
 
+/**
+ * Lo que Chopo Snacks pidio para si y ningun otro negocio tiene: el orden de
+ * Ventas igual en todos sus telefonos, ocultar productos arrastrandolos, la
+ * hora de cada venta, la vista previa de la factura, agregar a un fiado y
+ * buscar en Cuentas por cobrar.
+ */
+export function esChopoSnacks(nombreNegocio: string): boolean {
+  return normalizar(nombreNegocio) === "chopo snacks";
+}
+
 /** Chopo Snacks solo muestra estas categorias como botones (el resto sigue en la lista). */
 export function categoriasVisiblesParaNegocio(nombreNegocio: string): string[] | undefined {
-  return normalizar(nombreNegocio) === "chopo snacks" ? ["SNACKS", "SNACKS FAMILIAR"] : undefined;
+  return esChopoSnacks(nombreNegocio) ? ["SNACKS", "SNACKS FAMILIAR"] : undefined;
 }
 
 /** Chopo Snacks pidio ver en Ventas solo el total vendido, sin las otras tarjetas. */
 export function soloTotalVendido(nombreNegocio: string): boolean {
-  return normalizar(nombreNegocio) === "chopo snacks";
+  return esChopoSnacks(nombreNegocio);
 }
 
 /** Solo el negocio Chopo Snacks tiene este orden. */
 export function ordenParaNegocio(nombreNegocio: string): FilaOrden[] | undefined {
-  return normalizar(nombreNegocio) === "chopo snacks" ? FILAS_CHOPO_SNACKS : undefined;
+  return esChopoSnacks(nombreNegocio) ? FILAS_CHOPO_SNACKS : undefined;
 }
 
 const FILAS_CHOPO_SNACKS: FilaOrden[] = [

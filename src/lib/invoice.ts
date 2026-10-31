@@ -26,6 +26,11 @@ export type InvoiceData = {
   logoUrl: string | null;
   currency: string;
   day: string;
+  /**
+   * La hora en que se registro ("3:45 pm"), al lado de la fecha. Solo la
+   * manda el negocio que la pidio (Chopo Snacks); sin ella sale solo el dia.
+   */
+  hora?: string | null;
   clientName: string | null;
   /** Solo se tiene a mano justo al terminar la venta; en el historial no queda guardado. */
   clientPhone?: string | null;
@@ -108,6 +113,11 @@ const PAYMENT_LABEL: Record<string, string> = {
   CREDITO: "Fiado (por cobrar)",
 };
 
+/** "Sábado 31 de octubre de 2026", y la hora detras si la venta la trae. */
+function fechaConHora(data: InvoiceData): string {
+  return prettyDay(data.day) + (data.hora ? " · " + data.hora : "");
+}
+
 /** Numero corto y legible de la factura, sacado del id de la venta. */
 export function invoiceNumber(saleId: string): string {
   return saleId.slice(-8).toUpperCase();
@@ -140,7 +150,7 @@ export function invoiceFileName(data: InvoiceData): string {
 export function invoiceMessage(data: InvoiceData): string {
   const lines = [
     (data.autorizacion ? "Factura electrónica " : "Factura ") + numeroDe(data) + " - " + data.businessName,
-    prettyDay(data.day),
+    fechaConHora(data),
     "",
     ...data.items.map(
       (i) => i.qty + " x " + i.name + "   " + money(i.unitPrice * i.qty, data.currency)
@@ -266,7 +276,7 @@ export async function buildInvoicePdf(data: InvoiceData): Promise<File> {
     doc.text(doc.splitTextToSize(valor, rightX - (marginX + 36)) as string[], marginX + 36, y);
     y += 5;
   }
-  fila("Fecha", prettyDay(data.day));
+  fila("Fecha", fechaConHora(data));
   fila("Cliente", data.clientName || "Consumidor final");
   if (a?.compradorDocumento) fila("Identificación", a.compradorDocumento);
   if (data.clientPhone) fila("Teléfono", data.clientPhone);
@@ -415,7 +425,7 @@ export function invoiceTirilla(data: InvoiceData): Linea[] {
       text: data.provisional ? "Registrada sin señal" : "Recibo: " + numeroDe(data),
       fuerte: true,
     },
-    { t: "centro", text: prettyDay(data.day), tenue: true },
+    { t: "centro", text: fechaConHora(data), tenue: true },
     { t: "sep" }
   );
 
