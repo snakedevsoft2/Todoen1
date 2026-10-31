@@ -27,6 +27,7 @@ import { esPlanCompleto } from "@/lib/plan";
 import { ordenDeCategorias } from "@/lib/categorias-negocio";
 import { categoriasVisiblesParaNegocio, esChopoSnacks, ordenParaNegocio, soloTotalVendido } from "@/lib/orden-productos";
 import { serviciosConFoto } from "@/lib/imagenes";
+import { esAdminDeChopo } from "@/lib/chopo";
 import { VistaPreviaFactura } from "@/components/VistaPreviaFactura";
 import { AgregarDelInventario } from "@/components/AgregarDelInventario";
 
@@ -80,6 +81,8 @@ export default async function VentasPage({
   const soloMias = propias ? {} : { staffId: me.id };
   // Lo que pidio Chopo Snacks y ningun otro negocio tiene (ver esChopoSnacks).
   const chopo = esChopoSnacks(user.businessName);
+  // Quien acomoda y oculta los productos de Ventas de Chopo, para todos los telefonos.
+  const acomoda = chopo && (propias || esAdminDeChopo(user, me));
   // La hora en que se guardo: no se edita, asi que no se puede cambiar ni quitar.
   const horaDe = (cuando: Date) => pretty12h(timeIn(cuando, user.timezone));
 
@@ -470,7 +473,8 @@ export default async function VentasPage({
             marcaGratis={!completo}
             esDueno={propias}
             ordenCompartido={chopo ? ordenCompartido : undefined}
-            papelera={chopo}
+            acomoda={acomoda}
+            papelera={acomoda}
             conHora={chopo}
             facturacion={
               completo && facturacion.enabled

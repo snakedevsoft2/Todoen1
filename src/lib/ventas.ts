@@ -187,7 +187,10 @@ export async function registrarVenta(
   const resumenItems = items.length > 0 ? items.map((i) => i.qty + "x " + i.name).join(", ") : null;
 
   if (aCredito) {
-    const concepto = ((resumenItems ?? textoDe(d.concept, 200)).trim() || "Venta a crédito").slice(0, 200);
+    // El resumen de productos no se corta en 200 como el concepto escrito a
+    // mano: un fiado de diez productos pasaba de largo y el ultimo quedaba a
+    // medias ("5x Chifle picante media"). Debt.concept no tiene tope.
+    const concepto = (resumenItems ?? textoDe(d.concept, 200)).trim().slice(0, 2000) || "Venta a crédito";
     let deuda;
     try {
       // La deuda y el descuento de stock van juntos, igual que en una venta.

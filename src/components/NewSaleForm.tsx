@@ -335,6 +335,7 @@ export function NewSaleForm({
   marcaGratis = false,
   esDueno = true,
   ordenCompartido,
+  acomoda = false,
   papelera = false,
   conHora = false,
 }: {
@@ -384,11 +385,13 @@ export function NewSaleForm({
   esDueno?: boolean;
   /**
    * El orden guardado en el servidor, por categoria, igual en todos los
-   * telefonos (Chopo Snacks). Con esto no se usa el del telefono y solo el
-   * dueño lo cambia.
+   * telefonos (Chopo Snacks). Con esto no se usa el del telefono y solo lo
+   * cambia quien tenga `acomoda`.
    */
   ordenCompartido?: Record<string, string[]>;
-  /** El dueño oculta un producto de Ventas soltandolo en una papelera. */
+  /** Quien puede cambiar el orden compartido: el dueño o la administradora. */
+  acomoda?: boolean;
+  /** Ocultar un producto de Ventas soltandolo en una papelera (solo a quien acomoda). */
   papelera?: boolean;
   /** El recibo lleva la hora de la venta al lado de la fecha. */
   conHora?: boolean;
@@ -601,9 +604,9 @@ export function NewSaleForm({
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 16 } })
   );
-  // Con el orden compartido solo el dueño acomoda: lo que mueva un empleado
-  // le cambiaria la pantalla a todos.
-  const puedeMover = (ordenCompartido ? esDueno : !!claveOrden) && !busqueda.trim();
+  // Con el orden compartido solo acomoda el dueño o la administradora: lo que
+  // mueva un empleado le cambiaria la pantalla a todos.
+  const puedeMover = (ordenCompartido ? acomoda : !!claveOrden) && !busqueda.trim();
 
   /** Sube el orden de una categoria; si el servidor no lo guarda, vuelve el de antes. */
   function compartirOrden(ids: string[], deSiempre: boolean, antes: Record<string, string[]>) {
@@ -1190,7 +1193,7 @@ export function NewSaleForm({
             <p className="flex items-center gap-1.5 text-[11px] text-subtle">
               <Icon name="grip" className="h-3.5 w-3.5 shrink-0" />
               Para acomodarlos a tu gusto: deja el dedo sobre un producto un momento y arrástralo.
-              {papelera && esDueno && " Para ocultar uno, suéltalo en la papelera que aparece abajo."}
+              {papelera && " Para ocultar uno, suéltalo en la papelera que aparece abajo."}
             </p>
           )}
           {ocultoReciente && (
@@ -1211,10 +1214,10 @@ export function NewSaleForm({
               <p className="mb-1.5 text-[11px] text-subtle">{category}</p>
               <DndContext
                 sensors={sensoresOrden}
-                collisionDetection={papelera && esDueno ? conPapelera : closestCenter}
+                collisionDetection={papelera ? conPapelera : closestCenter}
                 // Con la papelera abajo, la pagina solo se desplaza sola muy
                 // pegado al borde: si no, se correria con el dedo encima de ella.
-                autoScroll={papelera && esDueno ? { threshold: { x: 0, y: 0.08 } } : undefined}
+                autoScroll={papelera ? { threshold: { x: 0, y: 0.08 } } : undefined}
                 onDragStart={() => setArrastrando(category)}
                 onDragCancel={() => setArrastrando(null)}
                 onDragEnd={(e) =>
@@ -1225,7 +1228,7 @@ export function NewSaleForm({
                   )
                 }
               >
-              {papelera && esDueno && arrastrando === category && <Papelera />}
+              {papelera && arrastrando === category && <Papelera />}
               <SortableContext
                 items={enOrden(category, list).flatMap((x) => (x ? [x.id] : []))}
                 strategy={rectSortingStrategy}

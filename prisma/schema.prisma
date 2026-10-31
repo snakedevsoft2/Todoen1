@@ -250,6 +250,10 @@ model User {
   suppliers          Supplier[]
   debts              Debt[]
   debtPayments       DebtPayment[]
+  payableSuppliers   PayableSupplier[]
+  payableBills       PayableBill[]
+  payableItems       PayableItem[]
+  payablePayments    PayablePayment[]
   orderItems         OrderItem[]
   saleItems          SaleItem[]
   workspaces         WorkspaceConfig[]
@@ -472,6 +476,90 @@ model Supplier {
   moves    StockMove[]
 
   @@index([userId, active])
+}
+
+/// Cuentas por pagar (lo pidio Chopo Snacks, ver lib/por-pagar.ts): a quien se
+/// le compra, que se le compro y cuanto se le ha pagado. Va aparte de Supplier a
+/// proposito: esto lo ve una sola persona del negocio, y Proveedores lo ve el dueño.
+model PayableSupplier {
+  id       String  @id @default(cuid())
+  userId   String
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name     String
+  phone    String?
+  notes    String?
+  /// Lugar en la lista de botones, como en la hoja de Excel. Los nuevos van al final.
+  position Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bills PayableBill[]
+
+  @@index([userId])
+}
+
+/// Una compra (factura) a un proveedor. El total sale de sus renglones y lo que
+/// falta, de restarle los pagos: no se guardan, asi no pueden quedar descuadrados.
+model PayableBill {
+  id         String          @id @default(cuid())
+  userId     String
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  supplierId String
+  supplier   PayableSupplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  /// "YYYY-MM-DD", el dia de la factura.
+  day        String
+  /// El numero de la factura del proveedor, si lo tiene.
+  document   String?
+  notes      String?
+  /// IVA que se le suma a los renglones (15 en Ecuador). 0 si la factura no lo lleva.
+  taxPct     Decimal         @default(0) @db.Decimal(5, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items    PayableItem[]
+  payments PayablePayment[]
+
+  @@index([userId, supplierId])
+}
+
+/// Un renglon de la compra. Cantidades y precios con cuatro decimales: los
+/// proveedores cobran a 1,5217 o a 0,0284 la unidad.
+model PayableItem {
+  id          String      @id @default(cuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  billId      String
+  bill        PayableBill @relation(fields: [billId], references: [id], onDelete: Cascade)
+  position    Int         @default(0)
+  description String
+  qty         Decimal     @db.Decimal(14, 4)
+  unitPrice   Decimal     @db.Decimal(14, 4)
+  discount    Decimal     @default(0) @db.Decimal(14, 4)
+  /// A como se revende, para sacar la ganancia. Nulo si no se lleva.
+  salePrice   Decimal?    @db.Decimal(14, 4)
+
+  @@index([userId])
+  @@index([billId])
+}
+
+/// Lo que se le pago a una compra: todo de una vez o por abonos.
+model PayablePayment {
+  id     String      @id @default(cuid())
+  userId String
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  billId String
+  bill   PayableBill @relation(fields: [billId], references: [id], onDelete: Cascade)
+  amount Decimal     @db.Decimal(14, 4)
+  /// "YYYY-MM-DD", el dia en que se pago.
+  day    String
+  notes  String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([billId])
 }
 
 /// Persona que atiende en el negocio (barberos). Puede tener su propio usuario

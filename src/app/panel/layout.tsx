@@ -5,7 +5,8 @@ import { SUGERENCIAS_IA } from "@/lib/sugerencias-ia";
 import { AsistenteFlotante } from "@/components/AsistenteFlotante";
 import { requireSession } from "@/lib/auth";
 import { BUSINESS_LABEL, logoUrl, publicPath } from "@/lib/nav";
-import { menuAgrupado, menuDe, modulosDe } from "@/lib/modules";
+import { GRUPO_LABEL, menuAgrupado, menuDe, modulosDe, type NavGroup } from "@/lib/modules";
+import { MENU_ADMIN_CHOPO, esAdminDeChopo } from "@/lib/chopo";
 import { etiquetaDeRol, fotoPerfil } from "@/lib/staff";
 import {
   MENU_EMPLEADO_ASISTENCIA,
@@ -49,10 +50,29 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   // del apartado y nunca decida el nombre de lo que se anota.
   const rutas = Object.fromEntries(modulos.map((m) => [m.href, m.key]));
 
-  const nav = empleado ? MENU_EMPLEADO_ASISTENCIA : lavador ? MENU_LAVADOR : menuDe(modulos);
+  let nav = empleado ? MENU_EMPLEADO_ASISTENCIA : lavador ? MENU_LAVADOR : menuDe(modulos);
   // Agrupado por categoria solo cuando hay de donde armar categorias: el menu
   // fijo del empleado de asistencia y el del lavador son cortos y no lo necesitan.
-  const navGroups = empleado || lavador ? undefined : menuAgrupado(modulos);
+  let navGroups = empleado || lavador ? undefined : menuAgrupado(modulos);
+
+  // Lo de la administradora de Chopo Snacks (Cuentas por pagar, Mejores
+  // clientes) no son apartados del catalogo: si lo fueran, cualquier negocio
+  // del mismo tipo los podria prender. Ver lib/chopo.ts.
+  if (navGroups && esAdminDeChopo(user, staff)) {
+    for (const { grupo, ...item } of MENU_ADMIN_CHOPO) {
+      nav = [...nav, item];
+      const grupos: NavGroup[] = navGroups ?? [];
+      const suyo = grupos.find((g) => g.key === grupo);
+      navGroups = suyo
+        ? grupos.map((g) => (g === suyo ? { ...g, items: [...g.items, item] } : g))
+        : [
+            ...grupos.filter((g) => g.pin !== "abajo"),
+            { key: grupo, label: GRUPO_LABEL[grupo], pin: null, items: [item] },
+            ...grupos.filter((g) => g.pin === "abajo"),
+          ];
+    }
+  }
+
   const logo = logoUrl(user.slug, user.hasLogo, user.updatedAt);
   const foto = fotoPerfil(staff);
 
