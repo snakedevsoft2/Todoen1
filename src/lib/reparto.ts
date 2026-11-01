@@ -170,6 +170,36 @@ export function categoriaDePago(concepto: string, personas: string[] = []): Cate
 /** El nombre como llave: sin tildes, sin mayusculas, sin espacios de sobra. */
 export const claveDe = normalizar;
 
+/**
+ * El numero de documento como llave; "" si no trae ("SN", "S/N", "s.n."). La
+ * usan la pantalla y el importador: si cada uno tuviera la suya, un cobro
+ * "s/n" se aplicaria distinto segun por donde entro.
+ */
+export function claveDocumento(documento: string | null | undefined): string {
+  const k = normalizar(documento ?? "");
+  return k === "sn" || k === "s n" ? "" : k;
+}
+
+/**
+ * A que credito del cliente va un cobro escrito en la planilla: al que se
+ * escogio de la lista; si no, al de su mismo documento (primero el que aun
+ * debe); si no trae documento y el cliente debe uno solo, a ese. Nulo: queda
+ * como abono a la cuenta del cliente, para revisar.
+ */
+export function creditoDelCobro<T extends { id: string; documento: string | null; saldo: number }>(
+  delCliente: T[],
+  cobro: { creditoId?: string | null; documento?: string | null }
+): T | null {
+  const doc = claveDocumento(cobro.documento);
+  const conSaldo = delCliente.filter((x) => x.saldo > 0);
+  const mismoDoc = (x: T) => claveDocumento(x.documento) === doc;
+  return (
+    (cobro.creditoId ? delCliente.find((x) => x.id === cobro.creditoId) : undefined) ??
+    (doc ? conSaldo.find(mismoDoc) ?? delCliente.find(mismoDoc) : conSaldo.length === 1 ? conSaldo[0] : undefined) ??
+    null
+  );
+}
+
 /** Dias desde la fecha del documento hasta hoy ("YYYY-MM-DD"). */
 export function antiguedad(desde: string, hoy: string): number {
   const a = Date.parse(desde + "T00:00:00Z");

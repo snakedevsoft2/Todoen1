@@ -165,12 +165,38 @@ try {
   ok(nueva?.lineas[0]?.carga === 79 && nueva.lineas[0].cargaDetalle === "40+39", "la carga se guarda con su detalle (40+39)");
   ok(nueva?.creditos[0]?.valor === 500 && nueva.cobros[0]?.valor === 1000 && nueva.cobros[0]?.creditoId, "crédito y cobro guardados, el cobro aplicado a su documento");
   ok(nueva?.pagos[0]?.categoria === "almuerzo" && nueva.entregado === 2210 && nueva.entregadoDetalle === "20+2.10", "gasto y entrega con su detalle");
+  const estado = page.locator('section[data-seccion="estado"]');
   await page.getByRole("button", { name: "Cerrar planilla" }).click();
   const cerro = await page.getByText("Planilla cerrada.").waitFor({ timeout: 15000 }).then(() => true, () => false);
-  if (!cerro) console.log("      dice: " + (await page.locator('section[data-seccion="estado"]').innerText()).replace(/\s+/g, " "));
+  if (!cerro) console.log("      dice: " + (await estado.innerText()).replace(/\s+/g, " "));
+  // Sin recargar: cada mensaje es el de lo ultimo que se pidio.
+  await estado.locator('input[name="motivo"]').first().fill("Prueba: mensaje de reabrir");
+  await estado.getByRole("button", { name: "Reabrir" }).click();
+  const reabrio = await estado.getByText("Planilla reabierta.").waitFor({ timeout: 15000 }).then(() => true, () => false);
+  ok(reabrio, "al reabrir dice «Planilla reabierta.», no el mensaje de antes", (await estado.innerText()).replace(/\s+/g, " "));
+  await page.getByRole("button", { name: "Cerrar planilla" }).click();
+  await page.getByText("Planilla cerrada.").waitFor({ timeout: 15000 });
   await page.reload({ waitUntil: "networkidle" });
   ok(/cerrada/i.test(await page.locator("[data-estado-planilla]").innerText()), "se cierra");
   ok(await page.locator('input[aria-label="Carga CHIFLE SAL LARGO MEDIANO"]').isDisabled(), "cerrada, ya no se puede escribir");
+
+  // Una planilla de octubre con un credito que se cobro en otro dia: anularla
+  // dejaria ese cobro sin documento.
+  const cobrados = await db.repartoCobro.findMany({
+    where: { userId: chopo.id, credito: { planillaId: { not: null } } },
+    select: { planillaId: true, credito: { select: { planillaId: true } } },
+  });
+  const conCobroAjeno = cobrados.find((c) => c.credito.planillaId !== c.planillaId)?.credito.planillaId;
+  if (conCobroAjeno) {
+    await page.goto(BASE + "/panel/reparto/" + conCobroAjeno, { waitUntil: "networkidle" });
+    const anular = page.locator('section[data-seccion="estado"] details');
+    await anular.locator("summary").click();
+    await anular.locator('input[name="motivo"]').fill("Prueba: anular");
+    await anular.getByRole("button", { name: "Anular" }).click();
+    const bloqueo = await page.getByText(/No se puede anular: el crédito/).waitFor({ timeout: 15000 }).then(() => true, () => false);
+    const sigue = await db.repartoPlanilla.findUnique({ where: { id: conCobroAjeno }, select: { estado: true } });
+    ok(bloqueo && sigue?.estado !== "ANULADA", "no deja anular una planilla cuyo crédito ya se cobró en otra");
+  } else ok(false, "hay una planilla con un crédito cobrado en otro día");
 
   console.log("\n5. Cartera calculada");
   await page.goto(BASE + "/panel/reparto/cartera", { waitUntil: "networkidle" });

@@ -65,7 +65,7 @@ export default async function ClientesRepartoPage({ searchParams }: { searchPara
                       </span>
                     </summary>
                     <div className="mt-2 rounded-xl border border-line bg-surface p-3">
-                      <ClienteForm cliente={{ id: c.id, name: c.name, staffId: c.staffId, notes: null }} equipo={equipo} />
+                      <ClienteForm cliente={{ id: c.id, name: c.name, staffId: c.staffId, notes: c.notes }} equipo={equipo} />
                     </div>
                   </details>
                 </li>

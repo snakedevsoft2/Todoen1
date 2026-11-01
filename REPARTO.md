@@ -16,7 +16,7 @@ Reemplaza el Excel `2026 VENTAS REPARTO OCTUBRE-NOVIEMBRE.xlsx`. Pestañas en **
 | Pestaña | Qué hace |
 |---|---|
 | Planillas | Abrir la planilla de un vendedor en un día (si ya existe, abre esa) y ver las del mes con su cuadre. |
-| (planilla) | Salida y regreso de productos, ventas a crédito, cobros de cartera, gastos, entrega de efectivo y el cuadre en vivo. Guardar, cerrar (bloquea), reabrir (pide motivo y queda en el historial), anular (no cuenta en nada) o borrar (solo abierta). |
+| (planilla) | Salida y regreso de productos, ventas a crédito, cobros de cartera, gastos, entrega de efectivo y el cuadre en vivo. Guardar, cerrar (bloquea), reabrir (pide motivo y queda en el historial), anular (no cuenta en nada; no se puede si uno de sus créditos ya se cobró en otra planilla) o borrar (solo abierta). |
 | Cartera | Lo que debe cada cliente, calculado de créditos y cobros, con antigüedad; cobros que no encontraron su documento. Excel. |
 | Reportes | Consolidado por vendedor y general, ventas por producto, faltantes/sobrantes y gastos por categoría, por rango de fechas. Excel e imprimir/PDF. |
 | Productos | Catálogo con código, precio vigente e historial de precios; enlace opcional a su producto de Inventario. |
@@ -64,7 +64,13 @@ catálogo con códigos P001… e historial de precios está en `prisma/datos/rep
 
 - **Ensayo primero**: dice qué crearía, si todo cuadra, los clientes parecidos y las diferencias de cartera.
 - **Se puede repetir**: una planilla ya importada (mismo vendedor, fecha y `origenRef` "HOJA#fecha") se salta.
-- **Todo o nada**: al final cada planilla se recalcula desde la base; si una no da lo del Excel, no se guarda nada.
+  Los cobros de lo nuevo se aplican a la cartera que ya lleva la app (lo importado antes y lo escrito a mano).
+- **Un Excel de otro mes**: la lista "CUENTAS POR COBRAR" de su primer día no se carga como saldo inicial
+  si ese vendedor ya tiene planillas antes de ese día (esos documentos ya están en la app); se avisa. Las
+  "CUENTAS ATRASADAS" se cargan una sola vez.
+- **Todo o nada**: se escribe en lote en una transacción; al final cada planilla se recalcula desde la
+  base y, si una no da lo del Excel, no se guarda nada. El ensayo arma el mismo plan, así que lo que
+  haría fallar la importación (un crédito sin cliente, un producto repetido a dos precios) ya lo dice.
 - **Vendedores**: cada hoja es su vendedor (JAVIER → Javier, HENRY → Henry, JIMMY → Jimmy); la hoja
   SÁBADO es de quien dice el bloque (LUIS → LUIS ANDRIMBA). En la pantalla se escogen; en el comando,
   `--vendedor "LUIS=Luis Andrimba"`.

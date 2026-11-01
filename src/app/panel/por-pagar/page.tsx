@@ -25,6 +25,9 @@ import { CompraBoton, ImportarPorPagar, PagosCompra, ProveedorForm, type Sugeren
 import { borrarCompraAction, borrarProveedorAction } from "@/actions/por-pagar";
 
 export const dynamic = "force-dynamic";
+// "Importar desde Excel" corre en la accion de esta pagina, una consulta por
+// compra: con la base lejos no cabe en el tiempo por defecto de Vercel.
+export const maxDuration = 60;
 
 /**
  * Cuentas por pagar a proveedores (ver lib/por-pagar.ts).

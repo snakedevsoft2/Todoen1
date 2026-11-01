@@ -4,6 +4,9 @@ import { Card } from "@/components/ui";
 import { ImportarReparto } from "@/components/reparto/ImportarReparto";
 
 export const dynamic = "force-dynamic";
+// La importacion corre en la accion de esta pagina: un mes entero no cabe en
+// el tiempo por defecto de Vercel. 60 s es lo que admite cualquier plan.
+export const maxDuration = 60;
 
 /** Subir el Excel de reparto (el de octubre, o los que vengan con el mismo formato). */
 export default async function ImportarRepartoPage() {

@@ -46,6 +46,7 @@ export type ClienteCartera = {
   id: string;
   name: string;
   staffId: string | null;
+  notes: string | null;
   /** Lo que debe: creditos menos todos sus cobros. */
   saldo: number;
   documentos: DocumentoCartera[];
@@ -62,7 +63,7 @@ export type ClienteCartera = {
 export async function carteraDe(userId: string, hoy: string): Promise<ClienteCartera[]> {
   const vale = { OR: [{ planillaId: null }, { planilla: { estado: { not: "ANULADA" as const } } }] };
   const [clientes, creditos, cobros] = await Promise.all([
-    db.repartoCliente.findMany({ where: { userId }, select: { id: true, name: true, staffId: true } }),
+    db.repartoCliente.findMany({ where: { userId }, select: { id: true, name: true, staffId: true, notes: true } }),
     db.repartoCredito.findMany({
       where: { userId, ...vale },
       select: { id: true, clienteId: true, day: true, documento: true, factura: true, valor: true, notes: true, planillaId: true },
@@ -74,11 +75,14 @@ export async function carteraDe(userId: string, hoy: string): Promise<ClienteCar
     }),
   ]);
 
+  // Un cobro cuyo documento ya no cuenta (su planilla se anulo) queda como
+  // abono suelto: la plata se recibio y no puede desaparecer de la cartera.
+  const cuentan = new Set(creditos.map((c) => c.id));
   const cobradoPorCredito = new Map<string, number>();
   const sueltos = new Map<string, number>();
   const ultimo = new Map<string, string>();
   for (const c of cobros) {
-    if (c.creditoId) cobradoPorCredito.set(c.creditoId, (cobradoPorCredito.get(c.creditoId) ?? 0) + c.valor);
+    if (c.creditoId && cuentan.has(c.creditoId)) cobradoPorCredito.set(c.creditoId, (cobradoPorCredito.get(c.creditoId) ?? 0) + c.valor);
     else if (c.clienteId) sueltos.set(c.clienteId, (sueltos.get(c.clienteId) ?? 0) + c.valor);
     if (c.clienteId && (ultimo.get(c.clienteId) ?? "") < c.planilla.day) ultimo.set(c.clienteId, c.planilla.day);
   }
@@ -116,6 +120,29 @@ export async function carteraDe(userId: string, hoy: string): Promise<ClienteCar
       };
     })
     .sort((a, b) => b.saldo - a.saldo);
+}
+
+/**
+ * Por que no se puede anular una planilla, o nulo si se puede: uno de sus
+ * creditos ya se cobro en otra planilla que cuenta. Anularla quitaria la deuda
+ * y ese cobro, que si entro a caja, quedaria sin documento.
+ */
+export async function porQueNoSeAnula(userId: string, planillaId: string): Promise<string | null> {
+  const cobro = await db.repartoCobro.findFirst({
+    where: { userId, planillaId: { not: planillaId }, planilla: { estado: { not: "ANULADA" } }, credito: { planillaId } },
+    select: {
+      credito: { select: { documento: true, cliente: { select: { name: true } } } },
+      planilla: { select: { day: true, staff: { select: { name: true } } } },
+    },
+    orderBy: { planilla: { day: "asc" } },
+  });
+  if (!cobro?.credito) return null;
+  const doc = cobro.credito.documento ? " " + cobro.credito.documento : "";
+  return (
+    "No se puede anular: el crédito" + doc + " de " + cobro.credito.cliente.name + " ya se cobró en la planilla de " +
+    cobro.planilla.staff.name + " del " + cobro.planilla.day.split("-").reverse().join("/") +
+    ". Quita o corrige ese cobro primero."
+  );
 }
 
 export type FilaProducto = {

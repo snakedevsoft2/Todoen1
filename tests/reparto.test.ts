@@ -1,16 +1,27 @@
 import { existsSync, readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it } from "vitest";
+import { PrismaClient } from "@prisma/client";
 import {
   calcularCuadre,
   categoriaDePago,
+  claveDocumento,
+  creditoDelCobro,
   evaluarSuma,
   semaforoDe,
   totalLineaDe,
   vendidaDe,
   type LineaReparto,
 } from "../src/lib/reparto";
-import type { LibroReparto } from "../src/lib/reparto-excel";
-import { claveVendedor, posiblesDuplicados, saldoInicialDeHoja, sugerirVendedor } from "../src/lib/reparto-importar";
+import type { LibroReparto, LineaExcel, MovimientoExcel, PlanillaExcel } from "../src/lib/reparto-excel";
+import {
+  claveVendedor,
+  importarReparto,
+  juntarLineas,
+  posiblesDuplicados,
+  saldoInicialDeHoja,
+  sugerirVendedor,
+} from "../src/lib/reparto-importar";
+import { carteraDe, porQueNoSeAnula } from "../src/lib/reparto-datos";
 
 /**
  * Reparto de Chopo Snacks: las cuentas tienen que dar exactamente lo mismo que
@@ -193,5 +204,188 @@ describe("lo que se escribe a mano", () => {
     expect(categoriaDePago("LUIS 450", equipo)).toBe("entrega_persona");
     expect(categoriaDePago("HENRY", equipo)).toBe("entrega_persona");
     expect(categoriaDePago("FUNDAS")).toBe("otro");
+  });
+});
+
+describe("a qué documento va un cobro", () => {
+  it("S/N, s/n, SN y s.n. son «sin documento», en la pantalla y en el importador", () => {
+    for (const sn of ["S/N", "s/n", "SN", "s.n.", " sn "]) expect(claveDocumento(sn), sn).toBe("");
+    expect(claveDocumento("1131")).toBe("1131");
+    expect(claveDocumento(null)).toBe("");
+  });
+
+  it("un cobro «s/n» va al único documento que debe el cliente", () => {
+    const debe = [{ id: "a", documento: "1131", saldo: 1000 }];
+    expect(creditoDelCobro(debe, { documento: "s/n" })?.id).toBe("a");
+    expect(creditoDelCobro(debe, { documento: "S/N" })?.id).toBe("a");
+    expect(creditoDelCobro(debe, { documento: "1131" })?.id).toBe("a");
+    expect(creditoDelCobro(debe, { documento: "999" })).toBeNull();
+  });
+
+  it("si debe dos, un cobro sin documento queda para revisar", () => {
+    const debe = [
+      { id: "a", documento: "1131", saldo: 1000 },
+      { id: "b", documento: "1140", saldo: 500 },
+    ];
+    expect(creditoDelCobro(debe, { documento: "s/n" })).toBeNull();
+    expect(creditoDelCobro(debe, { documento: "s/n", creditoId: "b" })?.id).toBe("b");
+  });
+});
+
+const lineaExcel = (producto: string, l: Partial<LineaExcel>): LineaExcel => ({
+  producto,
+  carga: 0,
+  cargaDetalle: null,
+  devolucion: 0,
+  precio: 0,
+  base12: 0,
+  iva: 0,
+  unidVendCant: 0,
+  unidVendValor: 0,
+  docDescuento: null,
+  dctoPrecio: 0,
+  dctoPromocion: 0,
+  caducadoCant: 0,
+  devolUnidadesValor: 0,
+  totalExcel: 0,
+  ...l,
+});
+
+describe("un producto dos veces en el mismo bloque", () => {
+  it("al mismo precio se junta todo, descuentos incluidos, y da lo mismo", () => {
+    const a = lineaExcel("PAPA GRANDE", { carga: 40, devolucion: 10, precio: 80, dctoPrecio: 100 });
+    const b = lineaExcel("papa grande", { carga: 30, precio: 80, dctoPromocion: 50, unidVendValor: 25, cargaDetalle: "20+10" });
+    const r = juntarLineas([a, b]);
+    expect(r.conflictos).toEqual([]);
+    expect(r.repetidos).toEqual(["papa grande"]);
+    expect(r.lineas).toHaveLength(1);
+    expect(r.lineas[0]).toMatchObject({ carga: 70, cargaDetalle: "40+20+10", dctoPrecio: 100, dctoPromocion: 50, unidVendValor: 25 });
+    expect(totalLineaDe(r.lineas[0])).toBe(totalLineaDe(a) + totalLineaDe(b));
+  });
+
+  it("a precios distintos no hay una línea que dé lo mismo: se pide corregir el Excel", () => {
+    const r = juntarLineas([lineaExcel("PAPA GRANDE", { carga: 10, precio: 80 }), lineaExcel("PAPA GRANDE", { carga: 10, precio: 75 })]);
+    expect(r.conflictos).toEqual(["PAPA GRANDE"]);
+  });
+});
+
+describe("importar y la cartera, en la base", () => {
+  const db = new PrismaClient();
+  const S = "reparto-" + Date.now();
+
+  afterAll(async () => {
+    await db.user.deleteMany({ where: { slug: { contains: S } } });
+    await db.$disconnect();
+  });
+
+  async function cuentaChopo(n: string) {
+    const u = await db.user.create({
+      data: {
+        email: n + "-" + S + "@test.local",
+        passwordHash: "x",
+        ownerName: "Juliana Intriago",
+        businessName: "Chopo Snacks",
+        businessType: "OTRO",
+        slug: n + "-" + S,
+        timezone: "America/Guayaquil",
+        staff: { create: [{ name: "Juliana Intriago", role: "DUENO" }, { name: "Javier", role: "VENDEDOR", username: "javier." + n + "." + S }] },
+      },
+      include: { staff: true },
+    });
+    return { userId: u.id, javier: u.staff.find((s) => s.name === "Javier")!.id };
+  }
+
+  const mov = (cliente: string | null, documento: string | null, valor: number): MovimientoExcel => ({ fecha: null, documento, cliente, valor, factura: null });
+  const cobro = (cliente: string, documento: string, valor: number) => ({ ...mov(cliente, documento, valor), tipo: "COBRO" as const });
+
+  /** Un dia de JAVIER, con lo que el Excel diria que da. */
+  function bloque(fecha: string, datos: Partial<Omit<PlanillaExcel, "esperado">>): PlanillaExcel {
+    const p = {
+      hoja: "JAVIER",
+      ref: "JAVIER#" + fecha,
+      fecha,
+      etiqueta: "JAVIER",
+      acompanante: null,
+      otrosDescuentos: 0,
+      entregado: 0,
+      entregadoDetalle: null,
+      lineas: [lineaExcel("PAPA GRANDE NAT", { carga: 20, precio: 80 })],
+      creditos: [],
+      cobros: [],
+      pagos: [],
+      cartera: [],
+      ...datos,
+    };
+    const c = calcularCuadre(p);
+    return {
+      ...p,
+      esperado: { ventas: c.ventasDiaria, credito: c.credito, contado: c.contado, cartera: c.cartera, recibido: c.recibido, pagos: c.pagos, caja: c.caja, entregado: c.entregado, diferencia: c.diferencia },
+    };
+  }
+
+  const importar = (cuenta: { userId: string; javier: string }, planillas: PlanillaExcel[], aplicar = true) =>
+    importarReparto(db, { userId: cuenta.userId, libro: { planillas, atrasadas: [], avisos: [] }, catalogo: [], vendedores: { JAVIER: cuenta.javier }, aplicar });
+
+  const rosaDe = async (userId: string) => (await carteraDe(userId, "2026-11-30")).find((c) => c.name === "TIENDA ROSA")!;
+
+  const credito1131 = bloque("2026-10-05", { creditos: [mov("TIENDA ROSA", "1131", 1000)] });
+  const cobro1131 = bloque("2026-10-06", { cobros: [cobro("TIENDA ROSA", "1131", 400)] });
+
+  it("reimportar el libro con más días: el cobro va al documento que se importó antes", async () => {
+    const cuenta = await cuentaChopo("reimp");
+    expect((await importar(cuenta, [credito1131])).aplicado).toBe(true);
+
+    const r = await importar(cuenta, [credito1131, cobro1131]);
+    expect(r.planillas.map((p) => p.accion)).toEqual(["ya-estaba", "crear"]);
+    expect(r.cobrosSinDocumento).toBe(0);
+    const guardado = await db.repartoCobro.findFirstOrThrow({ where: { userId: cuenta.userId } });
+    expect(guardado.revisar).toBe(false);
+    expect(guardado.creditoId).not.toBeNull();
+    const rosa = await rosaDe(cuenta.userId);
+    expect(rosa.saldo).toBe(600);
+    expect(rosa.abonosSinDocumento).toBe(0);
+    expect(rosa.documentos.map((d) => d.saldo)).toEqual([600]);
+
+    // El libro del mes siguiente trae en su primer dia lo que se debe: ya esta
+    // en la app y no se vuelve a cargar como saldo inicial.
+    const noviembre = bloque("2026-11-02", { cartera: [mov("TIENDA ROSA", "1131", 500)], cobros: [cobro("TIENDA ROSA", "1131", 100)] });
+    const ensayo = await importar(cuenta, [noviembre], false);
+    expect(ensayo.saldosIniciales).toBe(0);
+    expect(ensayo.avisos.some((a) => a.includes("ya está en la app"))).toBe(true);
+    expect(ensayo.carteraDistinta).toEqual([]);
+    expect((await importar(cuenta, [noviembre])).aplicado).toBe(true);
+    const despues = await rosaDe(cuenta.userId);
+    expect(despues.saldo).toBe(500);
+    expect(despues.documentos).toHaveLength(1);
+  });
+
+  it("el ensayo ya dice que un crédito no tiene cliente (antes fallaba al importar)", async () => {
+    const cuenta = await cuentaChopo("sincli");
+    const r = await importar(cuenta, [bloque("2026-10-05", { creditos: [mov(null, "77", 1250)] })], false);
+    expect(r.errores).toContain("JAVIER#2026-10-05: un crédito de 12.5 no dice de qué cliente es.");
+  });
+
+  it("no se anula una planilla cuyo crédito ya se cobró en otra; y si ya pasó, el cobro no desaparece", async () => {
+    const cuenta = await cuentaChopo("anular");
+    await importar(cuenta, [credito1131, cobro1131]);
+    const [dia1, dia2] = await db.repartoPlanilla.findMany({ where: { userId: cuenta.userId }, orderBy: { day: "asc" } });
+    expect(await porQueNoSeAnula(cuenta.userId, dia1.id)).toBe(
+      "No se puede anular: el crédito 1131 de TIENDA ROSA ya se cobró en la planilla de Javier del 06/10/2026. Quita o corrige ese cobro primero."
+    );
+    expect(await porQueNoSeAnula(cuenta.userId, dia2.id)).toBeNull();
+
+    // Una anulada de antes de este control: los 4,00 cobrados siguen en la cartera.
+    await db.repartoPlanilla.update({ where: { id: dia1.id }, data: { estado: "ANULADA" } });
+    const rosa = await rosaDe(cuenta.userId);
+    expect(rosa.documentos).toEqual([]);
+    expect(rosa.abonosSinDocumento).toBe(400);
+    expect(rosa.saldo).toBe(-400);
+  });
+
+  it("la cartera trae la nota del cliente, para no borrarla al editarlo", async () => {
+    const cuenta = await cuentaChopo("nota");
+    await importar(cuenta, [credito1131]);
+    await db.repartoCliente.updateMany({ where: { userId: cuenta.userId, nameKey: "tienda rosa" }, data: { notes: "cobrar solo los viernes" } });
+    expect((await rosaDe(cuenta.userId)).notes).toBe("cobrar solo los viernes");
   });
 });

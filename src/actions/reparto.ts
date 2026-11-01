@@ -1,13 +1,15 @@
 "use server";
 
+import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
-import { isValidDay, todayIn } from "@/lib/dates";
+import { dayIn, isValidDay, timeIn, todayIn } from "@/lib/dates";
 import { str, texto } from "@/lib/format";
 import { esAdminDeChopo } from "@/lib/chopo";
-import { aCentavos, categoriaDePago, claveDe, esCategoriaPago, esSuma, evaluarSuma } from "@/lib/reparto";
+import { aCentavos, categoriaDePago, claveDe, creditoDelCobro, esCategoriaPago, esSuma, evaluarSuma } from "@/lib/reparto";
+import { porQueNoSeAnula } from "@/lib/reparto-datos";
 import { FECHAS_CORREGIDAS, leerExcelReparto } from "@/lib/reparto-excel";
 import { claveVendedor, importarReparto, sugerirVendedor, type ProductoCatalogo, type ReporteImportacion } from "@/lib/reparto-importar";
 import catalogoExcel from "../../prisma/datos/reparto-catalogo.json";
@@ -97,11 +99,6 @@ function plataDe(t: string | undefined, que: string): number {
   if (!Number.isFinite(n) || n < 0) throw new Rechazo(que + ": revisa el valor (\"" + t + "\").");
   return aCentavos(n);
 }
-
-const docKey = (d: string | null | undefined) => {
-  const k = claveDe(d ?? "");
-  return k === "sn" ? "" : k;
-};
 
 /**
  * Guarda la planilla entera: productos, creditos, cobros, pagos y entrega.
@@ -217,69 +214,64 @@ export async function guardarPlanillaAction(pedido: PlanillaPedida): Promise<Rep
       notes: String(pedido.notes ?? "").trim().slice(0, 500) || null,
     };
 
-    await db.$transaction(async (tx) => {
-      for (const [k, name] of nuevosClientes) {
-        const c = await tx.repartoCliente.create({ data: { userId: user.id, name, nameKey: k, staffId: planilla.staffId }, select: { id: true } });
-        clienteId.set(k, c.id);
-      }
+    // En lote: una consulta por fila no alcanza con la base lejos (Vercel).
+    await db.$transaction(
+      async (tx) => {
+        const clientesNuevos = [...nuevosClientes].map(([k, name]) => ({ id: crypto.randomUUID(), userId: user.id, name, nameKey: k, staffId: planilla.staffId }));
+        await tx.repartoCliente.createMany({ data: clientesNuevos });
+        for (const c of clientesNuevos) clienteId.set(c.nameKey, c.id);
 
-      // Lineas: una por producto.
-      await tx.repartoLinea.deleteMany({ where: { planillaId: planilla.id, userId: user.id, productoId: { notIn: lineas.map((l) => l.productoId) } } });
-      for (const l of lineas) {
-        await tx.repartoLinea.upsert({
-          where: { planillaId_productoId: { planillaId: planilla.id, productoId: l.productoId } },
-          create: { userId: user.id, planillaId: planilla.id, ...l },
-          update: l,
-        });
-      }
+        // Lineas: una por producto. Nada las nombra, asi que se reescriben.
+        await tx.repartoLinea.deleteMany({ where: { planillaId: planilla.id, userId: user.id } });
+        await tx.repartoLinea.createMany({ data: lineas.map((l) => ({ userId: user.id, planillaId: planilla.id, ...l })) });
 
-      // Creditos: se corrigen en su sitio, porque los cobros de otros dias los nombran.
-      const quedan = creditos.flatMap((c) => (c.id ? [c.id] : []));
-      await tx.repartoCredito.deleteMany({ where: { planillaId: planilla.id, userId: user.id, id: { notIn: quedan } } });
-      for (const [i, c] of creditos.entries()) {
-        const data = { clienteId: clienteId.get(c.clienteKey)!, day: c.day, documento: c.documento, factura: c.factura, valor: c.valor, position: i };
-        if (c.id) await tx.repartoCredito.update({ where: { id: c.id }, data });
-        else c.id = (await tx.repartoCredito.create({ data: { userId: user.id, planillaId: planilla.id, ...data }, select: { id: true } })).id;
-      }
-
-      // Cobros: a su documento. El que no se encuentra queda como abono a la
-      // cuenta del cliente y se marca para revisar.
-      await tx.repartoCobro.deleteMany({ where: { planillaId: planilla.id, userId: user.id } });
-      const negativos: string[] = [];
-      for (const [i, c] of cobros.entries()) {
-        const idCliente = c.clienteKey ? clienteId.get(c.clienteKey)! : null;
-        let credito: { id: string; valor: number; documento: string | null } | null = null;
-        if (c.tipo === "COBRO" && idCliente) {
-          // Lo que debe el cliente, documento por documento, con lo ya cobrado
-          // (incluidos los cobros de esta misma planilla que ya se guardaron).
-          const delCliente = (
-            await tx.repartoCredito.findMany({
-              where: { userId: user.id, clienteId: idCliente, OR: [{ planillaId: null }, { planilla: { estado: { not: "ANULADA" } } }] },
-              select: {
-                id: true,
-                valor: true,
-                documento: true,
-                day: true,
-                cobros: { where: { planilla: { estado: { not: "ANULADA" } } }, select: { valor: true } },
-              },
-              orderBy: { day: "asc" },
-            })
-          ).map((x) => ({ ...x, saldo: x.valor - x.cobros.reduce((s, y) => s + y.valor, 0) }));
-          const conSaldo = delCliente.filter((x) => x.saldo > 0);
-          const doc = docKey(c.documento);
-          const elegido =
-            (c.creditoId ? delCliente.find((x) => x.id === c.creditoId) : undefined) ??
-            (doc ? delCliente.find((x) => docKey(x.documento) === doc && x.saldo > 0) ?? delCliente.find((x) => docKey(x.documento) === doc) : undefined) ??
-            (!doc && conSaldo.length === 1 ? conSaldo[0] : undefined);
-          if (elegido) {
-            credito = elegido;
-            if (c.valor > elegido.saldo) {
-              negativos.push("el cobro " + (i + 1) + " deja el documento " + (elegido.documento ?? "") + " en negativo");
-            }
+        // Creditos: se corrigen en su sitio, porque los cobros de otros dias los nombran.
+        const quedan = creditos.flatMap((c) => (c.id ? [c.id] : []));
+        await tx.repartoCredito.deleteMany({ where: { planillaId: planilla.id, userId: user.id, id: { notIn: quedan } } });
+        const creditosNuevos: Prisma.RepartoCreditoCreateManyInput[] = [];
+        for (const [i, c] of creditos.entries()) {
+          const data = { clienteId: clienteId.get(c.clienteKey)!, day: c.day, documento: c.documento, factura: c.factura, valor: c.valor, position: i };
+          const viejo = c.id ? planilla.creditos.find((x) => x.id === c.id) : undefined;
+          if (!viejo) {
+            c.id = crypto.randomUUID();
+            creditosNuevos.push({ id: c.id, userId: user.id, planillaId: planilla.id, ...data });
+          } else if ((Object.keys(data) as (keyof typeof data)[]).some((k) => viejo[k] !== data[k])) {
+            await tx.repartoCredito.update({ where: { id: viejo.id }, data });
           }
         }
-        await tx.repartoCobro.create({
-          data: {
+        await tx.repartoCredito.createMany({ data: creditosNuevos });
+
+        // Cobros: a su documento. El que no se encuentra queda como abono a la
+        // cuenta del cliente y se marca para revisar.
+        await tx.repartoCobro.deleteMany({ where: { planillaId: planilla.id, userId: user.id } });
+        // Lo que deben los clientes de estos cobros, documento por documento,
+        // con lo ya cobrado; los cobros de esta planilla se restan aqui mismo.
+        const idsClientes = [...new Set(cobros.flatMap((c) => (c.tipo === "COBRO" && c.clienteKey ? [clienteId.get(c.clienteKey)!] : [])))];
+        const deudas = (
+          idsClientes.length === 0
+            ? []
+            : await tx.repartoCredito.findMany({
+                where: { userId: user.id, clienteId: { in: idsClientes }, OR: [{ planillaId: null }, { planilla: { estado: { not: "ANULADA" } } }] },
+                select: {
+                  id: true,
+                  clienteId: true,
+                  valor: true,
+                  documento: true,
+                  cobros: { where: { planilla: { estado: { not: "ANULADA" } } }, select: { valor: true } },
+                },
+                orderBy: { day: "asc" },
+              })
+        ).map((x) => ({ ...x, saldo: x.valor - x.cobros.reduce((s, y) => s + y.valor, 0) }));
+        const negativos: string[] = [];
+        const filas = cobros.map((c, i) => {
+          const idCliente = c.clienteKey ? clienteId.get(c.clienteKey)! : null;
+          const credito = c.tipo === "COBRO" && idCliente ? creditoDelCobro(deudas.filter((x) => x.clienteId === idCliente), c) : null;
+          if (credito) {
+            if (c.valor > credito.saldo) negativos.push("el cobro " + (i + 1) + " deja el documento " + (credito.documento ?? "") + " en negativo");
+            credito.saldo -= c.valor;
+          }
+          if (c.tipo === "COBRO" && !credito) avisos.push("Cobro " + (i + 1) + ": no encontré el documento; quedó como abono a la cuenta del cliente.");
+          return {
             userId: user.id,
             planillaId: planilla.id,
             clienteId: idCliente,
@@ -291,19 +283,20 @@ export async function guardarPlanillaAction(pedido: PlanillaPedida): Promise<Rep
             tipo: c.tipo,
             revisar: c.tipo === "COBRO" && !credito,
             position: i,
-          },
+          };
         });
-        if (c.tipo === "COBRO" && !credito) avisos.push("Cobro " + (i + 1) + ": no encontré el documento; quedó como abono a la cuenta del cliente.");
-      }
-      if (negativos.length && !pedido.confirmado) {
-        throw new Rechazo("CONFIRMAR:" + negativos.join("; ") + ".");
-      }
+        if (negativos.length && !pedido.confirmado) {
+          throw new Rechazo("CONFIRMAR:" + negativos.join("; ") + ".");
+        }
+        await tx.repartoCobro.createMany({ data: filas });
 
-      await tx.repartoPago.deleteMany({ where: { planillaId: planilla.id, userId: user.id } });
-      await tx.repartoPago.createMany({ data: pagos.map((p, i) => ({ userId: user.id, planillaId: planilla.id, ...p, position: i })) });
+        await tx.repartoPago.deleteMany({ where: { planillaId: planilla.id, userId: user.id } });
+        await tx.repartoPago.createMany({ data: pagos.map((p, i) => ({ userId: user.id, planillaId: planilla.id, ...p, position: i })) });
 
-      await tx.repartoPlanilla.update({ where: { id: planilla.id }, data: datos });
-    });
+        await tx.repartoPlanilla.update({ where: { id: planilla.id }, data: datos });
+      },
+      { timeout: 20_000, maxWait: 10_000 }
+    );
     creditosIds = creditos.map((c) => c.id!);
   } catch (e) {
     if (e instanceof Rechazo) {
@@ -325,9 +318,10 @@ async function cambiarEstado(id: string, cambio: "cerrar" | "reabrir" | "anular"
   const { user, staff } = sesion;
   const planilla = await db.repartoPlanilla.findFirst({ where: { id, userId: user.id }, select: { id: true, estado: true, auditoria: true } });
   if (!planilla) return { error: "No encontramos esa planilla." };
+  const ahora = new Date();
   const nota = (que: string) =>
     ((planilla.auditoria ? planilla.auditoria + "\n" : "") +
-      new Date().toISOString().slice(0, 16).replace("T", " ") + " · " + staff.name + " " + que + (motivo ? ": " + motivo : "")).slice(-4000);
+      dayIn(ahora, user.timezone) + " " + timeIn(ahora, user.timezone) + " · " + staff.name + " " + que + (motivo ? ": " + motivo : "")).slice(-4000);
 
   if (cambio === "cerrar") {
     if (planilla.estado !== "BORRADOR") return { error: "Solo se cierra una planilla abierta." };
@@ -339,6 +333,8 @@ async function cambiarEstado(id: string, cambio: "cerrar" | "reabrir" | "anular"
   } else {
     if (planilla.estado === "ANULADA") return { error: "Ya está anulada." };
     if (!motivo) return { error: "Escribe por qué se anula: queda anotado." };
+    const bloqueo = await porQueNoSeAnula(user.id, id);
+    if (bloqueo) return { error: bloqueo };
     await db.repartoPlanilla.update({ where: { id }, data: { estado: "ANULADA", auditoria: nota("la anuló") } });
   }
   revalidatePath(RUTA);

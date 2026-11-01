@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useState, useTransition } from "react";
+import { useActionState, useMemo, useRef, useState, useTransition } from "react";
 import {
   anularPlanillaAction,
   borrarPlanillaAction,
@@ -173,9 +173,15 @@ export function PlanillaReparto({
   const [avisos, setAvisos] = useState<string[]>([]);
   const [confirmar, setConfirmar] = useState<string | null>(null);
   const [guardando, startTransition] = useTransition();
+  // Cuenta los cambios: lo que se escribe mientras se guarda no queda como guardado.
+  const cambios = useRef(0);
+  const marcarCambio = () => {
+    cambios.current++;
+    setSucio(true);
+  };
 
   const tocar = <T,>(fn: (v: T) => void) => (v: T) => {
-    setSucio(true);
+    marcarCambio();
     fn(v);
   };
 
@@ -203,7 +209,7 @@ export function PlanillaReparto({
   );
 
   const cambiarLinea = (id: string, campo: keyof Linea, valor: string) => {
-    setSucio(true);
+    marcarCambio();
     setLineas((prev) => ({ ...prev, [id]: { ...prev[id], [campo]: valor } }));
   };
   const totalDe = (l: Linea) =>
@@ -250,16 +256,25 @@ export function PlanillaReparto({
       cobros: cobros.map((c) => ({ tipo: c.tipo, cliente: c.cliente, creditoId: c.creditoId, fechaDocumento: c.fechaDocumento, documento: c.documento, factura: c.factura, valor: c.valor })),
       pagos: pagos.map((p) => ({ documento: p.documento, concepto: p.concepto, categoria: p.categoria, valor: p.valor })),
     };
+    const version = cambios.current;
+    // Los ids vuelven en el orden en que se mandaron: se ponen por fila, no por
+    // posicion, por si mientras tanto se quito un credito.
+    const enviados = creditos.map((c) => c.key);
     startTransition(async () => {
       try {
         const r = await guardarPlanillaAction(pedido);
         if (r?.confirmar) setConfirmar(r.confirmar);
         else if (r?.error) setMensaje({ kind: "error", text: r.error });
         else {
-          setSucio(false);
+          if (cambios.current === version) setSucio(false);
           setAvisos(r?.avisos ?? []);
           const ids = r?.creditosIds ?? [];
-          setCreditos((prev) => prev.map((c, i) => (ids[i] ? { ...c, id: ids[i] } : c)));
+          setCreditos((prev) =>
+            prev.map((c) => {
+              const id = ids[enviados.indexOf(c.key)];
+              return id ? { ...c, id } : c;
+            })
+          );
           setMensaje({ kind: "ok", text: r?.ok ?? "Guardada." });
         }
       } catch {
@@ -640,7 +655,9 @@ function AccionesPlanilla({ planilla, sucio }: { planilla: PlanillaInicial; suci
   const [cierre, cerrar] = useActionState(cerrarPlanillaAction, undefined);
   const [reapertura, reabrir] = useActionState(reabrirPlanillaAction, undefined);
   const [anulacion, anular] = useActionState(anularPlanillaAction, undefined);
-  const estado = cierre ?? reapertura ?? anulacion;
+  // El mensaje es el de lo ultimo que se pidio, no el del primero que contesto.
+  const [ultima, setUltima] = useState<"cerrar" | "reabrir" | "anular" | null>(null);
+  const estado = ultima === "cerrar" ? cierre : ultima === "reabrir" ? reapertura : ultima === "anular" ? anulacion : undefined;
 
   return (
     <section className="card space-y-3" data-seccion="estado">
@@ -649,7 +666,7 @@ function AccionesPlanilla({ planilla, sucio }: { planilla: PlanillaInicial; suci
       {estado?.ok && <Alert kind="ok">{estado.ok}</Alert>}
       <div className="flex flex-wrap gap-2">
         {planilla.estado === "BORRADOR" && (
-          <form action={cerrar}>
+          <form action={cerrar} onSubmit={() => setUltima("cerrar")}>
             <input type="hidden" name="id" value={planilla.id} />
             <SubmitButton className="btn-primary btn-sm" pendingText="Cerrando..." disabled={sucio}>
               <Icon name="lock" className="h-4 w-4" />
@@ -677,7 +694,7 @@ function AccionesPlanilla({ planilla, sucio }: { planilla: PlanillaInicial; suci
         )}
       </div>
       {planilla.estado !== "BORRADOR" && (
-        <form action={reabrir} className="flex flex-wrap items-end gap-2">
+        <form action={reabrir} onSubmit={() => setUltima("reabrir")} className="flex flex-wrap items-end gap-2">
           <input type="hidden" name="id" value={planilla.id} />
           <Field label="Reabrir para corregir (queda anotado)" className="min-w-0 flex-1">
             <input className="input py-1.5 text-sm" name="motivo" placeholder="Por qué se reabre" required />
@@ -690,7 +707,7 @@ function AccionesPlanilla({ planilla, sucio }: { planilla: PlanillaInicial; suci
       {planilla.estado !== "ANULADA" && (
         <details>
           <summary className="cursor-pointer text-xs font-semibold text-bad">Anular la planilla</summary>
-          <form action={anular} className="mt-2 flex flex-wrap items-end gap-2">
+          <form action={anular} onSubmit={() => setUltima("anular")} className="mt-2 flex flex-wrap items-end gap-2">
             <input type="hidden" name="id" value={planilla.id} />
             <Field label="Se guarda pero no cuenta en reportes ni cartera" className="min-w-0 flex-1">
               <input className="input py-1.5 text-sm" name="motivo" placeholder="Por qué se anula" required />

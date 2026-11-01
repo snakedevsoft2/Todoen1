@@ -1,17 +1,21 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
-import { calcularCuadre, categoriaDePago, claveDe, type Cuadre } from "./reparto";
-import type { LibroReparto, MovimientoExcel, PlanillaExcel } from "./reparto-excel";
+import { calcularCuadre, categoriaDePago, claveDe, claveDocumento, type Cuadre } from "./reparto";
+import type { LibroReparto, LineaExcel, MovimientoExcel, PlanillaExcel } from "./reparto-excel";
 
 /**
  * Importa el Excel de reparto (ya leido, ver lib/reparto-excel.ts) a las
  * tablas de Reparto de una cuenta.
  *
- *   - Sin `aplicar` es un ensayo: no escribe nada y dice lo que haria.
+ *   - Sin `aplicar` es un ensayo: no escribe nada y dice lo que haria. El
+ *     ensayo y la importacion arman el mismo plan, asi que dicen lo mismo.
  *   - Se puede correr dos veces: una planilla ya importada (mismo vendedor,
  *     fecha y origen) se salta, y lo demas se busca antes de crearlo.
- *   - Todo va en una sola transaccion. Al final cada planilla se vuelve a
- *     calcular desde la base con calcularCuadre(); si alguna no da lo mismo
- *     que el Excel al centavo, se deshace todo y se dice cual.
+ *   - Los cobros se aplican a la cartera que ya lleva la app (lo importado
+ *     antes y lo escrito a mano) mas lo que trae el Excel.
+ *   - Todo se escribe en una sola transaccion y en lote: con la base lejos,
+ *     una consulta por fila no alcanza a terminar. Al final cada planilla se
+ *     vuelve a calcular desde la base con calcularCuadre(); si alguna no da lo
+ *     mismo que el Excel al centavo, se deshace todo y se dice cual.
  *   - Los clientes nunca se juntan solos: los nombres parecidos se listan para
  *     que la administradora decida.
  *
@@ -44,6 +48,7 @@ export type ReporteImportacion = {
   productosNuevos: string[];
   clientesNuevos: string[];
   posiblesDuplicados: [string, string][];
+  /** Saldos iniciales que se crean (los que ya estaban no se cuentan). */
   saldosIniciales: number;
   cobrosSinDocumento: number;
   /** Clientes cuya cartera calculada no da lo que decia la ultima lista copiada a mano. */
@@ -51,8 +56,6 @@ export type ReporteImportacion = {
   avisos: string[];
   errores: string[];
 };
-
-type Db = PrismaClient | Prisma.TransactionClient;
 
 const DIAS = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo"];
 
@@ -105,11 +108,6 @@ export function posiblesDuplicados(nombres: string[]): [string, string][] {
   return pares;
 }
 
-const docClave = (d: string | null | undefined) => {
-  const k = claveDe(d ?? "");
-  return k === "sn" || k === "s n" ? "" : k;
-};
-
 type CreditoAbierto = { id: string; clienteKey: string; documento: string; saldo: number };
 
 /**
@@ -117,7 +115,7 @@ type CreditoAbierto = { id: string; clienteKey: string; documento: string; saldo
  * el cobro no trae numero (SN) y el cliente debe un solo documento, a ese.
  */
 function creditoParaCobro(abiertos: CreditoAbierto[], clienteKey: string, documento: string | null): CreditoAbierto | null {
-  const doc = docClave(documento);
+  const doc = claveDocumento(documento);
   const delCliente = abiertos.filter((c) => c.clienteKey === clienteKey && c.saldo > 0);
   if (doc) return delCliente.find((c) => c.documento === doc) ?? null;
   return delCliente.length === 1 ? delCliente[0] : null;
@@ -132,7 +130,7 @@ function creditoParaCobro(abiertos: CreditoAbierto[], clienteKey: string, docume
 export function saldoInicialDeHoja(primera: PlanillaExcel): MovimientoExcel[] {
   const docs = primera.cartera.map((d) => ({ ...d }));
   const mismo = (a: MovimientoExcel, b: MovimientoExcel) =>
-    claveDe(a.cliente ?? "") === claveDe(b.cliente ?? "") && docClave(a.documento) === docClave(b.documento);
+    claveDe(a.cliente ?? "") === claveDe(b.cliente ?? "") && claveDocumento(a.documento) === claveDocumento(b.documento);
   for (const c of primera.creditos) {
     const i = docs.findIndex((d) => mismo(d, c));
     if (i >= 0) docs.splice(i, 1);
@@ -143,7 +141,44 @@ export function saldoInicialDeHoja(primera: PlanillaExcel): MovimientoExcel[] {
     if (d) d.valor += c.valor;
     else docs.push({ fecha: c.fecha, documento: c.documento, cliente: c.cliente, valor: c.valor, factura: null });
   }
-  return docs.filter((d) => d.cliente && d.valor > 0);
+  return docs.filter((d) => claveDe(d.cliente ?? "") && d.valor > 0);
+}
+
+/**
+ * Un mismo producto dos veces en un bloque va en una sola linea (la base no
+ * admite dos del mismo producto en una planilla): se suma todo. Si los dos
+ * renglones mueven unidades a precios distintos no hay una linea que de lo
+ * mismo, y se pide corregir el Excel.
+ */
+export function juntarLineas(lineas: LineaExcel[]): { lineas: LineaExcel[]; repetidos: string[]; conflictos: string[] } {
+  const porProducto = new Map<string, LineaExcel>();
+  const repetidos: string[] = [];
+  const conflictos: string[] = [];
+  const usaPrecio = (l: LineaExcel) => l.carga !== 0 || l.devolucion !== 0 || l.caducadoCant !== 0;
+  for (const l of lineas) {
+    const ya = porProducto.get(claveDe(l.producto));
+    if (!ya) {
+      porProducto.set(claveDe(l.producto), { ...l });
+      continue;
+    }
+    repetidos.push(l.producto);
+    if (ya.precio !== l.precio && usaPrecio(ya) && usaPrecio(l)) conflictos.push(l.producto);
+    if (!usaPrecio(ya)) ya.precio = l.precio;
+    ya.cargaDetalle = (ya.cargaDetalle ?? String(ya.carga)) + "+" + (l.cargaDetalle ?? String(l.carga));
+    ya.carga += l.carga;
+    ya.devolucion += l.devolucion;
+    ya.base12 += l.base12;
+    ya.iva += l.iva;
+    ya.unidVendCant += l.unidVendCant;
+    ya.unidVendValor += l.unidVendValor;
+    ya.dctoPrecio += l.dctoPrecio;
+    ya.dctoPromocion += l.dctoPromocion;
+    ya.caducadoCant += l.caducadoCant;
+    ya.devolUnidadesValor += l.devolUnidadesValor;
+    ya.totalExcel += l.totalExcel;
+    ya.docDescuento = [ya.docDescuento, l.docDescuento].filter(Boolean).join(" / ") || null;
+  }
+  return { lineas: [...porProducto.values()], repetidos, conflictos };
 }
 
 const MARCA_INICIAL = "Saldo inicial del Excel";
@@ -182,10 +217,30 @@ export async function importarReparto(
   const planillas = [...libro.planillas].sort((a, b) => a.fecha.localeCompare(b.fecha) || a.hoja.localeCompare(b.hoja));
 
   // ---- lo que ya hay en la cuenta
-  const [productosHay, clientesHay, planillasHay] = await Promise.all([
+  const cuenta = { OR: [{ planillaId: null }, { planilla: { estado: { not: "ANULADA" as const } } }] };
+  const [productosHay, clientesHay, planillasHay, creditosHay, cobrosHay] = await Promise.all([
     db.repartoProducto.findMany({ where: { userId }, select: { id: true, nameKey: true, code: true } }),
     db.repartoCliente.findMany({ where: { userId }, select: { id: true, name: true, nameKey: true } }),
-    db.repartoPlanilla.findMany({ where: { userId }, select: { staffId: true, day: true, origen: true, origenRef: true } }),
+    db.repartoPlanilla.findMany({ where: { userId }, select: { staffId: true, day: true, estado: true, origen: true, origenRef: true } }),
+    // La cartera que ya lleva la app: cada documento con lo que le falta.
+    db.repartoCredito.findMany({
+      where: { userId, ...cuenta },
+      select: {
+        id: true,
+        day: true,
+        documento: true,
+        valor: true,
+        planillaId: true,
+        notes: true,
+        cliente: { select: { name: true, nameKey: true } },
+        cobros: { where: { planilla: { estado: { not: "ANULADA" } } }, select: { valor: true } },
+      },
+      orderBy: { day: "asc" },
+    }),
+    db.repartoCobro.findMany({
+      where: { userId, tipo: "COBRO", planilla: { estado: { not: "ANULADA" } } },
+      select: { valor: true, cliente: { select: { name: true, nameKey: true } } },
+    }),
   ]);
 
   // ---- planillas: que se crea y que se salta
@@ -227,7 +282,6 @@ export async function importarReparto(
     if (accion === "choca") reporte.avisos.push(p.ref + ": " + nombreDe.get(staffId!) + " ya tiene una planilla el " + p.fecha + " que no vino de este Excel; no se toca.");
     if (accion === "crear" && staffId) aCrear.push({ ...p, staffId, cuadre });
   }
-  reporte.errores = [...new Set(reporte.errores)];
 
   // ---- totales por hoja, como el consolidado
   const porHoja = new Map<string, ReporteImportacion["totales"][number]>();
@@ -257,6 +311,28 @@ export async function importarReparto(
     if (!productoKey.has(k) && !catalogoPorKey.has(k)) reporte.productosNuevos.push(nombre + " (no está en el catálogo)");
   }
 
+  // ---- saldos iniciales
+  // La lista del primer dia de una hoja es el saldo con que arranca ese
+  // vendedor, solo si la app no lleva ya su cartera: si tiene planillas antes
+  // de ese dia (un Excel del mes siguiente), esos documentos ya estan en la app
+  // y cargarlos otra vez los contaria dos veces.
+  const primeraDeHoja = new Map<string, PlanillaExcel>();
+  for (const p of planillas) if (!primeraDeHoja.has(p.hoja)) primeraDeHoja.set(p.hoja, p);
+  const iniciales = [...primeraDeHoja.values()].flatMap((p) => {
+    const staffId = vendedores[claveVendedor(p)] ?? null;
+    if (staffId && planillasHay.some((x) => x.staffId === staffId && x.day < p.fecha && x.estado !== "ANULADA")) {
+      reporte.avisos.push(
+        "Hoja " + p.hoja + ": la cartera de " + (nombreDe.get(staffId) ?? p.hoja) + " ya está en la app (tiene planillas antes del " + p.fecha +
+          "); su lista CUENTAS POR COBRAR no se carga como saldo inicial."
+      );
+      return [];
+    }
+    return saldoInicialDeHoja(p).map((d) => ({ ...d, staffId, hoja: p.hoja, alDia: p.fecha }));
+  });
+  // Las CUENTAS ATRASADAS se cargan una vez; las de un Excel posterior solo se informan.
+  const hayAtrasadas = creditosHay.some((x) => x.planillaId === null && x.notes?.startsWith(MARCA_ATRASADA));
+  const atrasadas = libro.atrasadas.filter((a) => claveDe(a.cliente));
+
   // ---- clientes
   const clienteKey = new Map(clientesHay.map((x) => [x.nameKey, x.id]));
   const nombresCliente = new Map<string, { name: string; staffId: string | null }>();
@@ -265,205 +341,215 @@ export async function importarReparto(
     if (!k || nombresCliente.has(k)) return;
     nombresCliente.set(k, { name: nombre!.replace(/\s+/g, " ").trim(), staffId });
   };
-  const primeraDeHoja = new Map<string, PlanillaExcel>();
-  for (const p of planillas) if (!primeraDeHoja.has(p.hoja)) primeraDeHoja.set(p.hoja, p);
-  const iniciales = [...primeraDeHoja.values()].flatMap((p) => {
-    const staffId = vendedores[claveVendedor(p)] ?? null;
-    return saldoInicialDeHoja(p).map((d) => ({ ...d, staffId, hoja: p.hoja, alDia: p.fecha }));
-  });
   for (const d of iniciales) anotarCliente(d.cliente, d.staffId);
   for (const p of aCrear) {
     for (const c of p.creditos) anotarCliente(c.cliente, p.staffId);
     for (const c of p.cobros) if (c.tipo === "COBRO") anotarCliente(c.cliente, p.staffId);
   }
-  for (const a of libro.atrasadas) anotarCliente(a.cliente, null);
+  if (!hayAtrasadas) for (const a of atrasadas) anotarCliente(a.cliente, null);
   for (const [k, c] of nombresCliente) if (!clienteKey.has(k)) reporte.clientesNuevos.push(c.name);
   reporte.posiblesDuplicados = posiblesDuplicados([...clientesHay.map((c) => c.name), ...reporte.clientesNuevos]);
-  reporte.saldosIniciales = iniciales.length + libro.atrasadas.length;
 
-  if (!aplicar || reporte.errores.length > 0) {
-    // Lo que daria la cartera, con los mismos pasos pero sin escribir.
-    reporte.cobrosSinDocumento = simularCobrosSinDocumento(iniciales, aCrear);
-    reporte.carteraDistinta = compararCartera(iniciales, libro, planillas);
-    return reporte;
+  // ---- el plan: todo lo que se crea, con sus ids
+  const nuevoId = () => crypto.randomUUID();
+
+  const productosACrear: Prisma.RepartoProductoCreateManyInput[] = [];
+  let siguiente = Math.max(0, ...productosHay.map((x) => Number(x.code.replace(/\D/g, "")) || 0), ...catalogo.map((c) => Number(c.code.replace(/\D/g, "")) || 0)) + 1;
+  for (const c of catalogo) {
+    const k = claveDe(c.name);
+    if (productoKey.has(k)) continue;
+    const id = nuevoId();
+    productosACrear.push({ id, userId, code: c.code, name: c.name, nameKey: k, price: c.price, active: c.active, position: Number(c.code.replace(/\D/g, "")) || 0 });
+    productoKey.set(k, id);
   }
+  for (const [k, nombre] of nombresLinea) {
+    if (productoKey.has(k)) continue;
+    const precio = planillas.flatMap((p) => p.lineas).find((l) => claveDe(l.producto) === k)?.precio ?? 0;
+    const code = "P" + String(siguiente++).padStart(3, "0");
+    const id = nuevoId();
+    productosACrear.push({ id, userId, code, name: nombre, nameKey: k, price: precio, position: siguiente });
+    productoKey.set(k, id);
+  }
+  // Historial de precios: el del catalogo y el primer dia de cada precio en las planillas.
+  const precios = new Map<string, { productoId: string; price: number; desde: string }>();
+  for (const c of catalogo) for (const h of c.precios) {
+    const productoId = productoKey.get(claveDe(c.name))!;
+    precios.set(productoId + "|" + h.desde, { productoId, price: h.price, desde: h.desde });
+  }
+  for (const p of planillas) for (const l of p.lineas) {
+    const productoId = productoKey.get(claveDe(l.producto))!;
+    const ya = [...precios.values()].some((x) => x.productoId === productoId && x.price === l.precio && x.desde <= p.fecha);
+    if (!ya && l.precio) precios.set(productoId + "|" + p.fecha, { productoId, price: l.precio, desde: p.fecha });
+  }
+
+  const clientesACrear: Prisma.RepartoClienteCreateManyInput[] = [];
+  for (const [k, c] of nombresCliente) {
+    if (clienteKey.has(k)) continue;
+    const id = nuevoId();
+    clientesACrear.push({ id, userId, name: c.name, nameKey: k, staffId: c.staffId });
+    clienteKey.set(k, id);
+  }
+
+  // La cartera de cada cliente como queda en la app, para compararla con el Excel.
+  const calculada = new Map<string, { nombre: string; valor: number }>();
+  const sumar = (k: string, nombre: string, valor: number) => {
+    const x = calculada.get(k) ?? { nombre: nombre.trim(), valor: 0 };
+    x.valor += valor;
+    calculada.set(k, x);
+  };
+  for (const x of creditosHay) sumar(x.cliente.nameKey, x.cliente.name, x.valor);
+  for (const x of cobrosHay) if (x.cliente) sumar(x.cliente.nameKey, x.cliente.name, -x.valor);
+
+  // Los documentos abiertos a los que se aplican los cobros: los de la app, con lo que les falta...
+  const abiertos: CreditoAbierto[] = creditosHay.map((x) => ({
+    id: x.id,
+    clienteKey: x.cliente.nameKey,
+    documento: claveDocumento(x.documento),
+    saldo: x.valor - x.cobros.reduce((s, y) => s + y.valor, 0),
+  }));
+  // ...mas los saldos iniciales. Uno que ya esta (de una importacion anterior, o
+  // repetido en dos hojas) no se crea otra vez.
+  const creditosACrear: Prisma.RepartoCreditoCreateManyInput[] = [];
+  const iniciados = creditosHay.filter((x) => x.planillaId === null).map((x) => ({ k: x.cliente.nameKey, day: x.day, documento: x.documento, valor: x.valor }));
+  const yaEsta = (k: string, day: string, documento: string | null, valor: number) =>
+    iniciados.some((x) => x.k === k && x.day === day && x.documento === documento && x.valor === valor);
+  const saldoInicial = (nombre: string, day: string, documento: string | null, valor: number, notes: string) => {
+    const k = claveDe(nombre);
+    if (yaEsta(k, day, documento, valor)) return;
+    const id = nuevoId();
+    iniciados.push({ k, day, documento, valor });
+    creditosACrear.push({ id, userId, clienteId: clienteKey.get(k)!, day, documento, valor, notes });
+    abiertos.push({ id, clienteKey: k, documento: claveDocumento(documento), saldo: valor });
+    sumar(k, nombre, valor);
+  };
+  for (const d of iniciales) {
+    saldoInicial(d.cliente!, d.fecha ?? d.alDia, d.documento, d.valor, MARCA_INICIAL + " (hoja " + d.hoja + ", al " + d.alDia + ")");
+  }
+  for (const a of atrasadas) {
+    const day = a.fecha ?? "2026-01-01";
+    if (!hayAtrasadas) saldoInicial(a.cliente, day, a.documento, a.saldo, MARCA_ATRASADA + (a.historial ? ". Historial: " + a.historial : ""));
+    else if (!yaEsta(claveDe(a.cliente), day, a.documento, a.saldo)) {
+      reporte.avisos.push("CUENTAS ATRASADAS: " + a.cliente + " " + (a.documento ?? "") + " (" + (a.saldo / 100).toFixed(2) + ") no se carga: las cuentas atrasadas ya están en la app.");
+    }
+  }
+  reporte.saldosIniciales = creditosACrear.length;
+
+  // Las planillas, en orden de fecha: cada cobro se aplica a lo que ya se debia ese dia.
+  const planillasACrear: (Prisma.RepartoPlanillaCreateManyInput & { id: string })[] = [];
+  const lineasACrear: Prisma.RepartoLineaCreateManyInput[] = [];
+  const cobrosACrear: Prisma.RepartoCobroCreateManyInput[] = [];
+  const pagosACrear: Prisma.RepartoPagoCreateManyInput[] = [];
+  const personas = equipo.map((s) => s.name);
+  for (const p of aCrear) {
+    const planillaId = nuevoId();
+    planillasACrear.push({
+      id: planillaId,
+      userId,
+      staffId: p.staffId,
+      day: p.fecha,
+      acompanante: p.acompanante,
+      otrosDescuentos: p.otrosDescuentos,
+      entregado: p.entregado,
+      entregadoDetalle: p.entregadoDetalle,
+      estado: "CERRADA",
+      closedAt: new Date(),
+      closedById: args.staffId ?? null,
+      createdById: args.staffId ?? null,
+      origen: "EXCEL",
+      origenRef: p.ref,
+      notes:
+        (p.etiqueta && claveDe(p.etiqueta) !== claveDe(claveVendedor(p)) ? "En el Excel el bloque decía \"" + p.etiqueta + "\". " : "") +
+        (p.ref.split("#")[1] !== p.fecha ? "La cabecera del Excel decía " + p.ref.split("#")[1] + "." : "") || null,
+    });
+
+    const juntas = juntarLineas(p.lineas);
+    for (const nombre of juntas.repetidos) reporte.avisos.push(p.ref + ": " + nombre + " aparece dos veces; se juntó.");
+    for (const nombre of juntas.conflictos) {
+      reporte.errores.push(p.ref + ": " + nombre + " aparece dos veces con precios distintos. Déjalo en una sola fila en el Excel.");
+    }
+    for (const l of juntas.lineas) {
+      lineasACrear.push({
+        userId,
+        planillaId,
+        productoId: productoKey.get(claveDe(l.producto))!,
+        carga: l.carga,
+        cargaDetalle: l.cargaDetalle,
+        devolucion: l.devolucion,
+        precio: l.precio,
+        base12: l.base12,
+        iva: l.iva,
+        unidVendCant: l.unidVendCant,
+        unidVendValor: l.unidVendValor,
+        docDescuento: l.docDescuento,
+        dctoPrecio: l.dctoPrecio,
+        dctoPromocion: l.dctoPromocion,
+        caducadoCant: l.caducadoCant,
+        devolUnidadesValor: l.devolUnidadesValor,
+      });
+    }
+
+    for (const [i, c] of p.creditos.entries()) {
+      const k = claveDe(c.cliente ?? "");
+      if (!k) {
+        reporte.errores.push(p.ref + ": un crédito de " + c.valor / 100 + " no dice de qué cliente es.");
+        continue;
+      }
+      const id = nuevoId();
+      creditosACrear.push({ id, userId, planillaId, clienteId: clienteKey.get(k)!, day: c.fecha ?? p.fecha, documento: c.documento, factura: c.factura, valor: c.valor, position: i });
+      abiertos.push({ id, clienteKey: k, documento: claveDocumento(c.documento), saldo: c.valor });
+      sumar(k, c.cliente!, c.valor);
+    }
+    for (const [i, c] of p.cobros.entries()) {
+      const k = claveDe(c.cliente ?? "");
+      const ajuste = c.tipo === "AJUSTE";
+      const aplicado = ajuste ? null : creditoParaCobro(abiertos, k, c.documento);
+      if (aplicado) aplicado.saldo -= c.valor;
+      const revisar = !ajuste && !aplicado;
+      if (revisar) reporte.cobrosSinDocumento++;
+      if (!ajuste && k) sumar(k, c.cliente!, -c.valor);
+      cobrosACrear.push({
+        userId,
+        planillaId,
+        clienteId: ajuste ? null : clienteKey.get(k) ?? null,
+        creditoId: aplicado?.id ?? null,
+        fechaDocumento: c.fecha,
+        documento: c.documento,
+        factura: c.factura,
+        valor: c.valor,
+        tipo: c.tipo,
+        revisar,
+        position: i,
+      });
+    }
+    for (const [i, x] of p.pagos.entries()) {
+      pagosACrear.push({ userId, planillaId, documento: x.documento, concepto: x.concepto, categoria: categoriaDePago(x.concepto, personas), valor: x.valor, position: i });
+    }
+  }
+  reporte.carteraDistinta = compararCartera(calculada, planillas);
+  reporte.errores = [...new Set(reporte.errores)];
+
+  if (!aplicar || reporte.errores.length > 0) return reporte;
 
   // ---- a escribir, todo o nada
   await db.$transaction(
     async (tx) => {
-      // Productos del catalogo y los que solo aparecen en las planillas.
-      let siguiente = Math.max(0, ...productosHay.map((x) => Number(x.code.replace(/\D/g, "")) || 0), ...catalogo.map((c) => Number(c.code.replace(/\D/g, "")) || 0)) + 1;
-      for (const c of catalogo) {
-        const k = claveDe(c.name);
-        if (productoKey.has(k)) continue;
-        const nuevo = await tx.repartoProducto.create({
-          data: { userId, code: c.code, name: c.name, nameKey: k, price: c.price, active: c.active, position: Number(c.code.replace(/\D/g, "")) || 0 },
-        });
-        productoKey.set(k, nuevo.id);
-      }
-      for (const [k, nombre] of nombresLinea) {
-        if (productoKey.has(k)) continue;
-        const precio = planillas.flatMap((p) => p.lineas).find((l) => claveDe(l.producto) === k)?.precio ?? 0;
-        const code = "P" + String(siguiente++).padStart(3, "0");
-        const nuevo = await tx.repartoProducto.create({ data: { userId, code, name: nombre, nameKey: k, price: precio, position: siguiente } });
-        productoKey.set(k, nuevo.id);
-      }
-      // Historial de precios: el del catalogo y el primer dia de cada precio en las planillas.
-      const precios = new Map<string, { productoId: string; price: number; desde: string }>();
-      for (const c of catalogo) for (const h of c.precios) {
-        const productoId = productoKey.get(claveDe(c.name))!;
-        precios.set(productoId + "|" + h.desde, { productoId, price: h.price, desde: h.desde });
-      }
-      for (const p of planillas) for (const l of p.lineas) {
-        const productoId = productoKey.get(claveDe(l.producto))!;
-        const ya = [...precios.values()].some((x) => x.productoId === productoId && x.price === l.precio && x.desde <= p.fecha);
-        if (!ya && l.precio) precios.set(productoId + "|" + p.fecha, { productoId, price: l.precio, desde: p.fecha });
-      }
+      await tx.repartoProducto.createMany({ data: productosACrear });
       await tx.repartoPrecio.createMany({ data: [...precios.values()].map((x) => ({ userId, ...x })), skipDuplicates: true });
-
-      // Clientes.
-      for (const [k, c] of nombresCliente) {
-        if (clienteKey.has(k)) continue;
-        const nuevo = await tx.repartoCliente.create({ data: { userId, name: c.name, nameKey: k, staffId: c.staffId } });
-        clienteKey.set(k, nuevo.id);
-      }
-
-      // Saldos iniciales: la lista del primer dia de cada hoja y las cuentas atrasadas.
-      const abiertos: CreditoAbierto[] = [];
-      const hayCredito = async (clienteId: string, day: string, documento: string | null, valor: number) =>
-        tx.repartoCredito.findFirst({ where: { userId, clienteId, day, documento, valor, planillaId: null }, select: { id: true } });
-      for (const d of iniciales) {
-        const clienteId = clienteKey.get(claveDe(d.cliente!))!;
-        const day = d.fecha ?? d.alDia;
-        const ya = await hayCredito(clienteId, day, d.documento, d.valor);
-        const credito = ya ?? (await tx.repartoCredito.create({
-          data: { userId, clienteId, day, documento: d.documento, valor: d.valor, notes: MARCA_INICIAL + " (hoja " + d.hoja + ", al " + d.alDia + ")" },
-          select: { id: true },
-        }));
-        abiertos.push({ id: credito.id, clienteKey: claveDe(d.cliente!), documento: docClave(d.documento), saldo: d.valor });
-      }
-      for (const a of libro.atrasadas) {
-        const clienteId = clienteKey.get(claveDe(a.cliente))!;
-        const day = a.fecha ?? "2026-01-01";
-        const ya = await hayCredito(clienteId, day, a.documento, a.saldo);
-        const credito = ya ?? (await tx.repartoCredito.create({
-          data: { userId, clienteId, day, documento: a.documento, valor: a.saldo, notes: MARCA_ATRASADA + (a.historial ? ". Historial: " + a.historial : "") },
-          select: { id: true },
-        }));
-        abiertos.push({ id: credito.id, clienteKey: claveDe(a.cliente), documento: docClave(a.documento), saldo: a.saldo });
-      }
-
-      // Las planillas, en orden de fecha: cada cobro se aplica a lo que ya se debia ese dia.
-      const personas = equipo.map((s) => s.name);
-      for (const p of aCrear) {
-        const planilla = await tx.repartoPlanilla.create({
-          data: {
-            userId,
-            staffId: p.staffId,
-            day: p.fecha,
-            acompanante: p.acompanante,
-            otrosDescuentos: p.otrosDescuentos,
-            entregado: p.entregado,
-            entregadoDetalle: p.entregadoDetalle,
-            estado: "CERRADA",
-            closedAt: new Date(),
-            closedById: args.staffId ?? null,
-            createdById: args.staffId ?? null,
-            origen: "EXCEL",
-            origenRef: p.ref,
-            notes:
-              (p.etiqueta && claveDe(p.etiqueta) !== claveDe(claveVendedor(p)) ? "En el Excel el bloque decía \"" + p.etiqueta + "\". " : "") +
-              (p.ref.split("#")[1] !== p.fecha ? "La cabecera del Excel decía " + p.ref.split("#")[1] + "." : "") || null,
-          },
-        });
-        // Un mismo producto dos veces en el bloque se suma en una sola linea.
-        const lineas = new Map<string, Prisma.RepartoLineaCreateManyInput>();
-        for (const l of p.lineas) {
-          const productoId = productoKey.get(claveDe(l.producto))!;
-          const ya = lineas.get(productoId);
-          if (ya) {
-            reporte.avisos.push(p.ref + ": " + l.producto + " aparece dos veces; se juntó.");
-            ya.carga = (ya.carga ?? 0) + l.carga;
-            ya.devolucion = (ya.devolucion ?? 0) + l.devolucion;
-            ya.caducadoCant = (ya.caducadoCant ?? 0) + l.caducadoCant;
-            continue;
-          }
-          lineas.set(productoId, {
-            userId,
-            planillaId: planilla.id,
-            productoId,
-            carga: l.carga,
-            cargaDetalle: l.cargaDetalle,
-            devolucion: l.devolucion,
-            precio: l.precio,
-            base12: l.base12,
-            iva: l.iva,
-            unidVendCant: l.unidVendCant,
-            unidVendValor: l.unidVendValor,
-            docDescuento: l.docDescuento,
-            dctoPrecio: l.dctoPrecio,
-            dctoPromocion: l.dctoPromocion,
-            caducadoCant: l.caducadoCant,
-            devolUnidadesValor: l.devolUnidadesValor,
-          });
-        }
-        await tx.repartoLinea.createMany({ data: [...lineas.values()] });
-
-        for (const [i, c] of p.creditos.entries()) {
-          const clienteId = clienteKey.get(claveDe(c.cliente ?? ""));
-          if (!clienteId) {
-            throw new Error(p.ref + ": un crédito de " + c.valor / 100 + " no dice de qué cliente es.");
-          }
-          const credito = await tx.repartoCredito.create({
-            data: { userId, planillaId: planilla.id, clienteId, day: c.fecha ?? p.fecha, documento: c.documento, factura: c.factura, valor: c.valor, position: i },
-            select: { id: true },
-          });
-          abiertos.push({ id: credito.id, clienteKey: claveDe(c.cliente ?? ""), documento: docClave(c.documento), saldo: c.valor });
-        }
-        for (const [i, c] of p.cobros.entries()) {
-          const k = claveDe(c.cliente ?? "");
-          const ajuste = c.tipo === "AJUSTE";
-          const aplicado = ajuste ? null : creditoParaCobro(abiertos, k, c.documento);
-          if (aplicado) aplicado.saldo -= c.valor;
-          const revisar = !ajuste && !aplicado;
-          if (revisar) reporte.cobrosSinDocumento++;
-          await tx.repartoCobro.create({
-            data: {
-              userId,
-              planillaId: planilla.id,
-              clienteId: ajuste ? null : clienteKey.get(k) ?? null,
-              creditoId: aplicado?.id ?? null,
-              fechaDocumento: c.fecha,
-              documento: c.documento,
-              factura: c.factura,
-              valor: c.valor,
-              tipo: c.tipo,
-              revisar,
-              position: i,
-            },
-          });
-        }
-        await tx.repartoPago.createMany({
-          data: p.pagos.map((x, i) => ({
-            userId,
-            planillaId: planilla.id,
-            documento: x.documento,
-            concepto: x.concepto,
-            categoria: categoriaDePago(x.concepto, personas),
-            valor: x.valor,
-            position: i,
-          })),
-        });
-      }
+      await tx.repartoCliente.createMany({ data: clientesACrear });
+      await tx.repartoPlanilla.createMany({ data: planillasACrear });
+      await tx.repartoLinea.createMany({ data: lineasACrear });
+      await tx.repartoCredito.createMany({ data: creditosACrear });
+      await tx.repartoCobro.createMany({ data: cobrosACrear });
+      await tx.repartoPago.createMany({ data: pagosACrear });
 
       // La prueba de verdad: lo guardado, leido de vuelta, da lo mismo que el Excel.
       const guardadas = await tx.repartoPlanilla.findMany({
-        where: { userId, origen: "EXCEL", origenRef: { in: aCrear.map((p) => p.ref) } },
+        where: { userId, id: { in: planillasACrear.map((p) => p.id) } },
         include: { lineas: true, creditos: true, cobros: true, pagos: true },
       });
+      if (guardadas.length !== aCrear.length) throw new Error("No se guardaron todas las planillas. No se importó nada.");
       for (const g of guardadas) {
-        const p = aCrear.find((x) => x.ref === g.origenRef && x.staffId === g.staffId);
-        if (!p) continue;
+        const p = aCrear.find((x) => x.ref === g.origenRef && x.staffId === g.staffId)!;
         const c = calcularCuadre(g);
         const mal = (["ventasDiaria", "credito", "cartera", "pagos", "diferencia"] as const).filter(
           (k) => Math.abs(c[k] - p.cuadre[k]) > 1
@@ -473,63 +559,23 @@ export async function importarReparto(
         }
       }
     },
-    { timeout: 120_000, maxWait: 20_000 }
+    { timeout: 50_000, maxWait: 10_000 }
   );
 
   reporte.aplicado = true;
-  reporte.carteraDistinta = compararCartera(iniciales, libro, planillas);
   return reporte;
 }
 
-/** Cuantos cobros quedarian sin documento al que aplicarse, sin escribir nada. */
-function simularCobrosSinDocumento(
-  iniciales: (MovimientoExcel & { hoja: string })[],
-  aCrear: PlanillaExcel[]
-): number {
-  const abiertos: CreditoAbierto[] = iniciales.map((d, i) => ({
-    id: "i" + i,
-    clienteKey: claveDe(d.cliente ?? ""),
-    documento: docClave(d.documento),
-    saldo: d.valor,
-  }));
-  let sin = 0;
-  for (const p of aCrear) {
-    p.creditos.forEach((c, i) =>
-      abiertos.push({ id: p.ref + i, clienteKey: claveDe(c.cliente ?? ""), documento: docClave(c.documento), saldo: c.valor })
-    );
-    for (const c of p.cobros) {
-      if (c.tipo === "AJUSTE") continue;
-      const a = creditoParaCobro(abiertos, claveDe(c.cliente ?? ""), c.documento);
-      if (a) a.saldo -= c.valor;
-      else sin++;
-    }
-  }
-  return sin;
-}
-
 /**
- * La cartera que sale de sumar creditos y restar cobros, contra la ultima
- * lista "CUENTAS POR COBRAR" de cada hoja (copiada a mano en el Excel). Las
- * diferencias se informan, no detienen nada: el acumulado del Excel tenia saltos.
+ * La cartera de cada cliente como queda en la app (lo que ya llevaba mas lo
+ * que se importa) contra la ultima lista "CUENTAS POR COBRAR" de cada hoja
+ * (copiada a mano en el Excel). Las diferencias se informan, no detienen nada:
+ * el acumulado del Excel tenia saltos.
  */
 function compararCartera(
-  iniciales: MovimientoExcel[],
-  libro: LibroReparto,
+  calculada: Map<string, { nombre: string; valor: number }>,
   planillas: PlanillaExcel[]
 ): ReporteImportacion["carteraDistinta"] {
-  const calc = new Map<string, { nombre: string; valor: number }>();
-  const sumar = (nombre: string | null, valor: number) => {
-    const k = claveDe(nombre ?? "");
-    if (!k) return;
-    const x = calc.get(k) ?? { nombre: nombre!.trim(), valor: 0 };
-    x.valor += valor;
-    calc.set(k, x);
-  };
-  for (const d of iniciales) sumar(d.cliente, d.valor);
-  for (const p of planillas) {
-    for (const c of p.creditos) sumar(c.cliente, c.valor);
-    for (const c of p.cobros) if (c.tipo === "COBRO") sumar(c.cliente, -c.valor);
-  }
   const excel = new Map<string, number>();
   const ultimas = new Map<string, PlanillaExcel>();
   for (const p of planillas) ultimas.set(p.hoja, p);
@@ -537,18 +583,17 @@ function compararCartera(
   for (const p of ultimas.values()) {
     for (const d of p.cartera) {
       const k = claveDe(d.cliente ?? "");
-      const id = k + "|" + docClave(d.documento) + "|" + d.valor;
+      const id = k + "|" + claveDocumento(d.documento) + "|" + d.valor;
       if (!k || vistos.has(id)) continue;
       vistos.add(id);
       excel.set(k, (excel.get(k) ?? 0) + d.valor);
     }
   }
-  void libro;
   const salida: ReporteImportacion["carteraDistinta"] = [];
-  for (const k of new Set([...calc.keys(), ...excel.keys()])) {
-    const a = calc.get(k)?.valor ?? 0;
+  for (const k of new Set([...calculada.keys(), ...excel.keys()])) {
+    const a = calculada.get(k)?.valor ?? 0;
     const b = excel.get(k) ?? 0;
-    if (Math.abs(a - b) > 1) salida.push({ cliente: calc.get(k)?.nombre ?? k, calculado: a, excel: b });
+    if (Math.abs(a - b) > 1) salida.push({ cliente: calculada.get(k)?.nombre ?? k, calculado: a, excel: b });
   }
   return salida.sort((a, b) => Math.abs(b.calculado - b.excel) - Math.abs(a.calculado - a.excel));
 }

@@ -23,15 +23,17 @@ export default async function CarteraRepartoPage({ searchParams }: { searchParam
   const cur = user.currency;
   const q = claveDe(params.q ?? "");
 
-  const [cartera, equipo, revisar] = await Promise.all([
+  const porRevisar = { userId: user.id, revisar: true, planilla: { estado: { not: "ANULADA" as const } } };
+  const [cartera, equipo, revisar, cuantosRevisar] = await Promise.all([
     carteraDe(user.id, hoy),
     db.staff.findMany({ where: { userId: user.id, deletedAt: null }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     db.repartoCobro.findMany({
-      where: { userId: user.id, revisar: true, planilla: { estado: { not: "ANULADA" } } },
+      where: porRevisar,
       orderBy: { planilla: { day: "desc" } },
       take: 50,
       select: { id: true, documento: true, valor: true, cliente: { select: { name: true } }, planilla: { select: { id: true, day: true, staff: { select: { name: true } } } } },
     }),
+    db.repartoCobro.count({ where: porRevisar }),
   ]);
   const nombreVendedor = new Map(equipo.map((s) => [s.id, s.name]));
 
@@ -53,7 +55,7 @@ export default async function CarteraRepartoPage({ searchParams }: { searchParam
         <Stat label="Por cobrar" value={money(total, cur)} hint={deben.length + " clientes"} tone="amber" />
         <Stat label="Más de 30 días" value={money((porTramo.get("31-60 días") ?? 0) + (porTramo.get("Más de 60 días") ?? 0), cur)} tone="bad" />
         <Stat label="Hasta 15 días" value={money((porTramo.get("0-7 días") ?? 0) + (porTramo.get("8-15 días") ?? 0), cur)} tone="good" />
-        <Stat label="Cobros por revisar" value={String(revisar.length)} hint="Sin documento al que aplicarse" />
+        <Stat label="Cobros por revisar" value={String(cuantosRevisar)} hint="Sin documento al que aplicarse" />
       </div>
 
       <Card className="mt-5" title="Antigüedad de la cartera">
