@@ -235,6 +235,12 @@ export function FacturaAutorizada({
                     Ver en {pais === "CO" ? "Factus" : "Dátil"}
                   </a>
                 )}
+                {factura.conXml && (
+                  <a href={"/panel/ventas/xml/" + factura.id} className="btn-ghost btn-sm" data-xml-autorizado>
+                    <Icon name="download" className="h-4 w-4" />
+                    XML autorizado
+                  </a>
+                )}
               </>
             )}
             {(factura.estado === "ENVIANDO" || factura.estado === "ERROR") && (

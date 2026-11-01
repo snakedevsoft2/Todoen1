@@ -22,6 +22,12 @@ export async function guardarFacturacionAction(_prev: FacturacionState, formData
   if (sinPlan) return { error: sinPlan };
   const datos: Record<string, unknown> = {};
   for (const [clave, valor] of formData.entries()) if (typeof valor === "string") datos[clave] = valor;
+  // La firma electronica (.p12) del SRI: un archivo de pocos KB.
+  const archivo = formData.get("p12File");
+  if (archivo instanceof File && archivo.size > 0) {
+    if (archivo.size > 100_000) return { error: "Ese archivo es muy grande para ser una firma electrónica (.p12)." };
+    datos.p12 = Buffer.from(await archivo.arrayBuffer()).toString("base64");
+  }
   const r = await guardarConfiguracion(user.id, datos);
   if (!r.ok) return { error: r.error };
   revalidatePath("/panel/ajustes");

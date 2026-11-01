@@ -32,6 +32,9 @@ import { VistaPreviaFactura } from "@/components/VistaPreviaFactura";
 import { AgregarDelInventario } from "@/components/AgregarDelInventario";
 
 export const dynamic = "force-dynamic";
+// Pedir la factura autorizada corre en una accion de esta pagina: mandarla y
+// esperar la autorizacion del SRI o la DIAN puede pasar del tiempo por defecto.
+export const maxDuration = 60;
 
 const ORIGIN_LABEL: Record<string, string> = {
   MANUAL: "Directa",

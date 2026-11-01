@@ -6,7 +6,10 @@ import { lineasFiscales, totalEnMoneda, type LineaVenta } from "./impuestos";
 import { TARIFAS, datosPais, esPais, leerComprador, type Comprador, type Pais } from "./paises";
 import { consultarFactus, credencialesFactusCompletas, emitirFactus, probarFactus, type RangoFactus } from "./factus";
 import { consultarDatil, credencialesDatilCompletas, emitirDatil, numeroSri, probarDatil } from "./datil";
+import { credencialesSriCompletas, despacharSri, esRegimen, firmarFacturaDeVenta, NoSeArma, probarSri, revisarFirma } from "./sri";
 import type { Ambiente, ResultadoProveedor } from "./tipos";
+import { esChopoSnacks } from "../orden-productos";
+import { todayIn } from "../dates";
 
 /**
  * La factura autorizada: configurarla, emitirla y seguirla hasta que la
@@ -41,20 +44,42 @@ export type ConfigVista = {
   lastCheckAt: string | null;
   lastCheckOk: boolean | null;
   lastCheckMessage: string | null;
+  /** Ecuador: con Datil o directo con el SRI (firma .p12). */
+  provider: Proveedor;
+  /** Si este negocio puede facturar directo con el SRI (por ahora, Chopo Snacks). */
+  sriDirecto: boolean;
+  taxRegime: string;
+  withholdingAgent: string;
+  branchAddress: string;
+  /** La firma guardada, sin la firma: de quien es y hasta cuando vale. */
+  firma: { titular: string; emisor: string; vence: string } | null;
 };
 
-const CAMPOS_CREDENCIALES: Record<Pais, string[]> = {
-  CO: ["clientId", "clientSecret", "username", "password"],
-  EC: ["apiKey", "certPassword"],
+export type Proveedor = "factus" | "datil" | "sri";
+
+const CAMPOS_CREDENCIALES: Record<Proveedor, string[]> = {
+  factus: ["clientId", "clientSecret", "username", "password"],
+  datil: ["apiKey", "certPassword"],
+  sri: ["p12", "p12Password"],
 };
 
-function credencialesCompletas(pais: Pais, c: Record<string, string> | null): boolean {
-  return pais === "CO" ? credencialesFactusCompletas(c) : credencialesDatilCompletas(c);
+/** El proveedor con que factura: directo con el SRI solo si el negocio puede. */
+function proveedorDe(pais: Pais, guardado: string | null | undefined, sriDirecto: boolean): Proveedor {
+  if (pais === "CO") return "factus";
+  return guardado === "sri" && sriDirecto ? "sri" : "datil";
 }
 
-function vista(c: BillingConfig | null): ConfigVista {
+function credencialesCompletas(proveedor: Proveedor, c: Record<string, string> | null): boolean {
+  return proveedor === "factus" ? credencialesFactusCompletas(c) : proveedor === "sri" ? credencialesSriCompletas(c) : credencialesDatilCompletas(c);
+}
+
+const NOMBRE_PROVEEDOR: Record<Proveedor, string> = { factus: "Factus", datil: "Dátil", sri: "la firma electrónica" };
+
+function vista(c: BillingConfig | null, sriDirecto: boolean): ConfigVista {
   const pais: Pais = esPais(c?.country) ? c.country : "CO";
   const tarifa = TARIFAS[pais].find((t) => t.codigo === c?.taxCode && t.tarifa === c?.taxRate) ?? TARIFAS[pais][0];
+  const provider = proveedorDe(pais, c?.provider, sriDirecto);
+  const creds = descifrar(c?.credentials);
   return {
     enabled: c?.enabled ?? false,
     country: pais,
@@ -71,21 +96,39 @@ function vista(c: BillingConfig | null): ConfigVista {
     nextSequential: c?.nextSequential ?? 1,
     keepsAccounting: c?.keepsAccounting ?? false,
     specialTaxpayer: c?.specialTaxpayer ?? "",
-    credencialesGuardadas: credencialesCompletas(pais, descifrar(c?.credentials)),
+    credencialesGuardadas: credencialesCompletas(provider, creds),
     lastCheckAt: c?.lastCheckAt?.toISOString() ?? null,
     lastCheckOk: c?.lastCheckOk ?? null,
     lastCheckMessage: c?.lastCheckMessage ?? null,
+    provider,
+    sriDirecto,
+    taxRegime: esRegimen(c?.taxRegime) ? c.taxRegime : "GENERAL",
+    withholdingAgent: c?.withholdingAgent ?? "",
+    branchAddress: c?.branchAddress ?? "",
+    firma:
+      provider === "sri" && credencialesSriCompletas(creds)
+        ? { titular: creds.firmaTitular ?? "", emisor: creds.firmaEmisor ?? "", vence: creds.firmaVence ?? "" }
+        : null,
   };
 }
 
+/** Directo con el SRI es, por ahora, solo de Chopo Snacks. */
+async function puedeSriDirecto(userId: string): Promise<boolean> {
+  const u = await db.user.findUnique({ where: { id: userId }, select: { businessName: true } });
+  return esChopoSnacks(u?.businessName ?? "");
+}
+
 export async function configuracionFacturacion(userId: string): Promise<ConfigVista> {
-  return vista(await db.billingConfig.findUnique({ where: { userId } }));
+  const [c, sri] = await Promise.all([db.billingConfig.findUnique({ where: { userId } }), puedeSriDirecto(userId)]);
+  return vista(c, sri);
 }
 
 /** Lo que falta para poder emitir. Vacio si esta lista. */
 export function faltantes(c: ConfigVista): string[] {
   const falta: string[] = [];
-  if (!c.credencialesGuardadas) falta.push("las credenciales de " + datosPais(c.country).proveedor);
+  if (!c.credencialesGuardadas) {
+    falta.push(c.provider === "sri" ? "la firma electrónica (.p12) con su clave" : "las credenciales de " + datosPais(c.country).proveedor);
+  }
   if (c.country === "EC") {
     if (!/^\d{13}$/.test(c.taxId)) falta.push("el RUC del negocio (13 dígitos)");
     if (!c.legalName) falta.push("la razón social");
@@ -111,19 +154,38 @@ export async function guardarConfiguracion(userId: string, d: Record<string, unk
   const rango = texto(d.numberingRangeId, 12);
   if (rango && !/^\d+$/.test(rango)) return falla("El rango de numeración es un número.");
 
-  const actual = await db.billingConfig.findUnique({ where: { userId } });
+  const [actual, sriDirecto] = await Promise.all([db.billingConfig.findUnique({ where: { userId } }), puedeSriDirecto(userId)]);
+  const proveedor = proveedorDe(pais, texto(d.provider, 10), sriDirecto);
   // Las credenciales que no se escriben se quedan como estaban: la pantalla
   // nunca las muestra, asi que dejar el campo vacio es "no cambiar".
-  const previas = actual?.country === pais ? descifrar(actual.credentials) ?? {} : {};
+  const mismoProveedor = actual?.country === pais && proveedorDe(pais, actual.provider, sriDirecto) === proveedor;
+  const previas = mismoProveedor ? descifrar(actual.credentials) ?? {} : {};
   const nuevas: Record<string, string> = { ...previas };
-  for (const campo of CAMPOS_CREDENCIALES[pais]) {
-    const valor = texto(d[campo], 300);
-    if (valor) nuevas[campo] = valor;
+  let cambio = false;
+  for (const campo of CAMPOS_CREDENCIALES[proveedor]) {
+    // La firma .p12 viaja en base64 y es larga; lo demas son claves cortas.
+    const valor = texto(d[campo], campo === "p12" ? 200_000 : 300);
+    if (valor) {
+      nuevas[campo] = valor;
+      cambio = true;
+    }
   }
-  const guardar = CAMPOS_CREDENCIALES[pais].some((k) => nuevas[k]) ? cifrar(nuevas) : null;
+  if (proveedor === "sri" && cambio && nuevas.p12 && nuevas.p12Password) {
+    // Una firma que no abre o ya vencio no se guarda: fallaria en cada factura.
+    const firma = revisarFirma(nuevas.p12, nuevas.p12Password);
+    if (!firma.ok) return falla(firma.error);
+    nuevas.firmaTitular = firma.datos.titular;
+    nuevas.firmaEmisor = firma.datos.emisor;
+    nuevas.firmaVence = firma.datos.hasta.toISOString().slice(0, 10);
+  }
+  const guardar = CAMPOS_CREDENCIALES[proveedor].some((k) => nuevas[k]) ? cifrar(nuevas) : null;
 
   const datos = {
     country: pais,
+    provider: pais === "EC" ? proveedor : null,
+    taxRegime: esRegimen(d.taxRegime) ? d.taxRegime : "GENERAL",
+    withholdingAgent: texto(d.withholdingAgent, 20) || null,
+    branchAddress: texto(d.branchAddress, 300) || null,
     environment: d.environment === "produccion" ? "produccion" : "pruebas",
     defaultDocument: d.defaultDocument === "autorizada" ? "autorizada" : "normal",
     taxCode: tarifa.codigo,
@@ -142,29 +204,33 @@ export async function guardarConfiguracion(userId: string, d: Record<string, unk
   };
 
   const enabled = d.enabled === true || d.enabled === "on";
-  const borrador = vista({ ...(actual ?? ({} as BillingConfig)), ...datos, enabled } as BillingConfig);
+  const borrador = vista({ ...(actual ?? ({} as BillingConfig)), ...datos, enabled } as BillingConfig, sriDirecto);
   const falta = faltantes(borrador);
   if (enabled && falta.length > 0) return falla("Para activarla falta " + falta.join(", ") + ".");
 
-  // Si cambian las credenciales o el pais, la ultima prueba ya no dice nada.
-  const cambioConexion = guardar !== actual?.credentials || pais !== actual?.country || datos.environment !== actual?.environment;
+  // Si cambian las credenciales, el pais o el proveedor, la ultima prueba ya no dice nada.
+  const cambioConexion =
+    guardar !== actual?.credentials || pais !== actual?.country || datos.environment !== actual?.environment || datos.provider !== actual?.provider;
   const guardada = await db.billingConfig.upsert({
     where: { userId },
     create: { userId, ...datos, enabled },
     update: { ...datos, enabled, ...(cambioConexion ? { lastCheckAt: null, lastCheckOk: null, lastCheckMessage: null } : {}) },
   });
-  return { ok: true, datos: vista(guardada) };
+  return { ok: true, datos: vista(guardada, sriDirecto) };
 }
 
 export async function probarConexion(
   userId: string
 ): Promise<{ ok: boolean; mensaje: string; rangos?: RangoFactus[] }> {
-  const c = await db.billingConfig.findUnique({ where: { userId } });
+  const [c, sriDirecto] = await Promise.all([db.billingConfig.findUnique({ where: { userId } }), puedeSriDirecto(userId)]);
   const pais: Pais = esPais(c?.country) ? c.country : "CO";
+  const proveedor = proveedorDe(pais, c?.provider, sriDirecto);
   const creds = descifrar(c?.credentials);
   let r: { ok: boolean; mensaje: string; rangos?: RangoFactus[] };
-  if (!c || !credencialesCompletas(pais, creds)) {
-    r = { ok: false, mensaje: "Primero guarda las credenciales de " + datosPais(pais).proveedor + "." };
+  if (!c || !credencialesCompletas(proveedor, creds)) {
+    r = { ok: false, mensaje: "Primero guarda " + (proveedor === "sri" ? "la firma electrónica." : "las credenciales de " + NOMBRE_PROVEEDOR[proveedor] + ".") };
+  } else if (proveedor === "sri" && credencialesSriCompletas(creds)) {
+    r = await probarSri(creds, c.environment === "produccion" ? "produccion" : "pruebas");
   } else if (pais === "CO" && credencialesFactusCompletas(creds)) {
     const p = await probarFactus(creds, c.environment === "produccion" ? "produccion" : "pruebas");
     r = p.ok
@@ -197,6 +263,9 @@ export type FacturaVista = {
   estado: "ENVIANDO" | "AUTORIZADA" | "RECHAZADA" | "ERROR";
   pais: Pais;
   ambiente: Ambiente;
+  proveedor: Proveedor;
+  /** Directo con el SRI y autorizada: el XML se puede bajar. */
+  conXml: boolean;
   numero: string | null;
   codigo: string | null;
   etiquetaCodigo: string;
@@ -218,6 +287,8 @@ export function facturaVista(f: ElectronicInvoice): FacturaVista {
     estado: f.status,
     pais,
     ambiente: f.environment === "produccion" ? "produccion" : "pruebas",
+    proveedor: f.provider === "sri" ? "sri" : pais === "CO" ? "factus" : "datil",
+    conXml: f.provider === "sri" && f.status === "AUTORIZADA" && Boolean(f.xml),
     numero: f.number,
     codigo: f.authCode,
     etiquetaCodigo: pais === "CO" ? "CUFE" : "Clave de acceso",
@@ -290,12 +361,15 @@ export async function emitirFactura(s: Sesion, saleId: string, compradorCrudo: u
       return otra ? { ok: true, datos: facturaVista(otra) } : falla("No se pudo apartar la factura.", 409);
     }
   } else {
+    // Directo con el SRI, una rechazada se vuelve a armar desde cero con otro
+    // numero: la anterior quedo registrada (o devuelta) con el suyo.
+    const deNuevo = previa.status === "RECHAZADA" && previa.provider === "sri" ? { xml: null, authCode: null, sequential: null, number: null } : {};
     const apartada = await db.electronicInvoice.updateMany({
       where: {
         id: previa.id,
         OR: [{ status: { in: ["ERROR", "RECHAZADA"] } }, { status: "ENVIANDO", updatedAt: { lt: new Date(Date.now() - ENVIO_CAIDO_MS) } }],
       },
-      data: { status: "ENVIANDO", attempts: { increment: 1 }, message: null, ...datosFila },
+      data: { status: "ENVIANDO", attempts: { increment: 1 }, message: null, ...datosFila, ...deNuevo },
     });
     fila = await db.electronicInvoice.findUnique({ where: { id: previa.id } });
     if (apartada.count === 0 && fila) return { ok: true, datos: facturaVista(fila) };
@@ -305,8 +379,8 @@ export async function emitirFactura(s: Sesion, saleId: string, compradorCrudo: u
   return { ok: true, datos: facturaVista(await procesar(fila.id)) };
 }
 
-/** Le pone el resultado del proveedor a la fila. */
-async function aplicar(id: string, r: ResultadoProveedor): Promise<ElectronicInvoice> {
+/** Le pone el resultado del proveedor a la fila. Directo con el SRI trae ademas el XML autorizado. */
+async function aplicar(id: string, r: ResultadoProveedor & { xml?: string | null }): Promise<ElectronicInvoice> {
   switch (r.estado) {
     case "AUTORIZADA":
       return db.electronicInvoice.update({
@@ -320,6 +394,7 @@ async function aplicar(id: string, r: ResultadoProveedor): Promise<ElectronicInv
           providerId: r.providerId,
           authorizedAt: r.fecha ?? new Date(),
           message: null,
+          ...(r.xml ? { xml: r.xml } : {}),
         },
       });
     case "ENVIANDO":
@@ -345,14 +420,17 @@ async function aplicar(id: string, r: ResultadoProveedor): Promise<ElectronicInv
 async function procesar(id: string): Promise<ElectronicInvoice> {
   const fila = await db.electronicInvoice.findUniqueOrThrow({
     where: { id },
-    include: { sale: { include: { items: true } }, user: { select: { currency: true, billingConfig: true } } },
+    include: { sale: { include: { items: true } }, user: { select: { currency: true, businessName: true, billingConfig: true } } },
   });
   const config = fila.user.billingConfig;
   const pais: Pais = esPais(fila.country) ? fila.country : "CO";
   const ambiente: Ambiente = fila.environment === "produccion" ? "produccion" : "pruebas";
   const creds = descifrar(config?.credentials);
-  if (!config || !credencialesCompletas(pais, creds)) {
-    return aplicar(id, { estado: "RECHAZADA", mensaje: "Faltan las credenciales de " + datosPais(pais).proveedor + " en Ajustes." });
+  // Una factura ya armada directo con el SRI se termina por ese camino.
+  const proveedor: Proveedor = fila.provider === "sri" ? "sri" : proveedorDe(pais, config?.provider, esChopoSnacks(fila.user.businessName));
+  if (!config || !credencialesCompletas(proveedor, creds)) {
+    const falta = proveedor === "sri" ? "la firma electrónica" : "las credenciales de " + NOMBRE_PROVEEDOR[proveedor];
+    return aplicar(id, { estado: "RECHAZADA", mensaje: "Falta " + falta + " en Ajustes." });
   }
 
   const venta = fila.sale;
@@ -383,25 +461,41 @@ async function procesar(id: string): Promise<ElectronicInvoice> {
         })
       );
     }
+    if (proveedor === "sri" && credencialesSriCompletas(creds)) {
+      let { xml, authCode: clave, number: numero } = fila;
+      // Ya firmada en un intento anterior: se manda la misma (mismo numero,
+      // misma clave), preguntando antes si el SRI ya la tiene.
+      const yaEnviada = Boolean(xml && clave && numero);
+      if (!xml || !clave || !numero) {
+        const secuencial = fila.sequential ?? (await apartarSecuencial(config, id));
+        // Con seis decimales en el precio unitario la factura da al centavo lo cobrado.
+        const sri = lineasFiscales(lineasVenta, moneda, config.taxRate, 6);
+        const firmada = firmarFacturaDeVenta(config, creds, {
+          ambiente,
+          fecha: todayIn("America/Guayaquil"),
+          secuencial,
+          comprador,
+          lineas: sri.lineas,
+          tarifa: config.taxRate,
+          metodoPago: venta.paymentMethod,
+        });
+        xml = firmada.xml;
+        clave = firmada.clave;
+        numero = numeroSri(config.establishment, config.emissionPoint, secuencial);
+        // Se guarda antes de mandarla: si se cae a mitad, el reintento manda esta misma.
+        await db.electronicInvoice.update({
+          where: { id },
+          data: { provider: "sri", xml, authCode: clave, number: numero, subtotal: sri.totales.base, tax: sri.totales.impuesto, total: sri.totales.total },
+        });
+      }
+      return aplicar(id, await despacharSri(ambiente, clave, xml, numero, yaEnviada));
+    }
     if (credencialesDatilCompletas(creds)) {
       // Ya estaba en Datil: se consulta en vez de mandarla otra vez.
       if (fila.providerId && fila.status === "ENVIANDO") {
         return aplicar(id, await consultarDatil(creds, fila.providerId, fila.number));
       }
-      let secuencial = fila.sequential;
-      if (!secuencial) {
-        // El numero se aparta una sola vez por factura: un reintento usa el mismo.
-        const siguiente = await db.billingConfig.update({
-          where: { id: config.id },
-          data: { nextSequential: { increment: 1 } },
-          select: { nextSequential: true },
-        });
-        secuencial = siguiente.nextSequential - 1;
-        await db.electronicInvoice.update({
-          where: { id },
-          data: { sequential: secuencial, number: numeroSri(config.establishment, config.emissionPoint, secuencial) },
-        });
-      }
+      const secuencial = fila.sequential ?? (await apartarSecuencial(config, id));
       return aplicar(
         id,
         await emitirDatil(creds, ambiente, {
@@ -427,8 +521,24 @@ async function procesar(id: string): Promise<ElectronicInvoice> {
     }
     return aplicar(id, { estado: "RECHAZADA", mensaje: "Faltan credenciales." });
   } catch (e) {
+    if (e instanceof NoSeArma) return aplicar(id, { estado: "RECHAZADA", mensaje: e.message });
     return aplicar(id, { estado: "ERROR", mensaje: e instanceof Error ? e.message : "Falló el envío." });
   }
+}
+
+/** Ecuador: el numero se aparta una sola vez por factura; un reintento usa el mismo. */
+async function apartarSecuencial(config: BillingConfig, id: string): Promise<number> {
+  const siguiente = await db.billingConfig.update({
+    where: { id: config.id },
+    data: { nextSequential: { increment: 1 } },
+    select: { nextSequential: true },
+  });
+  const secuencial = siguiente.nextSequential - 1;
+  await db.electronicInvoice.update({
+    where: { id },
+    data: { sequential: secuencial, number: numeroSri(config.establishment, config.emissionPoint, secuencial) },
+  });
+  return secuencial;
 }
 
 /** Consulta una factura que sigue esperando. La usa el boton "Actualizar". */

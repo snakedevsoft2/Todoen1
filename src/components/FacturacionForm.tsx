@@ -17,21 +17,33 @@ export function FacturacionForm({ config, moneda }: { config: ConfigVista; moned
   const [prueba, probar, probando] = useActionState(probarFacturacionAction, undefined);
   const actual = state?.config ?? config;
   const [pais, setPais] = useState<Pais>(config.country);
+  // Ecuador: directo con el SRI (solo si el negocio puede) o con Datil.
+  const [proveedor, setProveedor] = useState<"sri" | "datil">(config.provider === "sri" ? "sri" : "datil");
+  const sri = pais === "EC" && config.sriDirecto && proveedor === "sri";
   const [rango, setRango] = useState(config.numberingRangeId);
   // Elegir un rango de la prueba solo llena el campo: hay que guardar.
   const [rangoSinGuardar, setRangoSinGuardar] = useState(false);
   // Cambia despues de guardar, para vaciar los campos de las claves.
   const [vuelta, setVuelta] = useState(0);
   const p = datosPais(pais);
-  const guardadas = actual.credencialesGuardadas && actual.country === pais;
+  const guardadas = actual.credencialesGuardadas && actual.country === pais && (pais === "CO" || actual.provider === (sri ? "sri" : "datil"));
   const claveGuardada = guardadas ? "Guardada: escribe solo para cambiarla" : "";
 
   return (
     <div className="space-y-4" data-facturacion>
       <p className="text-[13px] leading-relaxed text-body">
         Con la factura autorizada, cada venta que lo necesite sale validada ante la {p.entidad}, con su número oficial y su{" "}
-        {pais === "CO" ? "CUFE" : "clave de acceso"}. Usa tu propia cuenta de <strong>{p.proveedor}</strong>. La factura normal
-        sigue saliendo igual para quien no la necesita.
+        {pais === "CO" ? "CUFE" : "clave de acceso"}.{" "}
+        {sri ? (
+          <>
+            Se firma con <strong>tu firma electrónica</strong> y va directo al SRI, sin intermediario.
+          </>
+        ) : (
+          <>
+            Usa tu propia cuenta de <strong>{p.proveedor}</strong>.
+          </>
+        )}{" "}
+        La factura normal sigue saliendo igual para quien no la necesita.
       </p>
 
       <form
@@ -63,7 +75,8 @@ export function FacturacionForm({ config, moneda }: { config: ConfigVista; moned
             <select className="input" name="country" value={pais} onChange={(e) => setPais(e.target.value as Pais)}>
               {PAISES.map((x) => (
                 <option key={x.value} value={x.value}>
-                  {x.label} · {x.entidad} con {x.proveedor}
+                  {x.label} · {x.entidad}
+                  {x.value === "EC" && config.sriDirecto ? "" : " con " + x.proveedor}
                 </option>
               ))}
             </select>
@@ -127,14 +140,47 @@ export function FacturacionForm({ config, moneda }: { config: ConfigVista; moned
           </fieldset>
         ) : (
           <fieldset className="space-y-3 rounded-xl border border-line p-3" key={"ec-" + vuelta}>
-            <legend className="px-1 text-[12px] font-bold text-strong">Tu cuenta de Dátil y tus datos ante el SRI</legend>
+            <legend className="px-1 text-[12px] font-bold text-strong">
+              {sri ? "Tu firma electrónica y tus datos ante el SRI" : "Tu cuenta de Dátil y tus datos ante el SRI"}
+            </legend>
+            {config.sriDirecto && (
+              <Field
+                label="Cómo se conecta con el SRI"
+                hint={sri ? "Se firma con tu firma electrónica (.p12) y no le pagas a un intermediario." : "Dátil firma y manda por ti, con tu cuenta allá."}
+              >
+                <select className="input" name="provider" value={proveedor} onChange={(e) => setProveedor(e.target.value === "sri" ? "sri" : "datil")}>
+                  <option value="sri">Directo con el SRI</option>
+                  <option value="datil">Con Dátil</option>
+                </select>
+              </Field>
+            )}
+            {sri && actual.firma && actual.provider === "sri" && (
+              <p className="rounded-lg bg-good-soft px-2.5 py-1.5 text-[12px] text-good" data-firma-guardada>
+                Firma guardada: {actual.firma.titular}
+                {actual.firma.emisor ? ", emitida por " + actual.firma.emisor : ""}
+                {actual.firma.vence ? ". Vence el " + actual.firma.vence.split("-").reverse().join("/") + "." : "."}
+              </p>
+            )}
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Clave del API de Dátil">
-                <input className="input" name="apiKey" type="password" autoComplete="new-password" placeholder={claveGuardada} />
-              </Field>
-              <Field label="Clave de tu firma electrónica">
-                <input className="input" name="certPassword" type="password" autoComplete="new-password" placeholder={claveGuardada} />
-              </Field>
+              {sri ? (
+                <>
+                  <Field label="Firma electrónica (.p12)" hint={actual.firma ? "Súbela solo para cambiarla." : "El archivo que te dio la entidad: Banco Central, Security Data, ANF…"}>
+                    <input className="input" name="p12File" type="file" accept=".p12,.pfx,application/x-pkcs12" />
+                  </Field>
+                  <Field label="Clave de la firma electrónica">
+                    <input className="input" name="p12Password" type="password" autoComplete="new-password" placeholder={claveGuardada} />
+                  </Field>
+                </>
+              ) : (
+                <>
+                  <Field label="Clave del API de Dátil">
+                    <input className="input" name="apiKey" type="password" autoComplete="new-password" placeholder={claveGuardada} />
+                  </Field>
+                  <Field label="Clave de tu firma electrónica">
+                    <input className="input" name="certPassword" type="password" autoComplete="new-password" placeholder={claveGuardada} />
+                  </Field>
+                </>
+              )}
               <Field label="RUC">
                 <input className="input" name="taxId" inputMode="numeric" maxLength={13} defaultValue={config.taxId} />
               </Field>
@@ -159,6 +205,23 @@ export function FacturacionForm({ config, moneda }: { config: ConfigVista; moned
               <Field label="Contribuyente especial (resolución)">
                 <input className="input" name="specialTaxpayer" defaultValue={config.specialTaxpayer} placeholder="Déjalo vacío si no eres" />
               </Field>
+              {sri && (
+                <>
+                  <Field label="Dirección del establecimiento" hint="Vacía si es la misma de la matriz.">
+                    <input className="input" name="branchAddress" defaultValue={config.branchAddress} />
+                  </Field>
+                  <Field label="Régimen" hint="Sale en la factura como lo pide el SRI.">
+                    <select className="input" name="taxRegime" defaultValue={config.taxRegime}>
+                      <option value="GENERAL">Régimen general</option>
+                      <option value="RIMPE_EMPRENDEDOR">RIMPE emprendedor</option>
+                      <option value="RIMPE_NEGOCIO_POPULAR">RIMPE negocio popular</option>
+                    </select>
+                  </Field>
+                  <Field label="Agente de retención (resolución)">
+                    <input className="input" name="withholdingAgent" defaultValue={config.withholdingAgent} placeholder="Déjalo vacío si no eres" />
+                  </Field>
+                </>
+              )}
             </div>
             <label className="flex items-center gap-2 text-sm text-body">
               <input type="checkbox" name="keepsAccounting" defaultChecked={config.keepsAccounting} className="h-4 w-4" />
@@ -175,7 +238,7 @@ export function FacturacionForm({ config, moneda }: { config: ConfigVista; moned
       <div className="rounded-xl border border-line bg-surface p-3">
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" className="btn-ghost btn-sm" disabled={probando || !guardadas} onClick={() => startTransition(() => probar())}>
-            {probando ? "Probando…" : "Probar conexión con " + p.proveedor}
+            {probando ? "Probando…" : sri ? "Probar la firma y el SRI" : "Probar conexión con " + p.proveedor}
           </button>
           {!guardadas && <span className="text-[12px] text-muted">Guarda primero las credenciales.</span>}
           {!prueba && actual.lastCheckAt && (

@@ -2351,6 +2351,9 @@ model BillingConfig {
   enabled          Boolean   @default(false)
   /// "CO" (DIAN, con Factus) o "EC" (SRI, con Datil).
   country          String    @default("CO")
+  /// Ecuador: "datil" o "sri" (directo, con la firma .p12 del negocio; por
+  /// ahora solo Chopo Snacks). Vacio es el de siempre del pais.
+  provider         String?
   /// "pruebas" o "produccion".
   environment      String    @default("pruebas")
   /// Credenciales del proveedor, cifradas. Ver lib/facturacion/cifrado.ts.
@@ -2374,6 +2377,12 @@ model BillingConfig {
   nextSequential   Int       @default(1)
   keepsAccounting  Boolean   @default(false)
   specialTaxpayer  String?
+  /// Ecuador: "GENERAL", "RIMPE_EMPRENDEDOR" o "RIMPE_NEGOCIO_POPULAR" (va en el XML).
+  taxRegime        String    @default("GENERAL")
+  /// Ecuador: numero de resolucion si es agente de retencion.
+  withholdingAgent String?
+  /// Ecuador: direccion del establecimiento que emite; vacia es la de la matriz.
+  branchAddress    String?
   lastCheckAt      DateTime?
   lastCheckOk      Boolean?
   lastCheckMessage String?
@@ -2412,6 +2421,11 @@ model ElectronicInvoice {
   publicUrl        String?
   /// El id del documento en el proveedor (Datil lo necesita para consultar).
   providerId       String?
+  /// "factus", "datil" o "sri" (directo).
+  provider         String?
+  /// Directo con el SRI: el XML firmado mientras espera; ya autorizado, el
+  /// <autorizacion> que se le entrega al comprador. Se guarda siete anos.
+  xml              String?
   /// Ecuador: el secuencial apartado para esta factura. Un reintento usa el mismo.
   sequential       Int?
   /// El comprador como se envio: tipo y numero de documento, nombre, correo...
