@@ -8,6 +8,7 @@ import { negocioTieneLogo, personaTieneFoto } from "./imagenes";
 import { cuentaPorFuera } from "./pagos";
 import { modulosDe, rutaPermitida } from "./modules";
 import { readSession } from "./session";
+import { esAdminDeChopo } from "./chopo";
 import {
   esEmpleadoDeAsistencia,
   esLavadorDeLavadero,
@@ -81,6 +82,12 @@ export type SessionUser = NegocioSinImagenes & { hasLogo: boolean };
 export type SessionStaff = Omit<Staff, "photo"> & {
   hasPhoto?: boolean;
   photo?: string | null;
+  /**
+   * Su rol en Equipo, cuando la sesion le da los permisos de otro (hoy solo la
+   * administradora de Chopo Snacks, ver getCurrentSession). Lo que depende de
+   * QUIEN es la persona, y no de lo que puede hacer, mira este.
+   */
+  rolReal?: Staff["role"];
 };
 
 /**
@@ -199,6 +206,16 @@ export const getCurrentSession = cache(async (): Promise<Session | null> => {
 
   // Al empleado que le quitaron el usuario (y no tiene correo) se le cierra la sesion.
   if (staff.role !== "DUENO" && !staff.username && !staff.email) return null;
+
+  // La administradora de Chopo Snacks puede todo lo que puede la dueña, aunque
+  // en Equipo este como empleada (lo pidio el negocio el 9 nov 2026). Se
+  // resuelve aqui, en un solo sitio, para que cada pantalla, cada accion y la
+  // cola sin señal decidan igual. Lo que depende de quien es ella (administrar
+  // la plataforma, el asistente de inicio del negocio) mira rolReal.
+  if (staff.role !== "DUENO" && esAdminDeChopo(user, staff)) {
+    staff.rolReal = staff.role;
+    staff.role = "DUENO";
+  }
 
   await marcarActividad(staff);
   return { user, staff };

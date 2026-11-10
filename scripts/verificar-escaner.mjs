@@ -11,7 +11,8 @@
  */
 import "dotenv/config";
 import fs from "node:fs";
-import { chromium } from "playwright";
+// Sin la presentacion del primer ingreso (ver navegador.mjs).
+import { chromium } from "./navegador.mjs";
 import { PrismaClient } from "@prisma/client";
 import { PDFDocument } from "pdf-lib";
 import bcrypt from "bcryptjs";

@@ -6,7 +6,7 @@ import {
   DndContext,
   DragOverlay,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
   TouchSensor,
   useDraggable,
   useDroppable,
@@ -196,7 +196,10 @@ export function Embudo({ tarjetas, currency }: { tarjetas: Tarjeta[]; currency: 
   useEffect(() => setLista(tarjetas), [tarjetas]);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    // Mouse y no Pointer: el sensor del puntero tambien recibe el dedo y, como
+    // llega primero, se quedaba con el; la espera del dedo nunca corria y en el
+    // celular la pagina se desplazaba en vez de mover (ver NewSaleForm).
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } }),
     useSensor(KeyboardSensor)
   );

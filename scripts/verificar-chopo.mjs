@@ -381,7 +381,7 @@ try {
   await pj.goto(BASE + "/panel/catalogo", { waitUntil: "networkidle" });
   const editar = pj.locator("details", { has: pj.locator('input[name="id"][value="' + tercera.services[0].id + '"]') }).first();
   await editar.locator("summary").click();
-  await editar.locator('input[name="price"]').fill("0,90");
+  await editar.locator('input[name="price"]').fill("0.90");
   await editar.locator('button[type="submit"]').first().click();
   let chifle;
   for (let i = 0; i < 16; i++) {

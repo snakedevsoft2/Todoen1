@@ -16,7 +16,8 @@
  *
  * Toca la base de datos: usar solo contra la base local de pruebas.
  */
-import { chromium } from "playwright";
+// Sin la presentacion del primer ingreso (ver navegador.mjs).
+import { chromium } from "./navegador.mjs";
 import { PrismaClient } from "@prisma/client";
 
 const BASE = "http://localhost:3000";
@@ -65,9 +66,11 @@ try {
   const p1 = await ctxCliente.newPage();
   await entrar(p1, "restaurante@demo.com");
 
-  const menuCliente = await p1.locator("aside").innerText();
+  // El enlace vive en el menu de la cuenta, que esta plegado: innerText no lo
+  // ve aunque este, asi que se busca en el HTML.
+  const enlaceAdmin = 'aside a[href="/admin"]';
   ok(
-    !/Panel de la plataforma/i.test(menuCliente),
+    (await p1.locator(enlaceAdmin).count()) === 0,
     "no se le muestra el enlace al panel de la plataforma"
   );
 
@@ -99,7 +102,7 @@ try {
   await entrar(p2, "barberia@demo.com");
 
   ok(
-    /Panel de la plataforma/i.test(await p2.locator("aside").innerText()),
+    /Panel de la plataforma/i.test((await p2.locator(enlaceAdmin).first().textContent()) ?? ""),
     "a el si se le muestra el enlace"
   );
 

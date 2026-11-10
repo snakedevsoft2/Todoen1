@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import {
   DndContext,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
   TouchSensor,
   closestCenter,
   useSensor,
@@ -157,7 +157,10 @@ export function WorkspaceForm({ items }: { items: WorkspaceItem[] }) {
   // La distancia y la espera evitan que un toque para prender el interruptor
   // se interprete como el comienzo de un arrastre.
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    // Mouse y no Pointer: el sensor del puntero tambien recibe el dedo y, como
+    // llega primero, se quedaba con el; la espera del dedo nunca corria y en el
+    // celular la pagina se desplazaba en vez de mover (ver NewSaleForm).
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );

@@ -21,7 +21,8 @@
 import "dotenv/config";
 import http from "node:http";
 import { createHmac } from "node:crypto";
-import { chromium } from "playwright";
+// Sin la presentacion del primer ingreso (ver navegador.mjs).
+import { chromium } from "./navegador.mjs";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 

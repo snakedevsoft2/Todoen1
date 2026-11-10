@@ -13,7 +13,8 @@
  */
 import "dotenv/config";
 import { deflateSync, crc32 } from "node:zlib";
-import { chromium } from "playwright";
+// Sin la presentacion del primer ingreso (ver navegador.mjs).
+import { chromium } from "./navegador.mjs";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
