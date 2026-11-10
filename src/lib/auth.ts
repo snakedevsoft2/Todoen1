@@ -5,7 +5,7 @@ import bcrypt from "bcryptjs";
 import type { Staff, User } from "@prisma/client";
 import { db } from "./db";
 import { negocioTieneLogo, personaTieneFoto } from "./imagenes";
-import { suspenderSiVencio } from "./pagos";
+import { cuentaPorFuera } from "./pagos";
 import { modulosDe, rutaPermitida } from "./modules";
 import { readSession } from "./session";
 import {
@@ -164,12 +164,10 @@ export const getCurrentSession = cache(async (): Promise<Session | null> => {
   const user: SessionUser = { ...fila, hasLogo };
 
   // Cuenta suspendida por la plataforma: la sesion deja de valer en la
-  // siguiente peticion, sin tener que esperar a que la cookie caduque.
-  if (user.suspendedAt) return null;
-
-  // Pago vencido y sin dias de gracia: se suspende aqui mismo, sin esperar al
+  // siguiente peticion, sin tener que esperar a que la cookie caduque. Si el
+  // pago se vencio y ya no hay gracia, se suspende aqui mismo, sin esperar al
   // envio diario.
-  if (await suspenderSiVencio(user)) return null;
+  if (await cuentaPorFuera(user)) return null;
 
   // La cookie trae la version que tenia la clave del negocio al firmarse. Si
   // el dueno cambio su contrasena despues (desde este u otro aparato), todas

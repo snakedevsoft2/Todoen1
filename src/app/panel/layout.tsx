@@ -150,7 +150,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
       >
         <AvisoSinConexion />
         {/* Solo al dueño: es quien puede renovar el plan. */}
-        {!empleado && staff.role === "DUENO" && <AvisoDePago paidUntil={user.paidUntil} trialEndsAt={user.trialEndsAt} businessName={user.businessName} />}
+        {!empleado && staff.role === "DUENO" && !esAdmin(user.email) && <AvisoDePago paidUntil={user.paidUntil} trialEndsAt={user.trialEndsAt} businessName={user.businessName} />}
         {instalable && <InstalarApp variante="aviso" />}
         {avisosPush && <ActivarNotificaciones variante="aviso" queRecibe={avisosPush} />}
         <ProveedorSinSenal cuenta={staff.id} sinConexion={instalable} role={staff.role}>{children}</ProveedorSinSenal>

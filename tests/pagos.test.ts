@@ -3,6 +3,7 @@ import { PrismaClient } from "@prisma/client";
 import {
   DIAS_DE_GRACIA,
   MOTIVO_PAGO,
+  cuentaPorFuera,
   estadoDePago,
   finDelDia,
   quitarControlDePago,
@@ -112,5 +113,60 @@ describe("suspender y reactivar", () => {
 
     await quitarControlDePago(tarde.id);
     expect(await db.user.findUniqueOrThrow({ where: { id: tarde.id } })).toMatchObject({ paidUntil: null, suspendedAt: null });
+  });
+});
+
+describe("la cuenta del administrador", () => {
+  const antes = process.env.ADMIN_EMAILS;
+  afterAll(() => {
+    if (antes === undefined) delete process.env.ADMIN_EMAILS;
+    else process.env.ADMIN_EMAILS = antes;
+  });
+  const vencida = () => ({ paidUntil: enDias(-(DIAS_DE_GRACIA + 30)) });
+  const leer = (id: string) => db.user.findUniqueOrThrow({ where: { id } });
+
+  it("el envío diario se la salta y a las demás las sigue suspendiendo", async () => {
+    const admin = await cuenta("admdiario", vencida());
+    const cliente = await cuenta("clidiario", vencida());
+    process.env.ADMIN_EMAILS = "otro@test.local, " + admin.email.toUpperCase();
+
+    await suspenderVencidas();
+
+    expect((await leer(admin.id)).suspendedAt).toBeNull();
+    expect(await leer(cliente.id)).toMatchObject({ suspendedForPayment: true });
+  });
+
+  it("entra con el pago vencido y no se suspende", async () => {
+    const admin = await cuenta("admvence", vencida());
+    process.env.ADMIN_EMAILS = admin.email;
+
+    expect(await cuentaPorFuera(admin)).toBe(false);
+    expect((await leer(admin.id)).suspendedAt).toBeNull();
+  });
+
+  it("si ya estaba suspendida, entra y queda limpia", async () => {
+    const admin = await cuenta("admsusp", { ...vencida(), suspendedAt: enDias(-3), suspendedReason: MOTIVO_PAGO });
+    process.env.ADMIN_EMAILS = admin.email;
+
+    expect(await cuentaPorFuera(admin)).toBe(false);
+    expect(await leer(admin.id)).toMatchObject({ suspendedAt: null, suspendedReason: null, suspendedForPayment: false });
+  });
+
+  it("a un cliente lo sigue dejando por fuera", async () => {
+    const vence = await cuenta("clivence", vencida());
+    const aMano = await cuenta("climano", { suspendedAt: enDias(-1), suspendedReason: "Pidió cerrarla" });
+    process.env.ADMIN_EMAILS = "otro@test.local";
+
+    expect(await cuentaPorFuera(vence)).toBe(true);
+    expect(await cuentaPorFuera(aMano)).toBe(true);
+    expect((await leer(vence.id)).suspendedForPayment).toBe(true);
+    expect((await leer(aMano.id)).suspendedReason).toBe("Pidió cerrarla");
+  });
+
+  it("un correo parecido que no está en la lista no cuenta", async () => {
+    const admin = await cuenta("admalias", vencida());
+    process.env.ADMIN_EMAILS = admin.email.replace("@", "+otro@");
+
+    expect(await cuentaPorFuera(admin)).toBe(true);
   });
 });

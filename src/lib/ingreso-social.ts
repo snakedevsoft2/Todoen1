@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "./db";
 import { ensureOwnerStaff } from "./auth";
+import { esAdmin } from "./admin-correos";
 import { signSession, SESSION_COOKIE } from "./session";
 
 /**
@@ -33,7 +34,7 @@ export async function decidirIngreso(emailCrudo: string, nombre: string): Promis
   if (owner) {
     // Antes Google le daba la cookie a una cuenta suspendida y el panel la
     // echaba despues. Ahora no se le da, y la pantalla dice por que.
-    if (owner.suspendedAt) return { tipo: "error", motivo: "suspendida" };
+    if (owner.suspendedAt && !esAdmin(owner.email)) return { tipo: "error", motivo: "suspendida" };
     const staff = await ensureOwnerStaff(owner);
     return {
       tipo: "sesion",
@@ -52,7 +53,7 @@ export async function decidirIngreso(emailCrudo: string, nombre: string): Promis
   const staff = await db.staff.findUnique({ where: { email }, include: { user: { omit: { logo: true, publicCover: true } } } });
   if (staff) {
     if (!staff.active) return { tipo: "error", motivo: "desactivado" };
-    if (staff.user.suspendedAt) return { tipo: "error", motivo: "suspendida" };
+    if (staff.user.suspendedAt && !esAdmin(staff.user.email)) return { tipo: "error", motivo: "suspendida" };
     return {
       tipo: "sesion",
       token: await signSession({

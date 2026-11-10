@@ -1,4 +1,5 @@
 import { SUPPORT_WHATSAPP } from "./support";
+import { esAdmin } from "./admin-correos";
 
 /**
  * El plan de una cuenta: completa o version gratis.
@@ -26,9 +27,11 @@ export type Plan =
   | { tipo: "prueba"; hasta: Date; dias: number }
   | { tipo: "gratis"; desde: Date };
 
-export type CuentaConPlan = { paidUntil: Date | null; trialEndsAt: Date | null };
+export type CuentaConPlan = { email?: string; paidUntil: Date | null; trialEndsAt: Date | null };
 
 export function planDeCuenta(c: CuentaConPlan, ahora = new Date()): Plan {
+  // Quien administra la plataforma tiene todo, sin importar las fechas.
+  if (esAdmin(c.email)) return { tipo: "pago" };
   if (c.paidUntil) return { tipo: "pago" };
   if (!c.trialEndsAt) return { tipo: "cortesia" };
   const falta = c.trialEndsAt.getTime() - ahora.getTime();

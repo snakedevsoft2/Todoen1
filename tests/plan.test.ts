@@ -8,6 +8,7 @@ import {
   finDePrueba,
   motivoSinPlan,
   planDeCuenta,
+  puedeInstalar,
 } from "../src/lib/plan";
 import { quitarControlDePago } from "../src/lib/pagos";
 import { invoiceTirilla, type InvoiceData } from "../src/lib/invoice";
@@ -70,6 +71,20 @@ describe("el plan de la cuenta", () => {
     expect(motivoSinPlan({ paidUntil: null, trialEndsAt: enDias(-1) })).toBe(SOLO_PLAN_PAGO);
     // Al registrar el pago vuelve a tener todo, aunque la prueba se haya acabado.
     expect(motivoSinPlan({ paidUntil: enDias(30), trialEndsAt: enDias(-1) })).toBeNull();
+  });
+
+  it("quien administra la plataforma tiene todo aunque se le acabe la prueba", () => {
+    const antes = process.env.ADMIN_EMAILS;
+    process.env.ADMIN_EMAILS = "jefe@test.local";
+    try {
+      const vencida = { paidUntil: null, trialEndsAt: enDias(-30) };
+      expect(planDeCuenta({ ...vencida, email: "JEFE@test.local" }).tipo).toBe("pago");
+      expect(puedeInstalar({ ...vencida, email: "jefe@test.local" })).toBe(true);
+      expect(planDeCuenta({ ...vencida, email: "otro@test.local" }).tipo).toBe("gratis");
+    } finally {
+      if (antes === undefined) delete process.env.ADMIN_EMAILS;
+      else process.env.ADMIN_EMAILS = antes;
+    }
   });
 });
 

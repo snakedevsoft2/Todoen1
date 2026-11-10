@@ -63,7 +63,7 @@ export async function recibirUbicaciones(s: Sesion, lote: unknown[]): Promise<Re
   const resultados: ResultadoItem[] = [];
   // Se lee otra vez de la base: la sesion puede traer datos de antes del cambio.
   const [negocio, persona] = await Promise.all([
-    db.user.findUnique({ where: { id: s.user.id }, select: { liveTracking: true, paidUntil: true, trialEndsAt: true } }),
+    db.user.findUnique({ where: { id: s.user.id }, select: { email: true, liveTracking: true, paidUntil: true, trialEndsAt: true } }),
     db.staff.findUnique({ where: { id: s.staff.id }, select: { locationConsentAt: true } }),
   ]);
   const motivoGeneral = negocio && !esPlanCompleto(negocio)
@@ -152,7 +152,7 @@ export async function registrarVisitas(s: Sesion, lote: unknown[]): Promise<Resu
   const resultados: ResultadoItem[] = [];
   const sitios = await db.workSite.findMany({ where: { userId: s.user.id }, select: { id: true, lat: true, lng: true } });
   // El boton "Llegue" es del plan completo.
-  const negocio = await db.user.findUnique({ where: { id: s.user.id }, select: { paidUntil: true, trialEndsAt: true } });
+  const negocio = await db.user.findUnique({ where: { id: s.user.id }, select: { email: true, paidUntil: true, trialEndsAt: true } });
   const sinPlan = negocio && !esPlanCompleto(negocio) ? SOLO_PLAN_PAGO : null;
 
   for (const crudo of lote) {

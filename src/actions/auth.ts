@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { checkPassword, ensureOwnerStaff, hashPassword, uniqueSlug } from "@/lib/auth";
 import { clearSessionCookie, cookieJar, signSession, writeSessionCookie } from "@/lib/session";
 import { SUPPORT_WHATSAPP_PRETTY } from "@/lib/support";
-import { suspenderSiVencio } from "@/lib/pagos";
+import { cuentaPorFuera } from "@/lib/pagos";
 import { CATALOGO_POR_TIPO, COLOR_POR_TIPO, esTipoElegible } from "@/lib/tipo-negocio";
 import { finDePrueba } from "@/lib/plan";
 import { headers } from "next/headers";
@@ -158,7 +158,7 @@ export async function loginAction(_prev: AuthState, formData: FormData): Promise
     }
     // La cuenta suspendida se avisa despues de comprobar la contrasena, no
     // antes: si no, cualquiera podria averiguar que correos existen.
-    if (user.suspendedAt || (await suspenderSiVencio(user))) return { error: mensajeSuspendida(user) };
+    if (await cuentaPorFuera(user)) return { error: mensajeSuspendida(user) };
     const owner = await ensureOwnerStaff(user);
     writeSessionCookie(
       jar,
@@ -189,7 +189,7 @@ export async function loginAction(_prev: AuthState, formData: FormData): Promise
   if (!staff.active) {
     return { error: "Tu usuario esta desactivado. Pidele al dueno que lo active." };
   }
-  if (staff.user.suspendedAt || (await suspenderSiVencio(staff.user))) return { error: mensajeSuspendida(staff.user) };
+  if (await cuentaPorFuera(staff.user)) return { error: mensajeSuspendida(staff.user) };
 
   writeSessionCookie(
     jar,
@@ -230,7 +230,7 @@ async function entrarConUsuario(
     return { error: "No encontramos ese usuario. Escríbelo como te lo dio el dueño del negocio." };
   }
   if (!staff.active) return { error: "Tu usuario esta desactivado. Pidele al dueno que lo active." };
-  if (staff.user.suspendedAt || (await suspenderSiVencio(staff.user))) return { error: mensajeSuspendida(staff.user) };
+  if (await cuentaPorFuera(staff.user)) return { error: mensajeSuspendida(staff.user) };
 
   writeSessionCookie(
     jar,

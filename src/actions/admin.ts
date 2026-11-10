@@ -93,6 +93,12 @@ export async function suspendAccountAction(
     return { error: "No puedes suspender tu propia cuenta." };
   }
 
+  // Una cuenta de administrador no se queda por fuera (ver cuentaPorFuera).
+  const destino = await db.user.findUnique({ where: { id: userId }, select: { email: true } });
+  if (destino && esAdmin(destino.email)) {
+    return { error: "Es una cuenta de administrador y no se suspende. Quita su correo de ADMIN_EMAILS antes." };
+  }
+
   await db.user.update({
     where: { id: userId },
     data: { suspendedAt: new Date(), suspendedReason: motivo },

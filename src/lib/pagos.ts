@@ -1,4 +1,5 @@
 import { db } from "./db";
+import { adminEmails, esAdmin } from "./admin-correos";
 
 /**
  * El control de pagos de las cuentas.
@@ -13,6 +14,9 @@ import { db } from "./db";
  * motivo) no la levanta un pago: esa la levanta el administrador.
  *
  * Sin fecha no hay control: cuentas de cortesia o de antes del control.
+ *
+ * La cuenta de quien administra la plataforma (ADMIN_EMAILS) queda por fuera de
+ * todo esto y no se suspende nunca: ver cuentaPorFuera.
  */
 
 export const DIAS_DE_AVISO = 7;
@@ -73,11 +77,12 @@ export function sumarMeses(base: Date, meses: number): Date {
 }
 
 const datosSuspension = (ahora: Date) => ({ suspendedAt: ahora, suspendedReason: MOTIVO_PAGO, suspendedForPayment: true });
+const SIN_SUSPENSION = { suspendedAt: null, suspendedReason: null, suspendedForPayment: false };
 
 /** Suspende todas las cuentas que pasaron los dias de gracia sin renovar. */
 export async function suspenderVencidas(ahora = new Date()): Promise<number> {
   const r = await db.user.updateMany({
-    where: { paidUntil: { lt: new Date(ahora.getTime() - DIAS_DE_GRACIA * DIA) }, suspendedAt: null },
+    where: { paidUntil: { lt: new Date(ahora.getTime() - DIAS_DE_GRACIA * DIA) }, suspendedAt: null, email: { notIn: adminEmails() } },
     data: datosSuspension(ahora),
   });
   return r.count;
@@ -88,6 +93,21 @@ export async function suspenderSiVencio(user: { id: string; paidUntil: Date | nu
   if (user.suspendedAt || estadoDePago(user.paidUntil).estado !== "suspender") return false;
   await db.user.updateMany({ where: { id: user.id, suspendedAt: null }, data: datosSuspension(new Date()) });
   return true;
+}
+
+/**
+ * Si la cuenta se queda por fuera: esta suspendida, o se le acaba de vencer el pago.
+ *
+ * La de quien administra la plataforma nunca se queda por fuera: sin ella no hay
+ * quien reactive a nadie. Si venia suspendida de antes se limpia aqui, para que
+ * lo demas que mira suspendedAt (catalogo, agente, envios) tambien la vea activa.
+ */
+export async function cuentaPorFuera(user: { id: string; email: string; paidUntil: Date | null; suspendedAt: Date | null }): Promise<boolean> {
+  if (esAdmin(user.email)) {
+    if (user.suspendedAt) await db.user.updateMany({ where: { id: user.id }, data: SIN_SUSPENSION });
+    return false;
+  }
+  return Boolean(user.suspendedAt) || (await suspenderSiVencio(user));
 }
 
 export async function registrarPago(

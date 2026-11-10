@@ -190,6 +190,9 @@ pantalla, ninguna acción y ninguna consulta que pueda volver administrador a na
 poder hay que entrar al servidor y cambiar la configuración. Si la variable está vacía, no hay
 administrador y el panel no existe para nadie — esa es la posición segura.
 
+La cuenta cuyo correo principal esté en `ADMIN_EMAILS` no se suspende nunca, ni por pago vencido ni a
+mano, tiene todas las funciones y no ve avisos de vencimiento.
+
 Quien no sea administrador y escriba `/admin` no ve un "no tienes permiso": vuelve a su panel,
 como si la dirección no existiera. En Vercel se pone la variable en **Settings → Environment
 Variables**.

@@ -88,6 +88,17 @@ describe("volver de Google o Facebook", () => {
     expect(await decidirIngreso(correo("empsusp"), "E")).toEqual({ tipo: "error", motivo: "suspendida" });
   });
 
+  it("la cuenta de quien administra la plataforma entra aunque este suspendida", async () => {
+    const antes = process.env.ADMIN_EMAILS;
+    process.env.ADMIN_EMAILS = correo("suspendido");
+    try {
+      expect((await decidirIngreso(correo("suspendido"), "S")).tipo).toBe("sesion");
+    } finally {
+      if (antes === undefined) delete process.env.ADMIN_EMAILS;
+      else process.env.ADMIN_EMAILS = antes;
+    }
+  });
+
   it("un correo que no es de nadie va a crear la cuenta", async () => {
     const d = await decidirIngreso(correo("nuevo"), "Persona Nueva");
     expect(d).toEqual({ tipo: "registro", email: correo("nuevo"), nombre: "Persona Nueva" });
