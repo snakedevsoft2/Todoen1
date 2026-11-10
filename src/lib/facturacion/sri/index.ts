@@ -44,6 +44,18 @@ export function revisarFirma(p12Base64: string, clave: string): { ok: true; dato
 const REGIMENES: Regimen[] = ["GENERAL", "RIMPE_EMPRENDEDOR", "RIMPE_NEGOCIO_POPULAR"];
 export const esRegimen = (v: unknown): v is Regimen => REGIMENES.includes(v as Regimen);
 
+/**
+ * El numero de resolucion de contribuyente especial o de agente de retencion.
+ *
+ * Quien no lo es a veces escribe "NO" o "0" en vez de dejar el campo vacio, y
+ * con cualquier cosa ahi el SRI rechaza la factura ("El contribuyente no es
+ * Contribuyente Especial"). Sin un numero distinto de cero, no va en el XML.
+ */
+export function resolucionSri(v: string | null | undefined): string | null {
+  const t = (v ?? "").trim();
+  return /[1-9]/.test(t) ? t : null;
+}
+
 export function emisorDe(c: BillingConfig): EmisorSri {
   return {
     ruc: c.taxId ?? "",
@@ -54,8 +66,8 @@ export function emisorDe(c: BillingConfig): EmisorSri {
     establecimiento: c.establishment,
     puntoEmision: c.emissionPoint,
     obligadoContabilidad: c.keepsAccounting,
-    contribuyenteEspecial: c.specialTaxpayer,
-    agenteRetencion: c.withholdingAgent,
+    contribuyenteEspecial: resolucionSri(c.specialTaxpayer),
+    agenteRetencion: resolucionSri(c.withholdingAgent),
     regimen: esRegimen(c.taxRegime) ? c.taxRegime : "GENERAL",
   };
 }
@@ -159,7 +171,7 @@ export async function despacharSri(
   if (!a || a.estado === "SIN REGISTRO") {
     const r = await enviarAlSri(ambiente, xmlFirmado);
     if (r.estado === "DEVUELTA" && !r.mensajes.some((m) => m.identificador === "43" || m.identificador === "70")) {
-      return { estado: "RECHAZADA", mensaje: "El SRI la devolvió: " + textoMensajes(r.mensajes) };
+      return { estado: "RECHAZADA", mensaje: conPista("El SRI la devolvió: " + textoMensajes(r.mensajes)) };
     }
     for (const ms of ESPERAS_AUTORIZACION) {
       await dormir(ms);
@@ -171,9 +183,23 @@ export async function despacharSri(
     return { estado: "AUTORIZADA", numero, codigo: clave, qr: null, publicUrl: null, providerId: null, fecha: a.fecha, xml: a.xml };
   }
   if (a?.estado === "NO AUTORIZADO") {
-    return { estado: "RECHAZADA", mensaje: "El SRI no la autorizó: " + textoMensajes(a.mensajes) };
+    return { estado: "RECHAZADA", mensaje: conPista("El SRI no la autorizó: " + textoMensajes(a.mensajes)) };
   }
   return { estado: "ENVIANDO", numero, codigo: clave, providerId: null, mensaje: "Recibida por el SRI. Esperando la autorización." };
+}
+
+/**
+ * Los rechazos que se arreglan en los datos del negocio dicen donde: quien
+ * vende no sabe que "contribuyente especial" es un campo de Ajustes.
+ */
+export function conPista(mensaje: string): string {
+  if (/contribuyente especial/i.test(mensaje)) {
+    return mensaje + ". Corrígelo en Ajustes → Factura autorizada: si en tu RUC dice «Contribuyente especial: NO», deja ese campo vacío.";
+  }
+  if (/agente de retenci/i.test(mensaje)) {
+    return mensaje + ". Corrígelo en Ajustes → Factura autorizada: si en tu RUC dice «Agente de retención: NO», deja ese campo vacío.";
+  }
+  return mensaje;
 }
 
 /** Para "Probar conexión": la firma sirve y el SRI contesta. */

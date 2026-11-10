@@ -202,7 +202,10 @@ export function FacturacionForm({ config, moneda }: { config: ConfigVista; moned
               <Field label="Siguiente número de factura" hint="El secuencial que sigue en tu punto de emisión.">
                 <input className="input" name="nextSequential" type="number" min={1} defaultValue={actual.nextSequential} />
               </Field>
-              <Field label="Contribuyente especial (resolución)">
+              <Field
+                label="Contribuyente especial (resolución)"
+                hint={sri ? "Solo el número, si en tu RUC dice «Contribuyente especial: SÍ». Si dice NO, déjalo vacío." : undefined}
+              >
                 <input className="input" name="specialTaxpayer" defaultValue={config.specialTaxpayer} placeholder="Déjalo vacío si no eres" />
               </Field>
               {sri && (
@@ -217,7 +220,7 @@ export function FacturacionForm({ config, moneda }: { config: ConfigVista; moned
                       <option value="RIMPE_NEGOCIO_POPULAR">RIMPE negocio popular</option>
                     </select>
                   </Field>
-                  <Field label="Agente de retención (resolución)">
+                  <Field label="Agente de retención (resolución)" hint="Solo el número, si en tu RUC dice «Agente de retención: SÍ». Si dice NO, déjalo vacío.">
                     <input className="input" name="withholdingAgent" defaultValue={config.withholdingAgent} placeholder="Déjalo vacío si no eres" />
                   </Field>
                 </>

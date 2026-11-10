@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   DndContext,
-  PointerSensor,
+  MouseSensor,
   TouchSensor,
   closestCenter,
   pointerWithin,
@@ -599,9 +599,13 @@ export function NewSaleForm({
    * pagina se desplazaba, que es justo lo que hacia parecer que esto no
    * servia. 16 deja margen para el pulso sin confundirse con un deslizamiento,
    * porque un deslizamiento para desplazar dura mucho menos que 250ms.
+   *
+   * Mouse y no Pointer: el sensor del puntero tambien recibe el dedo, y como
+   * llega primero se quedaba con el; la espera de 250ms nunca corria, el
+   * navegador desplazaba la pagina y el producto no se movia en el celular.
    */
   const sensoresOrden = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 16 } })
   );
   // Con el orden compartido solo acomoda el dueño o la administradora: lo que

@@ -131,12 +131,52 @@ async function arrastrar(page, desde, hasta) {
   await page.waitForTimeout(400);
 }
 
+/** Entra como en el celular de verdad: con pantalla tactil, para arrastrar con el dedo. */
+async function entrarConDedo(browser, correo) {
+  const context = await browser.newContext({ viewport: { width: 412, height: 915 }, hasTouch: true, isMobile: true });
+  const page = await context.newPage();
+  await page.addInitScript(() => localStorage.setItem("todoen1_onboarding_seen", "true"));
+  await page.goto(BASE + "/login", { waitUntil: "networkidle" });
+  await page.fill('input[name="email"]', correo);
+  await page.fill('input[name="password"]', "demo1234");
+  await page.click('button[type="submit"]');
+  await page.waitForURL(/\/panel/, { timeout: 30000 });
+  return { page, cdp: await context.newCDPSession(page), context };
+}
+
+/**
+ * Arrastra con el dedo: lo deja quieto un momento y lo mueve.
+ *
+ * Con mouse el arrastre funcionaba y en el celular no, porque el sensor del
+ * puntero se quedaba con el dedo y el navegador desplazaba la pagina. Por eso
+ * se prueba con eventos tactiles de verdad (CDP), no con page.mouse.
+ */
+async function arrastrarConDedo(page, cdp, desde, hasta) {
+  await desde.scrollIntoViewIfNeeded();
+  const a = await desde.boundingBox();
+  const b = await hasta.boundingBox();
+  const x0 = a.x + a.width / 2, y0 = a.y + a.height / 2;
+  const x1 = b.x + b.width / 2, y1 = b.y + b.height / 2;
+  const tocar = (type, x, y) => cdp.send("Input.dispatchTouchEvent", { type, touchPoints: type === "touchEnd" ? [] : [{ x, y }] });
+  await tocar("touchStart", x0, y0);
+  await page.waitForTimeout(450);
+  for (let i = 1; i <= 15; i++) {
+    await tocar("touchMove", x0 + ((x1 - x0) * i) / 15, y0 + ((y1 - y0) * i) / 15);
+    await page.waitForTimeout(30);
+  }
+  await page.waitForTimeout(300);
+  await tocar("touchEnd");
+  await page.waitForTimeout(1500);
+}
+
 const grilla = (page, nombre) =>
   page.locator('button:has(span.break-words)').filter({ hasText: new RegExp("^" + nombre + "US\\$") }).first();
 
 const chopo = await crearCuenta("Chopo Snacks", "chopo-" + S + "@test.local");
 const otro = await crearCuenta("Tienda Prueba", "otro-" + S + "@test.local");
 const browser = await chromium.launch({ channel: "msedge" });
+/** Cuentas que arma algun paso por su cuenta; se borran al final con las otras. */
+const extras = [];
 
 try {
   const page = await entrar(browser, chopo.cuenta.email);
@@ -203,6 +243,30 @@ try {
   const primero = await otroTelefono.locator('button:has(span.break-words)').first().innerText();
   ok(primero.startsWith("Mixto"), "en otro telefono tambien sale de primero", primero.split("\n")[0]);
   await otroTelefono.close();
+
+  console.log("\n5b. Con el dedo, como en el celular");
+  const cel = await entrarConDedo(browser, chopo.cuenta.email);
+  await cel.page.goto(BASE + "/panel/ventas", { waitUntil: "networkidle" });
+  const antesDulce = (await db.service.findUnique({ where: { id: chopo.productos["Dulce grande"].id } })).ventaPos;
+  await arrastrarConDedo(cel.page, cel.cdp, grilla(cel.page, "Dulce grande"), grilla(cel.page, "Papa natural grande"));
+  // El servidor de desarrollo puede tardar en guardar: se espera un rato antes de darlo por malo.
+  let dulceDedo;
+  for (let i = 0; i < 16; i++) {
+    dulceDedo = await db.service.findUnique({ where: { id: chopo.productos["Dulce grande"].id } });
+    if (dulceDedo.ventaPos !== antesDulce) break;
+    await cel.page.waitForTimeout(500);
+  }
+  const enPantalla = (await cel.page.locator("button:has(span.break-words)").allInnerTexts()).map((x) => x.split("\n")[0]).join(", ");
+  ok(dulceDedo.ventaPos !== antesDulce, "dejar el dedo y arrastrar lo mueve", antesDulce + " -> " + dulceDedo.ventaPos + " · en pantalla: " + enPantalla);
+  const mixtoDedo = await db.service.findUnique({ where: { id: chopo.productos["Mixto"].id } });
+  ok(mixtoDedo.ventaPos === 0, "Mixto sigue de primero", String(mixtoDedo.ventaPos));
+  // Un toque rapido sigue agregando el producto a la venta, sin arrastrar.
+  const tortilla = grilla(cel.page, "Mixto");
+  const t = await tortilla.boundingBox();
+  await cel.page.touchscreen.tap(t.x + t.width / 2, t.y + t.height / 2);
+  await cel.page.waitForTimeout(800);
+  ok((await cel.page.getByText("Llevas 1").count()) > 0, "un toque rapido lo agrega a la venta");
+  await cel.context.close();
 
   console.log("\n6. Ocultar soltando en la papelera, y deshacer");
   const dulce = grilla(page, "Dulce grande");
@@ -271,11 +335,68 @@ try {
   ok(primero3.startsWith("Mixto"), "pero ve el orden que dejó la administradora", primero3.split("\n")[0]);
   await p3.goto(BASE + "/panel/cartera", { waitUntil: "networkidle" });
   ok((await p3.locator("[data-buscar-cartera]").count()) === 0, "sin buscador en Cartera");
+
+  console.log("\n10. Juliana como empleada puede todo lo de la dueña");
+  const usuarioJuliana = "juliana.c" + S;
+  const tercera = await db.user.create({
+    data: {
+      email: "chopo3-" + S + "@test.local",
+      passwordHash: bcrypt.hashSync("demo1234", 10),
+      ownerName: "Dueño Chopo",
+      businessName: "Chopo Snacks",
+      businessType: "OTRO",
+      slug: "prueba-chopo3-" + S,
+      currency: "USD",
+      timezone: ZONA,
+      staff: {
+        create: [
+          { name: "Dueño Chopo", role: "DUENO", onboardingDoneAt: new Date() },
+          { name: "Juliana Intriago", role: "VENDEDOR", username: usuarioJuliana },
+        ],
+      },
+      services: { create: [{ name: "Chifle", price: 60, category: "SNACKS" }] },
+    },
+    include: { staff: true, services: true },
+  });
+  extras.push(tercera.id);
+  const duenoTercera = tercera.staff.find((s) => s.role === "DUENO");
+  await db.sale.create({
+    data: {
+      userId: tercera.id,
+      day: hoy,
+      total: 60,
+      staffId: duenoTercera.id,
+      paymentMethod: "EFECTIVO",
+      origin: "MANUAL",
+      items: { create: [{ userId: tercera.id, serviceId: tercera.services[0].id, name: "Chifle", unitPrice: 60, qty: 1 }] },
+    },
+  });
+  const pj = await entrar(browser, usuarioJuliana);
+  ok(!/\/panel\/bienvenida/.test(pj.url()), "no le sale el asistente de inicio del negocio", pj.url());
+  await pj.goto(BASE + "/panel/ventas", { waitUntil: "networkidle" });
+  const textoJ = await pj.locator("body").innerText();
+  ok(!textoJ.includes("Solo se ven tus ventas"), "ve las ventas de todos, como la dueña");
+  const ventaDueno = pj.locator("li").filter({ hasText: "1x Chifle" }).first();
+  ok((await ventaDueno.locator("summary", { hasText: "Editar" }).count()) > 0, "puede editar una venta del dueño");
+  await pj.goto(BASE + "/panel/catalogo", { waitUntil: "networkidle" });
+  const editar = pj.locator("details", { has: pj.locator('input[name="id"][value="' + tercera.services[0].id + '"]') }).first();
+  await editar.locator("summary").click();
+  await editar.locator('input[name="price"]').fill("0,90");
+  await editar.locator('button[type="submit"]').first().click();
+  let chifle;
+  for (let i = 0; i < 16; i++) {
+    chifle = await db.service.findUnique({ where: { id: tercera.services[0].id } });
+    if (chifle.price !== 60) break;
+    await pj.waitForTimeout(500);
+  }
+  ok(chifle.price === 90, "cambia el precio de un producto que ya existía", String(chifle.price));
+  await pj.close();
 } finally {
   await browser.close();
   for (const c of [chopo, otro]) {
     await db.user.delete({ where: { id: c.cuenta.id } }).catch((e) => console.log("No se borro " + c.cuenta.email + ": " + e.message));
   }
+  for (const id of extras) await db.user.delete({ where: { id } }).catch((e) => console.log("No se borro " + id + ": " + e.message));
   await db.$disconnect();
 }
 

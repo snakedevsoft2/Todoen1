@@ -16,7 +16,8 @@ export { adminEmails, esAdmin, hayAdmin } from "@/lib/admin-correos";
 export function correoDeLaSesion(sesion: Session): string {
   // El empleado sin correo (entra con usuario) no hereda el correo del dueño:
   // si el dueño administra la plataforma, su empleado no.
-  if (sesion.staff.role !== "DUENO") return sesion.staff.email ?? "";
+  // Con el rol de Equipo: quien tiene permisos de dueña sin serlo tampoco hereda su correo.
+  if ((sesion.staff.rolReal ?? sesion.staff.role) !== "DUENO") return sesion.staff.email ?? "";
   return sesion.staff.email ?? sesion.user.email;
 }
 

@@ -11,6 +11,8 @@ import { SignedXml } from "xml-crypto";
 import { claveAcceso, claveValida, digitoModulo11 } from "../src/lib/facturacion/sri/clave";
 import { abrirFirma, datosFirma, firmarComprobante, problemaDeFirma } from "../src/lib/facturacion/sri/firma";
 import { CONSUMIDOR_FINAL, dec6, facturaXml, type EmisorSri, type FacturaSri } from "../src/lib/facturacion/sri/xml";
+import { conPista, emisorDe, resolucionSri } from "../src/lib/facturacion/sri";
+import type { BillingConfig } from "@prisma/client";
 
 /**
  * Factura electronica directa con el SRI (Chopo Snacks): la clave de acceso,
@@ -147,6 +149,23 @@ describe("el XML de la factura", () => {
     expect(dec6(0.5)).toBe("0.50");
     expect(dec6(0.695652)).toBe("0.695652");
     expect(dec6(2.1234567)).toBe("2.123457");
+  });
+});
+
+describe("contribuyente especial y agente de retención", () => {
+  it("con NO, 0 o vacío en Ajustes no va la etiqueta (el SRI rechaza con error 98)", () => {
+    for (const escrito of ["NO", "no", " 0 ", "000", "N/A", "", null]) expect(resolucionSri(escrito)).toBeNull();
+    expect(resolucionSri(" 5368 ")).toBe("5368");
+
+    const config = { taxId: EMISOR.ruc, establishment: "001", emissionPoint: "002", keepsAccounting: false, specialTaxpayer: "NO", withholdingAgent: "0", taxRegime: "GENERAL" } as BillingConfig;
+    const xml = facturaXml({ ...factura(), emisor: emisorDe(config) });
+    expect(xml).not.toContain("contribuyenteEspecial");
+    expect(xml).not.toContain("agenteRetencion");
+  });
+
+  it("el rechazo dice dónde corregirlo", () => {
+    expect(conPista("El SRI no la autorizó: 98 ERROR AL VALIDAR CONTRIBUYENTE ESPECIAL: El contribuyente no es Contribuyente Especial")).toContain("Ajustes → Factura autorizada");
+    expect(conPista("El SRI la devolvió: 35 ARCHIVO NO CUMPLE ESTRUCTURA XML")).toBe("El SRI la devolvió: 35 ARCHIVO NO CUMPLE ESTRUCTURA XML");
   });
 });
 
