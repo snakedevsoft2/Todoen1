@@ -2,9 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { requireOwner, requireSession } from "@/lib/auth";
+import { db } from "@/lib/db";
 import {
   actualizarFactura,
   emitirFactura,
+  enviarFacturaPorCorreo,
+  facturaVista,
   guardarConfiguracion,
   probarConexion,
   type ConfigVista,
@@ -66,4 +69,20 @@ export async function actualizarFacturaAction(id: string): Promise<EmisionRespue
   const r = await actualizarFactura(sesion, String(id));
   revalidatePath("/panel/ventas");
   return r.ok ? { ok: true, factura: r.datos } : { ok: false, error: r.error };
+}
+
+export type CorreoRespuesta = { ok: true; para: string; factura: FacturaVista | null } | { ok: false; error: string };
+
+/**
+ * Manda (o vuelve a mandar) la factura del SRI por correo: el RIDE y el XML.
+ * Sin correo escrito, va al que dejo el comprador. Cualquiera del equipo que
+ * puede emitirla puede mandarla.
+ */
+export async function enviarFacturaCorreoAction(id: string, correo: string): Promise<CorreoRespuesta> {
+  const { user } = await requireSession();
+  const r = await enviarFacturaPorCorreo(String(id), user.id, String(correo ?? "").slice(0, 200));
+  if (!r.ok) return r;
+  const fila = await db.electronicInvoice.findFirst({ where: { id: String(id), userId: user.id } });
+  revalidatePath("/panel/ventas");
+  return { ok: true, para: r.para, factura: fila ? facturaVista(fila) : null };
 }

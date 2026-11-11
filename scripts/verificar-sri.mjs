@@ -9,15 +9,19 @@
  *   - En Ajustes, Chopo escoge "Directo con el SRI", sube su firma y la prueba.
  *   - Otro negocio de Ecuador no ve esa opcion (sigue con Datil).
  *   - Se vende con "Factura autorizada": sale autorizada con su numero
- *     001-001-000000001, baja el PDF y el XML autorizado.
+ *     001-001-000000001, baja el PDF (el RIDE) y el XML autorizado.
+ *   - Al comprador le llega por correo con el PDF y el XML, y se puede
+ *     reenviar a otro correo. El correo tambien es de mentira (puerto 2526).
  *
  * Antes:
  *   npm run db:up
- *   SRI_BASE_URL=http://localhost:3998/sri npm run dev
+ *   SRI_BASE_URL=http://localhost:3998/sri SMTP_USER=plataforma@test.local SMTP_PASS=x \
+ *     SMTP_HOST=127.0.0.1 SMTP_PORT=2526 SMTP_SECURE=false npm run dev
  * Después: npm run verificar:sri
  */
 import "dotenv/config";
 import http from "node:http";
+import net from "node:net";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -98,6 +102,43 @@ const falso = http.createServer((req, res) => {
 });
 await new Promise((r) => falso.listen(3998, r));
 
+// ---------------------------------------------------------- correo de mentira
+const correos = [];
+const smtp = net.createServer((sock) => {
+  sock.write("220 prueba ESMTP\r\n");
+  let buffer = "";
+  let enDatos = false;
+  let cuerpo = "";
+  sock.on("data", (trozo) => {
+    buffer += trozo.toString("utf8");
+    let fin;
+    while ((fin = buffer.indexOf("\r\n")) >= 0) {
+      const linea = buffer.slice(0, fin);
+      buffer = buffer.slice(fin + 2);
+      if (enDatos) {
+        if (linea === ".") {
+          enDatos = false;
+          correos.push(cuerpo);
+          cuerpo = "";
+          sock.write("250 recibido\r\n");
+        } else cuerpo += linea + "\n";
+        continue;
+      }
+      const orden = linea.toUpperCase();
+      if (orden.startsWith("EHLO") || orden.startsWith("HELO")) sock.write("250-prueba\r\n250 AUTH PLAIN LOGIN\r\n");
+      else if (orden.startsWith("AUTH PLAIN ")) sock.write("235 adentro\r\n");
+      else if (orden === "DATA") {
+        enDatos = true;
+        sock.write("354 escribe\r\n");
+      } else if (orden === "QUIT") {
+        sock.write("221 chao\r\n");
+        sock.end();
+      } else sock.write("250 ok\r\n");
+    }
+  });
+});
+await new Promise((r) => smtp.listen(2526, "127.0.0.1", r));
+
 // ----------------------------------------------------------------- las cuentas
 const S = "sri-" + Date.now();
 const CLAVE = bcrypt.hashSync("demo1234", 10);
@@ -166,6 +207,7 @@ try {
   await caja.locator('input[name="tradeName"]').fill("Chopo Snacks");
   await caja.locator('input[name="fiscalAddress"]').fill("Av. Principal 123");
   await caja.locator('select[name="taxRegime"]').selectOption("RIMPE_EMPRENDEDOR");
+  await caja.locator('input[name="artisanNumber"]').fill("247166");
   await caja.getByRole("button", { name: "Guardar", exact: true }).click();
   ok(Boolean(await esperarHasta(() => caja.getByText(/quedó activa/).count())), "se guarda y queda activa", (await caja.innerText()).slice(0, 300));
   const config = await db.billingConfig.findUnique({ where: { userId: chopo.id } });
@@ -189,11 +231,15 @@ try {
   await comprador.getByLabel("Tipo de documento").selectOption("05");
   await comprador.getByLabel("Número de documento").fill("1712345678");
   await comprador.getByLabel("Nombre o razón social").fill("María Pérez");
+  await comprador.getByLabel("Correo del comprador").fill("maria@test.local");
+  await comprador.getByLabel("Dirección del comprador").fill("Restauración Alianza Sur");
   const [descarga] = await Promise.all([
     page.waitForEvent("download", { timeout: 40000 }).catch(() => null),
     comprador.getByRole("button", { name: "Emitir factura autorizada" }).click(),
   ]);
   ok(Boolean(descarga) && /001-001-000000001\.pdf$/.test(descarga?.suggestedFilename() ?? ""), "el PDF autorizado se descarga solo", descarga?.suggestedFilename());
+  const ride = descarga ? fs.readFileSync(await descarga.path()).toString("latin1") : "";
+  ok(ride.startsWith("%PDF") && ride.includes("Valor Total") && ride.includes("247166") && ride.includes("NUMERO DE AUTORIZACI"), "es el RIDE: con la autorización, la calificación artesanal y el valor total");
   const factura = await db.electronicInvoice.findFirst({ where: { userId: chopo.id } });
   ok(factura?.status === "AUTORIZADA" && factura?.provider === "sri" && factura?.number === "001-001-000000001", "queda autorizada por el SRI con su número", factura?.status + " " + factura?.message);
   const enviado = factura?.authCode ? recibidos.get(factura.authCode) : null;
@@ -205,13 +251,33 @@ try {
   ok(xml.status() === 200 && cuerpo.includes("<estado>AUTORIZADO</estado>") && cuerpo.includes(factura?.authCode ?? "-"), "el XML autorizado baja con su clave de acceso");
   if (DIR) await page.screenshot({ path: DIR + "/sri-venta.png", fullPage: true });
 
-  // El XML de una cuenta no se baja desde otra.
+  console.log("\n4. Le llega por correo al comprador");
+  ok(Boolean(await esperarHasta(() => correos.length >= 1)), "sale un correo apenas se autoriza");
+  const correo = correos[0] ?? "";
+  ok(/^To: maria@test\.local/m.test(correo), "a maria@test.local");
+  ok(/^From: Chopo Snacks <plataforma@test\.local>/m.test(correo), "con el nombre del negocio como remitente");
+  ok(correo.includes("filename=factura-001-001-000000001.pdf") && correo.includes("filename=factura-001-001-000000001.xml"), "con el PDF y el XML adjuntos");
+  await page.reload({ waitUntil: "networkidle" });
+  ok(Boolean(await esperarHasta(() => page.locator("[data-correo-enviado]").filter({ hasText: "maria@test.local" }).count())), "la venta dice a qué correo se mandó");
+
+  await page.locator("[data-enviar-correo]").first().click();
+  await page.locator("[data-correo-factura] input").fill("contador@test.local");
+  await page.locator("[data-correo-factura]").getByRole("button", { name: "Enviar" }).click();
+  ok(Boolean(await esperarHasta(() => page.getByText("Factura enviada a contador@test.local.").count())), "se puede reenviar a otro correo");
+  ok(correos.length === 2 && /^To: contador@test\.local/m.test(correos[1] ?? ""), "y le llega a ese otro");
+  ok(await sinDesborde(page), "en celular nada se sale en la venta");
+  if (DIR) await page.screenshot({ path: DIR + "/sri-correo.png", fullPage: true });
+
+  // El XML y el PDF de una cuenta no se bajan desde otra.
   const ajena = await entrar(otro);
   const r = await ajena.request.get(BASE + "/panel/ventas/xml/" + factura?.id);
   ok(r.status() === 404, "otro negocio no puede bajar ese XML");
+  const r2 = await ajena.request.get(BASE + "/panel/ventas/ride/" + factura?.id);
+  ok(r2.status() === 404, "ni ese PDF");
 } finally {
   await browser.close();
   falso.close();
+  smtp.close();
   await db.user.deleteMany({ where: { slug: { contains: S } } }).catch((e) => console.log("No se borraron las cuentas: " + e.message));
   await db.$disconnect();
 }

@@ -121,7 +121,7 @@ function armarYFirmar(config: BillingConfig, creds: CredencialesSri, d: FacturaD
     secuencial: d.secuencial,
   });
   const lineas: LineaSri[] = d.lineas.map((l, i) => ({
-    codigo: "ITEM" + (i + 1),
+    codigo: codigoProducto(l.nombre, i + 1),
     descripcion: l.nombre,
     cantidad: l.cantidad,
     precioUnitario: l.precioNeto,
@@ -141,8 +141,26 @@ function armarYFirmar(config: BillingConfig, creds: CredencialesSri, d: FacturaD
     comprador: compradorSri(d.comprador),
     lineas,
     pagos: [{ formaPago: FORMA_PAGO[d.metodoPago] ?? "01", total }],
+    adicionales: config.artisanNumber?.trim() ? [{ nombre: "Calificación Artesanal", valor: config.artisanNumber.trim() }] : [],
   });
   return { xml: firmarComprobante(xml, firma), clave };
+}
+
+/**
+ * El codigo del producto en la factura, sacado del nombre: las dos primeras
+ * letras de la primera palabra y la inicial de las demas ("Chifle largo
+ * grande" -> CHLG), como lo tenia Chopo en su sistema anterior. El SRI pide
+ * un codigo por renglon pero no lo valida contra nada.
+ */
+export function codigoProducto(nombre: string, n: number): string {
+  const palabras = nombre
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .split(/[^A-Z0-9]+/)
+    .filter(Boolean);
+  const codigo = palabras.length ? palabras[0].slice(0, 2) + palabras.slice(1).map((p) => p[0]).join("") : "";
+  return codigo.slice(0, 25) || "ITEM" + n;
 }
 
 /** La factura no se pudo armar ni firmar: no se manda y se dice por que. */

@@ -55,7 +55,25 @@ export type Mail = {
   html: string;
   /** El mismo texto sin etiquetas, para los correos que no muestran HTML. */
   text: string;
+  /**
+   * El nombre que ve quien lo recibe como remitente (la factura de un negocio
+   * sale con el nombre del negocio). La direccion sigue siendo la de la
+   * aplicacion: Gmail no deja mandar a nombre de otra cuenta.
+   */
+  fromName?: string;
+  /** A donde llega si el cliente responde: el correo del negocio. */
+  replyTo?: string | null;
+  /** Archivos adjuntos (el PDF y el XML de la factura). */
+  attachments?: { filename: string; content: Uint8Array; contentType: string }[];
 };
+
+/** "Nombre <correo>" o "correo" -> el correo solo. */
+function soloDireccion(remitente: string): string {
+  return /<([^>]+)>/.exec(remitente)?.[1]?.trim() ?? remitente.trim();
+}
+
+/** El nombre del remitente sin comillas ni signos que rompan el encabezado. */
+const nombreLimpio = (n: string) => n.replace(/["<>\r\n]/g, "").trim();
 
 /**
  * Manda el correo. Devuelve si salio o no.
@@ -88,11 +106,19 @@ async function porSmtp(smtp: { user: string; pass: string }, mail: Mail): Promis
     await transporte.sendMail({
       // Gmail cambia el remitente por la cuenta con la que se entro: por eso
       // por defecto es ese mismo correo, con el nombre de la aplicacion.
-      from: process.env.MAIL_FROM || { name: APP_NAME, address: smtp.user },
+      from: mail.fromName
+        ? { name: nombreLimpio(mail.fromName), address: soloDireccion(process.env.MAIL_FROM || smtp.user) }
+        : process.env.MAIL_FROM || { name: APP_NAME, address: smtp.user },
       to: mail.to,
+      ...(mail.replyTo ? { replyTo: mail.replyTo } : {}),
       subject: mail.subject,
       html: mail.html,
       text: mail.text,
+      attachments: mail.attachments?.map((a) => ({
+        filename: a.filename,
+        content: Buffer.from(a.content),
+        contentType: a.contentType,
+      })),
     });
     return true;
   } catch (error) {
@@ -115,11 +141,22 @@ async function porResend(key: string, mail: Mail): Promise<boolean> {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: process.env.MAIL_FROM || DEFAULT_FROM,
+        from: mail.fromName
+          ? nombreLimpio(mail.fromName) + " <" + soloDireccion(process.env.MAIL_FROM || DEFAULT_FROM) + ">"
+          : process.env.MAIL_FROM || DEFAULT_FROM,
         to: [mail.to],
+        ...(mail.replyTo ? { reply_to: mail.replyTo } : {}),
         subject: mail.subject,
         html: mail.html,
         text: mail.text,
+        ...(mail.attachments?.length
+          ? {
+              attachments: mail.attachments.map((a) => ({
+                filename: a.filename,
+                content: Buffer.from(a.content).toString("base64"),
+              })),
+            }
+          : {}),
       }),
     });
 

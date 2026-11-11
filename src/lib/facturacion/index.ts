@@ -10,6 +10,8 @@ import { credencialesSriCompletas, despacharSri, esRegimen, firmarFacturaDeVenta
 import type { Ambiente, ResultadoProveedor } from "./tipos";
 import { esChopoSnacks } from "../orden-productos";
 import { todayIn } from "../dates";
+import { after } from "next/server";
+import { correoAutomatico } from "./correo";
 
 /**
  * La factura autorizada: configurarla, emitirla y seguirla hasta que la
@@ -51,6 +53,8 @@ export type ConfigVista = {
   taxRegime: string;
   withholdingAgent: string;
   branchAddress: string;
+  /** Calificacion artesanal (JNDA), para el RIDE. */
+  artisanNumber: string;
   /** La firma guardada, sin la firma: de quien es y hasta cuando vale. */
   firma: { titular: string; emisor: string; vence: string } | null;
 };
@@ -105,6 +109,7 @@ function vista(c: BillingConfig | null, sriDirecto: boolean): ConfigVista {
     taxRegime: esRegimen(c?.taxRegime) ? c.taxRegime : "GENERAL",
     withholdingAgent: c?.withholdingAgent ?? "",
     branchAddress: c?.branchAddress ?? "",
+    artisanNumber: c?.artisanNumber ?? "",
     firma:
       provider === "sri" && credencialesSriCompletas(creds)
         ? { titular: creds.firmaTitular ?? "", emisor: creds.firmaEmisor ?? "", vence: creds.firmaVence ?? "" }
@@ -186,6 +191,7 @@ export async function guardarConfiguracion(userId: string, d: Record<string, unk
     taxRegime: esRegimen(d.taxRegime) ? d.taxRegime : "GENERAL",
     withholdingAgent: texto(d.withholdingAgent, 20) || null,
     branchAddress: texto(d.branchAddress, 300) || null,
+    artisanNumber: texto(d.artisanNumber, 40) || null,
     environment: d.environment === "produccion" ? "produccion" : "pruebas",
     defaultDocument: d.defaultDocument === "autorizada" ? "autorizada" : "normal",
     taxCode: tarifa.codigo,
@@ -264,8 +270,11 @@ export type FacturaVista = {
   pais: Pais;
   ambiente: Ambiente;
   proveedor: Proveedor;
-  /** Directo con el SRI y autorizada: el XML se puede bajar. */
+  /** Directo con el SRI y autorizada: el XML y el RIDE se pueden bajar y mandar por correo. */
   conXml: boolean;
+  /** A que correo se le mando al comprador, y cuando (ISO). */
+  correoEnviadoA: string | null;
+  correoEnviadoEn: string | null;
   numero: string | null;
   codigo: string | null;
   etiquetaCodigo: string;
@@ -289,6 +298,8 @@ export function facturaVista(f: ElectronicInvoice): FacturaVista {
     ambiente: f.environment === "produccion" ? "produccion" : "pruebas",
     proveedor: f.provider === "sri" ? "sri" : pais === "CO" ? "factus" : "datil",
     conXml: f.provider === "sri" && f.status === "AUTORIZADA" && Boolean(f.xml),
+    correoEnviadoA: f.emailedTo,
+    correoEnviadoEn: f.emailedAt?.toISOString() ?? null,
     numero: f.number,
     codigo: f.authCode,
     etiquetaCodigo: pais === "CO" ? "CUFE" : "Clave de acceso",
@@ -488,7 +499,10 @@ async function procesar(id: string): Promise<ElectronicInvoice> {
           data: { provider: "sri", xml, authCode: clave, number: numero, subtotal: sri.totales.base, tax: sri.totales.impuesto, total: sri.totales.total },
         });
       }
-      return aplicar(id, await despacharSri(ambiente, clave, xml, numero, yaEnviada));
+      const hecha = await aplicar(id, await despacharSri(ambiente, clave, xml, numero, yaEnviada));
+      // Autorizada: el RIDE y el XML le llegan al comprador por correo.
+      if (hecha.status === "AUTORIZADA") alTerminar(() => correoAutomatico(hecha.id));
+      return hecha;
     }
     if (credencialesDatilCompletas(creds)) {
       // Ya estaba en Datil: se consulta en vez de mandarla otra vez.
@@ -523,6 +537,19 @@ async function procesar(id: string): Promise<ElectronicInvoice> {
   } catch (e) {
     if (e instanceof NoSeArma) return aplicar(id, { estado: "RECHAZADA", mensaje: e.message });
     return aplicar(id, { estado: "ERROR", mensaje: e instanceof Error ? e.message : "Falló el envío." });
+  }
+}
+
+/**
+ * Lo que puede esperar a que la pantalla ya tenga su respuesta (el correo al
+ * comprador). Fuera de una peticion (las pruebas) se hace igual, sin esperar.
+ */
+function alTerminar(tarea: () => Promise<unknown>) {
+  const segura = () => tarea().catch((e) => console.error("Tarea despues de la factura:", e instanceof Error ? e.message : e));
+  try {
+    after(segura);
+  } catch {
+    void segura();
   }
 }
 
@@ -582,6 +609,8 @@ export async function reintentarFacturas(limite = 25): Promise<{ revisadas: numb
   }
   return { revisadas: pendientes.length, autorizadas };
 }
+
+export { archivosDeFactura, enviarFacturaPorCorreo } from "./correo";
 
 /** El PDF oficial de Colombia, para quien lo quiera ademas del de la app. */
 export { pdfFactus } from "./factus";

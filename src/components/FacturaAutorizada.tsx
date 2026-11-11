@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { actualizarFacturaAction, emitirFacturaAction } from "@/actions/facturacion";
+import { actualizarFacturaAction, emitirFacturaAction, enviarFacturaCorreoAction } from "@/actions/facturacion";
 import { buildInvoicePdf, invoiceFileName, invoiceTirilla, type AutorizacionFactura, type InvoiceData } from "@/lib/invoice";
 import { factorDe } from "@/lib/format";
 import type { FacturaVista } from "@/lib/facturacion";
@@ -110,12 +110,24 @@ export function FacturaAutorizada({
   const [ocupado, setOcupado] = useState(false);
   const [aviso, setAviso] = useState<{ tono: "ok" | "error" | "info"; texto: string } | null>(null);
   const descargada = useRef(inicial?.estado === "AUTORIZADA");
+  // El correo de la factura del SRI: a quien mandarla (o volver a mandarla).
+  const [correoAbierto, setCorreoAbierto] = useState(false);
+  const [correo, setCorreo] = useState(inicial?.comprador.correo ?? "");
+  const [enviando, setEnviando] = useState(false);
 
   const tope = TOPE_CONSUMIDOR_FINAL[pais];
   const totalVenta = base.total / factorDe(base.currency);
 
   async function descargarPdf(f: FacturaVista) {
     try {
+      // Directo con el SRI: el RIDE, armado en el servidor desde el XML
+      // autorizado. Es el mismo que le llega al comprador por correo.
+      if (f.conXml) {
+        const r = await fetch("/panel/ventas/ride/" + f.id);
+        if (!r.ok) throw new Error("sin RIDE");
+        descargar(new File([await r.blob()], "factura-" + f.numero + ".pdf", { type: "application/pdf" }));
+        return;
+      }
       descargar(await buildInvoicePdf(datosAutorizados(base, f, etiquetaImpuesto, emisor)));
     } catch {
       setAviso({ tono: "error", texto: "No se pudo armar el PDF. Vuelve a intentarlo." });
@@ -126,7 +138,13 @@ export function FacturaAutorizada({
     setFactura(f);
     if (f.estado === "AUTORIZADA") {
       setAbierto(false);
-      setAviso({ tono: "ok", texto: "Factura " + f.numero + " autorizada." });
+      setCorreo(f.comprador.correo ?? "");
+      setAviso({
+        tono: "ok",
+        texto:
+          "Factura " + f.numero + " autorizada." +
+          (f.conXml && f.comprador.correo && !f.correoEnviadoA ? " Se le está mandando por correo a " + f.comprador.correo + "." : ""),
+      });
       // Se descarga de una: es lo que se le entrega al cliente.
       if (!descargada.current) {
         descargada.current = true;
@@ -181,6 +199,24 @@ export function FacturaAutorizada({
       setAviso({ tono: "error", texto: "Sin conexión." });
     } finally {
       setOcupado(false);
+    }
+  }
+
+  async function mandarCorreo() {
+    if (!factura) return;
+    setEnviando(true);
+    try {
+      const r = await enviarFacturaCorreoAction(factura.id, correo);
+      if (!r.ok) setAviso({ tono: "error", texto: r.error });
+      else {
+        if (r.factura) setFactura(r.factura);
+        setCorreoAbierto(false);
+        setAviso({ tono: "ok", texto: "Factura enviada a " + r.para + "." });
+      }
+    } catch {
+      setAviso({ tono: "error", texto: "Sin conexión: el correo necesita internet." });
+    } finally {
+      setEnviando(false);
     }
   }
 
@@ -241,6 +277,20 @@ export function FacturaAutorizada({
                     XML autorizado
                   </a>
                 )}
+                {factura.conXml && !correoAbierto && (
+                  <button
+                    type="button"
+                    className="btn-ghost btn-sm"
+                    onClick={() => {
+                      setCorreo(factura.correoEnviadoA ?? factura.comprador.correo ?? "");
+                      setCorreoAbierto(true);
+                    }}
+                    data-enviar-correo
+                  >
+                    <Icon name="link" className="h-4 w-4" />
+                    {factura.correoEnviadoA ? "Reenviar por correo" : "Enviar por correo"}
+                  </button>
+                )}
               </>
             )}
             {(factura.estado === "ENVIANDO" || factura.estado === "ERROR") && (
@@ -254,6 +304,30 @@ export function FacturaAutorizada({
               </button>
             )}
           </div>
+
+          {factura.conXml && factura.correoEnviadoA && !correoAbierto && (
+            <p className="mt-1.5 text-[11px] text-muted" data-correo-enviado>
+              Enviada por correo a {factura.correoEnviadoA} con el PDF y el XML.
+            </p>
+          )}
+          {factura.conXml && correoAbierto && (
+            <div className="mt-2 flex flex-wrap items-center gap-2" data-correo-factura>
+              <input
+                className="input min-w-0 flex-1 py-1.5 text-sm"
+                type="email"
+                aria-label="Correo del cliente"
+                placeholder="correo@del-cliente.com"
+                value={correo}
+                onChange={(e) => setCorreo(e.target.value)}
+              />
+              <button type="button" className="btn-primary btn-sm" onClick={mandarCorreo} disabled={enviando || !correo.trim()}>
+                {enviando ? "Enviando…" : "Enviar"}
+              </button>
+              <button type="button" className="btn-ghost btn-sm" onClick={() => setCorreoAbierto(false)} disabled={enviando}>
+                Cancelar
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -307,6 +381,9 @@ export function FacturaAutorizada({
           <div className="grid gap-2 sm:grid-cols-2">
             <input className="input py-1.5 text-sm" type="email" aria-label="Correo del comprador" placeholder="Correo (le llega la factura)" value={comprador.correo} onChange={(e) => cambiar("correo", e.target.value)} />
             <input className="input py-1.5 text-sm" inputMode="tel" aria-label="Teléfono del comprador" placeholder="Teléfono (opcional)" value={comprador.telefono} onChange={(e) => cambiar("telefono", e.target.value)} />
+            {pais === "EC" && !comprador.consumidorFinal && (
+              <input className="input py-1.5 text-sm sm:col-span-2" aria-label="Dirección del comprador" placeholder="Dirección (opcional)" value={comprador.direccion} onChange={(e) => cambiar("direccion", e.target.value)} />
+            )}
           </div>
 
           <div className="flex flex-wrap gap-2">

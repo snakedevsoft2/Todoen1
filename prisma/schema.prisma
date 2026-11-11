@@ -2397,6 +2397,9 @@ model BillingConfig {
   withholdingAgent String?
   /// Ecuador: direccion del establecimiento que emite; vacia es la de la matriz.
   branchAddress    String?
+  /// Ecuador: numero de calificacion artesanal (JNDA), si el negocio es
+  /// artesano calificado. Sale en el RIDE y en la informacion adicional.
+  artisanNumber    String?
   lastCheckAt      DateTime?
   lastCheckOk      Boolean?
   lastCheckMessage String?
@@ -2451,6 +2454,10 @@ model ElectronicInvoice {
   message          String?
   attempts         Int           @default(1)
   authorizedAt     DateTime?
+  /// Directo con el SRI: a que correo se le mando al comprador el RIDE con el
+  /// XML, y cuando. Vacio si todavia no se ha mandado.
+  emailedTo        String?
+  emailedAt        DateTime?
   createdByStaffId String?
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt

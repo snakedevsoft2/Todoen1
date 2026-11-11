@@ -223,6 +223,9 @@ export function FacturacionForm({ config, moneda }: { config: ConfigVista; moned
                   <Field label="Agente de retención (resolución)" hint="Solo el número, si en tu RUC dice «Agente de retención: SÍ». Si dice NO, déjalo vacío.">
                     <input className="input" name="withholdingAgent" defaultValue={config.withholdingAgent} placeholder="Déjalo vacío si no eres" />
                   </Field>
+                  <Field label="Calificación artesanal Nº" hint="Si eres artesano calificado. Sale en la factura que recibe el cliente.">
+                    <input className="input" name="artisanNumber" defaultValue={config.artisanNumber} placeholder="Ej: 247166" />
+                  </Field>
                 </>
               )}
             </div>

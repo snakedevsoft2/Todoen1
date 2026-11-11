@@ -1,10 +1,16 @@
 import { generateKeyPairSync } from "node:crypto";
 import http from "node:http";
-import type { AddressInfo } from "node:net";
+import net, { type AddressInfo } from "node:net";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { PrismaClient } from "@prisma/client";
 import forge from "node-forge";
-import { configuracionFacturacion, emitirFactura, guardarConfiguracion, reintentarFacturas } from "../src/lib/facturacion";
+import {
+  configuracionFacturacion,
+  emitirFactura,
+  enviarFacturaPorCorreo,
+  guardarConfiguracion,
+  reintentarFacturas,
+} from "../src/lib/facturacion";
 import { descifrar } from "../src/lib/facturacion/cifrado";
 import { DOMParser } from "@xmldom/xmldom";
 import { SignedXml } from "xml-crypto";
@@ -452,5 +458,103 @@ describe("Chopo Snacks factura directo con el SRI", () => {
     expect(r.ok && r.datos.estado).toBe("RECHAZADA");
     expect(r.ok && r.datos.mensaje).toMatch(/venció/);
     expect(envios.length).toBe(antes);
+  });
+
+  it("autorizada, le llega al comprador por correo con el RIDE y el XML, una sola vez", async () => {
+    // Un servidor de correo de mentira: no sale ningun correo de verdad.
+    const correos: string[] = [];
+    const smtp = net.createServer((sock) => {
+      sock.write("220 prueba ESMTP\r\n");
+      let buffer = "";
+      let enDatos = false;
+      let cuerpo = "";
+      sock.on("data", (trozo) => {
+        buffer += trozo.toString("utf8");
+        let fin: number;
+        while ((fin = buffer.indexOf("\r\n")) >= 0) {
+          const linea = buffer.slice(0, fin);
+          buffer = buffer.slice(fin + 2);
+          if (enDatos) {
+            if (linea === ".") {
+              enDatos = false;
+              correos.push(cuerpo);
+              cuerpo = "";
+              sock.write("250 recibido\r\n");
+            } else cuerpo += linea + "\n";
+            continue;
+          }
+          const orden = linea.toUpperCase();
+          if (orden.startsWith("EHLO") || orden.startsWith("HELO")) sock.write("250-prueba\r\n250 AUTH PLAIN LOGIN\r\n");
+          else if (orden.startsWith("AUTH PLAIN ")) sock.write("235 adentro\r\n");
+          else if (orden === "DATA") {
+            enDatos = true;
+            sock.write("354 escribe\r\n");
+          } else if (orden === "QUIT") {
+            sock.write("221 chao\r\n");
+            sock.end();
+          } else sock.write("250 ok\r\n");
+        }
+      });
+    });
+    await new Promise<void>((r) => smtp.listen(0, "127.0.0.1", r));
+    const VARS = ["SMTP_USER", "SMTP_PASS", "SMTP_HOST", "SMTP_PORT", "SMTP_SECURE", "MAIL_FROM", "RESEND_API_KEY"];
+    const previas = Object.fromEntries(VARS.map((k) => [k, process.env[k]]));
+    for (const k of VARS) delete process.env[k];
+    Object.assign(process.env, {
+      SMTP_USER: "plataforma@test.local",
+      SMTP_PASS: "clave",
+      SMTP_HOST: "127.0.0.1",
+      SMTP_PORT: String((smtp.address() as AddressInfo).port),
+      SMTP_SECURE: "false",
+    });
+
+    try {
+      const s = await negocio("correo");
+      await guardarConfiguracion(s.user.id, datosSri({ artisanNumber: "247166" }));
+      const v = await venta(s.user.id);
+      const r = await emitirFactura(s, v.id, { ...cedula, direccion: "Restauración Alianza Sur" });
+      expect(r.ok && r.datos.estado).toBe("AUTORIZADA");
+      if (!r.ok) return;
+
+      // El XML lleva el codigo sacado del nombre y la calificacion artesanal.
+      const enviado = recibidos.get(r.datos.codigo!)!;
+      expect(enviado).toContain("<codigoPrincipal>PAGN</codigoPrincipal>");
+      expect(enviado).toContain('<campoAdicional nombre="Calificación Artesanal">247166</campoAdicional>');
+      expect(enviado).toContain("<direccionComprador>Restauración Alianza Sur</direccionComprador>");
+
+      // Sale solo, despues de responder.
+      for (let i = 0; i < 50 && correos.length === 0; i += 1) await new Promise((x) => setTimeout(x, 100));
+      expect(correos).toHaveLength(1);
+      const mail = correos[0];
+      expect(mail).toMatch(/^To: maria@test\.local/m);
+      expect(mail).toMatch(/^From: Chopo Snacks <plataforma@test\.local>/m);
+      expect(mail).toMatch(new RegExp("^Reply-To: " + s.user.email.replace(/[.]/g, "\\."), "m"));
+      expect(mail).toContain('filename=factura-001-002-000000007.pdf');
+      expect(mail).toContain('filename=factura-001-002-000000007.xml');
+      const fila = await db.electronicInvoice.findUniqueOrThrow({ where: { saleId: v.id } });
+      expect(fila.emailedTo).toBe("maria@test.local");
+      expect(fila.emailedAt).not.toBeNull();
+
+      // Consultarla otra vez no la vuelve a mandar.
+      await emitirFactura(s, v.id, cedula);
+      await new Promise((x) => setTimeout(x, 300));
+      expect(correos).toHaveLength(1);
+
+      // A mano, a otro correo.
+      const otro = await enviarFacturaPorCorreo(fila.id, s.user.id, "contador@test.local");
+      expect(otro).toEqual({ ok: true, para: "contador@test.local" });
+      expect(correos).toHaveLength(2);
+      expect((await db.electronicInvoice.findUniqueOrThrow({ where: { id: fila.id } })).emailedTo).toBe("contador@test.local");
+      expect(await enviarFacturaPorCorreo(fila.id, s.user.id, "no-es-correo")).toMatchObject({ ok: false });
+      // La factura de otro negocio no.
+      const ajeno = await negocio("ajeno");
+      expect(await enviarFacturaPorCorreo(fila.id, ajeno.user.id, "x@test.local")).toMatchObject({ ok: false });
+    } finally {
+      for (const k of VARS) {
+        if (previas[k] === undefined) delete process.env[k];
+        else process.env[k] = previas[k];
+      }
+      await new Promise<void>((r) => smtp.close(() => r()));
+    }
   });
 });
