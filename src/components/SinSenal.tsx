@@ -65,6 +65,7 @@ const ETIQUETA: Record<string, string> = {
   cancelDebtAction: "Anular una deuda",
   reopenDebtAction: "Reabrir una deuda",
   deleteDebtAction: "Borrar una deuda",
+  renewLoanAction: "Renovar un préstamo",
   guardarClienteAction: "Guardar cliente",
   borrarClienteAction: "Borrar cliente",
   crearEtiquetaAction: "Nueva etiqueta",

@@ -1,4 +1,5 @@
 import { addDays } from "./dates";
+import { siguienteDiaDeCobro } from "./festivos";
 
 /**
  * Cuentas del prestamo: interes, cuotas y atraso.
@@ -75,7 +76,51 @@ export type PlanEntrada = {
   frecuencia: Frecuencia;
   /** Dia en que se hizo el prestamo, "YYYY-MM-DD". */
   desde: string;
+} & OpcionesPlan;
+
+/**
+ * Como se reparten las fechas. Vacio es el de siempre: una cuota cada tantos
+ * dias corridos, caiga en lo que caiga.
+ */
+export type OpcionesPlan = {
+  /**
+   * Sin domingos ni festivos (lo pidio EM Inversiones, ver
+   * lib/em-inversiones.ts). La cuota diaria cae solo en dias de cobro; la
+   * semanal, quincenal o mensual que cae en domingo o festivo se corre al
+   * siguiente dia de cobro, sin correr las que siguen.
+   */
+  soloDiasDeCobro?: boolean;
+  /** De que pais son los festivos. Por ahora solo se conocen los de Colombia. */
+  pais?: string;
 };
+
+/** Los dias de las cuotas, en orden. */
+function fechasDeCuotas(
+  cuotas: number,
+  frecuencia: Frecuencia,
+  desde: string,
+  { soloDiasDeCobro = false, pais = "CO" }: OpcionesPlan
+): string[] {
+  const paso = diasDe(frecuencia);
+  const fechas: string[] = [];
+  if (!soloDiasDeCobro) {
+    for (let n = 1; n <= cuotas; n += 1) fechas.push(addDays(desde, paso * n));
+    return fechas;
+  }
+  if (frecuencia === "DIARIA") {
+    // Un dia de cobro despues del otro: el domingo y el festivo no cuentan.
+    let dia = desde;
+    for (let n = 1; n <= cuotas; n += 1) {
+      dia = siguienteDiaDeCobro(addDays(dia, 1), pais);
+      fechas.push(dia);
+    }
+    return fechas;
+  }
+  for (let n = 1; n <= cuotas; n += 1) {
+    fechas.push(siguienteDiaDeCobro(addDays(desde, paso * n), pais));
+  }
+  return fechas;
+}
 
 /**
  * El plan de pagos completo.
@@ -85,10 +130,10 @@ export type PlanEntrada = {
  * redondeo, para que la suma del plan de exactamente el total y no un peso
  * mas.
  */
-export function planDeCuotas({ total, cuotas, frecuencia, desde }: PlanEntrada): Cuota[] {
+export function planDeCuotas({ total, cuotas, frecuencia, desde, ...opciones }: PlanEntrada): Cuota[] {
   if (total <= 0 || cuotas <= 0) return [];
 
-  const paso = diasDe(frecuencia);
+  const fechas = fechasDeCuotas(cuotas, frecuencia, desde, opciones);
 
   /*
    * El plan tiene SIEMPRE tantas cuotas como se pactaron.
@@ -111,7 +156,7 @@ export function planDeCuotas({ total, cuotas, frecuencia, desde }: PlanEntrada):
       ? Math.max(0, total - acumulado)
       : Math.max(0, Math.min(valor, total - acumulado));
     acumulado += monto;
-    plan.push({ n, day: addDays(desde, paso * n), monto });
+    plan.push({ n, day: fechas[n - 1], monto });
   }
 
   return plan;
@@ -195,12 +240,111 @@ export function esPrestamo(d: DeudaConPrestamo): boolean {
 }
 
 /** El plan de una deuda guardada, o vacio si no es un prestamo por cuotas. */
-export function planDeDeuda(d: DeudaConPrestamo): Cuota[] {
+export function planDeDeuda(d: DeudaConPrestamo, opciones: OpcionesPlan = {}): Cuota[] {
   if (!esPrestamo(d)) return [];
   return planDeCuotas({
     total: d.amount,
     cuotas: d.installments as number,
     frecuencia: d.frequency as Frecuencia,
     desde: d.day,
+    ...opciones,
   });
+}
+
+/**
+ * El vencimiento de un prestamo segun como se arma su plan.
+ *
+ * Al anotar un prestamo se guarda como vencimiento el dia de la ultima cuota.
+ * Si despues el plan cambia de forma de contar (sin domingos ni festivos), ese
+ * dia guardado queda viejo y la deuda saldria "vencida" con cuotas por
+ * delante. Si el guardado es el que puso la aplicacion, vale el del plan de
+ * ahora; si el dueño lo cambio a mano ("Plazo"), se respeta el suyo.
+ */
+export function vencimientoDe(
+  d: DeudaConPrestamo & { dueDay: string | null },
+  opciones: OpcionesPlan = {}
+): string | null {
+  if (!opciones.soloDiasDeCobro || !esPrestamo(d)) return d.dueDay;
+  const deSiempre = planDeDeuda(d);
+  if (d.dueDay && d.dueDay !== deSiempre[deSiempre.length - 1]?.day) return d.dueDay;
+  const plan = planDeDeuda(d, opciones);
+  return plan[plan.length - 1]?.day ?? d.dueDay;
+}
+
+/** Cuantas cuotas cubre lo abonado, en orden, sin contar la que quedo a medias. */
+export function cuotasCubiertas(plan: Cuota[], abonado: number): number {
+  let restante = abonado;
+  let n = 0;
+  for (const c of plan) {
+    if (restante >= c.monto) {
+      restante -= c.monto;
+      n += 1;
+    } else break;
+  }
+  return n;
+}
+
+export type CobroDelDia = {
+  /** Lo que debia de dias ANTERIORES y no ha pagado. */
+  atraso: number;
+  /** Cuotas de dias anteriores que no ha cubierto completas. */
+  cuotasAtrasadas: number;
+  /** Lo que le falta de la cuota que cae ese dia. Cero si no cae o ya la cubrio. */
+  cuotaDelDia: number;
+  /** Lo que hay que cobrarle ese dia: atraso + cuota del dia. */
+  aCobrar: number;
+  /** La cuota que va a pagar: la primera que no ha cubierto completa. Null si ya pago todo. */
+  cuotaN: number | null;
+  /** Cuotas cubiertas con lo que ha abonado. */
+  cuotasPagadas: number;
+  /** La cuota que cae ese dia, si cae alguna. */
+  deHoy: Cuota | null;
+};
+
+/**
+ * Que hay que cobrarle a alguien un dia.
+ *
+ * A diferencia de estadoPrestamo, la cuota que cae ese mismo dia NO es atraso:
+ * el dia todavia no se acaba y el cobrador no ha pasado. Atrasado es lo de los
+ * dias anteriores. Asi la lista del dia dice "hoy le toca" a quien le toca hoy
+ * y "atrasado" solo a quien de verdad se atraso.
+ */
+export function cobroDelDia(plan: Cuota[], abonado: number, dia: string): CobroDelDia {
+  const exigibleAntes = plan.filter((c) => c.day < dia).reduce((s, c) => s + c.monto, 0);
+  const exigibleHasta = exigibleA(plan, dia);
+  const atraso = Math.max(0, exigibleAntes - abonado);
+  const aCobrar = Math.max(0, exigibleHasta - abonado);
+  const cuotasPagadas = cuotasCubiertas(plan, abonado);
+  const vencidasAntes = plan.filter((c) => c.day < dia).length;
+  const proxima = plan.find((c) => c.n > cuotasPagadas) ?? null;
+
+  return {
+    atraso,
+    cuotasAtrasadas: Math.max(0, vencidasAntes - cuotasPagadas),
+    cuotaDelDia: aCobrar - atraso,
+    aCobrar,
+    cuotaN: proxima?.n ?? null,
+    cuotasPagadas,
+    deHoy: plan.find((c) => c.day === dia) ?? null,
+  };
+}
+
+/**
+ * Que cuota o cuotas cubrio un abono, para escribirlo en el recibo.
+ *
+ * Se cuenta contra lo abonado en total, igual que el resto: lo que sobro de
+ * un abono anterior se suma a este.
+ *
+ * - "Cuota 7 de 20" si completa una sola.
+ * - "Cuotas 5 a 7 de 20" si completa varias.
+ * - "Abono a la cuota 5 de 20" si no alcanza a completarla.
+ */
+export function textoCuotasDelAbono(plan: Cuota[], abonadoAntes: number, monto: number): string | null {
+  if (plan.length === 0 || monto <= 0) return null;
+  const antes = cuotasCubiertas(plan, abonadoAntes);
+  const despues = cuotasCubiertas(plan, abonadoAntes + monto);
+  const de = " de " + plan.length;
+  if (despues <= antes) return "Abono a la cuota " + Math.min(antes + 1, plan.length) + de;
+  if (despues === antes + 1) return "Cuota " + despues + de;
+  return "Cuotas " + (antes + 1) + " a " + despues + de;
 }

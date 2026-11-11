@@ -40,6 +40,21 @@ export type ReceiptData = {
   kind?: "abono" | "prestamo";
   /** El numero de recibo del negocio (1, 2, 3...). Nulo en los de antes de esto. */
   receiptSeq?: number | null;
+  /**
+   * En un prestamo por cuotas, que cuota pago: "Cuota 7 de 20", "Cuotas 5 a 7
+   * de 20" o "Abono a la cuota 5 de 20" (ver textoCuotasDelAbono).
+   */
+  cuota?: string | null;
+  /** Cuantas cuotas lleva cubiertas despues de este abono: "7 de 20". */
+  pagadas?: string | null;
+  /** La proxima que le toca, si queda alguna: "mié 11/11/2026 · $30.000". */
+  proxima?: string | null;
+  /**
+   * Recibo corto (lo pidio EM Inversiones): sin direccion, sin concepto ni
+   * lista de abonos anteriores. Lo que el cliente mira: cuanto pago, en que
+   * cuota va y cuanto le queda.
+   */
+  corto?: boolean;
 };
 
 const KIND_LABEL: Record<"abono" | "prestamo", { titulo: string; recibido: string; tituloTirilla: string }> = {
@@ -99,8 +114,9 @@ export function receiptMessage(data: ReceiptData): string {
     "Hola " + data.clientName + ", te confirmamos tu abono en " + data.businessName + ".",
     "",
     "Abono: " + money(data.amount, data.currency),
+    ...(data.cuota ? [data.cuota] : []),
     "Fecha: " + prettyDay(data.day),
-    "Concepto: " + data.concept,
+    ...(data.corto ? [] : ["Concepto: " + data.concept]),
     "",
     data.saldo > 0
       ? "Te queda un saldo de " + money(data.saldo, data.currency) + "."
@@ -190,7 +206,15 @@ export async function buildReceiptPdf(data: ReceiptData): Promise<File> {
   doc.text("Concepto", marginX, y);
   doc.setFont("helvetica", "normal");
   doc.text(doc.splitTextToSize(data.concept, 140) as string[], marginX + 22, y);
-  y += 12;
+  y += 6;
+  if (data.cuota) {
+    doc.setFont("helvetica", "bold");
+    doc.text("Cuota", marginX, y);
+    doc.setFont("helvetica", "normal");
+    doc.text(data.cuota.replace(/^Cuotas? /, "") + (data.pagadas ? "  ·  Lleva " + data.pagadas : ""), marginX + 22, y);
+    y += 6;
+  }
+  y += 6;
 
   // El abono de hoy, destacado.
   doc.setFillColor(243, 244, 246);
@@ -239,7 +263,17 @@ export async function buildReceiptPdf(data: ReceiptData): Promise<File> {
   doc.text(money(data.saldo, data.currency), rightX, y, { align: "right" });
   y += 12;
 
-  if (data.historial.length > 0) {
+  if (data.proxima) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(110);
+    doc.text("Próxima cuota", marginX, y);
+    doc.setTextColor(0);
+    doc.text(data.proxima, rightX, y, { align: "right" });
+    y += 10;
+  }
+
+  if (data.historial.length > 0 && !data.corto) {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
     doc.setTextColor(0);
@@ -285,6 +319,7 @@ export async function buildReceiptPdf(data: ReceiptData): Promise<File> {
  * cuanto le queda debiendo.
  */
 export function receiptTirilla(data: ReceiptData): Linea[] {
+  if (data.corto && data.kind !== "prestamo") return reciboCorto(data);
   const etiquetas = KIND_LABEL[data.kind ?? "abono"];
   const lineas: Linea[] = [
     { t: "titulo", text: data.businessName },
@@ -301,6 +336,7 @@ export function receiptTirilla(data: ReceiptData): Linea[] {
     { t: "sep" },
     { t: "par", label: "Cliente", value: data.clientName },
     { t: "texto", text: data.concept, tenue: true },
+    ...(data.cuota ? [{ t: "texto" as const, text: data.cuota }] : []),
     { t: "espacio" },
     { t: "par", label: "Forma de pago", value: PAYMENT_LABEL[data.method] ?? data.method },
     { t: "total", label: data.kind === "prestamo" ? "PRESTA" : "ABONA", value: money(data.amount, data.currency) },
@@ -331,5 +367,39 @@ export function receiptTirilla(data: ReceiptData): Linea[] {
     { t: "espacio" }
   );
 
+  return lineas;
+}
+
+/**
+ * El recibo de abono corto, para la termica: de un vistazo cuanto pago, que
+ * cuota cubrio y cuanto le queda. Sin lista de abonos anteriores, que es lo
+ * que lo volvia largo.
+ */
+function reciboCorto(data: ReceiptData): Linea[] {
+  const lineas: Linea[] = [{ t: "titulo", text: data.businessName }];
+  if (data.businessPhone) lineas.push({ t: "centro", text: "Tel " + data.businessPhone, tenue: true });
+  lineas.push(
+    { t: "sep" },
+    { t: "centro", text: "RECIBO DE PAGO No. " + numeroDe(data), fuerte: true },
+    { t: "centro", text: prettyDay(data.day), tenue: true },
+    { t: "sep" },
+    { t: "par", label: "Cliente", value: data.clientName, fuerte: true }
+  );
+  if (data.cuota) lineas.push({ t: "texto", text: data.cuota });
+  if (data.method !== "EFECTIVO") {
+    lineas.push({ t: "par", label: "Forma de pago", value: PAYMENT_LABEL[data.method] ?? data.method });
+  }
+  lineas.push(
+    { t: "total", label: "PAGÓ", value: money(data.amount, data.currency) },
+    { t: "par", label: "Saldo", value: money(data.saldo, data.currency), fuerte: true }
+  );
+  if (data.pagadas) lineas.push({ t: "par", label: "Cuotas pagadas", value: data.pagadas });
+  if (data.proxima && data.saldo > 0) lineas.push({ t: "par", label: "Próxima", value: data.proxima });
+  lineas.push(
+    { t: "sep" },
+    { t: "centro", text: data.saldo > 0 ? "Gracias por su pago" : "Queda a paz y salvo. Gracias.", tenue: true },
+    ...(data.marcaGratis ? [{ t: "centro" as const, text: MARCA_VERSION_GRATIS, fuerte: true }] : []),
+    { t: "espacio" }
+  );
   return lineas;
 }

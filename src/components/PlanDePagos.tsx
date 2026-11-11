@@ -1,5 +1,5 @@
 import { money, shortDay } from "@/lib/format";
-import { estadoPrestamo, etiquetaDe, ganancia, type Cuota, type Frecuencia } from "@/lib/prestamos";
+import { cobroDelDia, estadoPrestamo, etiquetaDe, ganancia, type Cuota, type Frecuencia } from "@/lib/prestamos";
 import { Barra } from "./Barra";
 import { Icon } from "./Icon";
 
@@ -22,6 +22,7 @@ export function PlanDePagos({
   principal,
   interestPct,
   frecuencia,
+  soloDiasDeCobro = false,
 }: {
   plan: Cuota[];
   abonado: number;
@@ -30,8 +31,16 @@ export function PlanDePagos({
   principal: number | null;
   interestPct: number | null;
   frecuencia: Frecuencia;
+  /**
+   * EM Inversiones: el plan va sin domingos ni festivos y la cuota de hoy
+   * todavia no es atraso (ver cobroDelDia). Los demas siguen como siempre.
+   */
+  soloDiasDeCobro?: boolean;
 }) {
   const est = estadoPrestamo(plan, abonado, hoy);
+  const deHoy = soloDiasDeCobro ? cobroDelDia(plan, abonado, hoy) : null;
+  const atraso = deHoy ? deHoy.atraso : est.atraso;
+  const cuotasAtrasadas = deHoy ? deHoy.cuotasAtrasadas : est.cuotasAtrasadas;
   const total = plan.reduce((s, c) => s + c.monto, 0);
 
   return (
@@ -54,22 +63,28 @@ export function PlanDePagos({
         />
         <Dato label="Cuotas" valor={plan.length + " " + etiquetaDe(frecuencia).toLowerCase()} />
       </dl>
+      {soloDiasDeCobro && <p className="mt-2 text-xs text-muted">Sin domingos ni festivos.</p>}
 
       {/* Los dos numeros con los que se trabaja. */}
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <div
           className={
             "rounded-xl border p-3 " +
-            (est.atraso > 0 ? "border-bad/30 bg-bad-soft" : "border-line bg-good-soft")
+            (atraso > 0 ? "border-bad/30 bg-bad-soft" : "border-line bg-good-soft")
           }
         >
           <p className="text-[11px] uppercase tracking-wide text-subtle">Atraso</p>
-          <p className={"text-lg font-bold " + (est.atraso > 0 ? "text-bad" : "text-good")}>
-            {est.atraso > 0 ? money(est.atraso, currency) : "Al día"}
+          <p className={"text-lg font-bold " + (atraso > 0 ? "text-bad" : "text-good")}>
+            {atraso > 0 ? money(atraso, currency) : "Al día"}
           </p>
-          {est.atraso > 0 && (
+          {atraso > 0 && (
             <p className="text-xs text-bad">
-              {est.cuotasAtrasadas} {est.cuotasAtrasadas === 1 ? "cuota" : "cuotas"} sin pagar
+              {cuotasAtrasadas} {cuotasAtrasadas === 1 ? "cuota" : "cuotas"} sin pagar
+            </p>
+          )}
+          {deHoy && deHoy.cuotaDelDia > 0 && (
+            <p className="mt-0.5 text-xs font-semibold text-strong">
+              Hoy le toca {money(deHoy.cuotaDelDia, currency)}
             </p>
           )}
         </div>
@@ -98,7 +113,7 @@ export function PlanDePagos({
           total={plan.length}
           label="Avance del prestamo"
           detalle={est.cuotasPagadas + " de " + plan.length + " cuotas"}
-          tono={est.atraso > 0 ? "warn" : "good"}
+          tono={atraso > 0 ? "warn" : "good"}
         />
       </div>
 
@@ -123,7 +138,8 @@ export function PlanDePagos({
             <tbody>
               {plan.map((c) => {
                 const cubierta = c.n <= est.cuotasPagadas;
-                const vencida = !cubierta && c.day <= hoy;
+                const esHoy = soloDiasDeCobro && !cubierta && c.day === hoy;
+                const vencida = !cubierta && !esHoy && c.day <= hoy;
                 return (
                   <tr key={c.n} className="border-t border-line">
                     <td className="px-3 py-2 text-muted">{c.n}</td>
@@ -134,6 +150,8 @@ export function PlanDePagos({
                     <td className="px-3 py-2 text-right">
                       {cubierta ? (
                         <span className="text-xs font-bold text-good">Pagada</span>
+                      ) : esHoy ? (
+                        <span className="text-xs font-bold text-strong">Hoy</span>
                       ) : vencida ? (
                         <span className="text-xs font-bold text-bad">Vencida</span>
                       ) : (

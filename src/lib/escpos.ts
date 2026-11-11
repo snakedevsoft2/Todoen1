@@ -195,6 +195,13 @@ export function tirillaEscPos(lineas: Linea[], ancho: AnchoTirilla): Uint8Array 
         b.push(LF);
         alinear(0);
         break;
+      case "corte":
+        // La raya es para la que no tiene cuchilla: ahi se rasga. La que si
+        // tiene corta despues del papel en blanco.
+        b.push(LF);
+        renglon("- ".repeat(cols / 2).trimEnd());
+        b.push(LF, LF, LF, LF, GS, 0x56, 0x42, 0x00);
+        break;
     }
   }
 

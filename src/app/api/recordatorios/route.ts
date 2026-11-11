@@ -5,7 +5,9 @@ import { borrarUbicacionesViejas } from "@/lib/ubicacion";
 import { suspenderVencidas } from "@/lib/pagos";
 import { addDays, todayIn } from "@/lib/dates";
 import { abonado, collectionMessage, debtState, saldo } from "@/lib/debts";
-import { estadoPrestamo, planDeDeuda } from "@/lib/prestamos";
+import { cobroDelDia, estadoPrestamo, planDeDeuda } from "@/lib/prestamos";
+import { esEmInversiones, opcionesPlanDe } from "@/lib/em-inversiones";
+import { esDiaDeCobro } from "@/lib/festivos";
 import { avisarAlAdministrador } from "@/lib/avisos-admin";
 import { money, pretty12h, prettyDay } from "@/lib/format";
 import {
@@ -207,6 +209,11 @@ export async function GET(request: Request) {
   });
   for (const shop of negociosCartera) {
     const hoy = todayIn(shop.timezone);
+    // EM Inversiones no cobra domingos ni festivos: ese dia no hay aviso, y la
+    // cuota de hoy no es atraso (ver lib/em-inversiones.ts).
+    const em = esEmInversiones(shop.businessName);
+    if (em && !esDiaDeCobro(hoy, shop.country)) continue;
+    const opciones = opcionesPlanDe(shop);
 
     const deudas = await db.debt.findMany({
       where: { userId: shop.id, status: "PENDIENTE" },
@@ -216,8 +223,14 @@ export async function GET(request: Request) {
     const filas: { nombre: string; monto: number; atrasada: boolean }[] = [];
     for (const deuda of deudas) {
       if (saldo(deuda) <= 0) continue;
-      const plan = planDeDeuda(deuda);
+      const plan = planDeDeuda(deuda, opciones);
       if (plan.length === 0) continue;
+
+      if (em) {
+        const c = cobroDelDia(plan, abonado(deuda), hoy);
+        if (c.aCobrar > 0) filas.push({ nombre: deuda.clientName, monto: c.aCobrar, atrasada: c.atraso > 0 });
+        continue;
+      }
 
       const est = estadoPrestamo(plan, abonado(deuda), hoy);
       if (est.atraso > 0) {
@@ -246,7 +259,7 @@ export async function GET(request: Request) {
         money(total, shop.currency) +
         ".\n\n" +
         lineas.join("\n"),
-      ruta: "/panel/cartera",
+      ruta: em ? "/panel/cartera/cobro" : "/panel/cartera",
     });
     avisosCartera += 1;
   }

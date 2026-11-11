@@ -8,7 +8,7 @@ import { db } from "@/lib/db";
 import { anotarCliente } from "@/lib/clientes";
 import { requireOwner, requireSession } from "@/lib/auth";
 import { isValidDay, todayIn } from "@/lib/dates";
-import { cerosPara, parseIntSafe, parseMoney, str, texto } from "@/lib/format";
+import { cerosPara, money, parseIntSafe, parseMoney, str, texto } from "@/lib/format";
 import { saldo } from "@/lib/debts";
 import {
   esFrecuencia,
@@ -18,8 +18,9 @@ import {
 } from "@/lib/prestamos";
 import { anotarActividad } from "@/lib/actividad";
 import { SOLO_DUENO, esDueno } from "@/lib/permisos-empleado";
-import { nextReceiptSeq } from "@/lib/receipt-seq";
+import { formatReceiptSeq, nextReceiptSeq } from "@/lib/receipt-seq";
 import { itemsParaAgregar, resumenDeItems, type ItemPedido } from "@/lib/items-agregados";
+import { esEmInversiones, opcionesPlanDe } from "@/lib/em-inversiones";
 
 export type DebtState =
   | {
@@ -35,6 +36,8 @@ export type DebtState =
         day: string;
         receiptSeq: number | null;
       };
+      /** Al renovar: el prestamo nuevo, para ir a verlo. */
+      nuevaId?: string;
     }
   | undefined;
 
@@ -117,7 +120,13 @@ export async function createDebtAction(
   // pedirlo, sale del plan. Asi la lista de vencidas sigue funcionando igual.
   let dueDay = dueInput || null;
   if (esPrestamo && frequency && installments) {
-    const plan = planDeCuotas({ total: amount, cuotas: installments, frecuencia: frequency, desde: day });
+    const plan = planDeCuotas({
+      total: amount,
+      cuotas: installments,
+      frecuencia: frequency,
+      desde: day,
+      ...opcionesPlanDe(user),
+    });
     dueDay = plan[plan.length - 1]?.day ?? dueDay;
   }
 
@@ -275,9 +284,12 @@ export async function deletePaymentAction(formData: FormData) {
 
   const pago = await db.debtPayment.findFirst({
     where: { id, userId: user.id },
-    include: { debt: { select: { id: true, clientName: true } } },
+    include: { debt: { select: { id: true, clientName: true, renewedInto: { select: { id: true } } } } },
   });
   if (!pago) return;
+  // El saldo que se paso a un prestamo nuevo no se borra suelto: quedaria
+  // cobrado dos veces, en el viejo y en el nuevo. Se deshace borrando el nuevo.
+  if (pago.renewal && pago.debt.renewedInto) return;
 
   await db.$transaction(async (tx) => {
     if (pago.saleId) {
@@ -398,12 +410,28 @@ export async function reopenDebtAction(formData: FormData) {
 export async function deleteDebtAction(formData: FormData) {
   const { user, staff } = await requireOwner();
   const id = str(formData.get("id"));
-  const deuda = await db.debt.findFirst({ where: { id, userId: user.id }, select: { clientName: true, amount: true } });
+  const deuda = await db.debt.findFirst({
+    where: { id, userId: user.id },
+    select: { clientName: true, amount: true, renewedFromId: true },
+  });
   if (!deuda) return;
 
   const cuantos = await db.debtPayment.count({ where: { debtId: id, userId: user.id } });
   if (cuantos > 0) {
     await db.debt.updateMany({ where: { id, userId: user.id }, data: { status: "ANULADA" } });
+  } else if (deuda.renewedFromId) {
+    // Era la renovacion de otro prestamo y no tiene abonos: se deshace la
+    // renovacion. El anterior recupera su saldo y vuelve a quedar por cobrar.
+    const anterior = deuda.renewedFromId;
+    await db.$transaction(async (tx) => {
+      await tx.debt.deleteMany({ where: { id, userId: user.id } });
+      await tx.debtPayment.deleteMany({ where: { debtId: anterior, userId: user.id, renewal: true } });
+      await tx.debt.updateMany({
+        where: { id: anterior, userId: user.id, status: "PAGADA" },
+        data: { status: "PENDIENTE" },
+      });
+    });
+    revalidatePath("/panel/cartera/" + anterior);
   } else {
     await db.debt.deleteMany({ where: { id, userId: user.id } });
   }
@@ -413,4 +441,164 @@ export async function deleteDebtAction(formData: FormData) {
   );
 
   refresh(id);
+}
+
+/**
+ * Renovar un prestamo (lo pidio EM Inversiones, ver lib/em-inversiones.ts).
+ *
+ * Es como lo hace quien presta en la calle: al cliente que viene pagando se le
+ * presta otra vez y lo que todavia debe se le descuenta del prestamo nuevo.
+ * Recibe en la mano la diferencia.
+ *
+ * - El anterior se cierra con un abono por lo que debia, marcado `renewal`:
+ *   no es plata que entro, asi que no crea venta ni suma a la caja. La plata
+ *   de verdad entra con las cuotas del nuevo.
+ * - El nuevo copia los datos del cliente, del fiador y de las referencias, y
+ *   guarda de cual salio.
+ * - Todo en una transaccion. Un prestamo se renueva una sola vez (la columna
+ *   es unica), asi que dos toques seguidos no hacen dos renovaciones.
+ */
+export async function renewLoanAction(_prev: DebtState, formData: FormData): Promise<DebtState> {
+  const { user, staff } = await requireSession();
+  if (!esEmInversiones(user.businessName)) return { error: "Renovar préstamos no está activo en esta cuenta." };
+
+  const id = str(formData.get("debtId"));
+  const vieja = await db.debt.findFirst({
+    // El empleado solo renueva los prestamos que anoto, que son los unicos que ve.
+    where: { id, userId: user.id, ...(esDueno(staff.role) ? {} : { staffId: staff.id }) },
+    include: { payments: { select: { amount: true } }, renewedInto: { select: { id: true } } },
+  });
+  if (!vieja) return { error: "No encontramos ese préstamo." };
+  if (vieja.status === "ANULADA") return { error: "Ese préstamo está anulado." };
+  if (vieja.renewedInto) return { error: "Ese préstamo ya se renovó." };
+
+  const debe = saldo(vieja);
+
+  const principal = parseMoney(formData.get("principal"), user.currency);
+  if (principal <= 0) return { error: "Escribe cuánto le prestas ahora." };
+  if (principal < debe) {
+    return {
+      error:
+        "El préstamo nuevo tiene que cubrir lo que todavía debe (" +
+        money(debe, user.currency) +
+        "). Escribe una cantidad igual o mayor.",
+    };
+  }
+
+  const interestPct = Math.max(0, parseIntSafe(formData.get("interestPct"), 0));
+  if (interestPct > 500) return { error: "Ese interés no parece real. Revísalo." };
+
+  const installments = parseIntSafe(formData.get("installments"), 0);
+  if (installments <= 0) return { error: "Escribe en cuántas cuotas te va a pagar." };
+  if (installments > 500) return { error: "Son demasiadas cuotas. Máximo 500." };
+
+  const frequency = str(formData.get("frequency"));
+  if (!esFrecuencia(frequency)) return { error: "Elige cada cuánto te paga." };
+
+  const dayInput = str(formData.get("day"));
+  const day = isValidDay(dayInput) ? dayInput : todayIn(user.timezone);
+  const amount = totalConInteres(principal, interestPct);
+  const plan = planDeCuotas({
+    total: amount,
+    cuotas: installments,
+    frecuencia: frequency,
+    desde: day,
+    ...opcionesPlanDe(user),
+  });
+  const entrega = principal - debe;
+
+  const numeroViejo = vieja.receiptSeq ? " No. " + formatReceiptSeq(vieja.receiptSeq) : "";
+  const nota = texto(formData.get("notes"));
+  const notes =
+    "Renovación del préstamo" +
+    numeroViejo +
+    ": se descontó lo que debía (" +
+    money(debe, user.currency) +
+    ") y se le entregó " +
+    money(entrega, user.currency) +
+    "." +
+    (nota ? " " + nota : "");
+
+  let nueva;
+  try {
+    nueva = await db.$transaction(async (tx) => {
+      if (debe > 0) {
+        await tx.debtPayment.create({
+          data: {
+            userId: user.id,
+            debtId: vieja.id,
+            staffId: staff.id,
+            amount: debe,
+            day,
+            method: "OTRO",
+            notes: "Renovación: el saldo pasó al préstamo nuevo",
+            renewal: true,
+            receiptSeq: await nextReceiptSeq(tx, user.id),
+          },
+        });
+      }
+      await tx.debt.update({ where: { id: vieja.id }, data: { status: "PAGADA" } });
+
+      return tx.debt.create({
+        data: {
+          userId: user.id,
+          staffId: staff.id,
+          renewedFromId: vieja.id,
+          clientName: vieja.clientName,
+          clientPhone: vieja.clientPhone,
+          clientAddress: vieja.clientAddress,
+          concept: str(formData.get("concept")) || vieja.concept,
+          amount,
+          day,
+          dueDay: plan[plan.length - 1]?.day ?? null,
+          notes,
+          alreadyInvoiced: vieja.alreadyInvoiced,
+          principal,
+          interestPct,
+          installments,
+          frequency,
+          guarantorName: vieja.guarantorName,
+          guarantorId: vieja.guarantorId,
+          guarantorPhone: vieja.guarantorPhone,
+          guarantorAddress: vieja.guarantorAddress,
+          reference1Name: vieja.reference1Name,
+          reference1Phone: vieja.reference1Phone,
+          reference2Name: vieja.reference2Name,
+          reference2Phone: vieja.reference2Phone,
+          receiptSeq: await nextReceiptSeq(tx, user.id),
+        },
+      });
+    });
+  } catch (e) {
+    // La columna unica: otro toque (u otro telefono) ya lo renovo.
+    if (e && typeof e === "object" && "code" in e && e.code === "P2002") {
+      return { error: "Ese préstamo ya se renovó." };
+    }
+    throw e;
+  }
+
+  await anotarActividad(
+    { user, staff },
+    {
+      tipo: "deuda",
+      detalle: "Renovó el préstamo de " + vieja.clientName + " (se le entregó " + money(entrega, user.currency) + ")",
+      monto: amount,
+    }
+  );
+
+  refresh(vieja.id);
+  revalidatePath("/panel/cartera/" + nueva.id);
+  return {
+    ok: "Préstamo renovado. Le entregas " + money(entrega, user.currency) + " en la mano.",
+    nuevaId: nueva.id,
+    recibo: {
+      debtId: nueva.id,
+      clientName: nueva.clientName,
+      clientPhone: nueva.clientPhone,
+      concept: nueva.concept,
+      amount,
+      day,
+      receiptSeq: nueva.receiptSeq,
+    },
+  };
 }

@@ -35,8 +35,15 @@ export function BotonImprimir({
    * (que solo sale por el dialogo). Nada que elegir ni que se pueda enredar.
    */
   soloBluetooth = false,
+  /**
+   * Como sale en hoja carta/A4, si no es la tirilla estirada: varios recibos
+   * por fila o una tabla (el cobro del dia de EM Inversiones). Sin esto, la
+   * hoja es la misma tirilla, mas ancha.
+   */
+  hoja,
 }: {
   tirilla: () => Linea[];
+  hoja?: () => string;
   nombreArchivo: string;
   logoUrl?: string | null;
   label?: string;
@@ -105,7 +112,8 @@ export function BotonImprimir({
         const r = await imprimirDirecto(c, tirillaEscPos(tirilla(), f === "58" ? 58 : 80), elegirOtra);
         setAviso(r === "impreso" ? { tono: "ok", texto: "Enviado a la impresora." } : null);
       } else {
-        await imprimirHtml(tirillaHtml(tirilla(), f, logoUrl), f, nombreArchivo.replace(/\.pdf$/i, ""));
+        const html = f === "a4" && hoja ? hoja() : tirillaHtml(tirilla(), f, logoUrl);
+        await imprimirHtml(html, f, nombreArchivo.replace(/\.pdf$/i, ""));
       }
     } catch (error) {
       const texto = error instanceof Error ? error.message : "No pudimos preparar la impresión.";

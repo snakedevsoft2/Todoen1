@@ -2,10 +2,12 @@ import Link from "next/link";
 import { requireSession } from "@/lib/auth";
 import { esDueno } from "@/lib/permisos-empleado";
 import { db } from "@/lib/db";
-import { startOfMonth, timeIn, todayIn } from "@/lib/dates";
+import { addDays, startOfMonth, timeIn, todayIn } from "@/lib/dates";
 import { money, prettyDay, pretty12h, shortDay } from "@/lib/format";
 import { abonado, collectionMessage, debtState, saldo } from "@/lib/debts";
-import { esPrestamo, estadoPrestamo, ganancia, planDeDeuda } from "@/lib/prestamos";
+import { cobroDelDia, esPrestamo, estadoPrestamo, ganancia, planDeDeuda, vencimientoDe } from "@/lib/prestamos";
+import { esEmInversiones, opcionesPlanDe } from "@/lib/em-inversiones";
+import { porQueNoSeCobra, siguienteDiaDeCobro } from "@/lib/festivos";
 import { toInternational, waLink } from "@/lib/whatsapp";
 import { logoUrl } from "@/lib/nav";
 import { esPlanCompleto } from "@/lib/plan";
@@ -46,6 +48,12 @@ export default async function CarteraPage({
   const hoy = todayIn(user.timezone);
   const mes = startOfMonth(hoy);
 
+  // EM Inversiones: sin domingos ni festivos, la cuota de hoy no es atraso y
+  // tiene el cobro del dia con recibos y planilla (ver lib/em-inversiones.ts).
+  const em = esEmInversiones(user.businessName);
+  const opciones = opcionesPlanDe(user);
+  const diaLibre = em ? porQueNoSeCobra(hoy, user.country) : null;
+
   // Si hay empleados con cuenta separada, cada uno ve solo las deudas que
   // anoto y los abonos que recibio; el dueño las ve todas.
   const propias = esDueno(me.role);
@@ -58,24 +66,26 @@ export default async function CarteraPage({
       include: { payments: { orderBy: { day: "desc" } }, staff: { select: { name: true, color: true } } },
     }),
     db.debtPayment.aggregate({
-      where: { userId: user.id, day: { gte: mes, lte: hoy }, ...(propias ? {} : { staffId: me.id }) },
+      // Lo que se paso a un prestamo nuevo al renovar no es plata que entro.
+      where: { userId: user.id, day: { gte: mes, lte: hoy }, renewal: false, ...(propias ? {} : { staffId: me.id }) },
       _sum: { amount: true },
     }),
     // Cuantas personas distintas abonaron hoy (no cuantos abonos: uno puede
     // abonar dos veces el mismo dia y sigue siendo una sola persona).
     db.debtPayment.findMany({
-      where: { userId: user.id, day: hoy, ...(propias ? {} : { staffId: me.id }) },
+      where: { userId: user.id, day: hoy, renewal: false, ...(propias ? {} : { staffId: me.id }) },
       select: { debtId: true },
       distinct: ["debtId"],
     }),
   ]);
   const personasQueAbonaronHoy = pagosHoy.length;
 
-  const conEstado = deudas.map((d) => ({
-    deuda: d,
-    pendiente: saldo(d),
-    estado: debtState(d, hoy),
-  }));
+  const conEstado = deudas.map((d) => {
+    // El vencimiento segun el plan de este negocio (igual al guardado, salvo
+    // en EM Inversiones: ver vencimientoDe).
+    const vence = vencimientoDe(d, opciones);
+    return { deuda: d, vence, pendiente: saldo(d), estado: debtState({ ...d, dueDay: vence }, hoy) };
+  });
 
   const porCobrar = conEstado.filter((r) => r.deuda.status === "PENDIENTE" && r.pendiente > 0);
 
@@ -88,10 +98,12 @@ export default async function CarteraPage({
   const esCartera = user.businessType === "CARTERA";
   const cobrosHoy: Cobro[] = [];
   const cobrosAtrasados: Cobro[] = [];
+  /** Lo atrasado de verdad, sin la cuota de hoy en EM Inversiones. */
+  let atrasoTotal = 0;
 
   if (esCartera) {
-    for (const { deuda, pendiente } of porCobrar) {
-      const plan = planDeDeuda(deuda);
+    for (const { deuda, vence, pendiente, estado } of porCobrar) {
+      const plan = planDeDeuda(deuda, opciones);
       const est = plan.length > 0 ? estadoPrestamo(plan, abonado(deuda), hoy) : null;
 
       const enlaceWhatsapp = deuda.clientPhone
@@ -103,15 +115,33 @@ export default async function CarteraPage({
               concept: deuda.concept,
               saldo: pendiente,
               currency: user.currency,
-              estado: debtState(deuda, hoy),
-              prettyDue: deuda.dueDay ? prettyDay(deuda.dueDay) : null,
+              estado,
+              prettyDue: vence ? prettyDay(vence) : null,
             })
           )
         : null;
 
       const base = { id: deuda.id, clientName: deuda.clientName, enlaceWhatsapp };
 
+      if (em) {
+        // La cuota que cae hoy no es atraso: el dia no se ha acabado. Se le
+        // cobra junto con lo atrasado, si hay.
+        if (plan.length === 0) continue;
+        const c = cobroDelDia(plan, abonado(deuda), hoy);
+        if (c.aCobrar <= 0 || c.cuotaN === null) continue;
+        const detalle = "Cuota " + c.cuotaN + " de " + plan.length;
+        atrasoTotal += c.atraso;
+        (c.atraso > 0 ? cobrosAtrasados : cobrosHoy).push({
+          ...base,
+          detalle,
+          monto: Math.min(c.aCobrar, pendiente),
+          cuotasAtrasadas: c.cuotasAtrasadas,
+        });
+        continue;
+      }
+
       if (est && est.atraso > 0) {
+        atrasoTotal += est.atraso;
         cobrosAtrasados.push({
           ...base,
           detalle: esPrestamo(deuda)
@@ -144,7 +174,6 @@ export default async function CarteraPage({
    * tres cuotas sin pagar. Ahi lo vencido es el atraso contra el plan, o la
    * pantalla diria "Vencido $0" al lado de "Atrasados $90.000".
    */
-  const atrasoTotal = cobrosAtrasados.reduce((s, c) => s + c.monto, 0);
   const vencidoLabel = esCartera ? "Atrasado" : "Vencido";
   const vencidoValor = esCartera ? atrasoTotal : totalVencido;
   const vencidoCuantos = esCartera ? cobrosAtrasados.length : vencidas.length;
@@ -239,7 +268,31 @@ export default async function CarteraPage({
       />
 
       {esCartera && (
-        <div className="mb-4">
+        <div className="mb-4 space-y-3">
+          {em && (
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-panel px-4 py-3">
+              <Icon name="print" className="h-4 w-4 shrink-0 text-brand-600" />
+              <span className="min-w-0 flex-1 text-sm text-body">
+                {diaLibre ? (
+                  <>
+                    <strong>Hoy no se cobra</strong> ({diaLibre}). No corre el atraso. Próximo día de cobro:{" "}
+                    {prettyDay(siguienteDiaDeCobro(addDays(hoy, 1), user.country))}.
+                  </>
+                ) : (
+                  "Los recibos de todos los que pagan hoy y la planilla para el cobrador."
+                )}
+              </span>
+              <Link
+                href={
+                  "/panel/cartera/cobro" +
+                  (diaLibre ? "?dia=" + siguienteDiaDeCobro(addDays(hoy, 1), user.country) : "")
+                }
+                className="btn-primary btn-sm"
+              >
+                {diaLibre ? "Preparar el próximo cobro" : "Cobro del día"}
+              </Link>
+            </div>
+          )}
           <CobrosDeHoy
             atrasados={cobrosAtrasados}
             deHoy={cobrosHoy}
@@ -409,7 +462,7 @@ export default async function CarteraPage({
             </Card>
           ) : (
             <ul className="space-y-3">
-              {visibles.map(({ deuda, pendiente, estado }) => {
+              {visibles.map(({ deuda, vence, pendiente, estado }) => {
                 const enlace = deuda.clientPhone
                   ? waLink(
                       toInternational(deuda.clientPhone, user.whatsappNumber, user.timezone),
@@ -420,7 +473,7 @@ export default async function CarteraPage({
                         saldo: pendiente,
                         currency: user.currency,
                         estado,
-                        prettyDue: deuda.dueDay ? prettyDay(deuda.dueDay) : null,
+                        prettyDue: vence ? prettyDay(vence) : null,
                       })
                     )
                   : null;
@@ -449,7 +502,7 @@ export default async function CarteraPage({
                         <p className="mt-1 text-xs text-subtle">
                           Debe desde el {shortDay(deuda.day)}
                           {chopo ? " · " + pretty12h(timeIn(deuda.createdAt, user.timezone)) : ""}
-                          {deuda.dueDay ? " - vence el " + shortDay(deuda.dueDay) : ""}
+                          {vence ? " - vence el " + shortDay(vence) : ""}
                           {deuda.payments.length > 0
                             ? " - " + deuda.payments.length + " abonos"
                             : ""}
@@ -528,6 +581,7 @@ export default async function CarteraPage({
               today={hoy}
               currency={user.currency}
               prestamos={esCartera}
+              opciones={opciones}
               negocio={{
                 businessName: user.businessName,
                 businessPhone: user.phone,

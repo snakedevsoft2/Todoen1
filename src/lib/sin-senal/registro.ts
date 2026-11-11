@@ -24,6 +24,7 @@ import {
   deleteDebtAction,
   deletePaymentAction,
   markCollectedAction,
+  renewLoanAction,
   reopenDebtAction,
   updateDueDayAction,
 } from "@/actions/debts";
@@ -106,6 +107,7 @@ export const ACCIONES_SIN_SENAL: Registro = {
   cancelDebtAction: simple(cancelDebtAction),
   reopenDebtAction: simple(reopenDebtAction),
   deleteDebtAction: simple(deleteDebtAction),
+  renewLoanAction: estado(renewLoanAction),
   // Clientes
   guardarClienteAction: estado(guardarClienteAction),
   borrarClienteAction: simple(borrarClienteAction),

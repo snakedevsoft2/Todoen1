@@ -9,6 +9,7 @@ import {
   totalConInteres,
   valorCuota,
   type Frecuencia,
+  type OpcionesPlan,
 } from "@/lib/prestamos";
 import { Field } from "./ui";
 import { Icon } from "./Icon";
@@ -35,11 +36,26 @@ function Resumen({ label, valor, fuerte }: { label: string; valor: string; fuert
  * antes de prestar es de cuanto le queda la cuota y cuanto se gana, no la suma
  * total.
  */
-export function CamposPrestamo({ today, currency }: { today: string; currency: string }) {
+export function CamposPrestamo({
+  today,
+  currency,
+  opciones = {},
+  inicial,
+  descuento = 0,
+}: {
+  today: string;
+  currency: string;
+  /** Como reparte las fechas el negocio (sin domingos ni festivos en EM Inversiones). */
+  opciones?: OpcionesPlan;
+  /** Los valores con que arranca, al renovar: los del prestamo anterior. */
+  inicial?: { interes: number | null; cuotas: number | null; frecuencia: Frecuencia | null };
+  /** Al renovar: lo que todavia debe del anterior y se descuenta de lo que recibe. */
+  descuento?: number;
+}) {
   const [capital, setCapital] = useState("");
-  const [interes, setInteres] = useState("20");
-  const [cuotas, setCuotas] = useState("20");
-  const [frecuencia, setFrecuencia] = useState<Frecuencia>("DIARIA");
+  const [interes, setInteres] = useState(String(inicial?.interes ?? 20));
+  const [cuotas, setCuotas] = useState(String(inicial?.cuotas ?? 20));
+  const [frecuencia, setFrecuencia] = useState<Frecuencia>(inicial?.frecuencia ?? "DIARIA");
   const [desde, setDesde] = useState(today);
 
   // Se lee igual que lo va a leer el servidor, o el numero que se ve en la
@@ -53,7 +69,7 @@ export function CamposPrestamo({ today, currency }: { today: string; currency: s
   const total = totalConInteres(capitalNum, interesNum);
   const cuota = valorCuota(total, cuotasNum);
   const gano = ganancia(capitalNum, interesNum);
-  const plan = planDeCuotas({ total, cuotas: cuotasNum, frecuencia, desde });
+  const plan = planDeCuotas({ total, cuotas: cuotasNum, frecuencia, desde, ...opciones });
   const ultima = plan[plan.length - 1];
 
   const dia = (d: string) => d.slice(8) + "/" + d.slice(5, 7);
@@ -140,7 +156,18 @@ export function CamposPrestamo({ today, currency }: { today: string; currency: s
           <p className="mt-2.5 text-xs text-muted">
             {plan.length} {plan.length === 1 ? "cuota" : "cuotas"} de {money(cuota, currency)}. La
             primera cae el {dia(plan[0].day)}: quien presta hoy no cobra hoy.
+            {opciones.soloDiasDeCobro && " Sin domingos ni festivos."}
           </p>
+        )}
+        {descuento > 0 && (
+          <div className="mt-2.5 grid grid-cols-2 gap-3 border-t border-line pt-2.5">
+            <Resumen label="Se descuenta lo que debe" valor={"- " + money(descuento, currency)} />
+            <Resumen
+              label="Le entregas en la mano"
+              valor={capitalNum >= descuento ? money(capitalNum - descuento, currency) : "Falta"}
+              fuerte
+            />
+          </div>
         )}
       </div>
     </>

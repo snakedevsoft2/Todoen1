@@ -8,11 +8,20 @@ import { money, prettyDay, shortDay } from "@/lib/format";
 import { logoUrl } from "@/lib/nav";
 import { abonado, collectionMessage, debtState, saldo, shareLocationMessage } from "@/lib/debts";
 import { toInternational, waLink } from "@/lib/whatsapp";
-import { esPrestamo, planDeDeuda, type Frecuencia } from "@/lib/prestamos";
+import {
+  cuotasCubiertas,
+  esPrestamo,
+  planDeDeuda,
+  textoCuotasDelAbono,
+  vencimientoDe,
+  type Frecuencia,
+} from "@/lib/prestamos";
+import { esEmInversiones, opcionesPlanDe } from "@/lib/em-inversiones";
+import { formatReceiptSeq } from "@/lib/receipt-seq";
 import { enlaceMapa } from "@/lib/geo";
 import { direccionBase } from "@/lib/reset";
 import { PAYMENT_LABELS, Badge, Card, Empty, PageHeader, Stat } from "@/components/ui";
-import { DueDayForm, PaymentForm } from "@/components/DebtForms";
+import { DueDayForm, PaymentForm, RenovarForm } from "@/components/DebtForms";
 import { FichaFiador, FichaReferencias, PlanDePagos } from "@/components/PlanDePagos";
 import { ReceiptActions } from "@/components/ReceiptActions";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -35,7 +44,11 @@ export default async function DeudaPage({ params }: { params: Promise<{ id: stri
 
   const deuda = await db.debt.findFirst({
     where: { id, userId: user.id },
-    include: { payments: { orderBy: [{ day: "desc" }, { createdAt: "desc" }] } },
+    include: {
+      payments: { orderBy: [{ day: "desc" }, { createdAt: "desc" }] },
+      renewedFrom: { select: { id: true, receiptSeq: true } },
+      renewedInto: { select: { id: true, receiptSeq: true } },
+    },
   });
   // Con empleados de cuenta separada, cada uno solo abre las suyas: como si
   // no existiera, igual que cuando el id no es de este negocio.
@@ -44,7 +57,12 @@ export default async function DeudaPage({ params }: { params: Promise<{ id: stri
   const hoy = todayIn(user.timezone);
   const pendiente = saldo(deuda);
   const pagado = abonado(deuda);
-  const estado = debtState(deuda, hoy);
+  // EM Inversiones: plan sin domingos ni festivos, recibos cortos con la
+  // cuota y renovar (ver lib/em-inversiones.ts). Los demas, como siempre.
+  const em = esEmInversiones(user.businessName);
+  const opciones = opcionesPlanDe(user);
+  const vence = vencimientoDe(deuda, opciones);
+  const estado = debtState({ ...deuda, dueDay: vence }, hoy);
   const logo = logoUrl(user.slug, user.hasLogo, user.updatedAt);
 
   const enlaceCobro = deuda.clientPhone
@@ -57,7 +75,7 @@ export default async function DeudaPage({ params }: { params: Promise<{ id: stri
           saldo: pendiente,
           currency: user.currency,
           estado,
-          prettyDue: deuda.dueDay ? prettyDay(deuda.dueDay) : null,
+          prettyDue: vence ? prettyDay(vence) : null,
         })
       )
     : null;
@@ -65,7 +83,7 @@ export default async function DeudaPage({ params }: { params: Promise<{ id: stri
   const anulada = deuda.status === "ANULADA";
 
   // Solo las deudas pactadas por cuotas tienen plan; un fiado suelto no.
-  const plan = planDeDeuda(deuda);
+  const plan = planDeDeuda(deuda, opciones);
   const muestraPlan = esPrestamo(deuda) && plan.length > 0;
 
   // Direccion, referencias y ubicacion solo se piden para prestamos: es lo
@@ -109,9 +127,35 @@ export default async function DeudaPage({ params }: { params: Promise<{ id: stri
         <Stat
           label="Desde"
           value={shortDay(deuda.day)}
-          hint={deuda.dueDay ? "Vence " + shortDay(deuda.dueDay) : "Sin fecha de vencimiento"}
+          hint={vence ? "Vence " + shortDay(vence) : "Sin fecha de vencimiento"}
         />
       </div>
+
+      {deuda.renewedFrom && (
+        <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-line bg-surface px-4 py-3 text-sm text-body">
+          <Icon name="handshake" className="h-4 w-4 shrink-0 text-brand-600" />
+          <span>
+            Es la renovación del préstamo
+            {deuda.renewedFrom.receiptSeq ? " No. " + formatReceiptSeq(deuda.renewedFrom.receiptSeq) : " anterior"}.
+          </span>
+          <Link href={"/panel/cartera/" + deuda.renewedFrom.id} className="link ml-auto">
+            Ver el anterior
+          </Link>
+        </div>
+      )}
+      {deuda.renewedInto && (
+        <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-good-line bg-good-soft px-4 py-3 text-sm text-good">
+          <Icon name="check" className="h-4 w-4 shrink-0" />
+          <span>
+            Se renovó en el préstamo
+            {deuda.renewedInto.receiptSeq ? " No. " + formatReceiptSeq(deuda.renewedInto.receiptSeq) : " nuevo"}. Lo
+            que debía pasó a ese.
+          </span>
+          <Link href={"/panel/cartera/" + deuda.renewedInto.id} className="link ml-auto">
+            Ver el nuevo
+          </Link>
+        </div>
+      )}
 
       {anulada && (
         <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-line bg-surface px-4 py-3 text-sm text-muted">
@@ -137,6 +181,7 @@ export default async function DeudaPage({ params }: { params: Promise<{ id: stri
               principal={deuda.principal}
               interestPct={deuda.interestPct}
               frecuencia={deuda.frequency as Frecuencia}
+              soloDiasDeCobro={em}
             />
           )}
           {deuda.guarantorName && (
@@ -235,6 +280,13 @@ export default async function DeudaPage({ params }: { params: Promise<{ id: stri
                   const saldoTrasEste =
                     deuda.amount - (pagado - posteriores.reduce((s, p) => s + p.amount, 0));
 
+                  // En que cuota iba con este abono (recibo corto de EM Inversiones).
+                  const antes = deuda.payments.slice(i + 1).reduce((s, p) => s + p.amount, 0);
+                  const conCuotas = em && muestraPlan && !pago.renewal;
+                  const cubiertas = conCuotas ? cuotasCubiertas(plan, antes + pago.amount) : 0;
+                  const siguiente = conCuotas ? plan.find((c) => c.n > cubiertas) : undefined;
+                  const cuota = conCuotas ? textoCuotasDelAbono(plan, antes, pago.amount) : null;
+
                   return (
                     <li key={pago.id} className="rounded-xl border border-line bg-surface p-3">
                       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -246,6 +298,12 @@ export default async function DeudaPage({ params }: { params: Promise<{ id: stri
                             {prettyDay(pago.day)} - {PAYMENT_LABELS[pago.method] ?? pago.method}
                             {pago.saleId ? " - sumado a la caja" : ""}
                           </p>
+                          {cuota && <p className="mt-0.5 text-xs font-semibold text-strong">{cuota}</p>}
+                          {pago.renewal && (
+                            <p className="mt-0.5 text-xs font-semibold text-strong">
+                              Renovación: no es plata que entró, el saldo pasó al préstamo nuevo
+                            </p>
+                          )}
                           {pago.notes && (
                             <p className="mt-0.5 text-xs italic text-subtle">{pago.notes}</p>
                           )}
@@ -258,6 +316,7 @@ export default async function DeudaPage({ params }: { params: Promise<{ id: stri
                         </div>
                       </div>
 
+                      {!pago.renewal && (
                       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t-2 border-line pt-3">
                         <ReceiptActions
                           clientPhone={deuda.clientPhone}
@@ -281,6 +340,12 @@ export default async function DeudaPage({ params }: { params: Promise<{ id: stri
                               .slice(i + 1)
                               .map((p) => ({ day: p.day, amount: p.amount })),
                             marcaGratis: !esPlanCompleto(user),
+                            corto: em,
+                            cuota,
+                            pagadas: conCuotas ? cubiertas + " de " + plan.length : null,
+                            proxima: siguiente
+                              ? shortDay(siguiente.day) + " · " + money(siguiente.monto, user.currency)
+                              : null,
                           }}
                         />
 
@@ -300,6 +365,7 @@ export default async function DeudaPage({ params }: { params: Promise<{ id: stri
                           </SubmitButton>
                         </FormSinSenal>
                       </div>
+                      )}
                     </li>
                   );
                 })}
@@ -325,6 +391,30 @@ export default async function DeudaPage({ params }: { params: Promise<{ id: stri
                 entraACaja={!deuda.alreadyInvoiced}
               />
             </Card>
+          )}
+
+          {em && esCartera && !anulada && (
+            <RenovarForm
+              debtId={deuda.id}
+              renovadoEn={deuda.renewedInto?.id ?? null}
+              today={hoy}
+              currency={user.currency}
+              debe={pendiente}
+              concepto={deuda.concept}
+              inicial={{
+                interes: deuda.interestPct,
+                cuotas: deuda.installments,
+                frecuencia: deuda.frequency as Frecuencia | null,
+              }}
+              opciones={opciones}
+              negocio={{
+                businessName: user.businessName,
+                businessPhone: user.phone,
+                businessAddress: user.address,
+                logoUrl: logo,
+                marcaGratis: !esPlanCompleto(user),
+              }}
+            />
           )}
 
           {pendiente > 0 && !anulada && (
@@ -364,7 +454,7 @@ export default async function DeudaPage({ params }: { params: Promise<{ id: stri
 
           {!anulada && (
             <Card title="Plazo">
-              <DueDayForm debtId={deuda.id} dueDay={deuda.dueDay} />
+              <DueDayForm debtId={deuda.id} dueDay={vence} />
             </Card>
           )}
 

@@ -423,6 +423,16 @@ model Debt {
   lastLng           Float?
   lastLocationAt    DateTime?
 
+  /**
+   * Renovacion (lo pidio EM Inversiones): el prestamo nuevo que se le hizo al
+   * mismo cliente descontando lo que debia de este. El anterior se cierra con
+   * un abono marcado `renewal`, que no es plata que entro sino que se paso al
+   * nuevo. Un prestamo se renueva una sola vez, por eso es unico.
+   */
+  renewedFromId String? @unique
+  renewedFrom   Debt?   @relation("Renovacion", fields: [renewedFromId], references: [id], onDelete: SetNull)
+  renewedInto   Debt?   @relation("Renovacion")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -458,6 +468,10 @@ model DebtPayment {
 
   /// El numero del comprobante de este abono. Ver Debt.receiptSeq.
   receiptSeq Int?
+
+  /// El saldo que se paso a un prestamo nuevo al renovar (ver Debt.renewedFromId).
+  /// No es plata que entro: no va a la caja ni a "Cobrado este mes".
+  renewal Boolean @default(false)
 
   createdAt DateTime @default(now())
 

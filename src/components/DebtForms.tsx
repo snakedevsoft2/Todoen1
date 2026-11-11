@@ -1,12 +1,14 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { addPaymentAction, createDebtAction, updateDueDayAction } from "@/actions/debts";
+import Link from "next/link";
+import { useActionState, type ReactNode } from "react";
+import { addPaymentAction, createDebtAction, renewLoanAction, updateDueDayAction } from "@/actions/debts";
+import type { Frecuencia, OpcionesPlan } from "@/lib/prestamos";
 import { aCampo, money, pasoMoneda } from "@/lib/format";
 import { SubmitButton } from "./SubmitButton";
 import { CamposFiador, CamposPrestamo, CamposReferencias } from "./PrestamoFields";
 import { ReceiptActions } from "./ReceiptActions";
-import { Alert, Field } from "./ui";
+import { Alert, Card, Field } from "./ui";
 import { Icon } from "./Icon";
 import { useAccionSinSenal } from "@/components/SinSenal";
 
@@ -24,10 +26,13 @@ export function NewDebtForm({
   /** true en el negocio de cartera: pide capital, interes, cuotas y fiador. */
   prestamos = false,
   negocio,
+  opciones,
 }: {
   today: string;
   currency: string;
   prestamos?: boolean;
+  /** Como reparte las fechas de las cuotas el negocio. */
+  opciones?: OpcionesPlan;
   /** Para poder sacar la constancia del préstamo justo al anotarlo. */
   negocio?: {
     businessName: string;
@@ -102,7 +107,7 @@ export function NewDebtForm({
       </Field>
 
       {prestamos ? (
-        <CamposPrestamo today={today} currency={currency} />
+        <CamposPrestamo today={today} currency={currency} opciones={opciones} />
       ) : (
         <div className="grid gap-3 sm:grid-cols-3">
           <Field label={"Cuanto debe (" + currency + ")"}>
@@ -246,5 +251,127 @@ export function DueDayForm({ debtId, dueDay }: { debtId: string; dueDay: string 
         </SubmitButton>
       </div>
     </form>
+  );
+}
+
+/**
+ * Renovar un prestamo: uno nuevo al mismo cliente, descontando lo que debe
+ * del anterior (lo pidio EM Inversiones, ver lib/em-inversiones.ts). Arranca
+ * con el interes, las cuotas y la frecuencia del anterior; lo unico que hay
+ * que escribir es cuanto se le presta ahora.
+ *
+ * Trae su propia tarjeta y la pantalla lo deja montado aunque el prestamo ya
+ * se haya renovado: al renovar, la pantalla se vuelve a pintar con el
+ * prestamo cerrado, y si la tarjeta desapareciera se llevaria el aviso y la
+ * constancia del nuevo antes de que se alcancen a ver.
+ */
+export function RenovarForm({
+  debtId,
+  renovadoEn,
+  today,
+  currency,
+  debe,
+  concepto,
+  inicial,
+  opciones,
+  negocio,
+}: {
+  debtId: string;
+  /** El prestamo nuevo, si este ya se renovo. */
+  renovadoEn: string | null;
+  today: string;
+  currency: string;
+  /** Lo que todavia debe del anterior. */
+  debe: number;
+  concepto: string;
+  inicial: { interes: number | null; cuotas: number | null; frecuencia: Frecuencia | null };
+  opciones: OpcionesPlan;
+  negocio: {
+    businessName: string;
+    businessPhone: string | null;
+    businessAddress: string | null;
+    logoUrl: string | null;
+    marcaGratis: boolean;
+  };
+}) {
+  const [state, formAction] = useActionState(useAccionSinSenal("renewLoanAction", renewLoanAction), undefined);
+
+  // Ya renovado y no fue en esta visita: el aviso de arriba lo dice.
+  if (renovadoEn && !state?.nuevaId) return null;
+
+  const tarjeta = (cuerpo: ReactNode) => (
+    <Card title="Renovar el préstamo" subtitle="Le prestas otra vez y lo que debe se descuenta del nuevo">
+      {cuerpo}
+    </Card>
+  );
+
+  if (state?.nuevaId && state.recibo) {
+    return tarjeta(
+      <div className="space-y-3">
+        <Alert kind="ok">{state.ok}</Alert>
+        <div className="rounded-xl border border-good-line bg-good-soft p-3">
+          <p className="mb-2 text-xs font-semibold text-good">Constancia del préstamo nuevo</p>
+          <ReceiptActions
+            clientPhone={state.recibo.clientPhone}
+            data={{
+              kind: "prestamo",
+              paymentId: state.recibo.debtId,
+              receiptSeq: state.recibo.receiptSeq,
+              businessName: negocio.businessName,
+              businessPhone: negocio.businessPhone,
+              businessAddress: negocio.businessAddress,
+              logoUrl: negocio.logoUrl,
+              currency,
+              clientName: state.recibo.clientName,
+              concept: state.recibo.concept,
+              day: state.recibo.day,
+              method: "EFECTIVO",
+              amount: state.recibo.amount,
+              total: state.recibo.amount,
+              saldo: state.recibo.amount,
+              historial: [],
+              marcaGratis: negocio.marcaGratis,
+            }}
+          />
+        </div>
+        <Link href={"/panel/cartera/" + state.nuevaId} className="btn-primary w-full justify-center">
+          Ver el préstamo nuevo
+        </Link>
+      </div>
+    );
+  }
+
+  return tarjeta(
+    <details>
+      <summary className="cursor-pointer text-sm font-bold text-brand-600">
+        {debe > 0 ? "Renovar (debe " + money(debe, currency) + ")" : "Hacerle un préstamo nuevo"}
+      </summary>
+      <form action={formAction} className="mt-3 space-y-3" data-renovar>
+        <input type="hidden" name="debtId" value={debtId} />
+        {state?.error && <Alert kind="error">{state.error}</Alert>}
+        {state?.ok && <Alert kind="ok">{state.ok}</Alert>}
+
+        <p className="text-xs text-muted">
+          {debe > 0
+            ? "Todavía debe " + money(debe, currency) + ". Se le descuenta del préstamo nuevo y este queda pagado."
+            : "Este ya está pagado. El nuevo sale con los mismos datos del cliente, el fiador y las referencias."}
+        </p>
+
+        <Field label="Concepto">
+          <input className="input" name="concept" defaultValue={concepto} />
+        </Field>
+
+        <CamposPrestamo today={today} currency={currency} opciones={opciones} inicial={inicial} descuento={debe} />
+
+        <Field label="Nota (opcional)">
+          <input className="input" name="notes" placeholder="Ej: renueva por buen pago" />
+        </Field>
+
+        <SubmitButton className="btn-primary w-full" pendingText="Renovando...">
+          <Icon name="handshake" className="h-4 w-4" />
+          Renovar el préstamo
+        </SubmitButton>
+      </form>
+    </details>
   );
 }

@@ -52,9 +52,15 @@ export type Linea =
    * libreria del QR en cada pantalla que imprime; `text` es lo mismo, para la
    * termica directa, que dibuja el QR ella sola.
    */
-  | { t: "qr"; text: string; modulos: boolean[][] };
+  | { t: "qr"; text: string; modulos: boolean[][] }
+  /**
+   * Fin de un recibo cuando van varios seguidos en el mismo rollo (el cobro
+   * del dia de EM Inversiones): la termica directa corta ahi si tiene
+   * cuchilla, y si no, deja papel en blanco y una raya para rasgar.
+   */
+  | { t: "corte" };
 
-function esc(s: string): string {
+export function esc(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 }
 
@@ -108,6 +114,8 @@ export function tirillaHtml(lineas: Linea[], formato: Formato, logoUrl?: string 
           return '<p class="ti-espacio"></p>';
         case "qr":
           return '<div class="ti-qr">' + svgDeModulos(l.modulos) + "</div>";
+        case "corte":
+          return '<p class="ti-corte"></p>';
       }
     })
     .join("");
@@ -159,4 +167,25 @@ export const TIRILLA_CSS = `
 #ten-impresion .ti-80 .ti-qr{width:42mm}
 #ten-impresion .ti-a4 .ti-qr{width:50mm}
 #ten-impresion .ti-qr svg{display:block;width:100%;height:auto}
+#ten-impresion .ti-corte{border-top:1px dashed #000;margin:5mm 0 4mm}
+/* Varios recibos en una hoja (el cobro del dia): tres por fila, cada uno en
+   su recuadro para recortarlo. inline-block y no grid: al partir la hoja,
+   todos los navegadores (tambien Safari en el iPhone) saltan de pagina entre
+   una fila y otra sin cortar un recibo por la mitad. */
+#ten-impresion .ti-rejilla{font-size:0}
+#ten-impresion .ti-celda{box-sizing:border-box;display:inline-block;vertical-align:top;width:33.33%;padding:1.5mm;break-inside:avoid;page-break-inside:avoid}
+#ten-impresion .ti-celda>.ti{width:100%;border:1px dashed #000;padding:2mm 2.5mm}
+/* La planilla del cobrador: una tabla en hoja normal. */
+#ten-impresion .tp{color:#000;background:#fff;font-family:Arial,Helvetica,sans-serif;font-size:9.5pt;line-height:1.2}
+#ten-impresion .tp *{box-sizing:border-box;margin:0;padding:0}
+#ten-impresion .tp-titulo{font-size:14pt;font-weight:700}
+#ten-impresion .tp-sub{margin:1mm 0 3mm}
+#ten-impresion .tp table{width:100%;border-collapse:collapse}
+#ten-impresion .tp th,#ten-impresion .tp td{border:1px solid #000;padding:1.6mm 1.4mm;text-align:left;vertical-align:top}
+#ten-impresion .tp th{font-size:8pt;text-transform:uppercase}
+#ten-impresion .tp tr{break-inside:avoid;page-break-inside:avoid}
+#ten-impresion .tp .tp-num{text-align:right;white-space:nowrap}
+#ten-impresion .tp .tp-chico{font-size:8pt}
+#ten-impresion .tp .tp-blanco{min-width:24mm}
+#ten-impresion .tp tfoot td{font-weight:700}
 `;
