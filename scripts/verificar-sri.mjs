@@ -171,6 +171,11 @@ async function entrar(cuenta) {
   page.on("response", (r) => r.status() >= 500 && errores.push(r.status() + " " + r.url()));
   // Sin esto el login muestra primero la bienvenida.
   await page.addInitScript(() => localStorage.setItem("todoen1_onboarding_seen", "true"));
+  // Lo que se iba a imprimir por el dialogo, sin abrirlo.
+  await page.addInitScript(() => {
+    window.__impresiones = [];
+    window.print = () => window.__impresiones.push(document.getElementById("ten-impresion")?.innerHTML ?? "");
+  });
   await page.goto(BASE + "/login", { waitUntil: "networkidle" });
   await page.fill('input[name="email"]', cuenta.email);
   await page.fill('input[name="password"]', "demo1234");
@@ -250,6 +255,27 @@ try {
   const cuerpo = await xml.text();
   ok(xml.status() === 200 && cuerpo.includes("<estado>AUTORIZADO</estado>") && cuerpo.includes(factura?.authCode ?? "-"), "el XML autorizado baja con su clave de acceso");
   if (DIR) await page.screenshot({ path: DIR + "/sri-venta.png", fullPage: true });
+
+  console.log("\n3b. Imprimir: la tirilla sigue igual, la hoja es la factura electrónica");
+  const tarjeta = page.locator('[data-factura-autorizada="AUTORIZADA"]').first();
+  await tarjeta.getByRole("button", { name: "Elegir tamano de impresion" }).click();
+  await page.locator("[data-menu-imprimir] button", { hasText: "Tirilla 58 mm" }).click();
+  ok(Boolean(await esperarHasta(() => page.evaluate(() => window.__impresiones.length > 0))), "la tirilla de 58 mm se imprime");
+  const tirilla = await page.evaluate(() => window.__impresiones.at(-1) ?? "");
+  ok(/class="ti ti-58"/.test(tirilla) && /Clave de acceso/.test(tirilla) && !/Valor Total/.test(tirilla), "y es la tirilla de siempre, no el PDF");
+
+  await tarjeta.getByRole("button", { name: "Elegir tamano de impresion" }).click();
+  const [pedido] = await Promise.all([
+    page.waitForRequest((q) => q.url().includes("/panel/ventas/ride/" + factura?.id), { timeout: 20000 }).catch(() => null),
+    page.locator("[data-menu-imprimir] button", { hasText: "Hoja carta" }).click(),
+  ]);
+  ok(Boolean(pedido), "en hoja carta trae la factura electrónica (el RIDE)");
+  ok(
+    Boolean(await esperarHasta(() => page.evaluate(() => Boolean(document.querySelector('iframe[src^="blob:"]'))), 8000)) ||
+      (await page.context().pages()).length > 1,
+    "y la manda a imprimir como PDF"
+  );
+  ok((await page.evaluate(() => window.__impresiones.length)) === 1, "sin pasar por la hoja de antes");
 
   console.log("\n4. Le llega por correo al comprador");
   ok(Boolean(await esperarHasta(() => correos.length >= 1)), "sale un correo apenas se autoriza");

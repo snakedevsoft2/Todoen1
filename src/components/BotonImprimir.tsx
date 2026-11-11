@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { conexionGuardada, formatoGuardado, guardarConexion, guardarFormato, imprimirHtml } from "@/lib/imprimir";
+import { conexionGuardada, formatoGuardado, guardarConexion, guardarFormato, imprimirHtml, imprimirPdf } from "@/lib/imprimir";
 import { CONEXIONES, conexionesDisponibles, imprimirDirecto, type Conexion } from "@/lib/impresora-directa";
 import { tirillaEscPos } from "@/lib/escpos";
 import { FORMATOS, tirillaHtml, type Formato, type Linea } from "@/lib/tirilla";
@@ -41,9 +41,16 @@ export function BotonImprimir({
    * hoja es la misma tirilla, mas ancha.
    */
   hoja,
+  /**
+   * La hoja carta/A4 es un PDF ya hecho, no HTML: la factura electronica del
+   * SRI (el RIDE), que se arma en el servidor. Las tirillas de 58 y 80 mm no
+   * cambian.
+   */
+  hojaPdf,
 }: {
   tirilla: () => Linea[];
   hoja?: () => string;
+  hojaPdf?: () => Promise<File>;
   nombreArchivo: string;
   logoUrl?: string | null;
   label?: string;
@@ -111,6 +118,11 @@ export function BotonImprimir({
         // impresora justo despues del toque.
         const r = await imprimirDirecto(c, tirillaEscPos(tirilla(), f === "58" ? 58 : 80), elegirOtra);
         setAviso(r === "impreso" ? { tono: "ok", texto: "Enviado a la impresora." } : null);
+      } else if (f === "a4" && hojaPdf) {
+        // En el celular el navegador no imprime un PDF dentro de la pagina:
+        // se abre aparte y desde ahi se imprime o se comparte.
+        const como = await imprimirPdf(await hojaPdf());
+        if (como === "pestana") setAviso({ tono: "ok", texto: "Se abrió la factura: imprímela desde ahí." });
       } else {
         const html = f === "a4" && hoja ? hoja() : tirillaHtml(tirilla(), f, logoUrl);
         await imprimirHtml(html, f, nombreArchivo.replace(/\.pdf$/i, ""));

@@ -20,6 +20,17 @@ function descargar(archivo: File) {
   setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
 
+/**
+ * Directo con el SRI: el RIDE, armado en el servidor desde el XML autorizado.
+ * Es el mismo que le llega al comprador por correo, y el que sale en hoja
+ * carta/A4 al imprimir.
+ */
+async function rideDe(f: FacturaVista): Promise<File> {
+  const r = await fetch("/panel/ventas/ride/" + f.id);
+  if (!r.ok) throw new Error("No se pudo traer la factura electrónica. Revisa la conexión e inténtalo otra vez.");
+  return new File([await r.blob()], "factura-" + f.numero + ".pdf", { type: "application/pdf" });
+}
+
 function documentoDe(f: FacturaVista): string {
   const c = f.comprador;
   if (c.consumidorFinal) return f.pais === "CO" ? "Consumidor final · NIT 222222222222" : "Consumidor final · 9999999999999";
@@ -120,12 +131,8 @@ export function FacturaAutorizada({
 
   async function descargarPdf(f: FacturaVista) {
     try {
-      // Directo con el SRI: el RIDE, armado en el servidor desde el XML
-      // autorizado. Es el mismo que le llega al comprador por correo.
       if (f.conXml) {
-        const r = await fetch("/panel/ventas/ride/" + f.id);
-        if (!r.ok) throw new Error("sin RIDE");
-        descargar(new File([await r.blob()], "factura-" + f.numero + ".pdf", { type: "application/pdf" }));
+        descargar(await rideDe(f));
         return;
       }
       descargar(await buildInvoicePdf(datosAutorizados(base, f, etiquetaImpuesto, emisor)));
@@ -262,6 +269,7 @@ export function FacturaAutorizada({
                 </button>
                 <BotonImprimir
                   tirilla={() => invoiceTirilla(datosAutorizados(base, factura, etiquetaImpuesto, emisor))}
+                  hojaPdf={factura.conXml ? () => rideDe(factura) : undefined}
                   nombreArchivo={invoiceFileName(datosAutorizados(base, factura, etiquetaImpuesto, emisor))}
                   logoUrl={base.logoUrl}
                   soloBluetooth={soloBluetooth}
