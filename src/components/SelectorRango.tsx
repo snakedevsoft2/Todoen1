@@ -34,6 +34,7 @@ export function SelectorRango({
   // En la computadora, al pasar el mouse se ve como quedaria el rango.
   const [encima, setEncima] = useState<string | null>(null);
   const cajaRef = useRef<HTMLDivElement>(null);
+  const calRef = useRef<HTMLDivElement>(null);
 
   // Al cambiar de pagina, el calendario vuelve a lo que se esta viendo.
   useEffect(() => {
@@ -43,6 +44,9 @@ export function SelectorRango({
 
   useEffect(() => {
     if (!abierto) return;
+    // En el celular el calendario queda por debajo de la pantalla: se baja
+    // lo justo para que se vea entero, con el boton Ver.
+    calRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
     function fuera(e: PointerEvent) {
       if (cajaRef.current && !cajaRef.current.contains(e.target as Node)) setAbierto(false);
     }
@@ -118,6 +122,7 @@ export function SelectorRango({
 
       {abierto && (
         <div
+          ref={calRef}
           role="dialog"
           aria-label="Elegir desde y hasta"
           className="absolute right-0 top-full z-40 mt-2 w-full rounded-2xl border border-line bg-panel p-3 shadow-card-hover sm:w-[330px]"
@@ -126,7 +131,8 @@ export function SelectorRango({
           {/* Lo elegido: desde y hasta. Se resalta el que toca elegir ahora. */}
           <div className="mb-2 grid grid-cols-2 gap-2">
             {(["desde", "hasta"] as const).map((campo) => {
-              const toca = campo === "desde" ? !eleccion.desde || !!eleccion.hasta : !!eleccion.desde && !eleccion.hasta;
+              // Sin nada, toca el desde; con el desde, toca el hasta; con los dos, quedan los dos marcados.
+              const toca = campo === "desde" ? !eleccion.desde || !!eleccion.hasta : !!eleccion.desde;
               const valor = eleccion[campo];
               return (
                 <div

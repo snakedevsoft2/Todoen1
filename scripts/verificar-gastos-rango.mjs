@@ -83,13 +83,32 @@ try {
   const page = await entrar(chopo);
   await page.goto(BASE + "/panel/gastos", { waitUntil: "networkidle" });
   const filtro = page.locator("[data-rango-gastos]");
-  ok((await filtro.locator('input[name="desde"]').count()) === 1 && (await filtro.locator('input[name="hasta"]').count()) === 1, "ve Desde y Hasta");
+  const boton = filtro.locator("button[aria-haspopup]");
+  const etiqueta = (await boton.textContent()) ?? "";
+  ok(/Desde/.test(etiqueta) && /Hasta/.test(etiqueta), "ve un solo botón con Desde y Hasta", etiqueta);
   ok(await sinDesborde(page), "en el celular nada se sale");
-  await filtro.locator('input[name="desde"]').fill("2026-11-01");
-  await filtro.locator('input[name="hasta"]').fill("2026-11-10");
-  await filtro.getByRole("button", { name: "Ver" }).click();
+
+  await boton.click();
+  const cal = page.locator("[data-calendario-rango]");
+  await cal.waitFor();
+  const caja = await cal.boundingBox();
+  ok(caja && caja.x >= 0 && caja.x + caja.width <= 391, "el calendario cabe en el celular", JSON.stringify(caja));
+  ok(/noviembre de 2026/.test((await cal.textContent()) ?? ""), "abre en el mes que se está viendo");
+  // Se toca primero el 10 y después el 1: se dan vuelta solos.
+  await cal.locator('[data-dia="2026-11-10"]').click();
+  ok(/Ahora toca el día hasta/.test((await cal.textContent()) ?? ""), "después del primer toque pide el hasta");
+  await cal.locator('[data-dia="2026-11-01"]').click();
+  const elegido = (await cal.textContent()) ?? "";
+  ok(/01\/11\/2026/.test(elegido) && /10\/11\/2026/.test(elegido), "desde 01/11 y hasta 10/11, aunque se tocaron al revés");
+  ok((await cal.locator('[aria-pressed="true"]').count()) === 2, "las dos puntas marcadas");
+  const ver = await cal.getByRole("button", { name: "Ver", exact: true }).boundingBox();
+  ok(ver && ver.y + ver.height <= 844, "el botón Ver se ve sin tener que bajar", JSON.stringify(ver));
+  ok(/bg-brand-100/.test((await cal.locator('[data-dia="2026-11-05"]').locator("..").getAttribute("class")) ?? ""), "los días del medio pintados");
+  if (DIR) await page.screenshot({ path: DIR + "/gastos-calendario.png" });
+  await cal.getByRole("button", { name: "Ver", exact: true }).click();
   await page.waitForURL(/desde=2026-11-01&hasta=2026-11-10/);
   await page.waitForLoadState("networkidle");
+  ok((await cal.count()) === 0, "el calendario se cierra");
   const cuerpo = await page.textContent("body");
   ok(/Del 01\/11\/2026 al 10\/11\/2026/.test(cuerpo), "dice el rango arriba");
   ok(/Gasto del periodo/.test(cuerpo) && /88,00/.test(cuerpo), "gasto del periodo: 88,00 (sin el de fuera del rango)");
@@ -104,11 +123,28 @@ try {
   if (DIR) await page.screenshot({ path: DIR + "/gastos-rango.png", fullPage: true });
 
   console.log("\n2. Un solo día sigue como antes");
-  await page.goto(BASE + "/panel/gastos?desde=2026-11-02&hasta=2026-11-02", { waitUntil: "networkidle" });
+  await boton.click();
+  await cal.locator('[data-dia="2026-11-02"]').click();
+  await cal.getByRole("button", { name: "Ver", exact: true }).click();
+  await page.waitForURL(/desde=2026-11-02&hasta=2026-11-02/);
+  await page.waitForLoadState("networkidle");
   const dia = await page.textContent("body");
-  ok(/Gastos del día/.test(dia) && /Dia anterior/.test(dia) && /33,00/.test(dia), "el 2 de noviembre: 33,00, con día anterior y siguiente");
+  ok(/Gastos del día/.test(dia) && /Dia anterior/.test(dia) && /33,00/.test(dia), "un solo toque y Ver: el 2 de noviembre, 33,00, con día anterior y siguiente");
 
-  console.log("\n3. Otro negocio no cambia");
+  console.log("\n3. Atajos, cambiar de mes y cerrar");
+  await boton.click();
+  await cal.getByRole("button", { name: "Mes anterior" }).click();
+  ok(/octubre de 2026/.test((await cal.textContent()) ?? ""), "la flecha lleva a octubre");
+  await page.keyboard.press("Escape");
+  ok((await cal.count()) === 0, "Escape lo cierra");
+  await boton.click();
+  await cal.getByRole("button", { name: "Mes pasado" }).click();
+  await page.waitForURL(/desde=2026-10-01&hasta=2026-10-31/);
+  await page.waitForLoadState("networkidle");
+  const octubre = await page.textContent("body");
+  ok(/Fuera del rango/.test(octubre) && /999,00/.test(octubre), "Mes pasado: octubre, con su gasto");
+
+  console.log("\n4. Otro negocio no cambia");
   const otra = await entrar(otro);
   await otra.goto(BASE + "/panel/gastos?desde=2026-11-01&hasta=2026-11-10", { waitUntil: "networkidle" });
   const suya = await otra.textContent("body");
