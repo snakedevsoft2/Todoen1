@@ -211,7 +211,7 @@ export function texto(input: FormDataEntryValue | null | undefined, max = 2000):
 }
 
 const DAY_LABELS = ["domingo", "lunes", "martes", "miercoles", "jueves", "viernes", "sabado"];
-const MONTHS = [
+export const MONTHS = [
   "enero", "febrero", "marzo", "abril", "mayo", "junio",
   "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
 ];

@@ -13,6 +13,7 @@ import { getDaySummary } from "@/lib/queries";
 import { FormSinSenal } from "@/components/SinSenal";
 import { esChopoSnacks } from "@/lib/orden-productos";
 import { rangoDeFechas } from "@/lib/rango-fechas";
+import { SelectorRango } from "@/components/SelectorRango";
 
 export const dynamic = "force-dynamic";
 
@@ -116,32 +117,9 @@ export default async function GastosPage({
             Dia siguiente
           </Link>
         )}
-        {chopo && (
-          <Link
-            href={"/panel/gastos?desde=" + startOfMonth(today) + "&hasta=" + today}
-            className="btn-ghost btn-sm"
-          >
-            Este mes
-          </Link>
-        )}
         {chopo ? (
-          <form
-            className="grid w-full grid-cols-[1fr_1fr_auto] items-end gap-2 sm:ml-auto sm:w-auto"
-            action="/panel/gastos"
-            data-rango-gastos
-          >
-            <label className="min-w-0 text-xs text-muted">
-              Desde
-              <input className="input mt-1 w-full py-1.5 text-sm" type="date" name="desde" defaultValue={desde} />
-            </label>
-            <label className="min-w-0 text-xs text-muted">
-              Hasta
-              <input className="input mt-1 w-full py-1.5 text-sm" type="date" name="hasta" defaultValue={hasta} />
-            </label>
-            <button className="btn-primary btn-sm" type="submit">
-              Ver
-            </button>
-          </form>
+          // Un solo calendario: se toca el dia desde y luego el dia hasta.
+          <SelectorRango basePath="/panel/gastos" desde={desde} hasta={hasta} hoy={today} />
         ) : (
           <form className="ml-auto flex items-center gap-2" action="/panel/gastos">
             <input className="input max-w-[170px] py-1.5 text-sm" type="date" name="d" defaultValue={day} />
