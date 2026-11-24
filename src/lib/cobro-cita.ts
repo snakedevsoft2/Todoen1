@@ -73,3 +73,47 @@ export function armarCobro(
   }
   return { items, total: items.reduce((s, i) => s + i.unitPrice * i.qty, 0) };
 }
+
+/**
+ * Una venta sin cita desde el apartado Mecato de la manicurista: bebidas,
+ * mecato o cualquier cosa de la lista. Igual que en la cita, el precio de cada
+ * cosa sale del catalogo y del telefono solo se lee que y cuantas.
+ */
+export const MAX_RENGLONES_VENTA = 30;
+export const MAX_CANTIDAD_VENTA = 50;
+
+export type PedidoVenta = { serviceId: string; qty: number };
+
+export function leerPedidoVenta(crudo: string): PedidoVenta[] | null {
+  let datos: unknown;
+  try {
+    datos = JSON.parse(crudo || "[]");
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(datos)) return null;
+  const out: PedidoVenta[] = [];
+  for (const d of datos) {
+    if (!d || typeof d !== "object" || typeof (d as { serviceId?: unknown }).serviceId !== "string") return null;
+    out.push({ serviceId: (d as { serviceId: string }).serviceId, qty: Number((d as { qty?: unknown }).qty) });
+  }
+  return out;
+}
+
+export function armarVenta(
+  pedido: PedidoVenta[],
+  catalogo: Map<string, { name: string; price: number }>
+): { items: RenglonCobro[]; total: number } | { error: string } {
+  if (pedido.length === 0) return { error: "Escoge al menos un producto." };
+  if (pedido.length > MAX_RENGLONES_VENTA) return { error: "Son demasiados productos en una sola venta." };
+  const porId = new Map<string, number>();
+  for (const p of pedido) porId.set(p.serviceId, (porId.get(p.serviceId) ?? 0) + Math.trunc(p.qty));
+  const items: RenglonCobro[] = [];
+  for (const [serviceId, qty] of porId) {
+    const s = catalogo.get(serviceId);
+    if (!s) return { error: "Uno de los productos ya no está en la lista de precios." };
+    if (!Number.isFinite(qty) || qty < 1 || qty > MAX_CANTIDAD_VENTA) return { error: "La cantidad de " + s.name + " no está bien." };
+    items.push({ serviceId, name: s.name, unitPrice: s.price, qty });
+  }
+  return { items, total: items.reduce((s, i) => s + i.unitPrice * i.qty, 0) };
+}

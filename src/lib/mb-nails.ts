@@ -9,7 +9,8 @@ import { normalizar } from "./orden-productos";
  * Sus manicuristas (rol BARBERO en la base) no ven el negocio completo: entran
  * con su usuario, sin contraseña, como cualquier empleado, y solo ven sus
  * citas, con dos botones -Cerrada (cobra el servicio y lo adicional) y
- * Reprogramada-, la lista de precios sin poder cambiarla y su perfil. Es el
+ * Reprogramada-, Mecato para vender sin cita (bebidas, mecato, cada categoria
+ * por separado), la lista de precios sin poder cambiarla y su perfil. Es el
  * mismo esquema del lavador del lavadero (ver lib/permisos.ts): menu fijo y
  * cualquier otra direccion las devuelve a sus citas.
  */
@@ -28,6 +29,7 @@ export function esManicuristaDeMbNails(
 // Una palabra por apartado: el menu de abajo del celular muestra solo la primera.
 export const MENU_MANICURISTA: NavItem[] = [
   { href: "/panel/mis-citas", label: "Citas", icon: "calendar" },
+  { href: "/panel/mecato", label: "Mecato", icon: "box" },
   { href: "/panel/precios", label: "Precios", icon: "tag" },
   { href: "/panel/perfil", label: "Perfil", icon: "user" },
 ];

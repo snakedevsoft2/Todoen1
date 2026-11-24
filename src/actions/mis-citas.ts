@@ -6,10 +6,10 @@ import { Prisma, type PaymentMethod } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { esManicuristaDeMbNails } from "@/lib/mb-nails";
-import { armarCobro, leerAdicionales } from "@/lib/cobro-cita";
+import { armarCobro, armarVenta, leerAdicionales, leerPedidoVenta } from "@/lib/cobro-cita";
 import { isValidDay, timeIn, todayIn } from "@/lib/dates";
 import { buildSlots, endTimeFor, isWorkDay } from "@/lib/slots";
-import { cerosPara, money, parseMoney, pretty12h, shortDay, str } from "@/lib/format";
+import { cerosPara, money, parseMoney, pretty12h, shortDay, str, texto } from "@/lib/format";
 import { anotarActividad } from "@/lib/actividad";
 import { nextReceiptSeq } from "@/lib/receipt-seq";
 import { avisarVentaGuardada } from "@/lib/push";
@@ -31,6 +31,7 @@ async function sesionDeManicurista() {
 
 function refrescar() {
   revalidatePath("/panel/mis-citas");
+  revalidatePath("/panel/mecato");
   revalidatePath("/panel/turnos");
   revalidatePath("/panel/ventas");
   revalidatePath("/panel");
@@ -162,4 +163,60 @@ export async function reprogramarCitaAction(_prev: CitaState, formData: FormData
   );
   refrescar();
   return { ok: "Listo: la cita de " + cita.clientName + " quedó para el " + ahora + "." };
+}
+
+/**
+ * Mecato: una venta sin cita (bebidas, mecato o lo que sea de la lista), a
+ * nombre de la manicurista. Los precios salen del catalogo.
+ */
+export async function venderMecatoAction(_prev: CitaState, formData: FormData): Promise<CitaState> {
+  const sesion = await sesionDeManicurista();
+  if (!sesion) return { error: "Esto es solo para las manicuristas." };
+  const { user, staff } = sesion;
+
+  const pedido = leerPedidoVenta(String(formData.get("pedido") ?? ""));
+  if (!pedido) return { error: "No entendimos lo que escogiste. Vuelve a escogerlo." };
+  const catalogo = new Map(
+    (
+      await db.service.findMany({
+        where: { userId: user.id, active: true, id: { in: pedido.map((p) => p.serviceId) } },
+        select: { id: true, name: true, price: true },
+      })
+    ).map((s) => [s.id, { name: s.name, price: s.price }])
+  );
+  const venta = armarVenta(pedido, catalogo);
+  if ("error" in venta) return { error: venta.error };
+
+  const pago = String(formData.get("paymentMethod") ?? "") as PaymentMethod;
+  const paymentMethod = PAGOS.includes(pago) ? pago : "EFECTIVO";
+  const clientName = texto(formData.get("clientName"), 80) || null;
+
+  const guardada = await db.$transaction(async (tx) =>
+    tx.sale.create({
+      data: {
+        userId: user.id,
+        day: todayIn(user.timezone),
+        total: venta.total,
+        paymentMethod,
+        origin: "MANUAL",
+        clientName,
+        staffId: staff.id,
+        receiptSeq: await nextReceiptSeq(tx, user.id),
+        items: { create: venta.items.map((i) => ({ userId: user.id, ...i })) },
+      },
+      select: { id: true },
+    })
+  );
+
+  after(() => avisarVentaGuardada(user, { tipo: "venta", id: guardada.id }, staff).then(() => undefined));
+  await anotarActividad(
+    { user, staff },
+    {
+      tipo: "venta",
+      detalle: "Vendió " + venta.items.map((i) => i.qty + "x " + i.name).join(", ") + (clientName ? " a " + clientName : ""),
+      monto: venta.total,
+    }
+  );
+  refrescar();
+  return { ok: "Venta guardada: " + money(venta.total, user.currency) + "." };
 }
