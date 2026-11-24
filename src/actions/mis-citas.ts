@@ -1,0 +1,165 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { after } from "next/server";
+import { Prisma, type PaymentMethod } from "@prisma/client";
+import { db } from "@/lib/db";
+import { requireSession } from "@/lib/auth";
+import { esManicuristaDeMbNails } from "@/lib/mb-nails";
+import { armarCobro, leerAdicionales } from "@/lib/cobro-cita";
+import { isValidDay, timeIn, todayIn } from "@/lib/dates";
+import { buildSlots, endTimeFor, isWorkDay } from "@/lib/slots";
+import { cerosPara, money, parseMoney, pretty12h, shortDay, str } from "@/lib/format";
+import { anotarActividad } from "@/lib/actividad";
+import { nextReceiptSeq } from "@/lib/receipt-seq";
+import { avisarVentaGuardada } from "@/lib/push";
+
+/**
+ * Los dos botones de la manicurista de MB Nails en Mis citas (ver
+ * lib/mb-nails.ts): Cerrada y Reprogramada. Solo sobre SUS citas: la cita se
+ * busca por negocio Y por quien la atiende, nunca solo por el id.
+ */
+
+export type CitaState = { error?: string; ok?: string } | undefined;
+
+const PAGOS: PaymentMethod[] = ["EFECTIVO", "TARJETA", "TRANSFERENCIA", "OTRO"];
+
+async function sesionDeManicurista() {
+  const sesion = await requireSession({ manicuristaOk: true });
+  return esManicuristaDeMbNails(sesion.user, sesion.staff) ? sesion : null;
+}
+
+function refrescar() {
+  revalidatePath("/panel/mis-citas");
+  revalidatePath("/panel/turnos");
+  revalidatePath("/panel/ventas");
+  revalidatePath("/panel");
+}
+
+/** Cerrada: la cita queda atendida y se cobra el servicio mas lo adicional. */
+export async function cerrarCitaAction(_prev: CitaState, formData: FormData): Promise<CitaState> {
+  const sesion = await sesionDeManicurista();
+  if (!sesion) return { error: "Esto es solo para las manicuristas." };
+  const { user, staff } = sesion;
+
+  const cita = await db.appointment.findFirst({
+    where: { id: str(formData.get("id")), userId: user.id, staffId: staff.id },
+    include: { sale: { select: { id: true } } },
+  });
+  if (!cita) return { error: "No encontramos esa cita entre las tuyas." };
+  if (cita.sale || cita.status === "ATENDIDO") return { error: "Esa cita ya estaba cerrada." };
+  if (cita.status === "CANCELADO") return { error: "Esa cita está cancelada." };
+
+  const adicionales = leerAdicionales(String(formData.get("adicionales") ?? ""));
+  if (!adicionales) return { error: "No entendimos lo adicional. Vuelve a agregarlo." };
+  const ids = adicionales.flatMap((a) => (a.tipo === "lista" ? [a.serviceId] : []));
+  const catalogo = new Map(
+    (
+      await db.service.findMany({
+        where: { userId: user.id, active: true, id: { in: ids } },
+        select: { id: true, name: true, price: true },
+      })
+    ).map((s) => [s.id, { name: s.name, price: s.price }])
+  );
+  const cobro = armarCobro(cita, adicionales, catalogo, (v) => parseMoney(v, user.currency, cerosPara(user.businessType)));
+  if ("error" in cobro) return { error: cobro.error };
+
+  const pago = String(formData.get("paymentMethod") ?? "") as PaymentMethod;
+  const paymentMethod = PAGOS.includes(pago) ? pago : "EFECTIVO";
+
+  let ventaId: string;
+  try {
+    ventaId = await db.$transaction(async (tx) => {
+      const venta = await tx.sale.create({
+        data: {
+          userId: user.id,
+          day: cita.day,
+          total: cobro.total,
+          paymentMethod,
+          origin: "TURNO",
+          clientName: cita.clientName,
+          staffId: staff.id,
+          appointmentId: cita.id,
+          receiptSeq: await nextReceiptSeq(tx, user.id),
+          items: { create: cobro.items.map((i) => ({ userId: user.id, ...i })) },
+        },
+      });
+      await tx.appointment.update({ where: { id: cita.id }, data: { status: "ATENDIDO" } });
+      return venta.id;
+    });
+  } catch (e) {
+    // Dos toques seguidos: la venta de la cita es unica, la segunda no entra.
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") return { error: "Esa cita ya estaba cerrada." };
+    throw e;
+  }
+
+  after(() => avisarVentaGuardada(user, { tipo: "venta", id: ventaId }, staff).then(() => undefined));
+  const extra = cobro.items.length > 1 ? " (con " + (cobro.items.length - 1) + " adicional" + (cobro.items.length > 2 ? "es" : "") + ")" : "";
+  await anotarActividad(
+    { user, staff },
+    { tipo: "cobro", detalle: "Cerró la cita de " + cita.clientName + ": " + cita.serviceName + extra, monto: cobro.total }
+  );
+  refrescar();
+  return { ok: "Cita cerrada: " + money(cobro.total, user.currency) + "." };
+}
+
+/** Reprogramada: la misma cita, otro dia u otra hora, con ella misma. */
+export async function reprogramarCitaAction(_prev: CitaState, formData: FormData): Promise<CitaState> {
+  const sesion = await sesionDeManicurista();
+  if (!sesion) return { error: "Esto es solo para las manicuristas." };
+  const { user, staff } = sesion;
+
+  const cita = await db.appointment.findFirst({
+    where: { id: str(formData.get("id")), userId: user.id, staffId: staff.id },
+    include: { sale: { select: { id: true } }, service: { select: { durationMin: true } } },
+  });
+  if (!cita) return { error: "No encontramos esa cita entre las tuyas." };
+  if (cita.sale || cita.status === "ATENDIDO") return { error: "Esa cita ya está cerrada: no se puede mover." };
+  if (cita.status === "CANCELADO") return { error: "Esa cita está cancelada." };
+
+  const day = str(formData.get("day"));
+  const startTime = str(formData.get("startTime"));
+  const hoy = todayIn(user.timezone);
+  if (!isValidDay(day)) return { error: "Escoge el nuevo día." };
+  if (day < hoy) return { error: "Ese día ya pasó." };
+  if (!buildSlots(user).includes(startTime)) return { error: "Escoge una de las horas de la lista." };
+  if (day === hoy && startTime <= timeIn(new Date(), user.timezone)) return { error: "Esa hora de hoy ya pasó." };
+  if (!isWorkDay(day, user.workDays)) return { error: "Ese día no se atiende. Escoge otro." };
+  if (day === cita.day && startTime === cita.startTime) return { error: "Es la misma fecha y hora que ya tenía." };
+
+  const ocupada = await db.appointment.findFirst({
+    where: { userId: user.id, staffId: staff.id, day, startTime, status: { not: "CANCELADO" }, id: { not: cita.id } },
+    select: { clientName: true },
+  });
+  if (ocupada) return { error: "A esa hora ya tienes la cita de " + ocupada.clientName + ". Escoge otra." };
+
+  const antes = shortDay(cita.day) + " " + pretty12h(cita.startTime);
+  const nota = "Reprogramada (antes: " + antes + ")";
+  try {
+    await db.appointment.update({
+      where: { id: cita.id },
+      data: {
+        day,
+        startTime,
+        endTime: endTimeFor(startTime, cita.service?.durationMin ?? user.slotMinutes),
+        // Si no vino y se reprogramo, vuelve a quedar por atender.
+        ...(cita.status === "NO_ASISTIO" ? { status: "PENDIENTE" as const } : {}),
+        notes: (cita.notes ? cita.notes + " · " : "") + nota,
+      },
+    });
+  } catch (e) {
+    // Una cita cancelada sigue ocupando esa hora en la base (es unica por persona y hora).
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      return { error: "Esa hora tiene una cita cancelada que la ocupa. Escoge otra o pídele a la dueña que la borre." };
+    }
+    throw e;
+  }
+
+  const ahora = shortDay(day) + " " + pretty12h(startTime);
+  await anotarActividad(
+    { user, staff },
+    { tipo: "turno", detalle: "Reprogramó la cita de " + cita.clientName + " (" + cita.serviceName + ") del " + antes + " al " + ahora }
+  );
+  refrescar();
+  return { ok: "Listo: la cita de " + cita.clientName + " quedó para el " + ahora + "." };
+}

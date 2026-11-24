@@ -7,6 +7,7 @@ import { money, shortDay } from "@/lib/format";
 import { getStaffTotals } from "@/lib/queries";
 import { hasTeam, teamNoun } from "@/lib/staff";
 import { Card, Empty, PageHeader, Stat } from "@/components/ui";
+import { esMbNails, PERSONA_MB } from "@/lib/mb-nails";
 import { Icon } from "@/components/Icon";
 import { NewStaffForm, StaffCard, type StaffRow } from "@/components/StaffForms";
 
@@ -18,7 +19,9 @@ export default async function EquipoPage() {
   // negocios no manejan equipo dentro de la aplicacion.
   if (!hasTeam(user.businessType)) redirect("/panel");
 
-  const noun = teamNoun(user.businessType);
+  // MB Nails: manicuristas que entran con usuario y PIN (ver lib/mb-nails.ts).
+  const mb = esMbNails(user.businessName);
+  const noun = mb ? { ...teamNoun(user.businessType), ...PERSONA_MB } : teamNoun(user.businessType);
   const agenda = user.businessType === "BARBERIA";
   // En el gestor de asistencia nadie vende: se mide la asistencia, no la plata.
   const asistencia = user.businessType === "ASISTENCIA";
@@ -73,6 +76,7 @@ export default async function EquipoPage() {
     bookable: s.bookable,
     active: s.active,
     hasPassword: Boolean(s.passwordHash),
+    pin: mb ? (s.pinHash ? "con" : "sin") : null,
   }));
 
   return (
@@ -80,7 +84,9 @@ export default async function EquipoPage() {
       <PageHeader
         title={noun.title}
         subtitle={
-          agenda
+          mb
+            ? "Quién atiende en el spa y quién puede entrar a la aplicación con su PIN"
+            : agenda
             ? "Quién atiende en la barbería y quién puede entrar a la aplicación"
             : asistencia
               ? "Quién trabaja contigo, con su usuario para marcar desde el teléfono"
@@ -134,7 +140,7 @@ export default async function EquipoPage() {
         )}
         {asistencia ? null : agenda ? (
           <Stat
-            label="Sin barbero asignado"
+            label={mb ? "Sin manicurista asignada" : "Sin barbero asignado"}
             value={money(totals.unassigned.totalSales, user.currency)}
             hint={totals.unassigned.salesCount + " ventas"}
           />
@@ -187,17 +193,25 @@ export default async function EquipoPage() {
             title={"Agregar un " + noun.singular}
             subtitle="Con su usuario para que maneje el sistema"
           >
-            <NewStaffForm businessType={user.businessType} />
+            <NewStaffForm businessType={user.businessType} mbNails={mb} />
           </Card>
 
           <Card title="Como funciona">
             <ul className="space-y-2 text-sm text-body">
               <li className="flex gap-2">
                 <Icon name="check" className="mt-0.5 h-4 w-4 shrink-0 text-good" />
-                Cada {noun.singular} entra por la misma pagina de ingreso, con su correo y su
-                contrasena.
+                {mb
+                  ? "Cada manicurista entra por la misma página de ingreso."
+                  : "Cada " + noun.singular + " entra por la misma pagina de ingreso, con su correo y su contrasena."}
               </li>
-              {asistencia ? (
+              {mb ? (
+                <>
+                  <Punto>Entra con su usuario y el PIN de 4 números que tú le pones aquí, en Cambiar acceso.</Punto>
+                  <Punto>Solo ve sus citas, con dos botones: Cerrada (cobra el servicio y lo adicional) y Reprogramada.</Punto>
+                  <Punto>Ve la lista de precios, pero no la puede cambiar.</Punto>
+                  <Punto>Cada cita cerrada queda como venta a su nombre, y eso se ve en Reportes con su comisión.</Punto>
+                </>
+              ) : asistencia ? (
                 <>
                   <Punto>Solo ve lo suyo: el botón para marcar entrada y salida, sus novedades, sus reportes y su perfil.</Punto>
                   <Punto>Marca una entrada y una salida por día, con la hora y la ubicación. Funciona sin señal.</Punto>

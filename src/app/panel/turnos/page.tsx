@@ -10,6 +10,7 @@ import { aCampo, money, pasoMoneda, pretty12h, prettyDay } from "@/lib/format";
 import { confirmMessage, toInternational, waLink } from "@/lib/whatsapp";
 import { WEEKDAYS } from "@/lib/timezones";
 import { Card, Empty, PageHeader, Stat, StatusBadge } from "@/components/ui";
+import { esMbNails } from "@/lib/mb-nails";
 import { Icon } from "@/components/Icon";
 import { CopyLink } from "@/components/CopyLink";
 import { NewAppointmentForm } from "@/components/NewAppointmentForm";
@@ -32,6 +33,9 @@ export default async function TurnosPage({
 }) {
   const { user, staff: me } = await requireSession();
   if (user.businessType !== "BARBERIA") redirect("/panel");
+  // MB Nails: atienden manicuristas, no barberos (ver lib/mb-nails.ts).
+  const mb = esMbNails(user.businessName);
+  const quien = mb ? "manicurista" : "barbero";
 
   const params = await searchParams;
   const today = todayIn(user.timezone);
@@ -106,7 +110,7 @@ export default async function TurnosPage({
 
   return (
     <>
-      <PageHeader title="Turnos" subtitle={prettyDay(day)}>
+      <PageHeader title={mb ? "Agenda" : "Turnos"} subtitle={prettyDay(day)}>
         <div className="flex flex-wrap gap-2">
           <CopyLink path={"/reservar/" + user.slug} label="Copiar enlace de reservas" />
           <Link href={"/reservar/" + user.slug} target="_blank" className="btn-ghost btn-sm">
@@ -139,7 +143,7 @@ export default async function TurnosPage({
       {/* Filtro por barbero */}
       {varios && (
         <div className="mb-4 flex flex-wrap items-center gap-2">
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted">Barbero</span>
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted">{mb ? "Manicurista" : "Barbero"}</span>
           <Link
             href={"/panel/turnos?d=" + day}
             className={"btn-ghost btn-sm " + (filterId ? "" : "border-brand-500 text-brand-700")}
@@ -178,7 +182,7 @@ export default async function TurnosPage({
             active.filter((a) => a.status === "PENDIENTE" || a.status === "CONFIRMADO").length
           )}
         />
-        <Stat label="Cortes atendidos" value={String(attended.length)} tone="good" />
+        <Stat label={mb ? "Citas atendidas" : "Cortes atendidos"} value={String(attended.length)} tone="good" />
         <Stat
           label="Plata cobrada"
           value={money(collected, user.currency)}
@@ -219,8 +223,8 @@ export default async function TurnosPage({
 
       {sinBarbero > 0 && (
         <div className="mt-4 rounded-xl border border-warn-line bg-warn-soft px-4 py-3 text-sm text-warn">
-          Hay {sinBarbero} turno{sinBarbero === 1 ? "" : "s"} sin barbero asignado. Abajo, en cada
-          turno, usa &quot;Pasar a otro barbero&quot; para decidir quien atiende.
+          Hay {sinBarbero} turno{sinBarbero === 1 ? "" : "s"} sin {quien} asignad{mb ? "a" : "o"}. Abajo, en cada
+          turno, usa &quot;Pasar a otr{mb ? "a" : "o"} {quien}&quot; para decidir quien atiende.
         </div>
       )}
 
@@ -352,7 +356,7 @@ export default async function TurnosPage({
               <Empty
                 title={
                   filterId
-                    ? "Este barbero no tiene turnos este día"
+                    ? (mb ? "Esta manicurista" : "Este barbero") + " no tiene turnos este día"
                     : "Nadie ha separado turno este día"
                 }
                 hint="Comparte tu enlace de reservas por WhatsApp para que te separen el cupo."
@@ -396,7 +400,7 @@ export default async function TurnosPage({
                             Atiende {a.staffName}
                           </span>
                         ) : (
-                          <span className="text-xs font-semibold text-warn">Sin barbero</span>
+                          <span className="text-xs font-semibold text-warn">Sin {quien}</span>
                         )}
                         {a.sale && (
                           <span className="text-xs font-semibold text-good">
@@ -448,7 +452,7 @@ export default async function TurnosPage({
                         <details className="w-full sm:w-auto">
                           <summary className="btn-ghost btn-sm cursor-pointer list-none">
                             <Icon name="users" className="h-4 w-4" />
-                            Pasar a otro barbero
+                            Pasar a otr{mb ? "a" : "o"} {quien}
                           </summary>
                           <FormSinSenal
                             accion="setAppointmentStaffAction" servidor={setAppointmentStaffAction}
@@ -599,7 +603,7 @@ export default async function TurnosPage({
             </p>
             <p className="mt-2 text-xs text-muted">
               Mandalo por WhatsApp. El cliente elige el dia, la hora libre
-              {varios ? ", el barbero" : ""} y el corte que quiere.
+              {varios ? ", " + (mb ? "la " : "el ") + quien : ""} y {mb ? "el servicio" : "el corte"} que quiere.
               {user.bookingOpen ? "" : " Ahora mismo tienes las reservas cerradas en Ajustes."}
             </p>
             <div className="mt-3">

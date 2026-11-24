@@ -16,7 +16,7 @@ export default async function PerfilPage() {
   // Perfil tambien es una pantalla fija del empleado de asistencia y del
   // lavador (ver panel/layout.tsx): sin avisarle a requireSession(), los
   // mandaria de vuelta a su pantalla fija en vez de dejarlos verla.
-  const { user, staff } = await requireSession({ asistenciaOk: true, lavadorOk: true });
+  const { user, staff } = await requireSession({ asistenciaOk: true, lavadorOk: true, manicuristaOk: true });
   const esDueno = staff.role === "DUENO";
   // Igual que en el menu (panel/layout.tsx): al empleado se le ofrecen si marca asistencia.
   const avisos = queRecibe(

@@ -17,6 +17,7 @@ import { BotonBorrar } from "./BotonBorrar";
 import { avisoEliminarPersona } from "@/lib/impacto-borrado";
 import { Alert, Badge, Field } from "./ui";
 import { Icon } from "./Icon";
+import { PERSONA_MB } from "@/lib/mb-nails";
 
 export type StaffRow = {
   id: string;
@@ -30,7 +31,29 @@ export type StaffRow = {
   bookable: boolean;
   active: boolean;
   hasPassword: boolean;
+  /** MB Nails: si ya tiene el PIN con que entra. null en los demas negocios. */
+  pin?: "con" | "sin" | null;
 };
+
+/** El PIN de 4 numeros de MB Nails (ver lib/mb-nails.ts). */
+function CampoPin({ tiene }: { tiene: boolean }) {
+  return (
+    <Field
+      label="PIN para entrar (4 números)"
+      hint={tiene ? "Ya tiene PIN. Escribe uno nuevo solo si lo quieres cambiar." : "Sin PIN no puede entrar. Escríbele uno y díselo a ella."}
+    >
+      <input
+        className="input w-32 tracking-[0.3em]"
+        name="pin"
+        inputMode="numeric"
+        pattern="[0-9]{4}"
+        maxLength={4}
+        autoComplete="off"
+        placeholder="0000"
+      />
+    </Field>
+  );
+}
 
 /** Circulito de color con las iniciales del barbero. */
 export function StaffDot({
@@ -80,10 +103,10 @@ function ColorPicker({ name, defaultValue }: { name: string; defaultValue: strin
   );
 }
 
-export function NewStaffForm({ businessType = "BARBERIA" }: { businessType?: string }) {
+export function NewStaffForm({ businessType = "BARBERIA", mbNails = false }: { businessType?: string; mbNails?: boolean }) {
   const [state, formAction] = useActionState(createStaffAction, undefined);
   const [withAccess, setWithAccess] = useState(true);
-  const noun = teamNoun(businessType);
+  const noun = mbNails ? { ...teamNoun(businessType), ...PERSONA_MB } : teamNoun(businessType);
   // La barberia y el lavadero reparten agenda; en la tienda de ropa el color es para los reportes.
   const agenda = businessType === "BARBERIA" || businessType === "LAVADERO";
   // En el gestor de asistencia nadie vende: ni comision ni "puede vender".
@@ -97,7 +120,7 @@ export function NewStaffForm({ businessType = "BARBERIA" }: { businessType?: str
 
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label={"Nombre del " + noun.singular}>
-          <input className="input" name="name" required placeholder="Ej: Andres Lopez" />
+          <input className="input" name="name" required placeholder={mbNails ? "Ej: Jessica Gaitán" : "Ej: Andres Lopez"} />
         </Field>
         <Field label="Teléfono (opcional)">
           <input className="input" name="phone" inputMode="tel" placeholder="300 000 0000" />
@@ -149,7 +172,7 @@ export function NewStaffForm({ businessType = "BARBERIA" }: { businessType?: str
       {agenda && (
         <label className="flex items-center gap-2 text-sm text-body">
           <input type="checkbox" name="bookable" defaultChecked className="h-4 w-4" />
-          Los clientes pueden elegirlo en la pagina de reservas
+          {mbNails ? "Las clientas pueden elegirla en la página de reservas" : "Los clientes pueden elegirlo en la pagina de reservas"}
         </label>
       )}
 
@@ -164,7 +187,9 @@ export function NewStaffForm({ businessType = "BARBERIA" }: { businessType?: str
           Darle su propio usuario para entrar
         </label>
         <p className="mt-1 text-xs text-muted">
-          {agenda
+          {mbNails
+            ? "Con esto entra con su usuario y su PIN, y solo ve sus citas (las cierra o las reprograma) y la lista de precios, sin poder cambiarla."
+            : agenda
             ? "Con esto el barbero entra con su usuario, sin contraseña, y ve la agenda y las ventas del negocio."
             : asistencia
               ? "Con esto entra con su usuario, sin contraseña, marca su entrada y su salida desde el teléfono, avisa sus novedades y hace sus reportes con fotos."
@@ -174,16 +199,24 @@ export function NewStaffForm({ businessType = "BARBERIA" }: { businessType?: str
 
         {withAccess && (
           <div className="mt-3">
-            <Field label="Usuario para entrar" hint="Entra escribiendo solo este usuario, sin contraseña. Letras, números, punto o guion.">
+            <Field
+              label="Usuario para entrar"
+              hint={mbNails ? "Entra con este usuario y el PIN de abajo. Letras, números, punto o guion." : "Entra escribiendo solo este usuario, sin contraseña. Letras, números, punto o guion."}
+            >
               <input
                 className="input"
                 name="username"
-                placeholder="Ej: juliana.tienda"
+                placeholder={mbNails ? "Ej: jessica.mbnails" : "Ej: juliana.tienda"}
                 autoComplete="off"
                 autoCapitalize="none"
                 spellCheck={false}
               />
             </Field>
+            {mbNails && (
+              <div className="mt-3">
+                <CampoPin tiene={false} />
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -197,6 +230,7 @@ export function NewStaffForm({ businessType = "BARBERIA" }: { businessType?: str
 }
 
 function AccessForm({ staff }: { staff: StaffRow }) {
+  const mbNails = staff.pin != null;
   const [state, formAction] = useActionState(setStaffAccessAction, undefined);
 
   return (
@@ -205,17 +239,18 @@ function AccessForm({ staff }: { staff: StaffRow }) {
       {state?.error && <Alert kind="error">{state.error}</Alert>}
       {state?.ok && <Alert kind="ok">{state.ok}</Alert>}
 
-      <Field label="Usuario para entrar" hint="Entra escribiendo solo este usuario, sin contraseña.">
+      <Field label="Usuario para entrar" hint={mbNails ? "Entra con este usuario y su PIN." : "Entra escribiendo solo este usuario, sin contraseña."}>
         <input
           className="input"
           name="username"
           defaultValue={staff.username ?? ""}
-          placeholder="Ej: juliana.tienda"
+          placeholder={mbNails ? "Ej: jessica.mbnails" : "Ej: juliana.tienda"}
           autoComplete="off"
           autoCapitalize="none"
           spellCheck={false}
         />
       </Field>
+      {mbNails && <CampoPin tiene={staff.pin === "con"} />}
       {staff.email && <p className="text-xs text-muted">También puede entrar con su correo {staff.email} y su contraseña.</p>}
 
       <div className="flex flex-wrap gap-2">
@@ -261,7 +296,7 @@ export function StaffCard({
               {isOwner ? (
                 <Badge tone="blue">{etiquetaDeRol("DUENO", businessType)}</Badge>
               ) : (
-                <Badge>{etiquetaDeRol(staff.role, businessType)}</Badge>
+                <Badge>{staff.pin != null ? "Manicurista" : etiquetaDeRol(staff.role, businessType)}</Badge>
               )}
               {!staff.active && <Badge tone="red">Inactivo</Badge>}
             </p>
@@ -270,6 +305,7 @@ export function StaffCard({
                 <>
                   <Icon name="user" className="mr-1 inline h-3 w-3" />
                   {staff.username ? "Usuario: " + staff.username : staff.email}
+                  {staff.pin === "con" ? " · Con PIN" : staff.pin === "sin" && !isOwner ? " · Sin PIN: todavía no puede entrar" : ""}
                 </>
               ) : isOwner ? (
                 "Entra con el correo del negocio"
@@ -280,7 +316,9 @@ export function StaffCard({
             <p className="mt-0.5 text-xs text-subtle">
               {agenda
                 ? staff.bookable
-                  ? "Los clientes lo pueden elegir"
+                  ? staff.pin != null
+                    ? "Las clientas la pueden elegir"
+                    : "Los clientes lo pueden elegir"
                   : "No aparece en las reservas"
                 : asistencia
                   ? staff.email || staff.username

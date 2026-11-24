@@ -809,6 +809,10 @@ model Staff {
   /// Sin arroba, sin tildes y en minusculas; unico entre todos los negocios.
   username       String? @unique
   passwordHash   String?
+  /// PIN de 4 numeros que se pide al entrar con el usuario, con bcrypt como la
+  /// contraseña. Por ahora solo en MB Nails Spa (ver lib/mb-nails.ts): sin PIN
+  /// sus manicuristas no entran. En los demas negocios no se usa.
+  pinHash        String?
   /// Igual que User.sessionVersion, pero para la clave propia del empleado.
   sessionVersion Int     @default(0)
 

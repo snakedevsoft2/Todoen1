@@ -8,6 +8,7 @@ import { money, pretty12h, prettyDay } from "@/lib/format";
 import { WEEKDAYS } from "@/lib/timezones";
 import { logoUrl, photoUrl, textosReserva } from "@/lib/nav";
 import { BookingForm } from "@/components/BookingForm";
+import { esMbNails, TEXTOS_RESERVA_MB } from "@/lib/mb-nails";
 import { DayPicker } from "@/components/DayPicker";
 import { Icon } from "@/components/Icon";
 import { ThemeStyle } from "@/components/ThemeStyle";
@@ -85,7 +86,8 @@ export default async function ReservarPage({
   const service = query.s ? services.find((s) => s.id === query.s) ?? null : null;
 
   // Barberia y lavadero comparten la agenda pero no las palabras.
-  const textos = textosReserva(shop.businessType);
+  // MB Nails: manicuristas y servicios de uñas, no barberos y cortes.
+  const textos = esMbNails(shop.businessName) ? TEXTOS_RESERVA_MB : textosReserva(shop.businessType);
 
   const agente = aiEnabled() ? await configDe(shop.id) : null;
   const slots = buildSlots(shop);

@@ -1,6 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { db } from "@/lib/db";
+import { ETIQUETAS_MENU_MB, esMbNails } from "@/lib/mb-nails";
 import type { NavGroup, NavItem } from "@/lib/nav";
 
 export type { NavGroup, NavItem };
@@ -46,7 +47,7 @@ export type Modulo = {
 };
 
 type Sesion = {
-  user: { id: string; businessType: string };
+  user: { id: string; businessType: string; businessName?: string | null };
   staff: { id: string; role: string };
 };
 
@@ -73,6 +74,7 @@ export const modulosDe = cache(modulosSinCache);
 
 async function modulosSinCache({ user, staff }: Sesion): Promise<Modulo[]> {
   const esDueno = staff.role === "DUENO";
+  const mbNails = esMbNails(user.businessName);
 
   const [filas, config, overrides] = await Promise.all([
     db.businessTypeModule.findMany({
@@ -138,7 +140,8 @@ async function modulosSinCache({ user, staff }: Sesion): Promise<Modulo[]> {
       return {
         key,
         href: f.module.href,
-        label: f.labelOverride ?? f.module.label,
+        // MB Nails habla de manicuristas y servicios, no de barberos y cortes.
+        label: (mbNails ? ETIQUETAS_MENU_MB[key] : undefined) ?? f.labelOverride ?? f.module.label,
         icon: f.module.icon,
         group: f.module.group as Grupo,
         short: f.module.shortDescription,

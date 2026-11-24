@@ -15,6 +15,7 @@ import {
   rutaDeEmpleadoAsistencia,
   rutaDeLavador,
 } from "./permisos";
+import { esManicuristaDeMbNails, rutaDeManicurista } from "./mb-nails";
 
 /**
  * Usamos la version sincronica de bcrypt a proposito.
@@ -242,7 +243,12 @@ export const getCurrentSession = cache(async (): Promise<Session | null> => {
  * tenia que acordarse de avisar), y una que se le olvido armo un redirect a
  * si misma sin fin -por eso ahora el caso de GET ya no depende de acordarse.
  */
-export async function requireSession(opts?: { asistenciaOk?: boolean; lavadorOk?: boolean }): Promise<Session> {
+export async function requireSession(opts?: {
+  asistenciaOk?: boolean;
+  lavadorOk?: boolean;
+  /** La manicurista de MB Nails (ver lib/mb-nails.ts), igual que el lavador. */
+  manicuristaOk?: boolean;
+}): Promise<Session> {
   const session = await getCurrentSession();
   if (!session) redirect("/salir");
 
@@ -256,6 +262,11 @@ export async function requireSession(opts?: { asistenciaOk?: boolean; lavadorOk?
     const permitido = ruta ? rutaDeLavador(ruta) : Boolean(opts?.lavadorOk);
     if (!permitido) redirect("/panel/mis-lavados");
   }
+  const manicurista = esManicuristaDeMbNails(session.user, session.staff);
+  if (manicurista) {
+    const permitido = ruta ? rutaDeManicurista(ruta) : Boolean(opts?.manicuristaOk);
+    if (!permitido) redirect("/panel/mis-citas");
+  }
 
   // El resto de empleados ve lo que el dueño le dejo (Empleados > Que puede
   // usar). Una pantalla de un apartado apagado no se abre aunque se escriba la
@@ -265,6 +276,7 @@ export async function requireSession(opts?: { asistenciaOk?: boolean; lavadorOk?
     session.staff.role !== "DUENO" &&
     !esEmpleadoDeAsistencia(session.user, session.staff) &&
     !esLavadorDeLavadero(session.user, session.staff) &&
+    !manicurista &&
     !rutaPermitida(await modulosDe(session), ruta)
   ) {
     redirect("/panel");

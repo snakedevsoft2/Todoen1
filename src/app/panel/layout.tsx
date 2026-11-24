@@ -19,6 +19,7 @@ import { Shell } from "@/components/Shell";
 import { Icon } from "@/components/Icon";
 import { logoutAction } from "@/actions/auth";
 import { ThemeStyle } from "@/components/ThemeStyle";
+import { esManicuristaDeMbNails, MENU_MANICURISTA } from "@/lib/mb-nails";
 import { RegistrarVisita } from "@/components/RegistrarVisita";
 import { PrepararSinConexion } from "@/components/PrepararSinConexion";
 import { AvisoSinConexion } from "@/components/AvisoSinConexion";
@@ -41,19 +42,21 @@ export default async function PanelLayout({ children }: { children: React.ReactN
 
   const empleado = esEmpleadoDeAsistencia(user, staff);
   const lavador = esLavadorDeLavadero(user, staff);
+  // La manicurista de MB Nails tambien tiene menu fijo: sus citas, los precios y su perfil.
+  const manicurista = esManicuristaDeMbNails(user, staff);
 
   // El menu sale del catalogo en base de datos, filtrado por el oficio, por el
   // rol y por lo que esta persona decidio ver.
-  const modulos = empleado || lavador ? [] : await modulosDe(sesion);
+  const modulos = empleado || lavador || manicurista ? [] : await modulosDe(sesion);
 
   // Direccion -> llave, para que el navegador solo tenga que mandar la llave
   // del apartado y nunca decida el nombre de lo que se anota.
   const rutas = Object.fromEntries(modulos.map((m) => [m.href, m.key]));
 
-  let nav = empleado ? MENU_EMPLEADO_ASISTENCIA : lavador ? MENU_LAVADOR : menuDe(modulos);
+  let nav = empleado ? MENU_EMPLEADO_ASISTENCIA : lavador ? MENU_LAVADOR : manicurista ? MENU_MANICURISTA : menuDe(modulos);
   // Agrupado por categoria solo cuando hay de donde armar categorias: el menu
   // fijo del empleado de asistencia y el del lavador son cortos y no lo necesitan.
-  let navGroups = empleado || lavador ? undefined : menuAgrupado(modulos);
+  let navGroups = empleado || lavador || manicurista ? undefined : menuAgrupado(modulos);
 
   // Lo de la administradora de Chopo Snacks (Cuentas por pagar, Mejores
   // clientes) no son apartados del catalogo: si lo fueran, cualquier negocio
@@ -99,7 +102,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   // el gestor, y en otro negocio si el dueño le dejo "Marcar".
   const avisosPush = queRecibe(staff.role, user.businessType, nav.some((i) => i.href === "/panel/marcar"));
 
-  const conPagina = tienePaginaPublica(user.businessType) && !empleado && !lavador;
+  const conPagina = tienePaginaPublica(user.businessType) && !empleado && !lavador && !manicurista;
 
   // Los mensajes programados que ya llegaron a su hora salen cuando alguien usa
   // el panel, sin esperar al envio diario. Corre despues de responder: la
@@ -157,7 +160,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
       </Shell>
       {/* La IA Snake flotante: solo si el servidor tiene la clave del modelo, y
           no para el empleado del gestor, que solo tiene sus pantallas. */}
-      {aiEnabled() && !empleado && <AsistenteFlotante sugerencias={SUGERENCIAS_IA[user.businessType]} />}
+      {aiEnabled() && !empleado && !manicurista && <AsistenteFlotante sugerencias={SUGERENCIAS_IA[user.businessType]} />}
     </>
   );
 }

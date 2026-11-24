@@ -1,4 +1,5 @@
 import type { NavItem } from "./nav";
+import { esManicuristaDeMbNails } from "./mb-nails";
 
 /**
  * Lo que puede abrir cada quien, cuando no alcanza con el rol.
@@ -74,8 +75,9 @@ export function tienePaginaPublica(tipo: string): boolean {
  * pagina en dos saltos y a veces la deja en blanco hasta que se recarga a
  * mano. Con un solo salto no pasa.
  */
-export function destinoTrasEntrar(user: { businessType: string }, staff: { role: string }): string {
+export function destinoTrasEntrar(user: { businessType: string; businessName?: string | null }, staff: { role: string }): string {
   if (esEmpleadoDeAsistencia(user, staff)) return "/panel/marcar";
   if (esLavadorDeLavadero(user, staff)) return "/panel/mis-lavados";
+  if (esManicuristaDeMbNails(user, staff)) return "/panel/mis-citas";
   return "/panel";
 }

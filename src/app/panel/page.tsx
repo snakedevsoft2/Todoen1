@@ -7,6 +7,7 @@ import { getDaySummary } from "@/lib/queries";
 import { money, pretty12h, prettyDay, shortDay } from "@/lib/format";
 import { filtroDeSeguimientos } from "@/lib/crm-filas";
 import { esEmpleadoDeAsistencia, esLavadorDeLavadero } from "@/lib/permisos";
+import { esManicuristaDeMbNails } from "@/lib/mb-nails";
 import { esDueno, ROLES_QUE_LAVAN } from "@/lib/permisos-empleado";
 import { ResumenAsistencia } from "@/components/ResumenAsistencia";
 import { BUSINESS_LABEL, ITEM_NOUN } from "@/lib/nav";
@@ -32,6 +33,7 @@ export default async function PanelHomePage() {
   if (esEmpleadoDeAsistencia(user, me)) redirect("/panel/marcar");
   // El lavador tampoco tiene resumen del negocio: su pantalla es sus lavados.
   if (esLavadorDeLavadero(user, me)) redirect("/panel/mis-lavados");
+  if (esManicuristaDeMbNails(user, me)) redirect("/panel/mis-citas");
 
   // El empleado no pasa por el asistente que arma el menu: ese lo arma el dueño.
   // Con el rol de Equipo: quien tiene permisos de dueña sin serlo (ver rolReal) tampoco.
