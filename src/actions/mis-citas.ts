@@ -13,6 +13,7 @@ import { cerosPara, money, parseMoney, pretty12h, shortDay, str, texto } from "@
 import { anotarActividad } from "@/lib/actividad";
 import { nextReceiptSeq } from "@/lib/receipt-seq";
 import { avisarVentaGuardada } from "@/lib/push";
+import { anotarCliente } from "@/lib/clientes";
 
 /**
  * Los dos botones de la manicurista de MB Nails en Mis citas (ver
@@ -219,4 +220,72 @@ export async function venderMecatoAction(_prev: CitaState, formData: FormData): 
   );
   refrescar();
   return { ok: "Venta guardada: " + money(venta.total, user.currency) + "." };
+}
+
+/**
+ * Agendar: la manicurista separa una cita para ella misma (la clienta llamo o
+ * paso por el local). Mismas reglas que la agenda de la dueña: dia que se
+ * atiende, una hora de la lista, que no haya pasado y que ella la tenga libre.
+ */
+export async function agendarCitaAction(_prev: CitaState, formData: FormData): Promise<CitaState> {
+  const sesion = await sesionDeManicurista();
+  if (!sesion) return { error: "Esto es solo para las manicuristas." };
+  const { user, staff } = sesion;
+
+  const clientName = texto(formData.get("clientName"), 80);
+  const clientPhone = texto(formData.get("clientPhone"), 40);
+  const notes = texto(formData.get("notes"), 300);
+  const day = str(formData.get("day"));
+  const startTime = str(formData.get("startTime"));
+  const hoy = todayIn(user.timezone);
+
+  if (!clientName) return { error: "Escribe el nombre de la clienta." };
+  const service = await db.service.findFirst({
+    where: { id: str(formData.get("serviceId")), userId: user.id, active: true },
+    select: { id: true, name: true, price: true, durationMin: true },
+  });
+  if (!service) return { error: "Escoge el servicio." };
+  if (!isValidDay(day)) return { error: "Escoge el día." };
+  if (day < hoy) return { error: "Ese día ya pasó." };
+  if (!isWorkDay(day, user.workDays)) return { error: "Ese día no se atiende. Escoge otro." };
+  if (!buildSlots(user).includes(startTime)) return { error: "Escoge una de las horas de la lista." };
+  if (day === hoy && startTime <= timeIn(new Date(), user.timezone)) return { error: "Esa hora de hoy ya pasó." };
+
+  const ocupada = await db.appointment.findFirst({
+    where: { userId: user.id, staffId: staff.id, day, startTime, status: { not: "CANCELADO" } },
+    select: { clientName: true },
+  });
+  if (ocupada) return { error: "A esa hora ya tienes la cita de " + ocupada.clientName + ". Escoge otra." };
+
+  try {
+    await db.appointment.create({
+      data: {
+        userId: user.id,
+        serviceId: service.id,
+        serviceName: service.name,
+        staffId: staff.id,
+        staffName: staff.name,
+        price: service.price,
+        clientName,
+        clientPhone: clientPhone || "-",
+        day,
+        startTime,
+        endTime: endTimeFor(startTime, service.durationMin || user.slotMinutes),
+        notes: notes || null,
+        status: "CONFIRMADO",
+      },
+    });
+  } catch (e) {
+    // Una cita cancelada sigue ocupando esa hora en la base (es unica por persona y hora).
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      return { error: "Esa hora tiene una cita cancelada que la ocupa. Escoge otra o pídele a la dueña que la borre." };
+    }
+    throw e;
+  }
+
+  await anotarCliente(user.id, { name: clientName, phone: clientPhone || null, source: "turno" });
+  const cuando = shortDay(day) + " " + pretty12h(startTime);
+  await anotarActividad({ user, staff }, { tipo: "turno", detalle: "Agendó la cita de " + clientName + " (" + service.name + ") el " + cuando });
+  refrescar();
+  return { ok: "Listo: " + clientName + " quedó agendada el " + cuando + "." };
 }

@@ -1,10 +1,10 @@
 /**
  * Comprueba en un navegador lo de MB NAILS SPA (ver lib/mb-nails.ts):
- *   - la manicurista sin PIN no entra; la dueña le pone el PIN en Manicuristas;
- *   - con usuario + PIN entra directo a Mis citas, con su menu fijo;
- *   - ve solo SUS citas; Cerrada cobra el servicio + lo de la lista + lo otro;
- *   - Reprogramada mueve la cita; Precios se ve pero no se puede cambiar;
- *   - el empleado de otra barberia sigue entrando sin PIN.
+ *   - la manicurista entra solo con su usuario, directo a Citas, con su menu fijo;
+ *   - ve solo SUS citas; agenda una nueva para ella; Cerrada cobra el servicio
+ *     + lo de la lista + lo otro; Reprogramada mueve la cita;
+ *   - Mecato vende sin cita, cada categoria por separado;
+ *   - Precios se ve pero no se puede cambiar; la dueña ve "Manicuristas" y "Agenda".
  *
  * Antes: docker start ten-pg, y la app en localhost:3000 (npm run dev).
  * Despues: node scripts/verificar-mb-nails.mjs   (SHOT=carpeta para capturas)
@@ -30,7 +30,6 @@ const ok = (c, t, extra = "") => {
 
 const S = String(Date.now()).slice(-7);
 const CLAVE = "demo1234";
-const PIN = "4827";
 const ZONA = "America/Bogota";
 const hoy = new Intl.DateTimeFormat("en-CA", { timeZone: ZONA }).format(new Date());
 const masDias = (d, n) => new Date(Date.parse(d + "T12:00:00Z") + n * 86400000).toISOString().slice(0, 10);
@@ -69,7 +68,13 @@ const paola = mb.staff.find((s) => s.name === "Paola Meléndez");
 const servicio = (name, price, category) => db.service.create({ data: { userId: mb.id, name, price, category } });
 const semi = await servicio("Semi (manos o pies)", 45000, "Uñas");
 const coca = await servicio("Coca Cola 400ml", 3500, "Bebidas");
-await servicio("Cejas", 15000, "Depilación con cera");
+const cejas = await servicio("Cejas", 15000, "Depilación con cera");
+const chokis = await servicio("Chokis", 2000, "Mecato");
+await db.service.updateMany({ where: { id: { in: [coca.id, chokis.id] } }, data: { bookable: false } });
+// Las categorias en el orden de la dueña, como quedaron en produccion.
+for (const [position, name] of ["Uñas", "Depilación con cera", "Bebidas", "Mecato"].entries()) {
+  await db.productCategory.create({ data: { userId: mb.id, name, position } });
+}
 const cita = (staff, clientName, day, startTime) =>
   db.appointment.create({
     data: {
@@ -111,16 +116,7 @@ const esperar = async (fn, ms = 15000) => {
 };
 
 try {
-  console.log("\n1. Sin PIN no entra");
-  let p = await pagina();
-  await p.fill('input[name="email"]', jessica.username);
-  await p.click('button[type="submit"]');
-  await p.waitForSelector("text=Todavía no tienes PIN", { timeout: 20000 }).catch(() => null);
-  ok((await p.locator("body").innerText()).includes("Todavía no tienes PIN"), "le dice que la dueña le tiene que poner el PIN");
-  ok(p.url().includes("/login"), "se queda en el ingreso", p.url());
-  await p.context().close();
-
-  console.log("\n2. La dueña le pone el PIN en Manicuristas");
+  console.log("\n1. La dueña ve Manicuristas y Agenda");
   const d = await pagina();
   await d.fill('input[name="email"]', mb.email);
   await d.fill('input[name="password"]', CLAVE);
@@ -128,34 +124,20 @@ try {
   await d.waitForURL(/\/panel/, { timeout: 60000 });
   await d.goto(BASE + "/panel/equipo", { waitUntil: "networkidle" });
   const textoEquipo = await d.locator("body").innerText();
-  ok(textoEquipo.includes("Manicuristas"), "el apartado se llama Manicuristas");
-  ok(textoEquipo.includes("Sin PIN: todavía no puede entrar"), "dice quién no tiene PIN todavía");
-  const tarjeta = d.locator("li").filter({ hasText: "Jessica Gaitan" }).first();
-  await tarjeta.getByRole("button", { name: /Cambiar acceso/ }).click();
-  await tarjeta.locator('input[name="pin"]').fill(PIN);
-  await tarjeta.getByRole("button", { name: /Guardar acceso/ }).click();
-  const conPin = await esperar(async () => (await db.staff.findUnique({ where: { id: jessica.id } })).pinHash);
-  ok(Boolean(conPin) && bcrypt.compareSync(PIN, conPin), "el PIN quedó guardado (cifrado)");
+  ok(textoEquipo.includes("Manicuristas") && !/PIN/.test(textoEquipo), "el apartado se llama Manicuristas, sin nada de PIN");
   await d.goto(BASE + "/panel/turnos", { waitUntil: "networkidle" });
   const agenda = await d.locator("body").innerText();
   ok(agenda.includes("Agenda") && /manicurista/i.test(agenda) && !/barbero|barber[ií]a/i.test(agenda), "la agenda habla de manicuristas, no de barberos ni de barbería", (agenda.match(/.{0,40}barber.{0,40}/i) ?? [""])[0]);
   ok(await d.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "la agenda de varias manicuristas no se sale de la pantalla");
   if (DIR) await d.screenshot({ path: DIR + "/mb-agenda-duena.png", fullPage: true });
 
-  console.log("\n3. Entra con usuario + PIN");
-  p = await pagina();
+  console.log("\n2. La manicurista entra solo con su usuario");
+  const p = await pagina();
   await p.fill('input[name="email"]', jessica.username);
-  await p.click('button[type="submit"]');
-  await p.waitForSelector("#pin", { timeout: 20000 }).catch(() => null);
-  ok((await p.locator("#pin").count()) === 1, "le pide el PIN");
-  await p.fill("#pin", "1111");
-  await p.click('button[type="submit"]');
-  await p.waitForSelector("text=Ese PIN no es", { timeout: 20000 }).catch(() => null);
-  ok((await p.locator("body").innerText()).includes("Ese PIN no es"), "con el PIN equivocado no entra");
-  await p.fill("#pin", PIN);
+  ok((await p.locator("[data-ingreso-usuario]").count()) === 1 && (await p.locator('input[name="password"], #pin').count()) === 0, "no le pide contraseña ni PIN");
   await p.click('button[type="submit"]');
   await p.waitForURL(/\/panel\/mis-citas/, { timeout: 60000 }).catch(() => null);
-  ok(p.url().endsWith("/panel/mis-citas"), "con el PIN bueno llega a Mis citas", p.url());
+  ok(p.url().endsWith("/panel/mis-citas"), "llega directo a sus citas", p.url());
 
   console.log("\n4. Solo ve lo suyo");
   const texto = await p.locator("body").innerText();
@@ -163,7 +145,7 @@ try {
   ok(!texto.includes("Carla Ajena"), "no ve la cita de otra manicurista");
   const enlaces = await p.locator("nav a").allInnerTexts();
   const menu = enlaces.join(" | ");
-  ok(/Citas/.test(menu) && /Precios/.test(menu) && !/Ventas|Caja|Gastos|Reportes/.test(menu), "su menú es Citas, Precios y Perfil", menu);
+  ok(/Citas/.test(menu) && /Mecato/.test(menu) && /Precios/.test(menu) && !/Ventas|Caja|Gastos|Reportes/.test(menu), "su menú es Citas, Mecato, Precios y Perfil", menu);
   await p.goto(BASE + "/panel/ventas", { waitUntil: "networkidle" });
   ok(p.url().endsWith("/panel/mis-citas"), "si escribe otra dirección vuelve a sus citas", p.url());
   await p.goto(BASE + "/panel/catalogo", { waitUntil: "networkidle" });
@@ -204,7 +186,51 @@ try {
   });
   ok(movida?.startTime === "11:00" && /Reprogramada/.test(movida?.notes ?? ""), "quedó para el nuevo día a las 11:00, con la nota", JSON.stringify(movida && { day: movida.day, t: movida.startTime }));
 
-  console.log("\n7. Precios: se ven, no se cambian");
+  console.log("\n7. Agendar cita");
+  await p.goto(BASE + "/panel/mis-citas", { waitUntil: "networkidle" });
+  await p.locator("[data-boton-agendar]").click();
+  const fAg = p.locator("[data-agendar-cita]");
+  await fAg.locator('input[name="clientName"]').fill("Diana Nueva");
+  await fAg.locator('input[name="clientPhone"]').fill("3109998877");
+  await fAg.locator('select[name="serviceId"]').selectOption(cejas.id);
+  ok((await fAg.locator('select[name="serviceId"] option').allInnerTexts()).every((t) => !/Coca|Chokis/.test(t)), "para agendar solo salen servicios, no el mecato");
+  // Pasado mañana a las 11:00 quedo la cita de Beatriz (la reprogramo arriba).
+  const manana = masDias(hoy, 2);
+  await fAg.locator('input[name="day"]').fill(manana);
+  const horasManana = await fAg.locator('select[name="startTime"] option').evaluateAll((os) => os.map((o) => o.value));
+  ok(!horasManana.includes("11:00") && horasManana.includes("16:00"), "la hora de la cita que ya tiene ese día sale bloqueada", horasManana.join(","));
+  await fAg.locator('select[name="startTime"]').selectOption("16:00");
+  await fAg.getByRole("button", { name: /Guardar cita/ }).click();
+  const nueva = await esperar(() => db.appointment.findFirst({ where: { userId: mb.id, clientName: "Diana Nueva" } }));
+  ok(nueva?.staffId === jessica.id && nueva?.day === manana && nueva?.startTime === "16:00" && nueva?.serviceName === "Cejas" && nueva?.price === 15000, "quedó a su nombre, ese día a las 4 pm, Cejas a 15.000", JSON.stringify(nueva && { d: nueva.day, t: nueva.startTime, s: nueva.serviceName }));
+  await p.waitForSelector('[data-cita="Diana Nueva"]', { timeout: 20000 }).catch(() => null);
+  ok((await p.locator('[data-cita="Diana Nueva"]').count()) === 1, "sale en su lista de citas");
+
+  console.log("\n8. Mecato: vende sin cita, por categoría");
+  await p.goto(BASE + "/panel/mecato", { waitUntil: "networkidle" });
+  const cats = await p.locator("[data-categoria]").allInnerTexts();
+  ok(cats.map((c) => c.trim()).join(" | ") === "Bebidas | Mecato | Uñas | Depilación con cera", "cada categoría por separado: primero los productos y después los servicios, en el orden de la dueña", cats.join(" | "));
+  ok((await p.locator("[data-grupo]").count()) === 1, "se ve una categoría a la vez");
+  await p.locator('[data-categoria="Bebidas"]').click();
+  await p.locator('[data-producto="Coca Cola 400ml"] [data-sumar]').click();
+  await p.locator('[data-producto="Coca Cola 400ml"] [data-sumar]').click();
+  await p.locator('[data-categoria="Mecato"]').click();
+  ok((await p.locator('[data-grupo="Mecato"] [data-producto]').allInnerTexts()).join(" ").includes("Chokis"), "en Mecato sale Chokis");
+  await p.locator('[data-producto="Chokis"] [data-sumar]').click();
+  const totalMecato = await p.locator("[data-total-mecato]").innerText();
+  ok(/9\.000/.test(totalMecato), "el total es 2 × 3.500 + 2.000", totalMecato);
+  await p.locator('[data-cobrar-mecato] input[name="clientName"]').fill("Elena");
+  if (DIR) await p.screenshot({ path: DIR + "/mb-mecato.png", fullPage: true });
+  p.once("dialog", (dlg) => dlg.accept());
+  await p.getByRole("button", { name: /Guardar venta/ }).click();
+  const vendida = await esperar(() => db.sale.findFirst({ where: { userId: mb.id, clientName: "Elena" }, include: { items: true } }));
+  ok(vendida?.total === 9000 && vendida?.staffId === jessica.id && vendida?.appointmentId === null && vendida?.items.length === 2, "la venta quedó a su nombre, sin cita, por 9.000", JSON.stringify(vendida && { t: vendida.total, n: vendida.items.length }));
+  await p.waitForSelector("[data-vendido]", { timeout: 20000 }).catch(() => null);
+  ok((await p.locator("[data-vendido]").count()) === 1, "sale en Vendido hoy sin cita");
+  ok(/\$\s?0$/.test((await p.locator("[data-total-mecato]").innerText()).trim()), "el pedido queda en blanco para la siguiente");
+  ok(await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "en el celular nada se sale de la pantalla");
+
+  console.log("\n9. Precios: se ven, no se cambian");
   await p.goto(BASE + "/panel/precios", { waitUntil: "networkidle" });
   const precios = await p.locator("[data-lista-precios]").allInnerTexts();
   ok(precios.join(" ").includes("Coca Cola 400ml") && precios.join(" ").includes("45.000"), "ve la lista con sus precios");
@@ -213,11 +239,11 @@ try {
   ok(sinDesborde, "en el celular nada se sale de la pantalla");
   if (DIR) await p.screenshot({ path: DIR + "/mb-precios.png", fullPage: true });
 
-  console.log("\n8. Otra barbería sigue igual");
+  console.log("\n10. Otra barbería sigue igual");
   const o = await pagina();
   const andres = otra.staff.find((s) => s.name === "Andres");
   await o.fill('input[name="email"]', andres.username);
-  ok((await o.locator("[data-ingreso-usuario]").count()) === 1, "a su empleado no se le pide PIN");
+  ok((await o.locator("[data-ingreso-usuario]").count()) === 1, "su empleado también entra solo con usuario");
   await o.click('button[type="submit"]');
   await o.waitForURL(/\/panel/, { timeout: 60000 }).catch(() => null);
   ok(/\/panel(\?|$|\/(?!mis-citas))/.test(o.url()), "entra con solo el usuario, a su panel de siempre", o.url());

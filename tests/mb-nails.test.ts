@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { armarCobro, leerAdicionales } from "../src/lib/cobro-cita";
+import { armarCobro, armarVenta, leerAdicionales, leerPedidoVenta } from "../src/lib/cobro-cita";
 import { esManicuristaDeMbNails, esMbNails, rutaDeManicurista } from "../src/lib/mb-nails";
 import { parseMoney } from "../src/lib/format";
 
@@ -83,5 +83,32 @@ describe("quién es manicurista de MB Nails", () => {
     expect(rutaDeManicurista("/panel/precios")).toBe(true);
     expect(rutaDeManicurista("/panel/ventas")).toBe(false);
     expect(rutaDeManicurista("/panel/catalogo")).toBe(false);
+  });
+});
+
+/** Mecato: la venta sin cita de la manicurista. */
+describe("venta de mecato sin cita", () => {
+  it("toma el precio del catálogo y junta el mismo producto", () => {
+    const pedido = leerPedidoVenta(JSON.stringify([
+      { serviceId: "coca", qty: 2, price: 1 },
+      { serviceId: "cejas", qty: 1 },
+      { serviceId: "coca", qty: 1 },
+    ]))!;
+    expect(armarVenta(pedido, catalogo)).toEqual({
+      items: [
+        { serviceId: "coca", name: "Coca Cola 400ml", unitPrice: 3500, qty: 3 },
+        { serviceId: "cejas", name: "Cejas", unitPrice: 15000, qty: 1 },
+      ],
+      total: 25500,
+    });
+  });
+
+  it("no guarda una venta vacía, ni de otro negocio, ni cantidades raras", () => {
+    expect(armarVenta([], catalogo)).toHaveProperty("error");
+    expect(armarVenta([{ serviceId: "de-otro", qty: 1 }], catalogo)).toHaveProperty("error");
+    expect(armarVenta([{ serviceId: "coca", qty: 0 }], catalogo)).toHaveProperty("error");
+    expect(armarVenta([{ serviceId: "coca", qty: 51 }], catalogo)).toHaveProperty("error");
+    expect(leerPedidoVenta("[{}]")).toBeNull();
+    expect(leerPedidoVenta("roto")).toBeNull();
   });
 });

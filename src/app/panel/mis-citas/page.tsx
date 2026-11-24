@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { addDays, todayIn } from "@/lib/dates";
+import { addDays, timeIn, todayIn } from "@/lib/dates";
 import { cerosPara, money, pretty12h, prettyDay } from "@/lib/format";
-import { buildSlots } from "@/lib/slots";
+import { buildSlots, workDaysArray } from "@/lib/slots";
 import { waLink } from "@/lib/whatsapp";
 import { esManicuristaDeMbNails } from "@/lib/mb-nails";
 import { ordenDeCategorias } from "@/lib/categorias-negocio";
@@ -11,6 +11,7 @@ import { CATEGORIA_GENERAL } from "@/lib/categorias";
 import { Badge, Card, Empty, PageHeader, Stat } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { AccionesCita, type ProductoLista } from "@/components/AccionesCita";
+import { AgendarCita } from "@/components/AgendarCita";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,7 @@ export default async function MisCitasPage() {
   if (!esManicuristaDeMbNails(user, staff)) redirect("/panel");
 
   const hoy = todayIn(user.timezone);
-  const [porAtender, cerradasHoy, productos, orden] = await Promise.all([
+  const [porAtender, cerradasHoy, productos, orden, suyas] = await Promise.all([
     db.appointment.findMany({
       where: {
         userId: user.id,
@@ -49,14 +50,23 @@ export default async function MisCitasPage() {
     db.service.findMany({
       where: { userId: user.id, active: true },
       orderBy: [{ category: "asc" }, { name: "asc" }],
-      select: { id: true, name: true, price: true, category: true },
+      select: { id: true, name: true, price: true, category: true, bookable: true },
     }),
     ordenDeCategorias(user.id),
+    // Sus horas ocupadas, para Agendar cita.
+    db.appointment.findMany({
+      where: { userId: user.id, staffId: staff.id, status: { not: "CANCELADO" }, day: { gte: hoy, lte: addDays(hoy, 90) } },
+      select: { day: true, startTime: true },
+    }),
   ]);
 
   // La lista de precios en el orden de la dueña; "General" de ultima.
   const posicion = (c: string) => (c === CATEGORIA_GENERAL ? Number.MAX_SAFE_INTEGER : orden.indexOf(c) === -1 ? orden.length : orden.indexOf(c));
-  const lista: ProductoLista[] = [...productos].sort((a, b) => posicion(a.category) - posicion(b.category));
+  const lista: ProductoLista[] = [...productos]
+    .sort((a, b) => posicion(a.category) - posicion(b.category))
+    .map(({ id, name, price, category }) => ({ id, name, price, category }));
+  // Para agendar, solo lo que se reserva (los servicios, no el mecato).
+  const servicios = lista.filter((p) => productos.find((x) => x.id === p.id)?.bookable);
   const horas = buildSlots(user);
   const ceros = cerosPara(user.businessType);
 
@@ -70,7 +80,17 @@ export default async function MisCitasPage() {
 
   return (
     <>
-      <PageHeader title={"Hola, " + staff.name.split(" ")[0]} subtitle="Tus citas: ciérralas o reprográmalas" />
+      <PageHeader title={"Hola, " + staff.name.split(" ")[0]} subtitle="Tus citas: agéndalas, ciérralas o reprográmalas" />
+
+      <AgendarCita
+        servicios={servicios}
+        horas={horas}
+        hoy={hoy}
+        ahora={timeIn(new Date(), user.timezone)}
+        ocupadas={suyas.map((a) => a.day + " " + a.startTime)}
+        diasQueSeAtiende={workDaysArray(user.workDays)}
+        currency={user.currency}
+      />
 
       <div className="grid grid-cols-2 gap-3">
         <Stat label="Por atender hoy" value={String(pendientesHoy)} hint={porAtender.length + " en total"} tone="brand" />
@@ -80,7 +100,7 @@ export default async function MisCitasPage() {
       <div className="mt-5 space-y-5">
         {porAtender.length === 0 ? (
           <Card>
-            <Empty title="No tienes citas por atender" hint="Cuando te separen una, aparece aquí." />
+            <Empty title="No tienes citas por atender" hint="Agenda una arriba, o cuando te separen una aparece aquí." />
           </Card>
         ) : (
           [...porDia.entries()].map(([dia, citas]) => (
