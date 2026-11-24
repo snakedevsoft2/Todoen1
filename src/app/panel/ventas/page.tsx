@@ -25,7 +25,8 @@ import { AgregarItemVenta } from "@/components/AgregarItemVenta";
 import { FormSinSenal } from "@/components/SinSenal";
 import { esPlanCompleto } from "@/lib/plan";
 import { ordenDeCategorias } from "@/lib/categorias-negocio";
-import { categoriasVisiblesParaNegocio, esChopoSnacks, ordenParaNegocio, soloTotalVendido } from "@/lib/orden-productos";
+import { categoriasVisiblesParaNegocio, esChopoSnacks, normalizar, ordenParaNegocio, soloTotalVendido } from "@/lib/orden-productos";
+import { vendidoDelDia } from "@/lib/vendido-del-dia";
 import { serviciosConFoto } from "@/lib/imagenes";
 import { esAdminDeChopo } from "@/lib/chopo";
 import { VistaPreviaFactura } from "@/components/VistaPreviaFactura";
@@ -58,6 +59,31 @@ function agruparPorProducto(
     }
   }
   return [...porNombre.values()].sort((a, b) => b.qty - a.qty);
+}
+
+/**
+ * Los productos que mas salieron en el dia, en lista (Chopo): un nombre en
+ * letra grande no cabia y un abono con diez productos llenaba la pantalla.
+ */
+function MasVendidos({ productos }: { productos: { name: string; qty: number }[] }) {
+  return (
+    <div className="card-tight">
+      <p className="eyebrow">Lo más vendido</p>
+      <ol className="mt-2.5 space-y-1.5">
+        {productos.slice(0, 5).map((p, i) => (
+          <li key={p.name} className="flex items-baseline gap-2">
+            <span className={"w-7 shrink-0 text-right font-bold tabular-nums " + (i === 0 ? "text-base text-strong" : "text-sm text-body")}>
+              {p.qty}
+            </span>
+            <span className={"min-w-0 leading-snug " + (i === 0 ? "text-sm font-semibold text-strong" : "text-[13px] text-body")}>
+              {p.name}
+            </span>
+          </li>
+        ))}
+      </ol>
+      {productos.length > 5 && <p className="mt-1.5 text-xs text-subtle">Todos abajo, en Ventas por producto</p>}
+    </div>
+  );
 }
 
 const PAGO_VISTA: Record<string, string> = {
@@ -109,8 +135,16 @@ export default async function VentasPage({
     }),
     // Los fiados hechos desde esta pantalla (llevan llave): no son plata que
     // entro, asi que salen en la lista pero no suman en el resumen de arriba.
+    // Chopo si los suma al vendido (ver lib/vendido-del-dia.ts), asi que ve
+    // todos los fiados del dia, tambien los anotados en Cuentas por cobrar.
     db.debt.findMany({
-      where: { userId: user.id, day, clientKey: { not: null }, status: { not: "ANULADA" }, ...soloMias },
+      where: {
+        userId: user.id,
+        day,
+        ...(chopo ? { principal: null } : { clientKey: { not: null } }),
+        status: { not: "ANULADA" },
+        ...soloMias,
+      },
       orderBy: { createdAt: "desc" },
       include: { staff: { select: { name: true, color: true } }, _count: { select: { payments: true } } },
     }),
@@ -184,10 +218,20 @@ export default async function VentasPage({
 
   // Cuanto hizo cada persona en el dia. Solo tiene sentido para el dueño: un
   // empleado ya ve solo sus ventas, asi que aqui saldria nada mas su fila.
+  // Chopo: el vendido del dia cuenta los fiados con sus productos y deja los
+  // abonos aparte. El precio del catalogo reparte el valor de cada fiado
+  // entre sus productos (el concepto no trae precios).
+  const precios = new Map(catalog.map((s) => [normalizar(s.name), s.price]));
+  const vendido = chopo ? vendidoDelDia(sales, fiados, precios) : null;
+
   const porPersona = propias
     ? team
         .map((person) => {
           const ventasDePersona = sales.filter((s) => s.staffId === person.id);
+          if (chopo) {
+            const suyo = vendidoDelDia(ventasDePersona, fiados.filter((f) => f.staffId === person.id), precios);
+            return { ...person, total: suyo.total, count: suyo.movimientos, productos: suyo.productos };
+          }
           return {
             ...person,
             total: ventasDePersona.reduce((sum, s) => sum + s.total, 0),
@@ -200,7 +244,7 @@ export default async function VentasPage({
     : [];
 
   // Cuanto se vendio de cada producto en total, para saber que se vende mas.
-  const porProducto = agruparPorProducto(sales);
+  const porProducto = vendido ? vendido.productos : agruparPorProducto(sales);
   const masVendido = porProducto[0] ?? null;
 
   const logo = logoUrl(user.slug, user.hasLogo, user.updatedAt);
@@ -335,9 +379,31 @@ export default async function VentasPage({
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Total vendido" value={money(summary.totalSales, user.currency)} tone="brand" />
-        {masVendido && (
-          <Stat label="Más vendido" value={masVendido.name} hint={masVendido.qty + " vendidos"} />
+        {vendido ? (
+          <>
+            <Stat
+              label="Total vendido"
+              value={money(vendido.total, user.currency)}
+              hint={"Contado " + money(vendido.contado, user.currency) + " · Fiado " + money(vendido.fiado, user.currency)}
+              tone="brand"
+            />
+            {porProducto.length > 0 && <MasVendidos productos={porProducto} />}
+            {vendido.abonos > 0 && (
+              <Stat
+                label="Abonos cobrados"
+                value={money(vendido.abonos, user.currency)}
+                hint="De fiados: no suman al vendido, ya se contaron el día del fiado"
+                tone="good"
+              />
+            )}
+          </>
+        ) : (
+          <>
+            <Stat label="Total vendido" value={money(summary.totalSales, user.currency)} tone="brand" />
+            {masVendido && (
+              <Stat label="Más vendido" value={masVendido.name} hint={masVendido.qty + " vendidos"} />
+            )}
+          </>
         )}
         {!soloTotalVendido(user.businessName) && (
           <>
@@ -411,7 +477,7 @@ export default async function VentasPage({
       {porProducto.length > 0 && (
         <Card
           title="Ventas por producto"
-          subtitle="Cuánto se vendió de cada uno hoy"
+          subtitle={chopo ? "Cuánto se vendió de cada uno en el día, de contado y fiado" : "Cuánto se vendió de cada uno hoy"}
           className="mt-5"
         >
           <ul className="space-y-1.5">
