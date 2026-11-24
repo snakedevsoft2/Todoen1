@@ -13,7 +13,6 @@ import { USUARIO_INVALIDO, USUARIO_VALIDO, normalizarUsuario } from "@/lib/usuar
 import { cookieJar, signSession, writeSessionCookie } from "@/lib/session";
 import { modulosDe } from "@/lib/modules";
 import { anotarActividad } from "@/lib/actividad";
-import { esMbNails, PIN_VALIDO } from "@/lib/mb-nails";
 
 export type StaffState = { error?: string; ok?: string } | undefined;
 
@@ -85,11 +84,6 @@ export async function createStaffAction(
     if (await usuarioTomado(username)) return { error: "Ese usuario ya lo tiene otra persona. Prueba agregándole el nombre del negocio." };
   }
 
-  // MB Nails: el PIN de 4 numeros con que entra (ver lib/mb-nails.ts).
-  const mb = esMbNails(user.businessName);
-  const pin = mb ? str(formData.get("pin")) : "";
-  if (pin && !PIN_VALIDO.test(pin)) return { error: "El PIN son 4 números." };
-
   await db.staff.create({
     data: {
       userId: user.id,
@@ -97,7 +91,6 @@ export async function createStaffAction(
       email: email || null,
       username: username || null,
       passwordHash: password ? hashPassword(password) : null,
-      pinHash: pin ? hashPassword(pin) : null,
       phone: phone || null,
       // El rol depende del negocio: barbero en la barberia, vendedor en la
       // ropa; el lavadero, ademas, puede elegir jefe de patio (ROLES_ELEGIBLES).
@@ -112,15 +105,6 @@ export async function createStaffAction(
   revalidatePath("/panel/turnos");
   revalidatePath("/panel/ventas");
   const nombre = noun.singular.charAt(0).toUpperCase() + noun.singular.slice(1);
-  if (mb) {
-    return {
-      ok: !username
-        ? "Listo, " + name + " quedó agregada."
-        : pin
-          ? "Listo. " + name + " entra con el usuario " + username + " y su PIN."
-          : "Listo. " + name + " tiene el usuario " + username + ", pero no puede entrar hasta que le pongas su PIN en Cambiar acceso.",
-    };
-  }
   return {
     ok: username
       ? nombre + " agregado. Entra escribiendo el usuario " + username + ", sin contraseña."
@@ -180,9 +164,6 @@ export async function setStaffAccessAction(
       return { error: "Ese usuario ya lo tiene otra persona. Prueba agregándole el nombre del negocio." };
     }
   }
-  const mb = esMbNails(user.businessName);
-  const pin = mb ? str(formData.get("pin")) : "";
-  if (pin && !PIN_VALIDO.test(pin)) return { error: "El PIN son 4 números." };
   if (email) {
     if (!EMAIL_RE.test(email)) return { error: "Escribe un correo valido." };
     if (await emailTaken(email, staff.id)) return { error: "Ya existe una cuenta con ese correo." };
@@ -196,23 +177,13 @@ export async function setStaffAccessAction(
     data: {
       username: username || null,
       ...(email ? { email, passwordHash: password ? hashPassword(password) : staff.passwordHash } : {}),
-      // Un PIN nuevo (MB Nails) reemplaza al anterior.
-      ...(pin ? { pinHash: hashPassword(pin) } : {}),
-      // Si de verdad cambio la clave o el PIN, tumba cualquier sesion que
-      // tuviera abierta con la anterior.
-      ...(password || pin ? { sessionVersion: { increment: 1 } } : {}),
+      // Si de verdad cambio la clave, tumba cualquier sesion que tuviera
+      // abierta con la anterior.
+      ...(password ? { sessionVersion: { increment: 1 } } : {}),
     },
   });
 
   revalidatePath("/panel/equipo");
-  if (mb && username) {
-    return {
-      ok:
-        pin || staff.pinHash
-          ? "Listo. " + staff.name + " entra con el usuario " + username + " y su PIN."
-          : "Listo. " + staff.name + " tiene el usuario " + username + ", pero no puede entrar hasta que le pongas un PIN.",
-    };
-  }
   return {
     ok: username
       ? "Listo. " + staff.name + " entra escribiendo " + username + ", sin contraseña."
@@ -231,7 +202,7 @@ export async function removeStaffAccessAction(formData: FormData) {
     where: { id: staff.id },
     // sessionVersion sube tambien: sin acceso no deberia quedarle una sesion
     // viva hasta que la cookie caduque sola.
-    data: { email: null, passwordHash: null, pinHash: null, username: null, sessionVersion: { increment: 1 } },
+    data: { email: null, passwordHash: null, username: null, sessionVersion: { increment: 1 } },
   });
   revalidatePath("/panel/equipo");
 }

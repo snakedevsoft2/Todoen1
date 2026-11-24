@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { armarCobro, leerAdicionales } from "../src/lib/cobro-cita";
-import { esManicuristaDeMbNails, esMbNails, PIN_VALIDO, rutaDeManicurista } from "../src/lib/mb-nails";
+import { esManicuristaDeMbNails, esMbNails, rutaDeManicurista } from "../src/lib/mb-nails";
 import { parseMoney } from "../src/lib/format";
 
 const plata = (v: string) => parseMoney(v, "COP", 1000);
@@ -78,13 +78,10 @@ describe("quién es manicurista de MB Nails", () => {
     expect(esManicuristaDeMbNails({ businessName: "Barbería El Corte", businessType: "BARBERIA" }, { role: "BARBERO" })).toBe(false);
   });
 
-  it("su menú fijo y su PIN de 4 números", () => {
+  it("su menú fijo", () => {
     expect(rutaDeManicurista("/panel/mis-citas")).toBe(true);
     expect(rutaDeManicurista("/panel/precios")).toBe(true);
     expect(rutaDeManicurista("/panel/ventas")).toBe(false);
     expect(rutaDeManicurista("/panel/catalogo")).toBe(false);
-    expect(PIN_VALIDO.test("0427")).toBe(true);
-    expect(PIN_VALIDO.test("123")).toBe(false);
-    expect(PIN_VALIDO.test("12a4")).toBe(false);
   });
 });

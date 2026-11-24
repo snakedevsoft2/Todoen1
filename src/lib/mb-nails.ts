@@ -7,7 +7,7 @@ import { normalizar } from "./orden-productos";
  * manicuristas, no barberos.
  *
  * Sus manicuristas (rol BARBERO en la base) no ven el negocio completo: entran
- * con su usuario y un PIN de 4 numeros que les pone la dueña, y solo ven sus
+ * con su usuario, sin contraseña, como cualquier empleado, y solo ven sus
  * citas, con dos botones -Cerrada (cobra el servicio y lo adicional) y
  * Reprogramada-, la lista de precios sin poder cambiarla y su perfil. Es el
  * mismo esquema del lavador del lavadero (ver lib/permisos.ts): menu fijo y
@@ -35,9 +35,6 @@ export const MENU_MANICURISTA: NavItem[] = [
 export function rutaDeManicurista(ruta: string): boolean {
   return MENU_MANICURISTA.some((i) => ruta === i.href || ruta.startsWith(i.href + "/"));
 }
-
-/** El PIN con el que entra cada manicurista: 4 numeros. */
-export const PIN_VALIDO = /^\d{4}$/;
 
 /** Los apartados del menu de la dueña, con las palabras de un spa de uñas. */
 export const ETIQUETAS_MENU_MB: Record<string, string> = {

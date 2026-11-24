@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import type { BusinessType } from "@prisma/client";
 import { db } from "@/lib/db";
 import { checkPassword, ensureOwnerStaff, hashPassword, uniqueSlug } from "@/lib/auth";
-import { esMbNails } from "@/lib/mb-nails";
 import { clearSessionCookie, cookieJar, signSession, writeSessionCookie } from "@/lib/session";
 import { SUPPORT_WHATSAPP_PRETTY } from "@/lib/support";
 import { cuentaPorFuera } from "@/lib/pagos";
@@ -22,13 +21,7 @@ import {
 } from "@/lib/seguridad";
 import { OTRO_PAIS, esMonedaValida, esZonaValida, paisPorCodigo, zonaParaPais } from "@/lib/paises";
 
-export type AuthState =
-  | {
-      error?: string;
-      /** El usuario existe y entra con PIN (MB Nails): el formulario lo pide. */
-      pedirPin?: boolean;
-    }
-  | undefined;
+export type AuthState = { error?: string } | undefined;
 
 /**
  * Lo que se le dice a una cuenta suspendida.
@@ -145,7 +138,7 @@ export async function loginAction(_prev: AuthState, formData: FormData): Promise
   const remember = formData.get("remember") === "on";
   if (!email) return { error: "Escribe tu correo o tu usuario." };
   // Sin arroba es el usuario de un empleado: entra sin contraseña.
-  if (esUsuario(email)) return entrarConUsuario(jar, email, remember, String(formData.get("pin") ?? "").trim());
+  if (esUsuario(email)) return entrarConUsuario(jar, email, remember);
   if (!password) return { error: "Escribe tu correo y contrasena." };
 
   // Freno de fuerza bruta por conexion: sin esto, alguien podia probar
@@ -224,8 +217,7 @@ export async function loginAction(_prev: AuthState, formData: FormData): Promise
 async function entrarConUsuario(
   jar: Awaited<ReturnType<typeof cookieJar>>,
   escrito: string,
-  remember: boolean,
-  pin: string
+  remember: boolean
 ): Promise<AuthState> {
   const origen = ((await headers()).get("x-forwarded-for") ?? "").split(",")[0].trim() || "local";
   if (await demasiadosIntentosDeUsuario(origen)) {
@@ -238,19 +230,6 @@ async function entrarConUsuario(
     return { error: "No encontramos ese usuario. Escríbelo como te lo dio el dueño del negocio." };
   }
   if (!staff.active) return { error: "Tu usuario esta desactivado. Pidele al dueno que lo active." };
-
-  // MB Nails: sus manicuristas entran con usuario y PIN de 4 numeros. Sin PIN
-  // puesto por la dueña no entran: el usuario solo no basta (ver lib/mb-nails.ts).
-  if (esMbNails(staff.user.businessName)) {
-    if (!staff.pinHash) return { error: "Todavía no tienes PIN. Pídele a la dueña que te lo ponga en Manicuristas." };
-    if (!pin) return { pedirPin: true };
-    if (!checkPassword(pin, staff.pinHash)) {
-      // Cuenta en el mismo freno que los usuarios inventados: no se puede
-      // probar PIN tras PIN.
-      await anotarIntentoDeUsuario(origen);
-      return { error: "Ese PIN no es. Escríbelo otra vez.", pedirPin: true };
-    }
-  }
   if (await cuentaPorFuera(staff.user)) return { error: mensajeSuspendida(staff.user) };
 
   writeSessionCookie(

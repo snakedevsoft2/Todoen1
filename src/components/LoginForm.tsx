@@ -191,28 +191,7 @@ export function LoginForm({
           />
         </div>
 
-        {conUsuario && state?.pedirPin ? (
-          // MB Nails: el usuario existe y entra con PIN (el servidor lo pidio).
-          <div>
-            <label htmlFor="pin" className="auth-label">
-              Tu PIN
-            </label>
-            <input
-              id="pin"
-              className={"auth-input tracking-[0.4em]" + (conError ? " auth-input-error" : "")}
-              type="password"
-              name="pin"
-              inputMode="numeric"
-              pattern="[0-9]{4}"
-              maxLength={4}
-              autoComplete="current-password"
-              required
-              autoFocus
-              placeholder="4 números"
-              aria-invalid={conError}
-            />
-          </div>
-        ) : conUsuario ? (
+        {conUsuario ? (
           <p className="rounded-[10px] bg-slate-50 px-3.5 py-3 text-[13px] leading-relaxed text-slate-600" data-ingreso-usuario>
             Entras con tu usuario de empleado, sin contraseña.
           </p>

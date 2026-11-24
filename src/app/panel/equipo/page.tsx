@@ -19,7 +19,7 @@ export default async function EquipoPage() {
   // negocios no manejan equipo dentro de la aplicacion.
   if (!hasTeam(user.businessType)) redirect("/panel");
 
-  // MB Nails: manicuristas que entran con usuario y PIN (ver lib/mb-nails.ts).
+  // MB Nails: manicuristas en vez de barberos (ver lib/mb-nails.ts).
   const mb = esMbNails(user.businessName);
   const noun = mb ? { ...teamNoun(user.businessType), ...PERSONA_MB } : teamNoun(user.businessType);
   const agenda = user.businessType === "BARBERIA";
@@ -76,7 +76,6 @@ export default async function EquipoPage() {
     bookable: s.bookable,
     active: s.active,
     hasPassword: Boolean(s.passwordHash),
-    pin: mb ? (s.pinHash ? "con" : "sin") : null,
   }));
 
   return (
@@ -85,7 +84,7 @@ export default async function EquipoPage() {
         title={noun.title}
         subtitle={
           mb
-            ? "Quién atiende en el spa y quién puede entrar a la aplicación con su PIN"
+            ? "Quién atiende en el spa y quién puede entrar a la aplicación"
             : agenda
             ? "Quién atiende en la barbería y quién puede entrar a la aplicación"
             : asistencia
@@ -170,6 +169,7 @@ export default async function EquipoPage() {
                     staff={staff}
                     currency={user.currency}
                     businessType={user.businessType}
+                    mbNails={mb}
                     stats={
                       stat && !asistencia
                         ? {
@@ -201,12 +201,11 @@ export default async function EquipoPage() {
               <li className="flex gap-2">
                 <Icon name="check" className="mt-0.5 h-4 w-4 shrink-0 text-good" />
                 {mb
-                  ? "Cada manicurista entra por la misma página de ingreso."
+                  ? "Cada manicurista entra por la misma página de ingreso, escribiendo solo su usuario."
                   : "Cada " + noun.singular + " entra por la misma pagina de ingreso, con su correo y su contrasena."}
               </li>
               {mb ? (
                 <>
-                  <Punto>Entra con su usuario y el PIN de 4 números que tú le pones aquí, en Cambiar acceso.</Punto>
                   <Punto>Solo ve sus citas, con dos botones: Cerrada (cobra el servicio y lo adicional) y Reprogramada.</Punto>
                   <Punto>Ve la lista de precios, pero no la puede cambiar.</Punto>
                   <Punto>Cada cita cerrada queda como venta a su nombre, y eso se ve en Reportes con su comisión.</Punto>
