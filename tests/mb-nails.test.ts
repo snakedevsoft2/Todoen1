@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { armarCobro, armarVenta, leerAdicionales, leerPedidoVenta } from "../src/lib/cobro-cita";
 import { esManicuristaDeMbNails, esMbNails, rutaDeManicurista } from "../src/lib/mb-nails";
 import { parseMoney } from "../src/lib/format";
+import { CATEGORIAS_MB, LISTA_MB, MANICURISTAS_MB, categoriaPorNombre, planDeOrganizar } from "../src/lib/mb-nails-plan";
 
 const plata = (v: string) => parseMoney(v, "COP", 1000);
 const catalogo = new Map([
@@ -110,5 +111,53 @@ describe("venta de mecato sin cita", () => {
     expect(armarVenta([{ serviceId: "coca", qty: 51 }], catalogo)).toHaveProperty("error");
     expect(leerPedidoVenta("[{}]")).toBeNull();
     expect(leerPedidoVenta("roto")).toBeNull();
+  });
+});
+
+/** Organizar MB Nails desde la cuenta de la dueña. */
+describe("organizar MB Nails", () => {
+  it("reconoce la categoría por el nombre, sin cruzar palabras", () => {
+    expect(categoriaPorNombre("ESMALTADO SEMIPERMANENTE MANOS")).toBe("Uñas");
+    expect(categoriaPorNombre("Pierna completa")).toBe("Depilación con cera");
+    expect(categoriaPorNombre("CEJAS CON HENNA")).toBe("Depilación con cera");
+    expect(categoriaPorNombre("Pestañas pelo a pelo")).toBe("Pestañas");
+    expect(categoriaPorNombre("HIDRATACION CAPILAR")).toBe("Capilares");
+    expect(categoriaPorNombre("COCA COLA 400ML")).toBe("Bebidas");
+    expect(categoriaPorNombre("MANZANA 250ML")).toBe("Bebidas");
+    expect(categoriaPorNombre("PAPAS RIZADAS")).toBe("Mecato");
+    expect(categoriaPorNombre("MANI")).toBe("Mecato");
+    expect(categoriaPorNombre("Tarjeta de regalo")).toBeNull();
+  });
+
+  it("arma el plan: mueve lo de General, corrige precios y marca lo parecido", () => {
+    const plan = planDeOrganizar([
+      { id: "1", name: "ESMALTADO SEMIPERMANENTE MANOS", price: 45000, category: "UÑAS" },
+      { id: "2", name: "COCA COLA 400ML", price: 3000, category: "General" },
+      { id: "3", name: "CEJAS", price: 15000, category: "General" },
+      { id: "4", name: "Tarjeta de regalo", price: 50000, category: "General" },
+    ]);
+    expect(plan.mover).toEqual([
+      { id: "2", name: "COCA COLA 400ML", a: "Bebidas" },
+      { id: "3", name: "CEJAS", a: "Depilación con cera" },
+    ]);
+    expect(plan.precios).toEqual([{ id: "2", name: "COCA COLA 400ML", de: 3000, a: 3500 }]);
+    // 50 de la lista menos Coca Cola y Cejas, que ya estan con ese nombre.
+    expect(plan.faltan).toHaveLength(48);
+    const semi = plan.faltan.find((f) => f.item.name === "Semi (manos o pies)");
+    expect(semi?.parecido).toBe("ESMALTADO SEMIPERMANENTE MANOS");
+    expect(plan.faltan.find((f) => f.item.name === "Chokis")?.parecido).toBeNull();
+  });
+
+  it("las listas: 25 servicios que se reservan y 25 productos que no", () => {
+    expect(LISTA_MB.filter((i) => i.bookable)).toHaveLength(25);
+    expect(LISTA_MB.filter((i) => !i.bookable)).toHaveLength(25);
+    expect(new Set(LISTA_MB.map((i) => i.category))).toEqual(new Set(CATEGORIAS_MB));
+    expect(MANICURISTAS_MB.map((m) => m.username)).toEqual([
+      "jessica.mbnails",
+      "paola.mbnails",
+      "natalia.mbnails",
+      "genesis.mbnails",
+      "karen.mbnails",
+    ]);
   });
 });

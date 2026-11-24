@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -26,8 +27,14 @@ const DIAS_ATRAS = 7;
  * que cerro hoy. Nada del negocio completo: el menu fijo lo resuelve
  * requireSession.
  */
-export default async function MisCitasPage() {
+export default async function MisCitasPage({
+  searchParams,
+}: {
+  /** Desde Clientas: ?agendar=1&nombre=...&tel=... abre Agendar cita ya lleno. */
+  searchParams: Promise<{ agendar?: string; nombre?: string; tel?: string }>;
+}) {
   const { user, staff } = await requireSession({ manicuristaOk: true });
+  const params = await searchParams;
   if (!esManicuristaDeMbNails(user, staff)) redirect("/panel");
 
   const hoy = todayIn(user.timezone);
@@ -80,7 +87,7 @@ export default async function MisCitasPage() {
 
   return (
     <>
-      <PageHeader title={"Hola, " + staff.name.split(" ")[0]} subtitle="Tus citas: agéndalas, ciérralas o reprográmalas" />
+      <PageHeader title={"Hola, " + staff.name.split(" ")[0]} subtitle="Agenda citas, vende un servicio o un producto, y cierra o reprograma tus citas" />
 
       <AgendarCita
         servicios={servicios}
@@ -90,6 +97,13 @@ export default async function MisCitasPage() {
         ocupadas={suyas.map((a) => a.day + " " + a.startTime)}
         diasQueSeAtiende={workDaysArray(user.workDays)}
         currency={user.currency}
+        inicial={params.agendar ? { nombre: (params.nombre ?? "").slice(0, 80), telefono: (params.tel ?? "").slice(0, 40) } : null}
+        alLado={
+          <Link href="/panel/mecato" className="btn-success w-full justify-center py-3 text-base" data-boton-vender>
+            <Icon name="receipt" className="h-5 w-5 shrink-0" />
+            Vender
+          </Link>
+        }
       />
 
       <div className="grid grid-cols-2 gap-3">

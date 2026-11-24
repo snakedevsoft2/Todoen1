@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { after } from "next/server";
 import { enviarProgramados } from "@/lib/envios-crm";
 import { aiEnabled } from "@/lib/ai";
@@ -161,7 +162,22 @@ export default async function PanelLayout({ children }: { children: React.ReactN
         {!empleado && staff.role === "DUENO" && !esAdmin(user.email) && <AvisoDePago paidUntil={user.paidUntil} trialEndsAt={user.trialEndsAt} businessName={user.businessName} />}
         {instalable && <InstalarApp variante="aviso" />}
         {avisosPush && <ActivarNotificaciones variante="aviso" queRecibe={avisosPush} />}
-        <ProveedorSinSenal cuenta={staff.id} sinConexion={instalable} role={staff.role}>{children}</ProveedorSinSenal>
+        <ProveedorSinSenal cuenta={staff.id} sinConexion={instalable} role={staff.role}>
+          {/* MB Nails: mientras no tenga la agenda, la dueña ve el atajo a Organizar. */}
+          {staff.role === "DUENO" && esMbNails(user.businessName) && user.businessType !== "BARBERIA" && (
+            <Link
+              href="/panel/organizar-mb"
+              className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-800"
+              data-aviso-organizar
+            >
+              <span>
+                <strong>Organiza MB Nails:</strong> agenda de citas, tus 5 manicuristas y cada producto en su categoría.
+              </span>
+              <span className="btn-primary btn-sm shrink-0">Organizar</span>
+            </Link>
+          )}
+          {children}
+        </ProveedorSinSenal>
       </Shell>
       {/* La IA Snake flotante: solo si el servidor tiene la clave del modelo, y
           no para el empleado del gestor, que solo tiene sus pantallas. */}

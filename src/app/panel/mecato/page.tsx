@@ -12,7 +12,8 @@ import { VenderMecato, type GrupoMecato } from "@/components/VenderMecato";
 export const dynamic = "force-dynamic";
 
 /**
- * Mecato: la manicurista de MB Nails vende sin cita (bebidas, mecato o lo que
+ * Vender (lo que pidieron como "apartado de mecatos"): la manicurista de MB
+ * Nails vende sin cita un servicio o un producto (bebidas, mecato o lo que
  * este en la lista), con cada categoria por separado. Ver lib/mb-nails.ts.
  *
  * Primero salen las categorias de productos (las que no se reservan, como
@@ -54,7 +55,7 @@ export default async function MecatoPage() {
 
   return (
     <>
-      <PageHeader title="Mecato" subtitle="Vende sin cita: escoge la categoría y toca + en lo que se lleva" />
+      <PageHeader title="Vender" subtitle="Un servicio o un producto, sin cita: escoge la categoría y toca + en lo que se lleva" />
       {grupos.length === 0 ? (
         <Card>
           <Empty title="Todavía no hay productos" hint="La dueña los agrega en Servicios y precios." />

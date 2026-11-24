@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState, type ReactNode } from "react";
 import { agendarCitaAction } from "@/actions/mis-citas";
 import { money, pretty12h } from "@/lib/format";
 import { SubmitButton } from "./SubmitButton";
@@ -23,6 +23,8 @@ export function AgendarCita({
   ocupadas,
   diasQueSeAtiende,
   currency,
+  alLado,
+  inicial,
 }: {
   servicios: ServicioAgenda[];
   /** Las horas de la agenda ("09:00", "09:30"...). */
@@ -35,9 +37,13 @@ export function AgendarCita({
   /** 1 = lunes ... 7 = domingo. */
   diasQueSeAtiende: number[];
   currency: string;
+  /** Lo que va al lado del boton, en la misma fila (el boton Vender). */
+  alLado?: ReactNode;
+  /** Desde Clientas: el formulario abre ya con la clienta escrita. */
+  inicial?: { nombre: string; telefono: string } | null;
 }) {
   const [state, formAction] = useActionState(agendarCitaAction, undefined);
-  const [abierto, setAbierto] = useState(false);
+  const [abierto, setAbierto] = useState(Boolean(inicial));
   const [dia, setDia] = useState(hoy);
   const [vuelta, setVuelta] = useState(0);
 
@@ -62,16 +68,19 @@ export function AgendarCita({
 
   return (
     <div className="mb-5">
-      <button
-        type="button"
-        onClick={() => setAbierto(!abierto)}
-        className="btn-primary w-full justify-center py-3 text-base"
-        aria-expanded={abierto}
-        data-boton-agendar
-      >
-        <Icon name="plus" className="h-5 w-5 shrink-0" />
-        Agendar cita
-      </button>
+      <div className={alLado ? "grid grid-cols-2 gap-2" : ""}>
+        <button
+          type="button"
+          onClick={() => setAbierto(!abierto)}
+          className="btn-primary w-full justify-center py-3 text-base"
+          aria-expanded={abierto}
+          data-boton-agendar
+        >
+          <Icon name="calendar" className="h-5 w-5 shrink-0" />
+          Agendar cita
+        </button>
+        {alLado}
+      </div>
 
       {state?.ok && !abierto && (
         <div className="mt-3">
@@ -85,10 +94,10 @@ export function AgendarCita({
           {state?.ok && <Alert kind="ok">{state.ok}</Alert>}
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Clienta">
-              <input className="input" name="clientName" required maxLength={80} placeholder="Nombre" />
+              <input className="input" name="clientName" required maxLength={80} placeholder="Nombre" defaultValue={vuelta === 0 ? inicial?.nombre : undefined} />
             </Field>
             <Field label="Celular (opcional)" hint="Para escribirle por WhatsApp.">
-              <input className="input" name="clientPhone" inputMode="tel" maxLength={40} placeholder="300 000 0000" />
+              <input className="input" name="clientPhone" inputMode="tel" maxLength={40} placeholder="300 000 0000" defaultValue={vuelta === 0 ? inicial?.telefono : undefined} />
             </Field>
           </div>
           <Field label="Servicio">

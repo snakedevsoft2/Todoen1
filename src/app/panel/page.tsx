@@ -7,7 +7,7 @@ import { getDaySummary } from "@/lib/queries";
 import { money, pretty12h, prettyDay, shortDay } from "@/lib/format";
 import { filtroDeSeguimientos } from "@/lib/crm-filas";
 import { esEmpleadoDeAsistencia, esLavadorDeLavadero } from "@/lib/permisos";
-import { esManicuristaDeMbNails } from "@/lib/mb-nails";
+import { esManicuristaDeMbNails, esMbNails } from "@/lib/mb-nails";
 import { esDueno, ROLES_QUE_LAVAN } from "@/lib/permisos-empleado";
 import { ResumenAsistencia } from "@/components/ResumenAsistencia";
 import { BUSINESS_LABEL, ITEM_NOUN } from "@/lib/nav";
@@ -44,6 +44,7 @@ export default async function PanelHomePage() {
 
   const today = todayIn(user.timezone);
   const isBarber = user.businessType === "BARBERIA";
+  const mbNails = esMbNails(user.businessName);
   const isClothing = user.businessType === "ROPA";
   const isLavadero = user.businessType === "LAVADERO";
   const isParqueadero = user.businessType === "PARQUEADERO";
@@ -181,10 +182,22 @@ export default async function PanelHomePage() {
 
       <PageHeader
         title="Resumen del día"
-        subtitle={prettyDay(today) + " - " + BUSINESS_LABEL[user.businessType]}
+        subtitle={prettyDay(today) + " - " + (mbNails ? "Spa de uñas" : BUSINESS_LABEL[user.businessType])}
       >
         <div className="flex gap-2">
-          {isBarber ? (
+          {mbNails ? (
+            // MB Nails: desde el inicio se agenda una cita o se vende.
+            <>
+              <Link href={isBarber ? "/panel/turnos#agendar" : "/panel/organizar-mb"} className="btn-primary btn-sm" data-inicio-agendar>
+                <Icon name="calendar" className="h-4 w-4" />
+                Agendar cita
+              </Link>
+              <Link href="/panel/ventas" className="btn-success btn-sm" data-inicio-vender>
+                <Icon name="receipt" className="h-4 w-4" />
+                Vender
+              </Link>
+            </>
+          ) : isBarber ? (
             <Link href="/panel/turnos" className="btn-primary btn-sm">
               <Icon name="calendar" className="h-4 w-4" />
               Ver turnos

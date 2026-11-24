@@ -11,6 +11,7 @@ import { confirmMessage, toInternational, waLink } from "@/lib/whatsapp";
 import { WEEKDAYS } from "@/lib/timezones";
 import { Card, Empty, PageHeader, Stat, StatusBadge } from "@/components/ui";
 import { esMbNails } from "@/lib/mb-nails";
+import { EditarCita } from "@/components/EditarCita";
 import { Icon } from "@/components/Icon";
 import { CopyLink } from "@/components/CopyLink";
 import { NewAppointmentForm } from "@/components/NewAppointmentForm";
@@ -117,6 +118,19 @@ export default async function TurnosPage({
             <Icon name="link" className="h-4 w-4" />
             Abrir
           </Link>
+          {mb && (
+            <>
+              <a href="#agendar" className="btn-primary btn-sm">
+                <Icon name="calendar" className="h-4 w-4" />
+                Agendar cita
+              </a>
+              {/* A que hora abre y cierra, que dias y cada cuanto: en Ajustes. */}
+              <Link href="/panel/ajustes" className="btn-ghost btn-sm" data-cambiar-horario>
+                <Icon name="clock" className="h-4 w-4" />
+                Horario
+              </Link>
+            </>
+          )}
         </div>
       </PageHeader>
 
@@ -450,6 +464,24 @@ export default async function TurnosPage({
                         </FormSinSenal>
                       )}
 
+                      {mb && !a.sale && a.status !== "CANCELADO" && (
+                        <EditarCita
+                          cita={{
+                            id: a.id,
+                            clientName: a.clientName,
+                            clientPhone: a.clientPhone,
+                            serviceId: a.serviceId,
+                            day: a.day,
+                            startTime: a.startTime,
+                            staffId: a.staffId,
+                            notes: a.notes,
+                          }}
+                          servicios={services}
+                          equipo={team}
+                          horas={slots}
+                        />
+                      )}
+
                       {varios && a.status !== "CANCELADO" && (
                         <details className="w-full sm:w-auto">
                           <summary className="btn-ghost btn-sm cursor-pointer list-none">
@@ -589,7 +621,12 @@ export default async function TurnosPage({
             autoOn={user.whatsappProvider === "callmebot" || user.whatsappProvider === "meta"}
           />
 
-          <Card title="Agregar turno a mano" subtitle="Para el cliente que llega sin reservar">
+          <Card
+            title={mb ? "Agendar cita" : "Agregar turno a mano"}
+            subtitle={mb ? "Escoge el día, la hora y la manicurista que la atiende" : "Para el cliente que llega sin reservar"}
+            className="scroll-mt-20"
+          >
+            <span id="agendar" />
             <NewAppointmentForm
               day={day}
               slots={slots}
