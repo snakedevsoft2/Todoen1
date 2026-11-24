@@ -228,7 +228,9 @@ export default async function TurnosPage({
         </div>
       )}
 
-      <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_360px]">
+      {/* min-w-0: sin esto la tabla de varias columnas estiraba la pagina
+          a lo ancho en el celular en vez de deslizarse dentro de table-wrap. */}
+      <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_360px] [&>*]:min-w-0">
         <div className="space-y-4">
           <Card
             title="Agenda del día"

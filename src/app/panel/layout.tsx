@@ -19,7 +19,7 @@ import { Shell } from "@/components/Shell";
 import { Icon } from "@/components/Icon";
 import { logoutAction } from "@/actions/auth";
 import { ThemeStyle } from "@/components/ThemeStyle";
-import { esManicuristaDeMbNails, MENU_MANICURISTA } from "@/lib/mb-nails";
+import { esManicuristaDeMbNails, esMbNails, MENU_MANICURISTA } from "@/lib/mb-nails";
 import { RegistrarVisita } from "@/components/RegistrarVisita";
 import { PrepararSinConexion } from "@/components/PrepararSinConexion";
 import { AvisoSinConexion } from "@/components/AvisoSinConexion";
@@ -37,7 +37,12 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   // fijas del empleado de asistencia o del lavador (mira la ruta real pedida
   // contra su menu). Aqui solo hace falta saber cual de los dos es, para
   // armar el menu y el resto de la pantalla.
-  const sesion = await requireSession();
+  // manicuristaOk: cuando una accion suya (Cerrada, Reprogramada) refresca la
+  // pantalla, este layout se vuelve a armar dentro de esa misma peticion POST,
+  // que no trae x-ruta. Sin esto la mandaba otra vez a Mis citas en un bucle
+  // sin fin (pantalla en blanco). En GET la ruta manda igual que siempre, y
+  // cada accion revisa lo suyo con su propio requireSession.
+  const sesion = await requireSession({ manicuristaOk: true });
   const { user, staff } = sesion;
 
   const empleado = esEmpleadoDeAsistencia(user, staff);
@@ -136,7 +141,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
         nav={nav}
         navGroups={navGroups}
         businessName={user.businessName}
-        businessLabel={BUSINESS_LABEL[user.businessType]}
+        businessLabel={esMbNails(user.businessName) ? "Spa de uñas" : BUSINESS_LABEL[user.businessType]}
         ownerName={staff.name}
         roleLabel={etiquetaDeRol(staff.role, user.businessType)}
         staffColor={staff.color}

@@ -50,7 +50,7 @@ export function AccionesCita({
           aria-expanded={abierto === "cerrar"}
           data-boton-cerrada
         >
-          <Icon name="check" className="h-5 w-5" />
+          <Icon name="check" className="h-5 w-5 shrink-0" />
           Cerrada
         </button>
         <button
@@ -60,7 +60,7 @@ export function AccionesCita({
           aria-expanded={abierto === "reprogramar"}
           data-boton-reprogramada
         >
-          <Icon name="calendar" className="h-5 w-5" />
+          <Icon name="calendar" className="h-5 w-5 shrink-0" />
           Reprogramada
         </button>
       </div>
@@ -163,7 +163,7 @@ function CerrarCita({
         <p className="text-xs font-semibold uppercase tracking-wide text-muted">¿Le agregaste algo más?</p>
         <div className="flex gap-2">
           <select className="input min-w-0 flex-1" value={elegido} onChange={(e) => setElegido(e.target.value)} aria-label="De la lista de precios" data-elegir-adicional>
-            <option value="">De la lista de precios…</option>
+            <option value="">De la lista…</option>
             {porCategoria.map(([categoria, productos]) => (
               <optgroup key={categoria} label={categoria}>
                 {productos.map((p) => (
@@ -179,9 +179,8 @@ function CerrarCita({
             Agregar
           </button>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <input
-            className="input min-w-0 flex-[2]"
+        <input
+            className="input w-full"
             value={otroNombre}
             onChange={(e) => setOtroNombre(e.target.value)}
             placeholder="Otro: decorado, piedras…"
@@ -189,8 +188,9 @@ function CerrarCita({
             aria-label="Qué fue lo adicional"
             data-otro-nombre
           />
+        <div className="flex gap-2">
           <input
-            className="input w-28 flex-1"
+            className="input min-w-0 flex-1"
             value={otroValor}
             onChange={(e) => setOtroValor(e.target.value)}
             inputMode="numeric"

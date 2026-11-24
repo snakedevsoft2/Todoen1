@@ -25,8 +25,9 @@ export function esManicuristaDeMbNails(
   return esMbNails(user.businessName) && user.businessType === "BARBERIA" && staff.role !== "DUENO";
 }
 
+// Una palabra por apartado: el menu de abajo del celular muestra solo la primera.
 export const MENU_MANICURISTA: NavItem[] = [
-  { href: "/panel/mis-citas", label: "Mis citas", icon: "calendar" },
+  { href: "/panel/mis-citas", label: "Citas", icon: "calendar" },
   { href: "/panel/precios", label: "Precios", icon: "tag" },
   { href: "/panel/perfil", label: "Perfil", icon: "user" },
 ];

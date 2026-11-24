@@ -138,7 +138,8 @@ try {
   ok(Boolean(conPin) && bcrypt.compareSync(PIN, conPin), "el PIN quedó guardado (cifrado)");
   await d.goto(BASE + "/panel/turnos", { waitUntil: "networkidle" });
   const agenda = await d.locator("body").innerText();
-  ok(agenda.includes("Agenda") && agenda.includes("Manicurista") && !/barbero/i.test(agenda), "la agenda habla de manicuristas, no de barberos", (agenda.match(/.{0,40}barbero.{0,40}/i) ?? [""])[0]);
+  ok(agenda.includes("Agenda") && /manicurista/i.test(agenda) && !/barbero|barber[ií]a/i.test(agenda), "la agenda habla de manicuristas, no de barberos ni de barbería", (agenda.match(/.{0,40}barber.{0,40}/i) ?? [""])[0]);
+  ok(await d.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "la agenda de varias manicuristas no se sale de la pantalla");
   if (DIR) await d.screenshot({ path: DIR + "/mb-agenda-duena.png", fullPage: true });
 
   console.log("\n3. Entra con usuario + PIN");
@@ -162,7 +163,7 @@ try {
   ok(!texto.includes("Carla Ajena"), "no ve la cita de otra manicurista");
   const enlaces = await p.locator("nav a").allInnerTexts();
   const menu = enlaces.join(" | ");
-  ok(/Mis citas/.test(menu) && /Precios/.test(menu) && !/Ventas|Caja|Gastos|Reportes/.test(menu), "su menú es Mis citas, Precios y Perfil", menu);
+  ok(/Citas/.test(menu) && /Precios/.test(menu) && !/Ventas|Caja|Gastos|Reportes/.test(menu), "su menú es Citas, Precios y Perfil", menu);
   await p.goto(BASE + "/panel/ventas", { waitUntil: "networkidle" });
   ok(p.url().endsWith("/panel/mis-citas"), "si escribe otra dirección vuelve a sus citas", p.url());
   await p.goto(BASE + "/panel/catalogo", { waitUntil: "networkidle" });
