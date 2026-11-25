@@ -60,6 +60,13 @@ enum AppointmentStatus {
   NO_ASISTIO
 }
 
+/// Ver AppointmentEvent.
+enum AppointmentEventKind {
+  LLEGO
+  NO_LLEGO
+  REPROGRAMADA
+}
+
 enum OrderStatus {
   ABIERTA
   PAGADA
@@ -292,6 +299,7 @@ model User {
   billingConfig      BillingConfig?
   electronicInvoices ElectronicInvoice[]
   staffActivities    StaffActivity[]
+  appointmentEvents  AppointmentEvent[]
   washJobs           WashJob[]
   patioHandovers     PatioHandover[]
   pushSubscriptions  PushSubscription[]
@@ -885,14 +893,15 @@ model Staff {
   cashClosures CashClosure[]
   workspace    WorkspaceConfig?
 
-  passwordResets PasswordReset[]
-  marks          Attendance[]    @relation("MarcajesDeLaPersona")
-  deals          Deal[]          @relation("OportunidadesDeLaPersona")
-  followUps      FollowUp[]      @relation("SeguimientosDeLaPersona")
-  novelties      Novelty[]       @relation("NovedadesDeLaPersona")
-  locationPings  LocationPing[]  @relation("UbicacionesDeLaPersona")
-  siteVisits     SiteVisit[]     @relation("VisitasDeLaPersona")
-  activities     StaffActivity[]
+  passwordResets    PasswordReset[]
+  marks             Attendance[]       @relation("MarcajesDeLaPersona")
+  deals             Deal[]             @relation("OportunidadesDeLaPersona")
+  followUps         FollowUp[]         @relation("SeguimientosDeLaPersona")
+  novelties         Novelty[]          @relation("NovedadesDeLaPersona")
+  locationPings     LocationPing[]     @relation("UbicacionesDeLaPersona")
+  siteVisits        SiteVisit[]        @relation("VisitasDeLaPersona")
+  activities        StaffActivity[]
+  appointmentEvents AppointmentEvent[]
 
   /// Lavadero: vehiculos que esta persona lava (rol lavador).
   washJobsAsignados WashJob[]          @relation("LavadorAsignado")
@@ -1066,10 +1075,43 @@ model Appointment {
 
   sale    Sale?
   washJob WashJob?
+  events  AppointmentEvent[]
 
   @@unique([userId, staffId, day, startTime])
   @@index([userId, day])
   @@index([userId, staffId, day])
+}
+
+/// Lo que pasa con una cita despues de separada: la clienta llego, no llego o
+/// le cambiaron el dia o la hora. Lo marca la manicurista de MB Nails desde sus
+/// citas (y la dueña cuando la mueve en la Agenda). La dueña lo ve en la Agenda
+/// y en el inicio, y le llega al celular. Ver lib/novedades-cita.ts.
+model AppointmentEvent {
+  id            String               @id @default(cuid())
+  userId        String
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Si borran la cita, la novedad queda con la copia de los datos.
+  appointmentId String?
+  appointment   Appointment?         @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  staffId       String?
+  staff         Staff?               @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  /// Quien la marco (copia, por si la sacan del equipo).
+  staffName     String
+  /// La marco la dueña: cuenta para el total, pero no se le avisa a ella misma.
+  byOwner       Boolean              @default(false)
+  kind          AppointmentEventKind
+  clientName    String
+  serviceName   String
+  /// Dia y hora que tenia la cita; en REPROGRAMADA, to* son los nuevos.
+  fromDay       String
+  fromTime      String
+  toDay         String?
+  toTime        String?
+  createdAt     DateTime             @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, fromDay])
+  @@index([appointmentId])
 }
 
 /// Cuenta abierta / mesa / pedido (restaurante y comidas rapidas).

@@ -9,9 +9,11 @@ import { buildSlots, isWorkDay, workDaysArray } from "@/lib/slots";
 import { aCampo, money, pasoMoneda, pretty12h, prettyDay } from "@/lib/format";
 import { confirmMessage, toInternational, waLink } from "@/lib/whatsapp";
 import { WEEKDAYS } from "@/lib/timezones";
-import { Card, Empty, PageHeader, Stat, StatusBadge } from "@/components/ui";
+import { Badge, Card, Empty, PageHeader, Stat, StatusBadge } from "@/components/ui";
 import { esMbNails } from "@/lib/mb-nails";
+import { cuandoPaso, etiquetaEnCita, novedadesRecientes, resumenDeCitas, resumenEnPalabras } from "@/lib/novedades-cita";
 import { EditarCita } from "@/components/EditarCita";
+import { ESTILO_NOVEDAD, NovedadesCitas } from "@/components/NovedadesCitas";
 import { Icon } from "@/components/Icon";
 import { CopyLink } from "@/components/CopyLink";
 import { NewAppointmentForm } from "@/components/NewAppointmentForm";
@@ -99,6 +101,38 @@ export default async function TurnosPage({
   });
 
   const sinBarbero = appointments.filter((a) => !a.staffId && a.status !== "CANCELADO").length;
+
+  // MB Nails: lo que marcaron las manicuristas en cada cita, cuantas se
+  // perdieron y cuantas se reprogramaron (ver lib/novedades-cita.ts).
+  const novedadesMb = mb
+    ? await Promise.all([
+        db.appointmentEvent.findMany({
+          where: { userId: user.id, appointmentId: { in: visible.map((a) => a.id) } },
+          orderBy: { createdAt: "asc" },
+          select: {
+            id: true,
+            appointmentId: true,
+            kind: true,
+            staffName: true,
+            clientName: true,
+            serviceName: true,
+            fromDay: true,
+            fromTime: true,
+            toDay: true,
+            toTime: true,
+            createdAt: true,
+          },
+        }),
+        resumenDeCitas(user.id, day, day, filterId || undefined),
+        resumenDeCitas(user.id, addDays(today, -29), today),
+        novedadesRecientes(user.id, new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), 10),
+      ])
+    : null;
+  const novedadesPorCita = new Map<string, NonNullable<typeof novedadesMb>[0]>();
+  for (const n of novedadesMb?.[0] ?? []) {
+    if (n.appointmentId) novedadesPorCita.set(n.appointmentId, [...(novedadesPorCita.get(n.appointmentId) ?? []), n]);
+  }
+  const sinCobrar = visible.filter((a) => a.status === "ATENDIDO" && !a.sale).length;
 
   const workDayNames = workDaysArray(user.workDays)
     .map((d) => WEEKDAYS.find((w) => w.value === d)?.short ?? "")
@@ -204,6 +238,40 @@ export default async function TurnosPage({
           tone="good"
         />
       </div>
+
+      {novedadesMb && (
+        <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4" data-resumen-citas>
+          <Stat
+            label="No llegaron"
+            value={String(novedadesMb[1].perdidas)}
+            hint="Citas perdidas del día"
+            tone={novedadesMb[1].perdidas > 0 ? "bad" : "default"}
+          />
+          <Stat
+            label="Reprogramadas"
+            value={String(novedadesMb[1].reprogramadas)}
+            hint="Eran para este día y cambiaron"
+            tone={novedadesMb[1].reprogramadas > 0 ? "amber" : "default"}
+          />
+          <Stat
+            label="Llegaron sin cobrar"
+            value={String(sinCobrar)}
+            hint="Cóbralas abajo con Cerrar venta"
+            tone={sinCobrar > 0 ? "amber" : "default"}
+          />
+          <Stat label="Canceladas" value={String(novedadesMb[1].canceladas)} />
+        </div>
+      )}
+
+      {novedadesMb && (
+        <NovedadesCitas
+          className="mt-3"
+          novedades={novedadesMb[3]}
+          hoy={today}
+          zona={user.timezone}
+          subtitulo={"Últimos 30 días: " + resumenEnPalabras(novedadesMb[2])}
+        />
+      )}
 
       {/* Medicion del dia por barbero */}
       {varios && !filterId && (
@@ -404,9 +472,28 @@ export default async function TurnosPage({
                           {a.serviceName} - {money(a.price, user.currency)}
                         </p>
                         {a.notes && <p className="mt-1 text-xs italic text-muted">{a.notes}</p>}
+                        {(novedadesPorCita.get(a.id) ?? []).length > 0 && (
+                          <ul className="mt-2 space-y-1" data-novedades-cita>
+                            {(novedadesPorCita.get(a.id) ?? []).map((n) => (
+                              <li key={n.id} className="flex items-start gap-1.5 text-xs text-body">
+                                <span
+                                  className={
+                                    "mt-px flex h-4 w-4 shrink-0 items-center justify-center rounded-full " + ESTILO_NOVEDAD[n.kind].tono
+                                  }
+                                >
+                                  <Icon name={ESTILO_NOVEDAD[n.kind].icon} className="h-2.5 w-2.5" />
+                                </span>
+                                <span>
+                                  {etiquetaEnCita(n, today)} · {cuandoPaso(n.createdAt, user.timezone, today)}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
                       </div>
                       <div className="flex flex-col items-end gap-2">
                         <StatusBadge status={a.status} />
+                        {mb && a.status === "ATENDIDO" && !a.sale && <Badge tone="amber">Falta cobrar</Badge>}
                         {a.staffName ? (
                           <span className="flex items-center gap-1.5 text-xs font-semibold text-body">
                             <span

@@ -8,6 +8,8 @@ import { money, pretty12h, prettyDay, shortDay } from "@/lib/format";
 import { filtroDeSeguimientos } from "@/lib/crm-filas";
 import { esEmpleadoDeAsistencia, esLavadorDeLavadero } from "@/lib/permisos";
 import { esManicuristaDeMbNails, esMbNails } from "@/lib/mb-nails";
+import { novedadesRecientes, resumenDeCitas, resumenEnPalabras } from "@/lib/novedades-cita";
+import { NovedadesCitas } from "@/components/NovedadesCitas";
 import { esDueno, ROLES_QUE_LAVAN } from "@/lib/permisos-empleado";
 import { ResumenAsistencia } from "@/components/ResumenAsistencia";
 import { BUSINESS_LABEL, ITEM_NOUN } from "@/lib/nav";
@@ -154,6 +156,16 @@ export default async function PanelHomePage() {
       ? resumenParqueo
       : null;
 
+  // MB Nails: lo que marcaron las manicuristas (llegó, no llegó, cambió la
+  // hora) y como van las citas de hoy. Ver lib/novedades-cita.ts.
+  const novedadesMb =
+    mbNails && isBarber
+      ? await Promise.all([
+          novedadesRecientes(user.id, new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), 6),
+          resumenDeCitas(user.id, today, today),
+        ])
+      : null;
+
   // Lo que hay que hacer hoy con los clientes. Sale solo si hay algo: quien no
   // usa el CRM no tiene por que ver un cuadro vacio.
   const deQuien = { userId: user.id, doneAt: null, dueDay: { lte: today }, ...filtroDeSeguimientos(me) };
@@ -282,11 +294,11 @@ export default async function PanelHomePage() {
           tone={summary.netTotal >= 0 ? "good" : "bad"}
         />
         <Stat
-          label={isBarber ? "Cortes cobrados" : isClothing ? "Prendas vendidas" : "Items vendidos"}
+          label={mbNails && isBarber ? "Servicios cobrados" : isBarber ? "Cortes cobrados" : isClothing ? "Prendas vendidas" : "Items vendidos"}
           value={String(summary.itemsSold)}
           hint={
             isBarber
-              ? attended.length + " turnos atendidos"
+              ? attended.length + (mbNails ? " citas atendidas" : " turnos atendidos")
               : "Ticket promedio " + money(summary.ticketAverage, user.currency)
           }
         />
@@ -362,6 +374,24 @@ export default async function PanelHomePage() {
             </div>
           ))}
         </div>
+      )}
+
+      {novedadesMb && (
+        <NovedadesCitas
+          className="mt-4"
+          novedades={novedadesMb[0]}
+          hoy={today}
+          zona={user.timezone}
+          abrirAgenda
+          subtitulo={
+            "Hoy: " +
+            resumenEnPalabras({
+              llegaron: novedadesMb[1].llegaron,
+              perdidas: novedadesMb[1].perdidas,
+              reprogramadas: novedadesMb[1].reprogramadas,
+            })
+          }
+        />
       )}
 
       {parqueo && (

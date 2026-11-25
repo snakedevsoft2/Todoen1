@@ -6,10 +6,12 @@
  *      manicuristas, pasa cada producto a su categoria y agrega lo que falta;
  *   2. su inicio tiene Agendar cita y Vender; en la Agenda edita una cita
  *      (dia, hora y quien la atiende) y llega al horario;
- *   3. la manicurista entra solo con su usuario a Citas: agenda, cierra con
- *      adicionales, reprograma; vende sin cita por categoria; ve las clientas
- *      y la lista de precios sin poder cambiarla;
- *   4. otra barberia sigue igual.
+ *   3. la manicurista entra solo con su usuario a Citas: ve solo sus citas
+ *      (nombre, hora y servicio; ni plata, ni telefonos, ni las de las demas)
+ *      y marca Llegó, No llegó y Cambiar hora; nada mas en su menu;
+ *   4. la dueña ve lo que marco cada una en la Agenda y en el inicio, con
+ *      cuantas no llegaron y cuantas se reprogramaron;
+ *   5. otra barberia sigue igual.
  *
  * Antes: docker start ten-pg, y la app en localhost:3000 (npm run dev).
  * Despues: node scripts/verificar-mb-nails.mjs   (SHOT=carpeta para capturas)
@@ -165,7 +167,7 @@ try {
   const ana = await cita(jessica, "Ana Cliente", hoy, "10:00");
   const beatriz = await cita(jessica, "Beatriz Cliente", masDias(hoy, 1), "15:00");
   const carla = await cita(paola, "Carla Ajena", hoy, "10:00");
-  await db.customer.create({ data: { userId: mb.id, name: "Fernanda Clienta", phone: "3201112233" } });
+  const diana = await cita(jessica, "Diana Cliente", masDias(hoy, -1), "16:00");
   await d.goto(BASE + "/panel/turnos", { waitUntil: "networkidle" });
   const agenda = await d.locator("body").innerText();
   ok(/manicurista/i.test(agenda) && !/barbero|barber[ií]a/i.test(agenda), "la agenda habla de manicuristas", (agenda.match(/.{0,40}barber.{0,40}/i) ?? [""])[0]);
@@ -193,93 +195,93 @@ try {
   await p.click('button[type="submit"]');
   await p.waitForURL(/\/panel\/mis-citas/, { timeout: 60000 }).catch(() => null);
   ok(p.url().endsWith("/panel/mis-citas"), "llega directo a sus citas", p.url());
-  const texto = await p.locator("body").innerText();
-  ok(texto.includes("Ana Cliente") && texto.includes("Beatriz Cliente") && !texto.includes("Carla Ajena"), "ve solo sus citas");
-  ok((await p.locator("[data-boton-agendar]").count()) === 1 && (await p.locator("[data-boton-vender]").count()) === 1, "arriba tiene Agendar cita y Vender");
-  const menu = (await p.locator("nav a").allInnerTexts()).join(" | ");
-  ok(/Citas/.test(menu) && /Vender/.test(menu) && /Clientas/.test(menu) && /Precios/.test(menu) && !/Ventas|Caja|Gastos|Reportes/.test(menu), "su menú: Citas, Vender, Clientas, Precios y Perfil", menu);
-  await p.goto(BASE + "/panel/catalogo", { waitUntil: "networkidle" });
-  ok(p.url().endsWith("/panel/mis-citas"), "no entra al catálogo donde se cambian precios", p.url());
+  const texto = await p.locator("main").innerText();
+  ok(texto.includes("Ana Cliente") && texto.includes("Beatriz Cliente") && texto.includes("Diana Cliente") && !texto.includes("Carla Ajena"), "ve solo sus citas");
+  ok(texto.includes("ESMALTADO SEMIPERMANENTE MANOS") && /10:00 am/.test(texto), "ve el servicio y la hora");
+  ok(!/\$|45\.000|3001234567/.test(texto), "no ve plata, precios ni teléfonos", (texto.match(/.{0,30}(\$|45\.000|3001234567).{0,30}/) ?? [""])[0]);
+  ok((await p.locator("[data-boton-agendar], [data-boton-vender], [data-boton-cerrada]").count()) === 0, "no agenda, no vende, no cobra");
+  const menu = (await p.locator("nav a").allInnerTexts()).map((t) => t.trim()).filter(Boolean);
+  ok(menu.every((t) => /^(Citas|Perfil)$/i.test(t)) && menu.includes("Citas"), "su menú: solo Citas y Perfil", menu.join(" | "));
+  for (const ruta of ["/panel/catalogo", "/panel/turnos", "/panel/ventas", "/panel/clientes", "/panel/caja"]) {
+    await p.goto(BASE + ruta, { waitUntil: "networkidle" });
+    ok(p.url().endsWith("/panel/mis-citas"), "no entra a " + ruta, p.url());
+  }
+  // Lo que tenian antes (Vender, Precios, Clientas) ya no existe.
+  for (const ruta of ["/panel/mecato", "/panel/precios", "/panel/clientas"]) {
+    const r = await p.goto(BASE + ruta, { waitUntil: "networkidle" });
+    ok(r?.status() === 404 || p.url().endsWith("/panel/mis-citas"), ruta + " ya no existe", String(r?.status()));
+  }
+  await p.goto(BASE + "/panel/mis-citas", { waitUntil: "networkidle" });
+  const tBea = p.locator('[data-cita="Beatriz Cliente"]');
+  ok((await tBea.locator("[data-llego], [data-no-llego]").count()) === 0 && (await tBea.locator("[data-boton-cambiar-hora]").count()) === 1, "la de mañana solo se cambia de hora");
+  ok(await sinDesborde(p), "sus citas no se salen de la pantalla");
   if (DIR) await p.screenshot({ path: DIR + "/mb-mis-citas.png", fullPage: true });
 
-  console.log("\n4. Cerrada, con adicionales");
-  const coca = de("COCA COLA 400ML");
-  const tAna = p.locator('[data-cita="Ana Cliente"]');
-  await tAna.locator("[data-boton-cerrada]").click();
-  await tAna.locator("[data-elegir-adicional]").selectOption(coca.id);
-  await tAna.locator("[data-agregar-de-lista]").click();
-  await tAna.locator("[data-otro-nombre]").fill("Decorado");
-  await tAna.locator("[data-otro-valor]").fill("10");
-  await tAna.locator("[data-agregar-otro]").click();
-  ok(/58\.500/.test(await tAna.locator("[data-total-cita]").innerText()), "el total es 45.000 + 3.500 + 10.000");
-  p.once("dialog", (dlg) => dlg.accept());
-  await tAna.getByRole("button", { name: /Guardar como cerrada/ }).click();
-  const venta = await esperar(() => db.sale.findFirst({ where: { appointmentId: ana.id }, include: { items: true } }));
-  ok(venta?.total === 58500 && venta?.staffId === jessica.id && venta?.items.length === 3, "venta por 58.500 a su nombre, con 3 renglones");
-  await p.waitForSelector('[data-cerrada="Ana Cliente"]', { timeout: 20000 }).catch(() => null);
-  ok((await p.locator('[data-cerrada="Ana Cliente"]').count()) === 1, "sale en Cerradas hoy (sin pantalla en blanco)");
+  console.log("\n4. Llegó");
+  await p.locator('[data-cita="Ana Cliente"] [data-llego] button').click();
+  const llego = await esperar(async () => {
+    const a = await db.appointment.findUnique({ where: { id: ana.id } });
+    return a.status === "ATENDIDO" ? a : null;
+  });
+  ok(Boolean(llego), "Ana quedó como que llegó");
+  const nLlego = await db.appointmentEvent.findFirst({ where: { appointmentId: ana.id, kind: "LLEGO" } });
+  ok(nLlego?.staffName === "Jessica Gaitan" && nLlego?.byOwner === false, "quedó la novedad a nombre de Jessica");
+  ok((await db.sale.count({ where: { appointmentId: ana.id } })) === 0, "no se cobró nada: eso lo hace la dueña");
+  await p.waitForSelector('[data-llego-hoy="Ana Cliente"]', { timeout: 20000 }).catch(() => null);
+  ok((await p.locator('[data-llego-hoy="Ana Cliente"]').count()) === 1, "sale en Llegaron hoy (sin pantalla en blanco)");
 
-  console.log("\n5. Reprogramada");
+  console.log("\n5. No llegó (la de ayer, sin marcar)");
+  ok(/Sin marcar/i.test(await p.locator("main").innerText()), "la de ayer sale como Sin marcar");
+  p.once("dialog", (dlg) => dlg.accept());
+  await p.locator('[data-cita="Diana Cliente"] [data-no-llego] button').click();
+  const noVino = await esperar(async () => {
+    const a = await db.appointment.findUnique({ where: { id: diana.id } });
+    return a.status === "NO_ASISTIO" ? a : null;
+  });
+  ok(Boolean(noVino) && (await db.appointmentEvent.count({ where: { appointmentId: diana.id, kind: "NO_LLEGO" } })) === 1, "Diana quedó como que no llegó, con su novedad");
+  const siLlego = p.locator('[data-cita="Diana Cliente"] [data-llego] button', { hasText: "Sí llegó" });
+  await siLlego.waitFor({ timeout: 20000 }).catch(() => null);
+  ok((await siLlego.count()) === 1, "puede corregirlo con Sí llegó");
+
+  console.log("\n6. Cambiar hora");
   const pasado = masDias(hoy, 2);
-  const tBea = p.locator('[data-cita="Beatriz Cliente"]');
-  await tBea.locator("[data-boton-reprogramada]").click();
-  await tBea.locator('input[name="day"]').fill(pasado);
-  await tBea.locator('select[name="startTime"]').selectOption("11:00");
-  await tBea.getByRole("button", { name: /Guardar nueva fecha/ }).click();
+  await tBea.locator("[data-boton-cambiar-hora]").click();
+  await tBea.locator('[data-cambiar-hora] input[name="day"]').fill(pasado);
+  await tBea.locator('[data-cambiar-hora] select[name="startTime"]').selectOption("11:00");
+  await tBea.getByRole("button", { name: /Guardar nueva hora/ }).click();
   const bea = await esperar(async () => {
     const a = await db.appointment.findUnique({ where: { id: beatriz.id } });
     return a.day === pasado ? a : null;
   });
-  ok(bea?.startTime === "11:00" && /Reprogramada/.test(bea?.notes ?? ""), "quedó para pasado mañana a las 11:00, con la nota");
+  ok(bea?.startTime === "11:00", "quedó para pasado mañana a las 11:00");
+  const nMovida = await db.appointmentEvent.findFirst({ where: { appointmentId: beatriz.id, kind: "REPROGRAMADA" } });
+  ok(
+    nMovida?.fromDay === masDias(hoy, 1) && nMovida?.fromTime === "15:00" && nMovida?.toDay === pasado && nMovida?.toTime === "11:00",
+    "la novedad guarda la hora de antes y la nueva"
+  );
 
-  console.log("\n6. Clientas: ve la lista y agenda desde ahí");
-  await p.goto(BASE + "/panel/clientas", { waitUntil: "networkidle" });
-  ok((await p.locator('[data-clienta="Fernanda Clienta"]').count()) === 1, "ve a las clientas del negocio");
-  await p.fill('input[name="q"]', "fern");
-  await p.getByRole("button", { name: /Buscar/ }).click();
-  await p.waitForURL(/q=fern/, { timeout: 20000 });
-  ok((await p.locator("[data-clienta]").count()) === 1, "busca por nombre");
-  await p.locator('[data-clienta="Fernanda Clienta"] [data-agendar-clienta]').click();
-  await p.waitForURL(/mis-citas\?agendar=1/, { timeout: 20000 });
-  const fAg = p.locator("[data-agendar-cita]");
-  ok((await fAg.locator('input[name="clientName"]').inputValue()) === "Fernanda Clienta", "Agendar abre con la clienta ya escrita");
-  await fAg.locator('select[name="serviceId"]').selectOption(de("CEJAS").id);
-  ok((await fAg.locator('select[name="serviceId"] option').allInnerTexts()).every((t) => !/Chokis|Coca/i.test(t)), "para agendar no sale el mecato");
-  await fAg.locator('input[name="day"]').fill(pasado);
-  const horas = await fAg.locator('select[name="startTime"] option').evaluateAll((os) => os.map((o) => o.value));
-  ok(!horas.includes("11:00") && horas.includes("16:00"), "la hora que ya tiene ocupada sale bloqueada");
-  await fAg.locator('select[name="startTime"]').selectOption("16:00");
-  await fAg.getByRole("button", { name: /Guardar cita/ }).click();
-  const nueva = await esperar(() => db.appointment.findFirst({ where: { userId: mb.id, clientName: "Fernanda Clienta" } }));
-  ok(nueva?.staffId === jessica.id && nueva?.day === pasado && nueva?.startTime === "16:00" && nueva?.serviceName === "CEJAS", "quedó agendada a su nombre");
+  console.log("\n7. La dueña lo ve todo");
+  await d.goto(BASE + "/panel/turnos", { waitUntil: "networkidle" });
+  const novedades = await d.locator("[data-novedades]").innerText();
+  ok(/Jessica Gaitan marcó que llegó Ana Cliente/.test(novedades), "ve que llegó Ana", novedades);
+  ok(/Diana Cliente no llegó/.test(novedades) && /cambió la cita de Beatriz Cliente/.test(novedades), "ve que Diana no llegó y que movieron la de Beatriz");
+  ok(!/Carla/.test(novedades), "lo que movió ella misma no le sale como novedad");
+  const resumen = (await d.locator("[data-resumen-citas]").innerText()).replace(/\s+/g, " ");
+  ok(/Reprogramadas 1/i.test(resumen) && /Llegaron sin cobrar 1/i.test(resumen), "hoy: 1 reprogramada (la de Carla) y 1 sin cobrar", resumen);
+  const tAnaD = d.locator("li").filter({ hasText: "Ana Cliente" }).filter({ has: d.locator("[data-novedades-cita]") }).first();
+  const anaD = await tAnaD.innerText();
+  ok(/Llegó · marcó Jessica Gaitan/.test(anaD) && /Falta cobrar/i.test(anaD), "en la cita de Ana: quién marcó que llegó y que falta cobrar", anaD);
+  ok(/3001234567/.test(anaD) && /45\.000/.test(anaD), "la dueña sí ve el teléfono y el precio");
+  ok(await sinDesborde(d), "la agenda sigue sin salirse de la pantalla");
+  if (DIR) await d.screenshot({ path: DIR + "/mb-agenda-novedades.png", fullPage: true });
+  await d.goto(BASE + "/panel/turnos?d=" + masDias(hoy, -1), { waitUntil: "networkidle" });
+  ok(/No llegaron\s*1/i.test(await d.locator("[data-resumen-citas]").innerText()), "ayer: 1 no llegó");
+  await d.goto(BASE + "/panel", { waitUntil: "networkidle" });
+  const inicio = await d.locator("[data-novedades]").innerText().catch(() => "");
+  ok(/Ana Cliente/.test(inicio) && /Diana Cliente/.test(inicio) && /Beatriz Cliente/.test(inicio), "en su inicio están las novedades");
+  if (DIR) await d.screenshot({ path: DIR + "/mb-inicio-duena.png", fullPage: true });
 
-  console.log("\n7. Vender sin cita, por categoría");
-  await p.goto(BASE + "/panel/mecato", { waitUntil: "networkidle" });
-  const cats = (await p.locator("[data-categoria]").allInnerTexts()).map((c) => c.trim());
-  ok(cats.slice(0, 2).join(",") === "Bebidas,Mecato" && cats.includes("UÑAS") && cats.includes("Depilación con cera"), "cada categoría por separado: primero Bebidas y Mecato", cats.join(" | "));
-  await p.locator('[data-categoria="Bebidas"]').click();
-  await p.locator('[data-producto="COCA COLA 400ML"] [data-sumar]').click();
-  await p.locator('[data-producto="COCA COLA 400ML"] [data-sumar]').click();
-  await p.locator('[data-categoria="Mecato"]').click();
-  await p.locator('[data-producto="Chokis"] [data-sumar]').click();
-  ok(/9\.000/.test(await p.locator("[data-total-mecato]").innerText()), "total 2 × 3.500 + 2.000");
-  await p.locator('[data-cobrar-mecato] input[name="clientName"]').fill("Elena");
-  p.once("dialog", (dlg) => dlg.accept());
-  await p.getByRole("button", { name: /Guardar venta/ }).click();
-  const vendida = await esperar(() => db.sale.findFirst({ where: { userId: mb.id, clientName: "Elena" }, include: { items: true } }));
-  ok(vendida?.total === 9000 && vendida?.staffId === jessica.id && vendida?.appointmentId === null, "la venta quedó a su nombre, sin cita");
-  await p.waitForSelector("[data-vendido]", { timeout: 20000 }).catch(() => null);
-  ok((await p.locator("[data-vendido]").count()) === 1, "sale en Vendido hoy sin cita");
-  ok(await sinDesborde(p), "Vender no se sale de la pantalla");
-  if (DIR) await p.screenshot({ path: DIR + "/mb-vender.png", fullPage: true });
-
-  console.log("\n8. Precios: se ven, no se cambian");
-  await p.goto(BASE + "/panel/precios", { waitUntil: "networkidle" });
-  const precios = (await p.locator("[data-lista-precios]").allInnerTexts()).join(" ");
-  ok(precios.includes("Chokis") && precios.includes("3.500"), "ve la lista con sus precios");
-  ok((await p.locator("[data-lista-precios] input, [data-lista-precios] button, main form").count()) === 0, "no hay dónde cambiar un precio");
-
-  console.log("\n9. Otra barbería sigue igual");
+  console.log("\n8. Otra barbería sigue igual");
   const o = await pagina();
   await o.fill('input[name="email"]', otra.staff.find((s) => s.name === "Andres").username);
   await o.click('button[type="submit"]');

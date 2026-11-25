@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireOwner } from "@/lib/auth";
-import { isValidDay } from "@/lib/dates";
+import { isValidDay, todayIn } from "@/lib/dates";
+import { anotarNovedad } from "@/lib/novedades-cita";
 import { buildSlots, endTimeFor } from "@/lib/slots";
 import { pretty12h, shortDay, str, texto } from "@/lib/format";
 import { anotarActividad } from "@/lib/actividad";
@@ -75,6 +76,17 @@ export async function editarCitaAction(_prev: EditarCitaState, formData: FormDat
       return { error: "Esa hora tiene una cita cancelada de " + persona.name + " que la ocupa. Bórrala o escoge otra hora." };
     }
     throw e;
+  }
+
+  // Si cambio el dia o la hora, cuenta como reprogramada (sin avisarle a ella misma).
+  if (day !== cita.day || startTime !== cita.startTime) {
+    await anotarNovedad(
+      user,
+      { id: yo.id, name: yo.name, esDuena: true },
+      { id: cita.id, clientName, serviceName: servicio?.name ?? cita.serviceName },
+      { kind: "REPROGRAMADA", fromDay: cita.day, fromTime: cita.startTime, toDay: day, toTime: startTime },
+      todayIn(user.timezone)
+    );
   }
 
   const cuando = shortDay(day) + " " + pretty12h(startTime);

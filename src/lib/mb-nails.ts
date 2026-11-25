@@ -7,13 +7,16 @@ import { normalizar } from "./orden-productos";
  * manicuristas, no barberos.
  *
  * Sus manicuristas (rol BARBERO en la base) no ven el negocio completo: entran
- * con su usuario, sin contraseña, como cualquier empleado, y solo ven sus
- * citas, con dos botones -Cerrada (cobra el servicio y lo adicional) y
- * Reprogramada- y Agendar cita; Vender sin cita (servicios, bebidas, mecato,
- * cada categoria por separado); las clientas del negocio, solo para consultar
- * y agendarles; la lista de precios sin poder cambiarla y su perfil. Es el
- * mismo esquema del lavador del lavadero (ver lib/permisos.ts): menu fijo y
- * cualquier otra direccion las devuelve a sus citas.
+ * con su usuario, sin contraseña, y solo ven SUS citas -el nombre de la
+ * clienta, el dia, la hora y el servicio- y su perfil. Ni plata, ni precios,
+ * ni telefonos, ni las citas de las demas. En cada cita marcan Llegó, No llegó
+ * o Cambiar hora (lo unico que pueden cambiar es el dia y la hora), y cada
+ * cosa le llega a la dueña al celular y queda en su Agenda
+ * (lib/novedades-cita.ts). Lo pidio el usuario el 24 nov 2026; antes cobraban,
+ * vendian y agendaban (commit 27390be).
+ *
+ * Es el mismo esquema del lavador del lavadero (ver lib/permisos.ts): menu
+ * fijo y cualquier otra direccion las devuelve a sus citas.
  */
 
 export function esMbNails(nombreNegocio: string | null | undefined): boolean {
@@ -30,11 +33,12 @@ export function esManicuristaDeMbNails(
 // Una palabra por apartado: el menu de abajo del celular muestra solo la primera.
 export const MENU_MANICURISTA: NavItem[] = [
   { href: "/panel/mis-citas", label: "Citas", icon: "calendar" },
-  { href: "/panel/mecato", label: "Vender", icon: "receipt" },
-  { href: "/panel/clientas", label: "Clientas", icon: "users" },
-  { href: "/panel/precios", label: "Precios", icon: "tag" },
   { href: "/panel/perfil", label: "Perfil", icon: "user" },
 ];
+
+/** Lo que le llega al celular a la dueña de MB Nails (el boton de activarlas). */
+export const AVISOS_DUENA_MB =
+  "Te avisamos al celular cada cita nueva, cuando una manicurista marca que la clienta llegó, que no llegó o le cambia la hora, y cada venta.";
 
 export function rutaDeManicurista(ruta: string): boolean {
   return MENU_MANICURISTA.some((i) => ruta === i.href || ruta.startsWith(i.href + "/"));

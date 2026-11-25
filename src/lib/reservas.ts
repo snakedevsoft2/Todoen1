@@ -5,6 +5,9 @@ import { buildSlots, endTimeFor, isWorkDay } from "./slots";
 import { money, pretty12h, prettyDay } from "./format";
 import { bookingMessage, isProvider, normalizePhone, sendWhatsapp } from "./whatsapp";
 import { anotarCliente, type Origen } from "./clientes";
+import { esMbNails } from "./mb-nails";
+import { avisoDeCitaNueva } from "./novedades-cita";
+import { avisarAlDueno } from "./push";
 
 /**
  * Separar un turno en la agenda.
@@ -234,6 +237,12 @@ export async function reservarTurno(shop: NegocioSinImagenes, d: DatosReserva, o
     } catch {
       // Si ni siquiera se puede guardar el historial, seguimos: el turno ya quedo.
     }
+  }
+
+  // MB Nails: cada cita nueva le llega a la dueña al celular (ver
+  // lib/novedades-cita.ts). avisarAlDueno nunca lanza.
+  if (esMbNails(shop.businessName)) {
+    await avisarAlDueno(shop.id, avisoDeCitaNueva(created, today));
   }
 
   return {

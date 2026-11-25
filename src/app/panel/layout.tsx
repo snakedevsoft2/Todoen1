@@ -20,7 +20,7 @@ import { Shell } from "@/components/Shell";
 import { Icon } from "@/components/Icon";
 import { logoutAction } from "@/actions/auth";
 import { ThemeStyle } from "@/components/ThemeStyle";
-import { esManicuristaDeMbNails, esMbNails, MENU_MANICURISTA } from "@/lib/mb-nails";
+import { AVISOS_DUENA_MB, esManicuristaDeMbNails, esMbNails, MENU_MANICURISTA } from "@/lib/mb-nails";
 import { RegistrarVisita } from "@/components/RegistrarVisita";
 import { PrepararSinConexion } from "@/components/PrepararSinConexion";
 import { AvisoSinConexion } from "@/components/AvisoSinConexion";
@@ -48,7 +48,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
 
   const empleado = esEmpleadoDeAsistencia(user, staff);
   const lavador = esLavadorDeLavadero(user, staff);
-  // La manicurista de MB Nails tambien tiene menu fijo: sus citas, los precios y su perfil.
+  // La manicurista de MB Nails tambien tiene menu fijo: sus citas y su perfil.
   const manicurista = esManicuristaDeMbNails(user, staff);
 
   // El menu sale del catalogo en base de datos, filtrado por el oficio, por el
@@ -106,7 +106,11 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   // telefono, solo avisan (ver public/sw-push.js).
   // A un empleado se le ofrecen si marca asistencia: siempre en el lavadero y
   // el gestor, y en otro negocio si el dueño le dejo "Marcar".
-  const avisosPush = queRecibe(staff.role, user.businessType, nav.some((i) => i.href === "/panel/marcar"));
+  // La dueña de MB Nails ademas recibe las novedades de las citas.
+  const avisosPush =
+    staff.role === "DUENO" && esMbNails(user.businessName)
+      ? AVISOS_DUENA_MB
+      : queRecibe(staff.role, user.businessType, nav.some((i) => i.href === "/panel/marcar"));
 
   const conPagina = tienePaginaPublica(user.businessType) && !empleado && !lavador && !manicurista;
 

@@ -206,9 +206,9 @@ export default async function EquipoPage() {
               </li>
               {mb ? (
                 <>
-                  <Punto>Solo ve sus citas, con dos botones: Cerrada (cobra el servicio y lo adicional) y Reprogramada.</Punto>
-                  <Punto>Ve la lista de precios, pero no la puede cambiar.</Punto>
-                  <Punto>Cada cita cerrada queda como venta a su nombre, y eso se ve en Reportes con su comisión.</Punto>
+                  <Punto>Solo ve sus citas: el nombre de la clienta, el día, la hora y el servicio. No ve plata, ni precios, ni teléfonos, ni las citas de las demás.</Punto>
+                  <Punto>En cada cita marca si la clienta llegó o no llegó, y le puede cambiar el día o la hora. Nada más.</Punto>
+                  <Punto>Cada cosa que marca te llega al celular y queda en la Agenda. Tú cobras la cita desde la Agenda con Cerrar venta.</Punto>
                 </>
               ) : asistencia ? (
                 <>
