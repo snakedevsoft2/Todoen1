@@ -3,7 +3,7 @@ import { enlaceActivarPlan, planDeCuenta } from "@/lib/plan";
 
 /**
  * El aviso al dueño sobre el estado de su cuenta: los primeros dias con todo,
- * las funciones que no estan activas, o la cuenta por vencer o vencida.
+ * las funciones que no estan activas, o la cuenta por vencer.
  *
  * Los textos no hablan de cobros ni de planes: dicen que esta activo, hasta
  * cuando, y a quien escribir. Solo al dueño: el empleado no tiene que ver con
@@ -47,25 +47,21 @@ export function AvisoDePago({
     );
   }
 
+  // Ya vencida no sale esta franja: el panel queda tapado con la ventana de
+  // pago para todos (ver PagoVencido y bloqueoPorPago).
   const e = estadoDePago(paidUntil);
-  if (e.estado !== "por-vencer" && e.estado !== "vencida") return null;
-  const vencida = e.estado === "vencida";
+  if (e.estado !== "por-vencer") return null;
 
   return (
     <div
       data-aviso-pago={e.estado}
-      className={
-        "mb-3 flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2 text-[13px] " +
-        (vencida ? "border-bad/30 bg-surface text-bad" : "border-warn-line bg-warn-soft text-warn")
-      }
+      className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-warn-line bg-warn-soft px-3 py-2 text-[13px] text-warn"
     >
       <span className="min-w-0 flex-1">
-        {vencida
-          ? "Tu cuenta venció el " + fechaLarga(e.vence) + " y se desactiva el " + fechaLarga(e.suspendeEl) + ". Escríbenos para mantenerla activa."
-          : "Tu cuenta vence el " +
-            fechaLarga(e.vence) +
-            (e.dias <= 1 ? " (mañana)" : " (en " + e.dias + " días)") +
-            ". Escríbenos para mantenerla activa."}
+        {"Tu cuenta vence el " +
+          fechaLarga(e.vence) +
+          (e.dias <= 1 ? " (mañana)" : " (en " + e.dias + " días)") +
+          ". Escríbenos para mantenerla activa."}
       </span>
       {soporte}
     </div>

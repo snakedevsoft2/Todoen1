@@ -5,9 +5,10 @@ import { adminEmails, esAdmin } from "./admin-correos";
  * El control de pagos de las cuentas.
  *
  * Cada cuenta tiene hasta cuando esta pagada. Unos dias antes, el dueno ve el
- * aviso en su panel. Si vence, tiene unos dias de gracia con el aviso de
- * cuando se suspende; pasados esos dias, la cuenta se suspende sola: en el
- * envio diario, o en la siguiente pantalla que abra alguien de esa cuenta.
+ * aviso en su panel. Si vence, el panel queda tapado con la ventana de pago
+ * para el dueno y para todo el equipo (bloqueoPorPago) hasta que pague; si en
+ * los dias de gracia no paga, la cuenta se suspende sola: en el envio diario,
+ * o en la siguiente pantalla que abra alguien de esa cuenta.
  *
  * Registrar el pago mueve la fecha y, si la suspension fue por el pago, la
  * cuenta vuelve a quedar activa de una. Una suspension manual (por otro
@@ -49,6 +50,25 @@ export function estadoDePago(paidUntil: Date | null | undefined, ahora = new Dat
     return { estado: "vencida", vence: paidUntil, suspendeEl, dias: Math.ceil((suspendeEl.getTime() - ahora.getTime()) / DIA) };
   }
   return { estado: "suspender", vence: paidUntil };
+}
+
+/**
+ * Si el panel de esta cuenta queda tapado con la ventana de pago: ya vencio y
+ * no ha pagado. La ven el dueno y todo el equipo, no se cierra, y se quita
+ * sola cuando se registra el pago (la fecha se mueve). Pasada la gracia la
+ * cuenta se suspende y ya ni entra.
+ *
+ * La cuenta de quien administra la plataforma no se tapa nunca.
+ */
+export function bloqueoPorPago(
+  cuenta: { email: string; paidUntil: Date | null },
+  ahora = new Date()
+): { vence: Date; suspendeEl: Date } | null {
+  if (esAdmin(cuenta.email)) return null;
+  const e = estadoDePago(cuenta.paidUntil, ahora);
+  if (e.estado === "vencida") return { vence: e.vence, suspendeEl: e.suspendeEl };
+  if (e.estado === "suspender") return { vence: e.vence, suspendeEl: new Date(e.vence.getTime() + DIAS_DE_GRACIA * DIA) };
+  return null;
 }
 
 /** "14 de octubre de 2026", en la hora de Colombia. */

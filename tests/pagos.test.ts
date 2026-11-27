@@ -3,6 +3,7 @@ import { PrismaClient } from "@prisma/client";
 import {
   DIAS_DE_GRACIA,
   MOTIVO_PAGO,
+  bloqueoPorPago,
   cuentaPorFuera,
   estadoDePago,
   finDelDia,
@@ -168,5 +169,40 @@ describe("la cuenta del administrador", () => {
     process.env.ADMIN_EMAILS = admin.email.replace("@", "+otro@");
 
     expect(await cuentaPorFuera(admin)).toBe(true);
+  });
+});
+
+describe("la ventana fija de pago vencido", () => {
+  const antes = process.env.ADMIN_EMAILS;
+  afterAll(() => {
+    if (antes === undefined) delete process.env.ADMIN_EMAILS;
+    else process.env.ADMIN_EMAILS = antes;
+  });
+  const correo = "negocio@test.local";
+
+  it("no sale mientras el mes no ha vencido ni en cuentas sin fecha de pago", () => {
+    process.env.ADMIN_EMAILS = "otro@test.local";
+    expect(bloqueoPorPago({ email: correo, paidUntil: null })).toBeNull();
+    expect(bloqueoPorPago({ email: correo, paidUntil: enDias(20) })).toBeNull();
+    expect(bloqueoPorPago({ email: correo, paidUntil: enDias(2) })).toBeNull();
+  });
+
+  it("sale apenas vence, con la fecha en que se desactiva", () => {
+    process.env.ADMIN_EMAILS = "otro@test.local";
+    const vence = new Date(Date.now() - 60_000);
+    const b = bloqueoPorPago({ email: correo, paidUntil: vence });
+    expect(b?.vence.getTime()).toBe(vence.getTime());
+    expect(b?.suspendeEl.getTime()).toBe(vence.getTime() + DIAS_DE_GRACIA * DIA);
+    expect(bloqueoPorPago({ email: correo, paidUntil: enDias(-(DIAS_DE_GRACIA + 2)) })).not.toBeNull();
+  });
+
+  it("se quita en cuanto se registra el pago", () => {
+    process.env.ADMIN_EMAILS = "otro@test.local";
+    expect(bloqueoPorPago({ email: correo, paidUntil: sumarMeses(new Date(), 1) })).toBeNull();
+  });
+
+  it("no tapa nunca la cuenta del administrador", () => {
+    process.env.ADMIN_EMAILS = correo;
+    expect(bloqueoPorPago({ email: correo, paidUntil: enDias(-2) })).toBeNull();
   });
 });

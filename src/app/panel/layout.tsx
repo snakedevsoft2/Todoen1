@@ -25,6 +25,8 @@ import { RegistrarVisita } from "@/components/RegistrarVisita";
 import { PrepararSinConexion } from "@/components/PrepararSinConexion";
 import { AvisoSinConexion } from "@/components/AvisoSinConexion";
 import { AvisoDePago } from "@/components/AvisoDePago";
+import { PagoVencido } from "@/components/PagoVencido";
+import { bloqueoPorPago } from "@/lib/pagos";
 import { correoDeLaSesion, esAdmin } from "@/lib/admin";
 import { ProveedorSinSenal } from "@/components/SinSenal";
 import { SinPlanCompleto } from "@/components/SinPlanCompleto";
@@ -119,6 +121,12 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   // pagina no espera a WhatsApp ni al correo.
   after(() => enviarProgramados({ userId: user.id, limite: 20 }).then(() => undefined, () => undefined));
 
+  // El mes vencio y no ha pagado: el dueño y todo el equipo ven la ventana de
+  // pago en vez del panel, sin poder cerrarla, hasta que se registre el pago.
+  // Lo de instalar va igual, para que lo guardado en el telefono tambien quede
+  // con la ventana y no se pueda seguir usando sin senal.
+  const bloqueo = bloqueoPorPago(user);
+
   return (
     <>
       <ThemeStyle brandColor={user.brandColor} theme={user.theme} />
@@ -142,50 +150,69 @@ export default async function PanelLayout({ children }: { children: React.ReactN
       ) : (
         <SinPlanCompleto enlace={enlaceActivarPlan(user.businessName)} />
       )}
-      <Shell
-        nav={nav}
-        navGroups={navGroups}
-        businessName={user.businessName}
-        businessLabel={esMbNails(user.businessName) ? "Spa de uñas" : BUSINESS_LABEL[user.businessType]}
-        ownerName={staff.name}
-        roleLabel={etiquetaDeRol(staff.role, user.businessType)}
-        staffColor={staff.color}
-        fotoPerfil={foto}
-        menuPropio={staff.role === "DUENO"}
-        instalar={instalable}
-        notificaciones={avisosPush}
-        logo={logo}
-        bookingUrl={conPagina ? publicPath(user.businessType, user.slug) : undefined}
-        bookingLabel="Ver mi portafolio"
-        compartir={conPagina ? { ruta: publicPath(user.businessType, user.slug), qr: "/qr/" + user.slug, negocio: user.businessName } : undefined}
-        admin={esAdmin(correoDeLaSesion(sesion))}
-        logout={logout}
-      >
-        <AvisoSinConexion />
-        {/* Solo al dueño: es quien puede renovar el plan. */}
-        {!empleado && staff.role === "DUENO" && !esAdmin(user.email) && <AvisoDePago paidUntil={user.paidUntil} trialEndsAt={user.trialEndsAt} businessName={user.businessName} />}
-        {instalable && <InstalarApp variante="aviso" />}
-        {avisosPush && <ActivarNotificaciones variante="aviso" queRecibe={avisosPush} />}
-        <ProveedorSinSenal cuenta={staff.id} sinConexion={instalable} role={staff.role}>
-          {/* MB Nails: mientras no tenga la agenda, la dueña ve el atajo a Organizar. */}
-          {staff.role === "DUENO" && esMbNails(user.businessName) && user.businessType !== "BARBERIA" && (
-            <Link
-              href="/panel/organizar-mb"
-              className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-800"
-              data-aviso-organizar
-            >
-              <span>
-                <strong>Organiza MB Nails:</strong> agenda de citas, tus 5 manicuristas y cada producto en su categoría.
-              </span>
-              <span className="btn-primary btn-sm shrink-0">Organizar</span>
-            </Link>
-          )}
-          {children}
-        </ProveedorSinSenal>
-      </Shell>
-      {/* La IA Snake flotante: solo si el servidor tiene la clave del modelo, y
-          no para el empleado del gestor, que solo tiene sus pantallas. */}
-      {aiEnabled() && !empleado && !manicurista && <AsistenteFlotante sugerencias={SUGERENCIAS_IA[user.businessType]} />}
+      {bloqueo ? (
+        <PagoVencido
+          businessName={user.businessName}
+          dueno={staff.role === "DUENO"}
+          vence={bloqueo.vence}
+          suspendeEl={bloqueo.suspendeEl}
+          logout={
+            <form action={logoutAction}>
+              <button type="submit" className="btn-ghost btn-sm w-full justify-center">
+                <Icon name="logout" className="h-4 w-4" />
+                Cerrar sesión
+              </button>
+            </form>
+          }
+        />
+      ) : (
+        <>
+          <Shell
+            nav={nav}
+            navGroups={navGroups}
+            businessName={user.businessName}
+            businessLabel={esMbNails(user.businessName) ? "Spa de uñas" : BUSINESS_LABEL[user.businessType]}
+            ownerName={staff.name}
+            roleLabel={etiquetaDeRol(staff.role, user.businessType)}
+            staffColor={staff.color}
+            fotoPerfil={foto}
+            menuPropio={staff.role === "DUENO"}
+            instalar={instalable}
+            notificaciones={avisosPush}
+            logo={logo}
+            bookingUrl={conPagina ? publicPath(user.businessType, user.slug) : undefined}
+            bookingLabel="Ver mi portafolio"
+            compartir={conPagina ? { ruta: publicPath(user.businessType, user.slug), qr: "/qr/" + user.slug, negocio: user.businessName } : undefined}
+            admin={esAdmin(correoDeLaSesion(sesion))}
+            logout={logout}
+          >
+            <AvisoSinConexion />
+            {/* Solo al dueño: es quien puede renovar el plan. */}
+            {!empleado && staff.role === "DUENO" && !esAdmin(user.email) && <AvisoDePago paidUntil={user.paidUntil} trialEndsAt={user.trialEndsAt} businessName={user.businessName} />}
+            {instalable && <InstalarApp variante="aviso" />}
+            {avisosPush && <ActivarNotificaciones variante="aviso" queRecibe={avisosPush} />}
+            <ProveedorSinSenal cuenta={staff.id} sinConexion={instalable} role={staff.role}>
+              {/* MB Nails: mientras no tenga la agenda, la dueña ve el atajo a Organizar. */}
+              {staff.role === "DUENO" && esMbNails(user.businessName) && user.businessType !== "BARBERIA" && (
+                <Link
+                  href="/panel/organizar-mb"
+                  className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-800"
+                  data-aviso-organizar
+                >
+                  <span>
+                    <strong>Organiza MB Nails:</strong> agenda de citas, tus 5 manicuristas y cada producto en su categoría.
+                  </span>
+                  <span className="btn-primary btn-sm shrink-0">Organizar</span>
+                </Link>
+              )}
+              {children}
+            </ProveedorSinSenal>
+          </Shell>
+          {/* La IA Snake flotante: solo si el servidor tiene la clave del modelo, y
+              no para el empleado del gestor, que solo tiene sus pantallas. */}
+          {aiEnabled() && !empleado && !manicurista && <AsistenteFlotante sugerencias={SUGERENCIAS_IA[user.businessType]} />}
+        </>
+      )}
     </>
   );
 }

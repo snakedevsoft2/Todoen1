@@ -25,6 +25,7 @@
     "verificar:qa": "node scripts/verificar-qa.mjs",
     "verificar:asistencia": "node scripts/verificar-asistencia.mjs",
     "verificar:sin-conexion": "node scripts/verificar-sin-conexion.mjs",
+    "verificar:pago-vencido": "node scripts/verificar-pago-vencido.mjs",
     "verificar:informes": "node scripts/verificar-informes.mjs",
     "uso": "node scripts/reporte-uso.mjs",
     "verificar:acceso": "node scripts/verificar-acceso.mjs",
